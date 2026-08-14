@@ -16,6 +16,7 @@
 // Contract proto-scan already defines — cross-repo, when both are in the graph.
 // The consuming component is the import-graph rollup of the source file
 // (importgraph.ComponentForFile), so edges land on real component nodes.
+// This scanner reads .ts/.tsx/.js/.jsx only, so it declares "typescript".
 //
 // Boundary: observable usage only. No intent, no UI-role, no framework, no call
 // graph, no per-method consumption (v1 is service-level). Every contract carries
@@ -136,7 +137,7 @@ func ScanFile(path, repoRoot string) ([]Usage, error) {
 	if r, rerr := filepath.Rel(repoRoot, path); rerr == nil {
 		relPath = filepath.ToSlash(r)
 	}
-	consumer, ok := importgraph.ComponentForFile(relPath)
+	consumer, ok := importgraph.ComponentForFile(relPath, "typescript")
 	if !ok {
 		return nil, nil // file does not map to a component → cannot attribute
 	}

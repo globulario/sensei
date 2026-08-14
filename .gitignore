@@ -65,3 +65,7 @@ index.scip
 # stray go-build binaries (default output name = dir name)
 /golang/server/server
 bin/
+
+# live-store backups and scratch caches — never publishable (a 53MB live-graph
+# dump reached a PUBLIC repo this way, carrying private globular internals)
+.cache/

@@ -245,24 +245,65 @@ func dotSlug(rel string) string {
 	return strings.Join(parts, ".")
 }
 
-// ComponentForFile returns the Component id that a repo-relative source file
-// rolls up to, using the shared language-neutral rollup. ok=false for files
-// that do not map to a component (the repo root, or a file directly under a
-// source root). It lets sibling extractors attribute facts to the SAME
-// component ids this package emits, so their edges land on real component nodes.
-func ComponentForFile(relPath string) (id string, ok bool) {
-	id, _, ok = componentForDir(path.Dir(relPath))
+// componentGranularity says what counts as one unit of ownership, which is a
+// per-language question rather than a universal one.
+type componentGranularity int
+
+const (
+	// granularityManifestRoot: the unit is the directory holding the package
+	// manifest, and sources sit beneath it — crates/alpha/src/lib.rs belongs to
+	// crates/alpha, packages/app/src/index.ts to packages/app. Rolling up to the
+	// directory containing the file would invent a component per src/ folder.
+	granularityManifestRoot componentGranularity = iota
+	// granularityPackageDir: the directory containing the sources IS the
+	// package. True in Go by language definition.
+	granularityPackageDir
+)
+
+// granularityFor maps a language to its ownership unit. Unknown languages get
+// the conservative manifest-root rollup, which is what every language used
+// before per-package identity existed.
+func granularityFor(language string) componentGranularity {
+	if language == "go" {
+		return granularityPackageDir
+	}
+	return granularityManifestRoot
+}
+
+// ComponentForFile returns the Component id a repo-relative source file rolls
+// up to, so sibling extractors attribute facts to the SAME component ids this
+// package emits and their edges land on real component nodes.
+//
+// language is REQUIRED, not optional context: ownership granularity differs by
+// language, and a caller that guesses wrong silently attributes facts to a
+// component id that does not exist. A TypeScript file under packages/sdk/src
+// belongs to packages/sdk; a Go file under golang/architecture/rigor belongs to
+// golang/architecture/rigor. Unknown languages get the conservative
+// manifest-root rollup.
+func ComponentForFile(relPath, language string) (id string, ok bool) {
+	id, _, ok = componentForDir(path.Dir(relPath), granularityFor(language))
 	return id, ok
 }
 
-// componentForDir rolls a repo-relative directory up to its Component id +
-// canonical component directory. ok=false for paths that do not map to a
-// component (repo root, or a file directly in a source root).
-func componentForDir(dir string) (id, compDir string, ok bool) {
-	return componentForDirWithRoot(dir, nil)
+func componentForDir(dir string, g componentGranularity) (id, compDir string, ok bool) {
+	return componentForDirWithRoot(dir, nil, g)
 }
 
-func componentForDirWithRoot(dir string, root *RootComponent) (id, compDir string, ok bool) {
+// componentForDirWithRoot maps a repo-relative directory to its Component id.
+//
+// Under granularityPackageDir a component is the DIRECTORY ITSELF. The rule was
+// previously a fixed two-segment rollup for every language, which made
+// golang/architecture one component covering 77 distinct packages — every file
+// in that tree resolved to the same node, so the component layer carried no
+// discriminating information at all.
+//
+// Two segments remains correct for manifest-rooted languages, where the owned
+// unit is the crate or package directory and sources live under it. Applying
+// Go's rule there would split crates/alpha into crates/alpha/src.
+//
+// A file sitting directly in a source root (golang/foo.go) has no component in
+// either mode: the root is a layout convention, not an owned unit.
+func componentForDirWithRoot(dir string, root *RootComponent, g componentGranularity) (id, compDir string, ok bool) {
 	dir = filepath.ToSlash(dir)
 	if dir == "." || dir == "" {
 		if root != nil && root.ID != "" {
@@ -271,16 +312,16 @@ func componentForDirWithRoot(dir string, root *RootComponent) (id, compDir strin
 		return "", "", false
 	}
 	segs := strings.Split(dir, "/")
-	var compSegs []string
-	if knownSourceRoots[segs[0]] {
-		if len(segs) < 2 {
-			return "", "", false // e.g. a file directly in golang/ — no component
-		}
-		compSegs = segs[:2]
-	} else {
-		compSegs = segs[:1]
+	switch {
+	case knownSourceRoots[segs[0]] && len(segs) < 2:
+		return "", "", false // e.g. a file directly in golang/ — no component
+	case g == granularityPackageDir:
+		compDir = dir
+	case knownSourceRoots[segs[0]]:
+		compDir = strings.Join(segs[:2], "/")
+	default:
+		compDir = segs[0]
 	}
-	compDir = strings.Join(compSegs, "/")
 	id = "component." + dotSlug(compDir)
 	if id == "component." {
 		return "", "", false
@@ -331,7 +372,7 @@ func (a *agg) addEdge(edge, target string) {
 // .pb.go-only proto package) never yields a dangling dependsOn edge. Classifier
 // rule edges are NOT filtered — their targets may be hand-authored components
 // the importer merges in later.
-func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, known map[string]bool, root *RootComponent) {
+func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, known map[string]bool, root *RootComponent, gran componentGranularity) {
 	switch imp.Resolved {
 	case "stdlib", "unresolved", "":
 		return
@@ -343,7 +384,7 @@ func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, know
 		}
 	}
 	if imp.Resolved == "internal" {
-		if tid, _, ok := componentForDirWithRoot(imp.TargetPath, root); ok && tid != selfID && known[tid] {
+		if tid, _, ok := componentForDirWithRoot(imp.TargetPath, root, gran); ok && tid != selfID && known[tid] {
 			a.dependsOn[tid] = true
 		}
 		return
@@ -354,6 +395,7 @@ func (a *agg) classify(imp ImportFact, selfID string, rules []compiledRule, know
 // Scan runs the registered parser for language, rolls its facts up to
 // Components, applies the (language-filtered) classifier, and returns the Doc.
 func Scan(root, language string, cfg Config) (Doc, error) {
+	gran := granularityFor(language)
 	parse, ok := parsers[language]
 	if !ok {
 		return Doc{}, fmt.Errorf("importgraph: no parser registered for language %q (have %v)", language, Languages())
@@ -381,7 +423,7 @@ func Scan(root, language string, cfg Config) (Doc, error) {
 		return a
 	}
 	for _, f := range res.Files {
-		id, compDir, ok := componentForDirWithRoot(path.Dir(f.Path), res.RootComponent)
+		id, compDir, ok := componentForDirWithRoot(path.Dir(f.Path), res.RootComponent, gran)
 		if !ok {
 			continue
 		}
@@ -399,11 +441,11 @@ func Scan(root, language string, cfg Config) (Doc, error) {
 		known[id] = true
 	}
 	for _, imp := range res.Imports {
-		id, compDir, ok := componentForDirWithRoot(path.Dir(imp.SourceFile), res.RootComponent)
+		id, compDir, ok := componentForDirWithRoot(path.Dir(imp.SourceFile), res.RootComponent, gran)
 		if !ok {
 			continue
 		}
-		ensure(id, compDir).classify(imp, id, rules, known, res.RootComponent)
+		ensure(id, compDir).classify(imp, id, rules, known, res.RootComponent, gran)
 	}
 	return buildDoc(comps), nil
 }

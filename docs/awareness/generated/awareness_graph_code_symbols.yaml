@@ -19953,18 +19953,36 @@ test_symbols:
     package: importgraph
     language: go
     doc: "TestClassifier_LanguageFilter proves the classifier mechanism is\nlanguage-neutral: a typescript rule is NOT applied during a go scan, even\nbefore any TypeScript parser exists."
-  - id: golang/extractor/importgraph/importgraph_test.go:TestComponentForDir
+  - id: golang/extractor/importgraph/importgraph_test.go:TestComponentForDir_ManifestRoot
     file: golang/extractor/importgraph/importgraph_test.go
-    symbol: TestComponentForDir
+    symbol: TestComponentForDir_ManifestRoot
     package: importgraph
     language: go
-    doc: "TestComponentForDir guards the language-neutral rollup scheme."
+    doc: "TestComponentForDir_ManifestRoot guards the rollup for languages whose owned\nunit is the manifest directory, with sources beneath it. Applying Go's\ndirectory-is-package rule here would split crates/alpha into crates/alpha/src\nand invent a component per src/ folder."
+  - id: golang/extractor/importgraph/importgraph_test.go:TestComponentForDir_PackageDir
+    file: golang/extractor/importgraph/importgraph_test.go
+    symbol: TestComponentForDir_PackageDir
+    package: importgraph
+    language: go
+    doc: "TestComponentForDir_PackageDir guards Go's rule: the directory holding the\nsources IS the package. The old two-segment rollup made golang/architecture a\nsingle component over 77 distinct packages, so every file in that tree\nresolved to the same node and the component layer discriminated nothing."
+  - id: golang/extractor/importgraph/importgraph_test.go:TestComponentForDir_SiblingPackagesNoLongerCollide
+    file: golang/extractor/importgraph/importgraph_test.go
+    symbol: TestComponentForDir_SiblingPackagesNoLongerCollide
+    package: importgraph
+    language: go
+    doc: "Two packages that used to collide under the same component must now be\ndistinct — this is the whole point of the migration."
   - id: golang/extractor/importgraph/importgraph_test.go:TestConfig_InvalidEdge
     file: golang/extractor/importgraph/importgraph_test.go
     symbol: TestConfig_InvalidEdge
     package: importgraph
     language: go
     doc: "TestConfig_InvalidEdge — a bad edge keyword is rejected at compile time."
+  - id: golang/extractor/importgraph/importgraph_test.go:TestGranularityFor
+    file: golang/extractor/importgraph/importgraph_test.go
+    symbol: TestGranularityFor
+    package: importgraph
+    language: go
+    doc: "Granularity is chosen by language, not guessed globally."
   - id: golang/extractor/importgraph/importgraph_test.go:TestRender_Deterministic
     file: golang/extractor/importgraph/importgraph_test.go
     symbol: TestRender_Deterministic

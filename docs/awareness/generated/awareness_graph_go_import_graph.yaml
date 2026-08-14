@@ -25,6 +25,16 @@ components:
       - cmd/awareness-mcp/workspace_tools.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.binding
+      - component.golang.architecture.completion
+      - component.golang.architecture.diffaudit
+      - component.golang.architecture.investigationsurface
+      - component.golang.architecture.probeexec
+      - component.golang.architecture.repodomain
+      - component.golang.architecture.taskcontrol
+      - component.golang.architecture.tasksession
+      - component.golang.architecture.workspacecontract
       - component.golang.client
       - component.golang.netcfg
     external_imports:
@@ -186,12 +196,71 @@ components:
       - cmd/awg/synthesis_run_identity.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.adoption
+      - component.golang.architecture.agentcommand
+      - component.golang.architecture.authority
+      - component.golang.architecture.benchmark
+      - component.golang.architecture.binding
+      - component.golang.architecture.certification
+      - component.golang.architecture.changebinding
+      - component.golang.architecture.changebindingconsumer
+      - component.golang.architecture.changebindingproducer
+      - component.golang.architecture.claimaudit
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.cognitivecommand
+      - component.golang.architecture.completion
+      - component.golang.architecture.convergence
+      - component.golang.architecture.dashboardprojection
+      - component.golang.architecture.evaluatorcomposition
+      - component.golang.architecture.factextract
+      - component.golang.architecture.governedmutation
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.identity
+      - component.golang.architecture.inference
+      - component.golang.architecture.interpretationclosure
+      - component.golang.architecture.investigation
+      - component.golang.architecture.investigationsurface
+      - component.golang.architecture.investigator
+      - component.golang.architecture.knowledgeadoption
+      - component.golang.architecture.ledger
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.architecture.probe
+      - component.golang.architecture.probeexec
+      - component.golang.architecture.proofrequirements
+      - component.golang.architecture.protection
+      - component.golang.architecture.providerport
+      - component.golang.architecture.questiondisposition
+      - component.golang.architecture.questiongen
+      - component.golang.architecture.questionpromotion
+      - component.golang.architecture.repodomain
+      - component.golang.architecture.resulttransition
+      - component.golang.architecture.rigor
+      - component.golang.architecture.runnercomposition
+      - component.golang.architecture.senseireport
+      - component.golang.architecture.synthesis
+      - component.golang.architecture.synthesisdriver
+      - component.golang.architecture.synthesisdriver.fileinterpretation
+      - component.golang.architecture.taskcontrol
+      - component.golang.architecture.tasksession
+      - component.golang.architecture.testobligation
+      - component.golang.architecture.workspacecontract
       - component.golang.client
       - component.golang.closure
       - component.golang.contractassess
       - component.golang.coverage
       - component.golang.evidence
       - component.golang.extractor
+      - component.golang.extractor.coldsource
+      - component.golang.extractor.corpus
+      - component.golang.extractor.grpcwebscan
+      - component.golang.extractor.importgraph
+      - component.golang.extractor.openapiscan
+      - component.golang.extractor.protoscan
+      - component.golang.extractor.webcompscan
       - component.golang.governancepack
       - component.golang.netcfg
       - component.golang.propose
@@ -203,7 +272,7 @@ components:
       - component.golang.seedmeta
       - component.golang.skillimport
       - component.golang.statedir
-      - component.golang.store
+      - component.golang.store.oxigraph
     external_imports:
       - github.com/gorilla/websocket
       - github.com/scip-code/scip/bindings/go/scip
@@ -239,7 +308,7 @@ components:
     source_files:
       - cmd/grpcweb-scan/main.go
     depends_on:
-      - component.golang.extractor
+      - component.golang.extractor.grpcwebscan
     uml:
       kind: Component
       stereotype: service
@@ -265,7 +334,7 @@ components:
     source_files:
       - cmd/import-scan/main.go
     depends_on:
-      - component.golang.extractor
+      - component.golang.extractor.importgraph
     uml:
       kind: Component
       stereotype: service
@@ -280,7 +349,7 @@ components:
     depends_on:
       - component.golang.extractor
       - component.golang.seedmeta
-      - component.golang.store
+      - component.golang.store.oxigraph
     uml:
       kind: Component
       stereotype: service
@@ -293,7 +362,7 @@ components:
     source_files:
       - cmd/openapi-scan/main.go
     depends_on:
-      - component.golang.extractor
+      - component.golang.extractor.openapiscan
     uml:
       kind: Component
       stereotype: service
@@ -307,6 +376,18 @@ components:
       - cmd/principle-check/loader.go
       - cmd/principle-check/main.go
       - cmd/principle-check/ruleguard_scan.go
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
+  - id: component.cmd.principle_check.rules
+    name: rules
+    kind: module
+    assertion: inferred
+    source_files:
       - cmd/principle-check/rules/assertions_must_carry_scope_finding_emit.go
       - cmd/principle-check/rules/authority_uncertainty_primaryip_ambiguous.go
       - cmd/principle-check/rules/backend_must_authorize_against_principal_not_proxy.go
@@ -335,10 +416,9 @@ components:
       - cmd/principle-check/rules/timestamp_field_must_be_qualified.go
     external_imports:
       - github.com/quasilyte/go-ruleguard/dsl
-      - gopkg.in/yaml.v3
     uml:
       kind: Component
-      stereotype: service
+      stereotype: module
       view: structural
       confidence: inferred
   - id: component.cmd.proto_scan
@@ -348,7 +428,7 @@ components:
     source_files:
       - cmd/proto-scan/main.go
     depends_on:
-      - component.golang.extractor
+      - component.golang.extractor.protoscan
     uml:
       kind: Component
       stereotype: service
@@ -361,7 +441,7 @@ components:
     source_files:
       - cmd/webcomponent-scan/main.go
     depends_on:
-      - component.golang.extractor
+      - component.golang.extractor.webcompscan
     uml:
       kind: Component
       stereotype: service
@@ -381,26 +461,104 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
-  - id: component.github_app
-    name: github-app
+  - id: component.github_app.cmd.sensei_github_app
+    name: sensei-github-app
     kind: service
     assertion: inferred
     source_files:
       - github-app/cmd/sensei-github-app/main.go
-      - github-app/internal/app/handler.go
-      - github-app/internal/briefing/briefing.go
-      - github-app/internal/config/config.go
-      - github-app/internal/github/auth.go
-      - github-app/internal/github/client.go
-      - github-app/internal/webhook/payload.go
-      - github-app/internal/webhook/verify.go
+    depends_on:
+      - component.github_app.internal.app
+      - component.github_app.internal.config
+      - component.github_app.internal.github
     uml:
       kind: Component
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.github_app.internal.app
+    name: app
+    kind: module
+    assertion: inferred
+    source_files:
+      - github-app/internal/app/handler.go
+    depends_on:
+      - component.github_app.internal.briefing
+      - component.github_app.internal.github
+      - component.github_app.internal.webhook
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.github_app.internal.briefing
+    name: briefing
+    kind: module
+    assertion: inferred
+    source_files:
+      - github-app/internal/briefing/briefing.go
+    depends_on:
+      - component.github_app.internal.github
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.github_app.internal.config
+    name: config
+    kind: module
+    assertion: inferred
+    source_files:
+      - github-app/internal/config/config.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.github_app.internal.github
+    name: github
+    kind: module
+    assertion: inferred
+    source_files:
+      - github-app/internal/github/auth.go
+      - github-app/internal/github/client.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.github_app.internal.webhook
+    name: webhook
+    kind: module
+    assertion: inferred
+    source_files:
+      - github-app/internal/webhook/payload.go
+      - github-app/internal/webhook/verify.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture
     name: architecture
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/binding_resolution.go
+      - golang/architecture/claim.go
+      - golang/architecture/claim_document.go
+      - golang/architecture/dialogue.go
+      - golang/architecture/dialogue_document.go
+      - golang/architecture/fact.go
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.admission
+    name: admission
     kind: module
     assertion: inferred
     source_files:
@@ -411,6 +569,31 @@ components:
       - golang/architecture/admission/decision_v2.go
       - golang/architecture/admission/ledger_load.go
       - golang/architecture/admission/scope_v2.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.authority
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.convergence
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.ledger
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.architecture.probe
+      - component.golang.architecture.proofrequirements
+      - component.golang.architecture.questiongen
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.admissioncomposition
+    name: admissioncomposition
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/admissioncomposition/compose.go
       - golang/architecture/admissioncomposition/digest.go
       - golang/architecture/admissioncomposition/lineage.go
@@ -418,30 +601,158 @@ components:
       - golang/architecture/admissioncomposition/scope.go
       - golang/architecture/admissioncomposition/types.go
       - golang/architecture/admissioncomposition/validate.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.evaluatorcomposition
+      - component.golang.architecture.runnercomposition
+      - component.golang.architecture.synthesis
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.adoption
+    name: adoption
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/adoption/receipt.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.agentcommand
+    name: agentcommand
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/agentcommand/command_agent.go
       - golang/architecture/agentcommand/plan.go
       - golang/architecture/agentcommand/provider.go
       - golang/architecture/agentcommand/schema.go
       - golang/architecture/agentcommand/types.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.commandprovider
+      - component.golang.architecture.providerport
+      - component.golang.architecture.runnercomposition
+      - component.golang.architecture.synthesis
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.authority
+    name: authority
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/authority/actor.go
       - golang/architecture/authority/delegation_verify.go
       - golang/architecture/authority/model.go
       - golang/architecture/authority/policy.go
       - golang/architecture/authority/resolve.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.benchmark
+    name: benchmark
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/benchmark/benchmark.go
+    depends_on:
+      - component.golang.architecture
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.binding
+    name: binding
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/binding/binding.go
-      - golang/architecture/binding_resolution.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.briefingfeedback
+    name: briefingfeedback
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/briefingfeedback/build.go
       - golang/architecture/briefingfeedback/digest.go
       - golang/architecture/briefingfeedback/model.go
       - golang/architecture/briefingfeedback/scope.go
       - golang/architecture/briefingfeedback/unavailable.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.questionpromotion
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.buildtransaction
+    name: buildtransaction
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/buildtransaction/result_manifest.go
+    depends_on:
+      - component.golang.architecture.graphbuild
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.candidateapply
+    name: candidateapply
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/candidateapply/apply.go
       - golang/architecture/candidateapply/digest.go
       - golang/architecture/candidateapply/types.go
       - golang/architecture/candidateapply/validate.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.admissioncomposition
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.runnercomposition
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.certification
+    name: certification
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/certification/errors.go
       - golang/architecture/certification/evaluate.go
       - golang/architecture/certification/lanes.go
@@ -451,30 +762,144 @@ components:
       - golang/architecture/certification/receipt.go
       - golang/architecture/certification/request.go
       - golang/architecture/certification/source.go
+    depends_on:
+      - component.golang.architecture.authority
+      - component.golang.architecture.binding
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.evidencereceipt
+      - component.golang.architecture.ledger
+      - component.golang.architecture.proofdischarge
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.changebinding
+    name: changebinding
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/changebinding/digest.go
       - golang/architecture/changebinding/model.go
       - golang/architecture/changebinding/parse.go
       - golang/architecture/changebinding/validate.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.changebindingconsumer
+    name: changebindingconsumer
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/changebindingconsumer/consume.go
       - golang/architecture/changebindingconsumer/model.go
+    depends_on:
+      - component.golang.architecture.changebinding
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.changebindingproducer
+    name: changebindingproducer
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/changebindingproducer/github_env.go
       - golang/architecture/changebindingproducer/model.go
       - golang/architecture/changebindingproducer/produce.go
       - golang/architecture/changebindingproducer/provenance.go
       - golang/architecture/changebindingproducer/publish.go
-      - golang/architecture/claim.go
-      - golang/architecture/claim_document.go
+    depends_on:
+      - component.golang.architecture.changebinding
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.claimaudit
+    name: claimaudit
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/claimaudit/audit.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.plane
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.closure
+    name: closure
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/closure/model.go
       - golang/architecture/closure/util.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.closureprotocol
+    name: closureprotocol
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/closureprotocol/canonical.go
       - golang/architecture/closureprotocol/model.go
       - golang/architecture/closureprotocol/predicate.go
       - golang/architecture/closureprotocol/validate.go
       - golang/architecture/closureprotocol/vocabulary.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.cognitivecommand
+    name: cognitivecommand
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/cognitivecommand/provider.go
       - golang/architecture/cognitivecommand/schema.go
       - golang/architecture/cognitivecommand/types.go
+    depends_on:
+      - component.golang.architecture.agentcommand
+      - component.golang.architecture.providerport
+      - component.golang.architecture.synthesis
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.commandprovider
+    name: commandprovider
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/commandprovider/adapter.go
       - golang/architecture/commandprovider/buffer.go
       - golang/architecture/commandprovider/config.go
@@ -482,6 +907,19 @@ components:
       - golang/architecture/commandprovider/process_unix.go
       - golang/architecture/commandprovider/process_windows.go
       - golang/architecture/commandprovider/raw.go
+    depends_on:
+      - component.golang.architecture.providerport
+      - component.golang.architecture.synthesis
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.completion
+    name: completion
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go
@@ -495,6 +933,26 @@ components:
       - golang/architecture/completion/receipt.go
       - golang/architecture/completion/recover.go
       - golang/architecture/completion/worldbinding.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.authority
+      - component.golang.architecture.binding
+      - component.golang.architecture.certification
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.governedmutation
+      - component.golang.architecture.identity
+      - component.golang.architecture.ledger
+      - component.golang.architecture.questionresolution
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.controlstate
+    name: controlstate
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/controlstate/artifactstate.go
       - golang/architecture/controlstate/attention.go
       - golang/architecture/controlstate/catalog.go
@@ -508,20 +966,87 @@ components:
       - golang/architecture/controlstate/snapshot.go
       - golang/architecture/controlstate/types_closure.go
       - golang/architecture/controlstate/util.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.convergence
+    name: convergence
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/convergence/convergence.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closure
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.architecture.probe
+      - component.golang.architecture.questiongen
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.dashboardprojection
+    name: dashboardprojection
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/dashboardprojection/digest.go
       - golang/architecture/dashboardprojection/schemavalidate.go
       - golang/architecture/dashboardprojection/types.go
       - golang/architecture/dashboardprojection/validate.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.deviation
+    name: deviation
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/deviation/candidate.go
       - golang/architecture/deviation/cluster.go
       - golang/architecture/deviation/model.go
       - golang/architecture/deviation/record.go
-      - golang/architecture/dialogue.go
-      - golang/architecture/dialogue_document.go
+    depends_on:
+      - component.golang.architecture
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.diffaudit
+    name: diffaudit
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/diffaudit/evaluator.go
       - golang/architecture/diffaudit/model.go
       - golang/architecture/diffaudit/parser.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.evaluatorcomposition
+    name: evaluatorcomposition
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/evaluatorcomposition/command.go
       - golang/architecture/evaluatorcomposition/complete.go
       - golang/architecture/evaluatorcomposition/compose.go
@@ -535,34 +1060,167 @@ components:
       - golang/architecture/evaluatorcomposition/surface.go
       - golang/architecture/evaluatorcomposition/types.go
       - golang/architecture/evaluatorcomposition/validate.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.providerport
+      - component.golang.architecture.runnercomposition
+      - component.golang.architecture.synthesis
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+      - golang.org/x/text/unicode/norm
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.evidencereceipt
+    name: evidencereceipt
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/evidencereceipt/coverage.go
       - golang/architecture/evidencereceipt/freshness.go
       - golang/architecture/evidencereceipt/model.go
       - golang/architecture/evidencereceipt/profile.go
       - golang/architecture/evidencereceipt/runtime.go
       - golang/architecture/evidencereceipt/validate.go
-      - golang/architecture/fact.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.factextract
+    name: factextract
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/factextract/authority.go
       - golang/architecture/factextract/factextract.go
       - golang/architecture/factextract/invariant_rules.go
       - golang/architecture/factextract/invariants.go
       - golang/architecture/factextract/util.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.gosemantics
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.generatedartifact
+    name: generatedartifact
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/generatedartifact/generatedartifact.go
       - golang/architecture/generatedartifact/producers.go
+    depends_on:
+      - component.golang.architecture.buildtransaction
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.factextract
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.proofrequirements
+      - component.golang.seedmeta
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.gosemantics
+    name: gosemantics
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/gosemantics/extract.go
+    depends_on:
+      - component.golang.extractor.importgraph
+    external_imports:
+      - golang.org/x/tools/go/packages
+      - golang.org/x/tools/go/ssa
+      - golang.org/x/tools/go/ssa/ssautil
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.governedimpact
+    name: governedimpact
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/governedimpact/codec.go
       - golang/architecture/governedimpact/governedimpact.go
       - golang/architecture/governedimpact/validate.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.proofrequirements
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.governedmutation
+    name: governedmutation
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/governedmutation/apply.go
       - golang/architecture/governedmutation/governedmutation.go
       - golang/architecture/governedmutation/lock.go
       - golang/architecture/governedmutation/manifest.go
       - golang/architecture/governedmutation/records.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.propose
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.graphbuild
+    name: graphbuild
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/graphbuild/graphbuild.go
       - golang/architecture/graphbuild/graphinput.go
       - golang/architecture/graphbuild/manifest.go
       - golang/architecture/graphbuild/supplemental.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.extractor
+      - component.golang.seedmeta
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.graphsnapshot
+    name: graphsnapshot
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/graphsnapshot/graphsnapshot.go
+    depends_on:
+      - component.golang.architecture
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.howextract
+    name: howextract
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/howextract/boundaries.go
       - golang/architecture/howextract/compose.go
       - golang/architecture/howextract/contracts.go
@@ -572,7 +1230,38 @@ components:
       - golang/architecture/howextract/state.go
       - golang/architecture/howextract/tests.go
       - golang/architecture/howextract/topology.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.factextract
+      - component.golang.architecture.gosemantics
+      - component.golang.architecture.investigation
+      - component.golang.extractor.importgraph
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.identity
+    name: identity
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/identity/identity.go
+    depends_on:
+      - component.golang.architecture.authority
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.inference
+    name: inference
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/inference/binding.go
       - golang/architecture/inference/document.go
       - golang/architecture/inference/engine.go
@@ -582,10 +1271,36 @@ components:
       - golang/architecture/inference/rules.go
       - golang/architecture/inference/semantic_rules.go
       - golang/architecture/inference/util.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.graphsnapshot
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.interpretationclosure
+    name: interpretationclosure
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/interpretationclosure/challenge.go
       - golang/architecture/interpretationclosure/go_checker.go
       - golang/architecture/interpretationclosure/model.go
       - golang/architecture/interpretationclosure/policy.go
+    external_imports:
+      - golang.org/x/tools/go/packages
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.investigation
+    name: investigation
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/investigation/binding.go
       - golang/architecture/investigation/coverage.go
       - golang/architecture/investigation/digest.go
@@ -595,10 +1310,40 @@ components:
       - golang/architecture/investigation/proof_strength.go
       - golang/architecture/investigation/receipt.go
       - golang/architecture/investigation/validate.go
+    depends_on:
+      - component.golang.architecture
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.investigationsurface
+    name: investigationsurface
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/investigationsurface/artifact.go
       - golang/architecture/investigationsurface/evidence.go
       - golang/architecture/investigationsurface/run.go
       - golang/architecture/investigationsurface/view.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.howextract
+      - component.golang.architecture.investigation
+      - component.golang.architecture.investigator
+      - component.golang.architecture.whyinvestigation
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.investigator
+    name: investigator
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/investigator/binding.go
       - golang/architecture/investigator/candidate.go
       - golang/architecture/investigator/challenge.go
@@ -611,9 +1356,38 @@ components:
       - golang/architecture/investigator/ranking.go
       - golang/architecture/investigator/receipt.go
       - golang/architecture/investigator/validate.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.investigation
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.knowledgeadoption
+    name: knowledgeadoption
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/knowledgeadoption/contracts.go
       - golang/architecture/knowledgeadoption/engine.go
       - golang/architecture/knowledgeadoption/output.go
+    depends_on:
+      - component.golang.architecture.adoption
+      - component.golang.architecture.graphsnapshot
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.ledger
+    name: ledger
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/ledger/append.go
       - golang/architecture/ledger/artifact.go
       - golang/architecture/ledger/errors.go
@@ -631,12 +1405,41 @@ components:
       - golang/architecture/ledger/util.go
       - golang/architecture/ledger/verify.go
       - golang/architecture/ledger/verifyscope.go
+    depends_on:
+      - component.golang.architecture.binding
+      - component.golang.architecture.closureprotocol
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.maintenance
+    name: maintenance
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/maintenance/evaluate.go
       - golang/architecture/maintenance/evidence.go
       - golang/architecture/maintenance/model.go
       - golang/architecture/maintenance/render.go
       - golang/architecture/maintenance/report.go
       - golang/architecture/maintenance/source_verify.go
+    depends_on:
+      - component.golang.architecture
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.plane
+    name: plane
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/plane/assess.go
       - golang/architecture/plane/graph_index.go
       - golang/architecture/plane/model.go
@@ -644,10 +1447,60 @@ components:
       - golang/architecture/plane/proposition.go
       - golang/architecture/plane/render.go
       - golang/architecture/plane/report.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.maintenance
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.probe
+    name: probe
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/probe/generate.go
       - golang/architecture/probe/model.go
       - golang/architecture/probe/result.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closure
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.probeexec
+    name: probeexec
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/probeexec/executor.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.probe
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.proofdischarge
+    name: proofdischarge
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/proofdischarge/compatibility.go
       - golang/architecture/proofdischarge/coverage.go
       - golang/architecture/proofdischarge/digest.go
@@ -656,12 +1509,44 @@ components:
       - golang/architecture/proofdischarge/model.go
       - golang/architecture/proofdischarge/report.go
       - golang/architecture/proofdischarge/waiver.go
+    depends_on:
+      - component.golang.architecture.binding
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.probe
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.proofrequirements
+    name: proofrequirements
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/proofrequirements/compose.go
       - golang/architecture/proofrequirements/compose_sources.go
       - golang/architecture/proofrequirements/graph.go
       - golang/architecture/proofrequirements/obligations.go
       - golang/architecture/proofrequirements/parse.go
       - golang/architecture/proofrequirements/proofrequirements.go
+    depends_on:
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.factextract
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.protection
+    name: protection
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/protection/assessment.go
       - golang/architecture/protection/candidate_document.go
       - golang/architecture/protection/classify.go
@@ -675,6 +1560,23 @@ components:
       - golang/architecture/protection/structural.go
       - golang/architecture/protection/types.go
       - golang/architecture/protection/util.go
+    depends_on:
+      - component.golang.extractor.jsonschemascan
+      - component.golang.extractor.openapiscan
+      - component.golang.extractor.protoscan
+      - component.golang.scanner
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.providerport
+    name: providerport
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/providerport/digest.go
       - golang/architecture/providerport/execution.go
       - golang/architecture/providerport/interpretation_candidate.go
@@ -683,6 +1585,21 @@ components:
       - golang/architecture/providerport/provider.go
       - golang/architecture/providerport/schema.go
       - golang/architecture/providerport/types.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.synthesis
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.questiondisposition
+    name: questiondisposition
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/questiondisposition/errors.go
       - golang/architecture/questiondisposition/load.go
       - golang/architecture/questiondisposition/model.go
@@ -690,10 +1607,45 @@ components:
       - golang/architecture/questiondisposition/prepare.go
       - golang/architecture/questiondisposition/record.go
       - golang/architecture/questiondisposition/state.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.authority
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.identity
+      - component.golang.architecture.ledger
+      - component.golang.architecture.resultpipeline
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.questiongen
+    name: questiongen
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/questiongen/deviation_questions.go
       - golang/architecture/questiongen/dialogue_ops.go
       - golang/architecture/questiongen/investigation_questions.go
       - golang/architecture/questiongen/questiongen.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closure
+      - component.golang.architecture.deviation
+      - component.golang.architecture.investigator
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.questionpromotion
+    name: questionpromotion
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/questionpromotion/conjunctive.go
       - golang/architecture/questionpromotion/consume.go
       - golang/architecture/questionpromotion/descriptor.go
@@ -703,16 +1655,85 @@ components:
       - golang/architecture/questionpromotion/provenance.go
       - golang/architecture/questionpromotion/receipt.go
       - golang/architecture/questionpromotion/verification_error.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.authority
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.governedmutation
+      - component.golang.architecture.identity
+      - component.golang.architecture.questiondisposition
+      - component.golang.architecture.repograph
+      - component.golang.propose
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.questionresolution
+    name: questionresolution
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/questionresolution/authority.go
       - golang/architecture/questionresolution/certify.go
       - golang/architecture/questionresolution/model.go
       - golang/architecture/questionresolution/persist.go
       - golang/architecture/questionresolution/summarize.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.authority
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.governedmutation
+      - component.golang.architecture.identity
+      - component.golang.architecture.ledger
+      - component.golang.architecture.questiondisposition
+      - component.golang.architecture.questionpromotion
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.repodomain
+    name: repodomain
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/repodomain/repodomain.go
+    depends_on:
+      - component.golang.statedir
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.repograph
+    name: repograph
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/repograph/build.go
       - golang/architecture/repograph/provenance_input.go
       - golang/architecture/repograph/repograph.go
       - golang/architecture/repograph/store_adapter.go
+    depends_on:
+      - component.golang.architecture.governedmutation
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.graphsnapshot
+      - component.golang.seedmeta
+      - component.golang.store
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.resultpipeline
+    name: resultpipeline
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/resultpipeline/assemble.go
       - golang/architecture/resultpipeline/build.go
       - golang/architecture/resultpipeline/deterministic.go
@@ -725,6 +1746,36 @@ components:
       - golang/architecture/resultpipeline/transition_validate.go
       - golang/architecture/resultpipeline/validate_result.go
       - golang/architecture/resultpipeline/validate_stages.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.binding
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.factextract
+      - component.golang.architecture.generatedartifact
+      - component.golang.architecture.governedimpact
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.inference
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.plane
+      - component.golang.architecture.proofrequirements
+      - component.golang.architecture.questiongen
+      - component.golang.architecture.resulttransition
+      - component.golang.seedmeta
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.resultrecording
+    name: resultrecording
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/resultrecording/classify.go
       - golang/architecture/resultrecording/errors.go
       - golang/architecture/resultrecording/keys.go
@@ -732,10 +1783,56 @@ components:
       - golang/architecture/resultrecording/payload.go
       - golang/architecture/resultrecording/projection.go
       - golang/architecture/resultrecording/record.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.binding
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.governedimpact
+      - component.golang.architecture.ledger
+      - component.golang.architecture.proofrequirements
+      - component.golang.architecture.resultpipeline
+      - component.golang.architecture.resulttransition
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.resulttransition
+    name: resulttransition
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/resulttransition/bind.go
       - golang/architecture/resulttransition/confine.go
       - golang/architecture/resulttransition/observe.go
+    depends_on:
+      - component.golang.architecture.admission
+      - component.golang.architecture.binding
+      - component.golang.architecture.closureprotocol
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.rigor
+    name: rigor
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/rigor/rigor.go
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.runnercomposition
+    name: runnercomposition
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/runnercomposition/changedigest.go
       - golang/architecture/runnercomposition/digest.go
       - golang/architecture/runnercomposition/evidence_preview.go
@@ -752,6 +1849,25 @@ components:
       - golang/architecture/runnercomposition/types.go
       - golang/architecture/runnercomposition/validate.go
       - golang/architecture/runnercomposition/workspace.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.providerport
+      - component.golang.architecture.synthesis
+      - component.golang.architecture.workspacecontract
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+      - golang.org/x/sys/unix
+      - golang.org/x/text/unicode/norm
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.runtimeboundary
+    name: runtimeboundary
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/runtimeboundary/assess.go
       - golang/architecture/runtimeboundary/binding.go
       - golang/architecture/runtimeboundary/common.go
@@ -759,18 +1875,88 @@ components:
       - golang/architecture/runtimeboundary/model.go
       - golang/architecture/runtimeboundary/observation.go
       - golang/architecture/runtimeboundary/policy.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.runtimeboundarycompose
+    name: runtimeboundarycompose
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/runtimeboundarycompose/compose.go
+    depends_on:
+      - component.golang.architecture.controlstate
+      - component.golang.architecture.runtimeboundary
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.runtimeprobe
+    name: runtimeprobe
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/runtimeprobe/ingest.go
       - golang/architecture/runtimeprobe/input.go
       - golang/architecture/runtimeprobe/observation.go
-      - golang/architecture/runtimeprobe/probesource/fromprobe.go
       - golang/architecture/runtimeprobe/receipt.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.runtimeboundary
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.runtimeprobe.probesource
+    name: probesource
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/runtimeprobe/probesource/fromprobe.go
+    depends_on:
+      - component.golang.architecture.probe
+      - component.golang.architecture.runtimeprobe
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.senseireport
+    name: senseireport
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/senseireport/build.go
       - golang/architecture/senseireport/candidates.go
       - golang/architecture/senseireport/contentdigest.go
       - golang/architecture/senseireport/render_markdown.go
       - golang/architecture/senseireport/types.go
       - golang/architecture/senseireport/validate.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.completion
+      - component.golang.architecture.taskcontrol
+      - component.golang.architecture.tasksession
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.synthesis
+    name: synthesis
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/synthesis/commands.go
       - golang/architecture/synthesis/digest.go
       - golang/architecture/synthesis/events.go
@@ -779,19 +1965,85 @@ components:
       - golang/architecture/synthesis/state.go
       - golang/architecture/synthesis/transition.go
       - golang/architecture/synthesis/types.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.interpretationclosure
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.synthesisdriver
+    name: synthesisdriver
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/synthesisdriver/closure_report_authority.go
       - golang/architecture/synthesisdriver/driver.go
       - golang/architecture/synthesisdriver/engine.go
-      - golang/architecture/synthesisdriver/fileinterpretation/open_unix.go
-      - golang/architecture/synthesisdriver/fileinterpretation/open_windows.go
-      - golang/architecture/synthesisdriver/fileinterpretation/provider.go
       - golang/architecture/synthesisdriver/interpretation_authority.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
       - golang/architecture/synthesisdriver/schema.go
       - golang/architecture/synthesisdriver/types.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.evaluatorcomposition
+      - component.golang.architecture.interpretationclosure
+      - component.golang.architecture.providerport
+      - component.golang.architecture.runnercomposition
+      - component.golang.architecture.synthesis
+      - component.golang.architecture.workspacecontract
+    external_imports:
+      - github.com/santhosh-tekuri/jsonschema/v5
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.synthesisdriver.fileinterpretation
+    name: fileinterpretation
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/synthesisdriver/fileinterpretation/open_unix.go
+      - golang/architecture/synthesisdriver/fileinterpretation/open_windows.go
+      - golang/architecture/synthesisdriver/fileinterpretation/provider.go
+    depends_on:
+      - component.golang.architecture.providerport
+      - component.golang.architecture.synthesis
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.taskcontrol
+    name: taskcontrol
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/taskcontrol/model.go
       - golang/architecture/taskcontrol/project.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closure
+      - component.golang.architecture.probe
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.tasksession
+    name: tasksession
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/tasksession/advance_result.go
       - golang/architecture/tasksession/briefing.go
       - golang/architecture/tasksession/briefing_promotion.go
@@ -799,8 +2051,54 @@ components:
       - golang/architecture/tasksession/governance.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.authority
+      - component.golang.architecture.binding
+      - component.golang.architecture.briefingfeedback
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.convergence
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.identity
+      - component.golang.architecture.ledger
+      - component.golang.architecture.maintenance
+      - component.golang.architecture.probe
+      - component.golang.architecture.probeexec
+      - component.golang.architecture.resultpipeline
+      - component.golang.architecture.resultrecording
+      - component.golang.architecture.resulttransition
+      - component.golang.architecture.taskcontrol
+      - component.golang.extractor
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.testobligation
+    name: testobligation
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/testobligation/gotest.go
       - golang/architecture/testobligation/obligation.go
+    depends_on:
+      - component.golang.rdf
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.whyinvestigation
+    name: whyinvestigation
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/whyinvestigation/architect_answers.go
       - golang/architecture/whyinvestigation/awareness.go
       - golang/architecture/whyinvestigation/compose.go
@@ -812,6 +2110,19 @@ components:
       - golang/architecture/whyinvestigation/registry.go
       - golang/architecture/whyinvestigation/scars.go
       - golang/architecture/whyinvestigation/tests_provider.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.investigation
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.workspacecontract
+    name: workspacecontract
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/architecture/workspacecontract/admission.go
       - golang/architecture/workspacecontract/digest.go
       - golang/architecture/workspacecontract/identity.go
@@ -820,21 +2131,12 @@ components:
       - golang/architecture/workspacecontract/types.go
       - golang/architecture/workspacecontract/validate.go
     depends_on:
-      - component.golang.extractor
-      - component.golang.propose
-      - component.golang.rdf
-      - component.golang.scanner
-      - component.golang.seedmeta
-      - component.golang.statedir
-      - component.golang.store
+      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
     external_imports:
       - github.com/santhosh-tekuri/jsonschema/v5
-      - golang.org/x/sys/unix
-      - golang.org/x/text/unicode/norm
-      - golang.org/x/tools/go/packages
-      - golang.org/x/tools/go/ssa
-      - golang.org/x/tools/go/ssa/ssautil
-      - gopkg.in/yaml.v3
     uml:
       kind: Component
       stereotype: module
@@ -921,6 +2223,49 @@ components:
       - golang/extractor/authority_domains_yaml_import.go
       - golang/extractor/authority_policy_yaml_import.go
       - golang/extractor/code_symbols_import.go
+      - golang/extractor/contract_realizations_yaml_import.go
+      - golang/extractor/contract_set_yaml_import.go
+      - golang/extractor/contradiction_validator.go
+      - golang/extractor/dedup_ntriples.go
+      - golang/extractor/design_pattern_yaml_import.go
+      - golang/extractor/detect.go
+      - golang/extractor/domain_scope.go
+      - golang/extractor/file_annotations_yaml_import.go
+      - golang/extractor/implementation_pattern_yaml_import.go
+      - golang/extractor/intent_yaml_import.go
+      - golang/extractor/learning_event_yaml_import.go
+      - golang/extractor/ntriples_validator.go
+      - golang/extractor/outcome_feedback_yaml_import.go
+      - golang/extractor/package_awareness_contract_yaml_import.go
+      - golang/extractor/promotion_gate.go
+      - golang/extractor/promotion_proposal.go
+      - golang/extractor/proof_obligations_yaml_import.go
+      - golang/extractor/reference_validator.go
+      - golang/extractor/repair_plan_yaml_import.go
+      - golang/extractor/runtime_evidence_yaml_import.go
+      - golang/extractor/test_reconciliation_validator.go
+      - golang/extractor/uml_profile.go
+      - golang/extractor/yaml_import.go
+      - golang/extractor/yaml_import_dir.go
+      - golang/extractor/yaml_import_phaseB.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.adoption
+      - component.golang.architecture.plane
+      - component.golang.architecture.probe
+      - component.golang.rdf
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.coldsource
+    name: coldsource
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/extractor/coldsource/bundle_export.go
       - golang/extractor/coldsource/citation_check.go
       - golang/extractor/coldsource/claude_cli_client.go
@@ -948,50 +2293,117 @@ components:
       - golang/extractor/coldsource/surfaces.go
       - golang/extractor/coldsource/triangulate.go
       - golang/extractor/coldsource/window.go
-      - golang/extractor/contract_realizations_yaml_import.go
-      - golang/extractor/contract_set_yaml_import.go
-      - golang/extractor/contradiction_validator.go
+    depends_on:
+      - component.golang.extractor
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.corpus
+    name: corpus
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/extractor/corpus/corpus.go
-      - golang/extractor/dedup_ntriples.go
-      - golang/extractor/design_pattern_yaml_import.go
-      - golang/extractor/detect.go
-      - golang/extractor/domain_scope.go
-      - golang/extractor/file_annotations_yaml_import.go
+    depends_on:
+      - component.golang.extractor.coldsource
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.grpcwebscan
+    name: grpcwebscan
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/extractor/grpcwebscan/grpcwebscan.go
-      - golang/extractor/implementation_pattern_yaml_import.go
+    depends_on:
+      - component.golang.extractor.importgraph
+      - component.golang.extractor.protoscan
+    external_imports:
+      - github.com/tree-sitter/go-tree-sitter
+      - github.com/tree-sitter/tree-sitter-typescript/bindings/go
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.importgraph
+    name: importgraph
+    kind: module
+    assertion: inferred
+    source_files:
       - golang/extractor/importgraph/golang.go
       - golang/extractor/importgraph/importgraph.go
       - golang/extractor/importgraph/python.go
       - golang/extractor/importgraph/rust.go
       - golang/extractor/importgraph/typescript.go
-      - golang/extractor/intent_yaml_import.go
-      - golang/extractor/jsonschemascan/jsonschemascan.go
-      - golang/extractor/learning_event_yaml_import.go
-      - golang/extractor/ntriples_validator.go
-      - golang/extractor/openapiscan/openapiscan.go
-      - golang/extractor/outcome_feedback_yaml_import.go
-      - golang/extractor/package_awareness_contract_yaml_import.go
-      - golang/extractor/promotion_gate.go
-      - golang/extractor/promotion_proposal.go
-      - golang/extractor/proof_obligations_yaml_import.go
-      - golang/extractor/protoscan/protoscan.go
-      - golang/extractor/reference_validator.go
-      - golang/extractor/repair_plan_yaml_import.go
-      - golang/extractor/runtime_evidence_yaml_import.go
-      - golang/extractor/test_reconciliation_validator.go
-      - golang/extractor/uml_profile.go
-      - golang/extractor/webcompscan/webcompscan.go
-      - golang/extractor/yaml_import.go
-      - golang/extractor/yaml_import_dir.go
-      - golang/extractor/yaml_import_phaseB.go
-    depends_on:
-      - component.golang.architecture
-      - component.golang.rdf
     external_imports:
-      - github.com/emicklei/proto
       - github.com/tree-sitter/go-tree-sitter
       - github.com/tree-sitter/tree-sitter-python/bindings/go
       - github.com/tree-sitter/tree-sitter-rust/bindings/go
+      - github.com/tree-sitter/tree-sitter-typescript/bindings/go
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.jsonschemascan
+    name: jsonschemascan
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/extractor/jsonschemascan/jsonschemascan.go
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.openapiscan
+    name: openapiscan
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/extractor/openapiscan/openapiscan.go
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.protoscan
+    name: protoscan
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/extractor/protoscan/protoscan.go
+    external_imports:
+      - github.com/emicklei/proto
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.extractor.webcompscan
+    name: webcompscan
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/extractor/webcompscan/webcompscan.go
+    external_imports:
+      - github.com/tree-sitter/go-tree-sitter
       - github.com/tree-sitter/tree-sitter-typescript/bindings/go
       - gopkg.in/yaml.v3
     uml:
@@ -1156,7 +2568,6 @@ components:
       - golang/server/controlstate_mutation_rpcs.go
       - golang/server/controlstate_provider.go
       - golang/server/controlstate_rpcs.go
-      - golang/server/controlstateproto/mapper.go
       - golang/server/domain_scope.go
       - golang/server/edit_check.go
       - golang/server/embedded_seed.go
@@ -1187,7 +2598,12 @@ components:
       - golang/server/surface_limits.go
       - golang/server/surface_observability.go
     depends_on:
-      - component.golang.architecture
+      - component.golang.architecture.briefingfeedback
+      - component.golang.architecture.controlstate
+      - component.golang.architecture.identity
+      - component.golang.architecture.protection
+      - component.golang.architecture.questiondisposition
+      - component.golang.architecture.tasksession
       - component.golang.closure
       - component.golang.coverage
       - component.golang.governancepack
@@ -1196,7 +2612,9 @@ components:
       - component.golang.rdf
       - component.golang.runtimedescriptor
       - component.golang.seedmeta
+      - component.golang.server.controlstateproto
       - component.golang.store
+      - component.golang.store.oxigraph
     external_imports:
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
@@ -1210,6 +2628,19 @@ components:
     uml:
       kind: Component
       stereotype: service
+      view: structural
+      confidence: inferred
+  - id: component.golang.server.controlstateproto
+    name: controlstateproto
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/server/controlstateproto/mapper.go
+    depends_on:
+      - component.golang.architecture.controlstate
+    uml:
+      kind: Component
+      stereotype: module
       view: structural
       confidence: inferred
   - id: component.golang.skillimport
@@ -1244,11 +2675,22 @@ components:
     kind: module
     assertion: inferred
     source_files:
-      - golang/store/oxigraph/oxigraph.go
       - golang/store/store.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.store.oxigraph
+    name: oxigraph
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/store/oxigraph/oxigraph.go
     depends_on:
       - component.golang.rdf
       - component.golang.seedmeta
+      - component.golang.store
     uml:
       kind: Component
       stereotype: module
@@ -1261,7 +2703,15 @@ components:
     source_files:
       - internal/resulttestkit/seed.go
     depends_on:
-      - component.golang.architecture
+      - component.golang.architecture.admission
+      - component.golang.architecture.binding
+      - component.golang.architecture.closure
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.generatedartifact
+      - component.golang.architecture.graphbuild
+      - component.golang.architecture.ledger
+      - component.golang.architecture.resultpipeline
+      - component.golang.architecture.resulttransition
     external_imports:
       - gopkg.in/yaml.v3
     uml:
@@ -1269,15 +2719,15 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
-  - id: component.scratchpad
-    name: scratchpad
+  - id: component.scratchpad.provenance.graph_marker_incident.recovery_tool
+    name: recovery-tool
     kind: service
     assertion: inferred
     source_files:
       - scratchpad/provenance/graph-marker-incident/recovery-tool/main.go
     depends_on:
       - component.golang.seedmeta
-      - component.golang.store
+      - component.golang.store.oxigraph
     uml:
       kind: Component
       stereotype: service

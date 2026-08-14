@@ -276,7 +276,7 @@ func composeReceiptsAndCoverage(
 
 		contentSHA := sha256Hex(capturedText)
 		receiptID := "evidence_" + sha256Hex(f.ID)[:16]
-		component, _ := importgraph.ComponentForFile(f.Evidence.SourceFile)
+		component, _ := importgraph.ComponentForFile(f.Evidence.SourceFile, "go")
 
 		receipt := investigation.EvidenceReceipt{
 			ID:                  receiptID,
