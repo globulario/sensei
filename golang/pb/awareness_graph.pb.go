@@ -668,6 +668,72 @@ func (GraphFreshnessState) EnumDescriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{9}
 }
 
+// GraphAuthority is the current/provenance stamp every successful graph-backed
+// response must carry. Callers must not infer authority from prose or rows
+// alone; they must read this block to know whether the answer came from the
+// current validated artifact.
+// AuthorityVerdict is the composed graph-authority conclusion as an EXPLICIT
+// value. A bool cannot express the three states that actually exist, and the
+// missing third one is load-bearing: proto3 omits default scalars, so a
+// `bool authoritative = false` is indistinguishable on the wire from a field
+// that was never produced. That erasure is exactly what made the R1 benchmark
+// environment unreproducible -- the composed verdict could only be recovered by
+// inferring it from a stderr message that happened to omit a limitation.
+//
+// "Not observed" and "observed to be false" are different epistemic states, and
+// this repository already refuses that conflation elsewhere (typed absence
+// rather than an empty list, not_applicable rather than a silent empty). This
+// is the boolean form of the same discipline.
+type AuthorityVerdict int32
+
+const (
+	// Never computed or never observed. NOT a synonym for non-authoritative.
+	AuthorityVerdict_AUTHORITY_VERDICT_UNSPECIFIED       AuthorityVerdict = 0
+	AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE     AuthorityVerdict = 1
+	AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE AuthorityVerdict = 2
+)
+
+// Enum value maps for AuthorityVerdict.
+var (
+	AuthorityVerdict_name = map[int32]string{
+		0: "AUTHORITY_VERDICT_UNSPECIFIED",
+		1: "AUTHORITY_VERDICT_AUTHORITATIVE",
+		2: "AUTHORITY_VERDICT_NOT_AUTHORITATIVE",
+	}
+	AuthorityVerdict_value = map[string]int32{
+		"AUTHORITY_VERDICT_UNSPECIFIED":       0,
+		"AUTHORITY_VERDICT_AUTHORITATIVE":     1,
+		"AUTHORITY_VERDICT_NOT_AUTHORITATIVE": 2,
+	}
+)
+
+func (x AuthorityVerdict) Enum() *AuthorityVerdict {
+	p := new(AuthorityVerdict)
+	*p = x
+	return p
+}
+
+func (x AuthorityVerdict) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (AuthorityVerdict) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[10].Descriptor()
+}
+
+func (AuthorityVerdict) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[10]
+}
+
+func (x AuthorityVerdict) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use AuthorityVerdict.Descriptor instead.
+func (AuthorityVerdict) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{10}
+}
+
 type CandidateQueueState int32
 
 const (
@@ -704,11 +770,11 @@ func (x CandidateQueueState) String() string {
 }
 
 func (CandidateQueueState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[10].Descriptor()
+	return file_awareness_graph_proto_enumTypes[11].Descriptor()
 }
 
 func (CandidateQueueState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[10]
+	return &file_awareness_graph_proto_enumTypes[11]
 }
 
 func (x CandidateQueueState) Number() protoreflect.EnumNumber {
@@ -717,7 +783,7 @@ func (x CandidateQueueState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CandidateQueueState.Descriptor instead.
 func (CandidateQueueState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{10}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{11}
 }
 
 type BenchmarkState int32
@@ -756,11 +822,11 @@ func (x BenchmarkState) String() string {
 }
 
 func (BenchmarkState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[11].Descriptor()
+	return file_awareness_graph_proto_enumTypes[12].Descriptor()
 }
 
 func (BenchmarkState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[11]
+	return &file_awareness_graph_proto_enumTypes[12]
 }
 
 func (x BenchmarkState) Number() protoreflect.EnumNumber {
@@ -769,7 +835,7 @@ func (x BenchmarkState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BenchmarkState.Descriptor instead.
 func (BenchmarkState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{11}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{12}
 }
 
 type GovernancePackState int32
@@ -817,11 +883,11 @@ func (x GovernancePackState) String() string {
 }
 
 func (GovernancePackState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[12].Descriptor()
+	return file_awareness_graph_proto_enumTypes[13].Descriptor()
 }
 
 func (GovernancePackState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[12]
+	return &file_awareness_graph_proto_enumTypes[13]
 }
 
 func (x GovernancePackState) Number() protoreflect.EnumNumber {
@@ -830,7 +896,7 @@ func (x GovernancePackState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GovernancePackState.Descriptor instead.
 func (GovernancePackState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{12}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{13}
 }
 
 type EvidenceLaneMode int32
@@ -869,11 +935,11 @@ func (x EvidenceLaneMode) String() string {
 }
 
 func (EvidenceLaneMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[13].Descriptor()
+	return file_awareness_graph_proto_enumTypes[14].Descriptor()
 }
 
 func (EvidenceLaneMode) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[13]
+	return &file_awareness_graph_proto_enumTypes[14]
 }
 
 func (x EvidenceLaneMode) Number() protoreflect.EnumNumber {
@@ -882,7 +948,7 @@ func (x EvidenceLaneMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use EvidenceLaneMode.Descriptor instead.
 func (EvidenceLaneMode) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{13}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{14}
 }
 
 type CertificationVerdict int32
@@ -942,11 +1008,11 @@ func (x CertificationVerdict) String() string {
 }
 
 func (CertificationVerdict) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[14].Descriptor()
+	return file_awareness_graph_proto_enumTypes[15].Descriptor()
 }
 
 func (CertificationVerdict) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[14]
+	return &file_awareness_graph_proto_enumTypes[15]
 }
 
 func (x CertificationVerdict) Number() protoreflect.EnumNumber {
@@ -955,7 +1021,7 @@ func (x CertificationVerdict) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CertificationVerdict.Descriptor instead.
 func (CertificationVerdict) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{14}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{15}
 }
 
 type PromotionDecision int32
@@ -994,11 +1060,11 @@ func (x PromotionDecision) String() string {
 }
 
 func (PromotionDecision) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[15].Descriptor()
+	return file_awareness_graph_proto_enumTypes[16].Descriptor()
 }
 
 func (PromotionDecision) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[15]
+	return &file_awareness_graph_proto_enumTypes[16]
 }
 
 func (x PromotionDecision) Number() protoreflect.EnumNumber {
@@ -1007,7 +1073,7 @@ func (x PromotionDecision) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PromotionDecision.Descriptor instead.
 func (PromotionDecision) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{15}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{16}
 }
 
 type PreflightMode int32
@@ -1043,11 +1109,11 @@ func (x PreflightMode) String() string {
 }
 
 func (PreflightMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[16].Descriptor()
+	return file_awareness_graph_proto_enumTypes[17].Descriptor()
 }
 
 func (PreflightMode) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[16]
+	return &file_awareness_graph_proto_enumTypes[17]
 }
 
 func (x PreflightMode) Number() protoreflect.EnumNumber {
@@ -1056,7 +1122,7 @@ func (x PreflightMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PreflightMode.Descriptor instead.
 func (PreflightMode) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{16}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{17}
 }
 
 type PreflightStatus int32
@@ -1095,11 +1161,11 @@ func (x PreflightStatus) String() string {
 }
 
 func (PreflightStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[17].Descriptor()
+	return file_awareness_graph_proto_enumTypes[18].Descriptor()
 }
 
 func (PreflightStatus) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[17]
+	return &file_awareness_graph_proto_enumTypes[18]
 }
 
 func (x PreflightStatus) Number() protoreflect.EnumNumber {
@@ -1108,7 +1174,7 @@ func (x PreflightStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PreflightStatus.Descriptor instead.
 func (PreflightStatus) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{17}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{18}
 }
 
 type RiskClass int32
@@ -1156,11 +1222,11 @@ func (x RiskClass) String() string {
 }
 
 func (RiskClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[18].Descriptor()
+	return file_awareness_graph_proto_enumTypes[19].Descriptor()
 }
 
 func (RiskClass) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[18]
+	return &file_awareness_graph_proto_enumTypes[19]
 }
 
 func (x RiskClass) Number() protoreflect.EnumNumber {
@@ -1169,7 +1235,7 @@ func (x RiskClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RiskClass.Descriptor instead.
 func (RiskClass) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{18}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
 }
 
 type Confidence int32
@@ -1208,11 +1274,11 @@ func (x Confidence) String() string {
 }
 
 func (Confidence) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[19].Descriptor()
+	return file_awareness_graph_proto_enumTypes[20].Descriptor()
 }
 
 func (Confidence) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[19]
+	return &file_awareness_graph_proto_enumTypes[20]
 }
 
 func (x Confidence) Number() protoreflect.EnumNumber {
@@ -1221,7 +1287,7 @@ func (x Confidence) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Confidence.Descriptor instead.
 func (Confidence) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
 }
 
 type ProposeStatus int32
@@ -1257,11 +1323,11 @@ func (x ProposeStatus) String() string {
 }
 
 func (ProposeStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[20].Descriptor()
+	return file_awareness_graph_proto_enumTypes[21].Descriptor()
 }
 
 func (ProposeStatus) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[20]
+	return &file_awareness_graph_proto_enumTypes[21]
 }
 
 func (x ProposeStatus) Number() protoreflect.EnumNumber {
@@ -1270,7 +1336,7 @@ func (x ProposeStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ProposeStatus.Descriptor instead.
 func (ProposeStatus) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
 }
 
 // ArchitectureAvailability mirrors controlstate.Availability.
@@ -1313,11 +1379,11 @@ func (x ArchitectureAvailability) String() string {
 }
 
 func (ArchitectureAvailability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[21].Descriptor()
+	return file_awareness_graph_proto_enumTypes[22].Descriptor()
 }
 
 func (ArchitectureAvailability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[21]
+	return &file_awareness_graph_proto_enumTypes[22]
 }
 
 func (x ArchitectureAvailability) Number() protoreflect.EnumNumber {
@@ -1326,7 +1392,7 @@ func (x ArchitectureAvailability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAvailability.Descriptor instead.
 func (ArchitectureAvailability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
 }
 
 // ArchitectureSourceAvailability mirrors controlstate.SourceAvailability.
@@ -1369,11 +1435,11 @@ func (x ArchitectureSourceAvailability) String() string {
 }
 
 func (ArchitectureSourceAvailability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[22].Descriptor()
+	return file_awareness_graph_proto_enumTypes[23].Descriptor()
 }
 
 func (ArchitectureSourceAvailability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[22]
+	return &file_awareness_graph_proto_enumTypes[23]
 }
 
 func (x ArchitectureSourceAvailability) Number() protoreflect.EnumNumber {
@@ -1382,7 +1448,7 @@ func (x ArchitectureSourceAvailability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureSourceAvailability.Descriptor instead.
 func (ArchitectureSourceAvailability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
 }
 
 // ArchitectureSourceImpact mirrors controlstate.SourceImpact.
@@ -1425,11 +1491,11 @@ func (x ArchitectureSourceImpact) String() string {
 }
 
 func (ArchitectureSourceImpact) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[23].Descriptor()
+	return file_awareness_graph_proto_enumTypes[24].Descriptor()
 }
 
 func (ArchitectureSourceImpact) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[23]
+	return &file_awareness_graph_proto_enumTypes[24]
 }
 
 func (x ArchitectureSourceImpact) Number() protoreflect.EnumNumber {
@@ -1438,7 +1504,7 @@ func (x ArchitectureSourceImpact) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureSourceImpact.Descriptor instead.
 func (ArchitectureSourceImpact) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
 }
 
 // ArchitectureArtifactClosure mirrors controlstate.ArtifactClosure. UNKNOWN is
@@ -1485,11 +1551,11 @@ func (x ArchitectureArtifactClosure) String() string {
 }
 
 func (ArchitectureArtifactClosure) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[24].Descriptor()
+	return file_awareness_graph_proto_enumTypes[25].Descriptor()
 }
 
 func (ArchitectureArtifactClosure) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[24]
+	return &file_awareness_graph_proto_enumTypes[25]
 }
 
 func (x ArchitectureArtifactClosure) Number() protoreflect.EnumNumber {
@@ -1498,7 +1564,7 @@ func (x ArchitectureArtifactClosure) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureArtifactClosure.Descriptor instead.
 func (ArchitectureArtifactClosure) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
 }
 
 // ArchitectureDimensionState mirrors controlstate.DimensionState.
@@ -1544,11 +1610,11 @@ func (x ArchitectureDimensionState) String() string {
 }
 
 func (ArchitectureDimensionState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[25].Descriptor()
+	return file_awareness_graph_proto_enumTypes[26].Descriptor()
 }
 
 func (ArchitectureDimensionState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[25]
+	return &file_awareness_graph_proto_enumTypes[26]
 }
 
 func (x ArchitectureDimensionState) Number() protoreflect.EnumNumber {
@@ -1557,7 +1623,7 @@ func (x ArchitectureDimensionState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDimensionState.Descriptor instead.
 func (ArchitectureDimensionState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
 }
 
 // ArchitectureLifecycleState mirrors controlstate.LifecycleState. Absence of a
@@ -1610,11 +1676,11 @@ func (x ArchitectureLifecycleState) String() string {
 }
 
 func (ArchitectureLifecycleState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[26].Descriptor()
+	return file_awareness_graph_proto_enumTypes[27].Descriptor()
 }
 
 func (ArchitectureLifecycleState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[26]
+	return &file_awareness_graph_proto_enumTypes[27]
 }
 
 func (x ArchitectureLifecycleState) Number() protoreflect.EnumNumber {
@@ -1623,7 +1689,7 @@ func (x ArchitectureLifecycleState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureLifecycleState.Descriptor instead.
 func (ArchitectureLifecycleState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
 }
 
 // ArchitectureAttentionSeverity mirrors controlstate.AttentionSeverity — the
@@ -1668,11 +1734,11 @@ func (x ArchitectureAttentionSeverity) String() string {
 }
 
 func (ArchitectureAttentionSeverity) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[27].Descriptor()
+	return file_awareness_graph_proto_enumTypes[28].Descriptor()
 }
 
 func (ArchitectureAttentionSeverity) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[27]
+	return &file_awareness_graph_proto_enumTypes[28]
 }
 
 func (x ArchitectureAttentionSeverity) Number() protoreflect.EnumNumber {
@@ -1681,7 +1747,7 @@ func (x ArchitectureAttentionSeverity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAttentionSeverity.Descriptor instead.
 func (ArchitectureAttentionSeverity) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
 }
 
 // ArchitectureAssessmentCoverage mirrors controlstate.AssessmentCoverage.
@@ -1724,11 +1790,11 @@ func (x ArchitectureAssessmentCoverage) String() string {
 }
 
 func (ArchitectureAssessmentCoverage) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[28].Descriptor()
+	return file_awareness_graph_proto_enumTypes[29].Descriptor()
 }
 
 func (ArchitectureAssessmentCoverage) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[28]
+	return &file_awareness_graph_proto_enumTypes[29]
 }
 
 func (x ArchitectureAssessmentCoverage) Number() protoreflect.EnumNumber {
@@ -1737,7 +1803,7 @@ func (x ArchitectureAssessmentCoverage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAssessmentCoverage.Descriptor instead.
 func (ArchitectureAssessmentCoverage) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
 }
 
 type ArchitectureDisposition int32
@@ -1779,11 +1845,11 @@ func (x ArchitectureDisposition) String() string {
 }
 
 func (ArchitectureDisposition) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[29].Descriptor()
+	return file_awareness_graph_proto_enumTypes[30].Descriptor()
 }
 
 func (ArchitectureDisposition) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[29]
+	return &file_awareness_graph_proto_enumTypes[30]
 }
 
 func (x ArchitectureDisposition) Number() protoreflect.EnumNumber {
@@ -1792,7 +1858,7 @@ func (x ArchitectureDisposition) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDisposition.Descriptor instead.
 func (ArchitectureDisposition) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
 }
 
 type ArchitectureReusability int32
@@ -1831,11 +1897,11 @@ func (x ArchitectureReusability) String() string {
 }
 
 func (ArchitectureReusability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[30].Descriptor()
+	return file_awareness_graph_proto_enumTypes[31].Descriptor()
 }
 
 func (ArchitectureReusability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[30]
+	return &file_awareness_graph_proto_enumTypes[31]
 }
 
 func (x ArchitectureReusability) Number() protoreflect.EnumNumber {
@@ -1844,7 +1910,7 @@ func (x ArchitectureReusability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureReusability.Descriptor instead.
 func (ArchitectureReusability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
 }
 
 type ArchitectureDispositionOutcome int32
@@ -1886,11 +1952,11 @@ func (x ArchitectureDispositionOutcome) String() string {
 }
 
 func (ArchitectureDispositionOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[31].Descriptor()
+	return file_awareness_graph_proto_enumTypes[32].Descriptor()
 }
 
 func (ArchitectureDispositionOutcome) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[31]
+	return &file_awareness_graph_proto_enumTypes[32]
 }
 
 func (x ArchitectureDispositionOutcome) Number() protoreflect.EnumNumber {
@@ -1899,7 +1965,7 @@ func (x ArchitectureDispositionOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDispositionOutcome.Descriptor instead.
 func (ArchitectureDispositionOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
 }
 
 type BriefingRequest struct {
@@ -3673,14 +3739,14 @@ func (x *MetadataRequest) GetDomain() string {
 	return ""
 }
 
-// GraphAuthority is the current/provenance stamp every successful graph-backed
-// response must carry. Callers must not infer authority from prose or rows
-// alone; they must read this block to know whether the answer came from the
-// current validated artifact.
 type GraphAuthority struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True only when the live store was proven to match the expected embedded/
 	// generated artifact digest exactly.
+	//
+	// DEPRECATED as the machine-readable surface: prefer `verdict`. This field is
+	// retained for compatibility and is derived from the same predicate, so it
+	// cannot drift. It remains unable to distinguish false from unobserved.
 	Authoritative bool `protobuf:"varint,1,opt,name=authoritative,proto3" json:"authoritative,omitempty"`
 	// Freshness verdict for the loaded graph.
 	GraphFreshnessState  GraphFreshnessState `protobuf:"varint,2,opt,name=graph_freshness_state,json=graphFreshnessState,proto3,enum=globular.awareness_graph.GraphFreshnessState" json:"graph_freshness_state,omitempty"`
@@ -3701,8 +3767,12 @@ type GraphAuthority struct {
 	CertifiedServicesRepoCommit     string `protobuf:"bytes,14,opt,name=certified_services_repo_commit,json=certifiedServicesRepoCommit,proto3" json:"certified_services_repo_commit,omitempty"`
 	EmbeddedTransactionMatchesSeed  bool   `protobuf:"varint,15,opt,name=embedded_transaction_matches_seed,json=embeddedTransactionMatchesSeed,proto3" json:"embedded_transaction_matches_seed,omitempty"`
 	EmbeddedTransactionDetail       string `protobuf:"bytes,16,opt,name=embedded_transaction_detail,json=embeddedTransactionDetail,proto3" json:"embedded_transaction_detail,omitempty"`
-	unknownFields                   protoimpl.UnknownFields
-	sizeCache                       protoimpl.SizeCache
+	// The composed conclusion, stated explicitly. Consumers that must
+	// distinguish "not authoritative" from "not observed" MUST read this rather
+	// than `authoritative`.
+	Verdict       AuthorityVerdict `protobuf:"varint,17,opt,name=verdict,proto3,enum=globular.awareness_graph.AuthorityVerdict" json:"verdict,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GraphAuthority) Reset() {
@@ -3845,6 +3915,13 @@ func (x *GraphAuthority) GetEmbeddedTransactionDetail() string {
 		return x.EmbeddedTransactionDetail
 	}
 	return ""
+}
+
+func (x *GraphAuthority) GetVerdict() AuthorityVerdict {
+	if x != nil {
+		return x.Verdict
+	}
+	return AuthorityVerdict_AUTHORITY_VERDICT_UNSPECIFIED
 }
 
 type MetadataResponse struct {
@@ -9721,7 +9798,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x05found\x18\x04 \x01(\bR\x05found\x12F\n" +
 	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthorityJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\atriplesR\x0finverse_triples\")\n" +
 	"\x0fMetadataRequest\x12\x16\n" +
-	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xb3\b\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xf9\b\n" +
 	"\x0eGraphAuthority\x12$\n" +
 	"\rauthoritative\x18\x01 \x01(\bR\rauthoritative\x12a\n" +
 	"\x15graph_freshness_state\x18\x02 \x01(\x0e2-.globular.awareness_graph.GraphFreshnessStateR\x13graphFreshnessState\x124\n" +
@@ -9740,7 +9817,8 @@ const file_awareness_graph_proto_rawDesc = "" +
 	" certified_awareness_graph_commit\x18\r \x01(\tR\x1dcertifiedAwarenessGraphCommit\x12C\n" +
 	"\x1ecertified_services_repo_commit\x18\x0e \x01(\tR\x1bcertifiedServicesRepoCommit\x12I\n" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
-	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\"\x9d\x1e\n" +
+	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\x12D\n" +
+	"\averdict\x18\x11 \x01(\x0e2*.globular.awareness_graph.AuthorityVerdictR\averdict\"\x9d\x1e\n" +
 	"\x10MetadataResponse\x12,\n" +
 	"\x12graph_build_commit\x18\x01 \x01(\tR\x10graphBuildCommit\x121\n" +
 	"\x15graph_build_time_unix\x18\x02 \x01(\x03R\x12graphBuildTimeUnix\x12,\n" +
@@ -10367,7 +10445,11 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1bGRAPH_FRESHNESS_STATE_STALE\x10\x02\x12!\n" +
 	"\x1dGRAPH_FRESHNESS_STATE_UNKNOWN\x10\x03\x12\x1f\n" +
 	"\x1bGRAPH_FRESHNESS_STATE_EMPTY\x10\x04\x12%\n" +
-	"!GRAPH_FRESHNESS_STATE_CHECK_ERROR\x10\x05*\xa8\x01\n" +
+	"!GRAPH_FRESHNESS_STATE_CHECK_ERROR\x10\x05*\x83\x01\n" +
+	"\x10AuthorityVerdict\x12!\n" +
+	"\x1dAUTHORITY_VERDICT_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fAUTHORITY_VERDICT_AUTHORITATIVE\x10\x01\x12'\n" +
+	"#AUTHORITY_VERDICT_NOT_AUTHORITATIVE\x10\x02*\xa8\x01\n" +
 	"\x13CandidateQueueState\x12%\n" +
 	"!CANDIDATE_QUEUE_STATE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CANDIDATE_QUEUE_STATE_NOT_DETECTED\x10\x01\x12\x1f\n" +
@@ -10535,7 +10617,7 @@ func file_awareness_graph_proto_rawDescGZIP() []byte {
 	return file_awareness_graph_proto_rawDescData
 }
 
-var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 32)
+var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 33)
 var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 79)
 var file_awareness_graph_proto_goTypes = []any{
 	(BriefingStatus)(0),                               // 0: globular.awareness_graph.BriefingStatus
@@ -10548,267 +10630,269 @@ var file_awareness_graph_proto_goTypes = []any{
 	(CoverageState)(0),                                // 7: globular.awareness_graph.CoverageState
 	(SeedState)(0),                                    // 8: globular.awareness_graph.SeedState
 	(GraphFreshnessState)(0),                          // 9: globular.awareness_graph.GraphFreshnessState
-	(CandidateQueueState)(0),                          // 10: globular.awareness_graph.CandidateQueueState
-	(BenchmarkState)(0),                               // 11: globular.awareness_graph.BenchmarkState
-	(GovernancePackState)(0),                          // 12: globular.awareness_graph.GovernancePackState
-	(EvidenceLaneMode)(0),                             // 13: globular.awareness_graph.EvidenceLaneMode
-	(CertificationVerdict)(0),                         // 14: globular.awareness_graph.CertificationVerdict
-	(PromotionDecision)(0),                            // 15: globular.awareness_graph.PromotionDecision
-	(PreflightMode)(0),                                // 16: globular.awareness_graph.PreflightMode
-	(PreflightStatus)(0),                              // 17: globular.awareness_graph.PreflightStatus
-	(RiskClass)(0),                                    // 18: globular.awareness_graph.RiskClass
-	(Confidence)(0),                                   // 19: globular.awareness_graph.Confidence
-	(ProposeStatus)(0),                                // 20: globular.awareness_graph.ProposeStatus
-	(ArchitectureAvailability)(0),                     // 21: globular.awareness_graph.ArchitectureAvailability
-	(ArchitectureSourceAvailability)(0),               // 22: globular.awareness_graph.ArchitectureSourceAvailability
-	(ArchitectureSourceImpact)(0),                     // 23: globular.awareness_graph.ArchitectureSourceImpact
-	(ArchitectureArtifactClosure)(0),                  // 24: globular.awareness_graph.ArchitectureArtifactClosure
-	(ArchitectureDimensionState)(0),                   // 25: globular.awareness_graph.ArchitectureDimensionState
-	(ArchitectureLifecycleState)(0),                   // 26: globular.awareness_graph.ArchitectureLifecycleState
-	(ArchitectureAttentionSeverity)(0),                // 27: globular.awareness_graph.ArchitectureAttentionSeverity
-	(ArchitectureAssessmentCoverage)(0),               // 28: globular.awareness_graph.ArchitectureAssessmentCoverage
-	(ArchitectureDisposition)(0),                      // 29: globular.awareness_graph.ArchitectureDisposition
-	(ArchitectureReusability)(0),                      // 30: globular.awareness_graph.ArchitectureReusability
-	(ArchitectureDispositionOutcome)(0),               // 31: globular.awareness_graph.ArchitectureDispositionOutcome
-	(*BriefingRequest)(nil),                           // 32: globular.awareness_graph.BriefingRequest
-	(*BriefingResponse)(nil),                          // 33: globular.awareness_graph.BriefingResponse
-	(*BriefingFeedbackVerifiedRecord)(nil),            // 34: globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	(*BriefingFeedbackFinding)(nil),                   // 35: globular.awareness_graph.BriefingFeedbackFinding
-	(*BriefingFeedbackProjection)(nil),                // 36: globular.awareness_graph.BriefingFeedbackProjection
-	(*MatchedImplementationPattern)(nil),              // 37: globular.awareness_graph.MatchedImplementationPattern
-	(*ImpactRequest)(nil),                             // 38: globular.awareness_graph.ImpactRequest
-	(*ImpactResponse)(nil),                            // 39: globular.awareness_graph.ImpactResponse
-	(*CodeSymbolNode)(nil),                            // 40: globular.awareness_graph.CodeSymbolNode
-	(*KnowledgeNode)(nil),                             // 41: globular.awareness_graph.KnowledgeNode
-	(*NodeFact)(nil),                                  // 42: globular.awareness_graph.NodeFact
-	(*CodeAnchor)(nil),                                // 43: globular.awareness_graph.CodeAnchor
-	(*QueryRequest)(nil),                              // 44: globular.awareness_graph.QueryRequest
-	(*QueryRow)(nil),                                  // 45: globular.awareness_graph.QueryRow
-	(*QueryResponse)(nil),                             // 46: globular.awareness_graph.QueryResponse
-	(*ResolveRequest)(nil),                            // 47: globular.awareness_graph.ResolveRequest
-	(*ResolveResponse)(nil),                           // 48: globular.awareness_graph.ResolveResponse
-	(*MetadataRequest)(nil),                           // 49: globular.awareness_graph.MetadataRequest
-	(*GraphAuthority)(nil),                            // 50: globular.awareness_graph.GraphAuthority
-	(*MetadataResponse)(nil),                          // 51: globular.awareness_graph.MetadataResponse
-	(*AuthoritySurface)(nil),                          // 52: globular.awareness_graph.AuthoritySurface
-	(*ProofSlot)(nil),                                 // 53: globular.awareness_graph.ProofSlot
-	(*ProofObligation)(nil),                           // 54: globular.awareness_graph.ProofObligation
-	(*ForbiddenRepairMove)(nil),                       // 55: globular.awareness_graph.ForbiddenRepairMove
-	(*ForbiddenMoveEvidence)(nil),                     // 56: globular.awareness_graph.ForbiddenMoveEvidence
-	(*DetectedForbiddenMove)(nil),                     // 57: globular.awareness_graph.DetectedForbiddenMove
-	(*RepairClaim)(nil),                               // 58: globular.awareness_graph.RepairClaim
-	(*CertificationRequirement)(nil),                  // 59: globular.awareness_graph.CertificationRequirement
-	(*CertificationLaneResult)(nil),                   // 60: globular.awareness_graph.CertificationLaneResult
-	(*GovernanceCertification)(nil),                   // 61: globular.awareness_graph.GovernanceCertification
-	(*PreflightRequest)(nil),                          // 62: globular.awareness_graph.PreflightRequest
-	(*PreflightResponse)(nil),                         // 63: globular.awareness_graph.PreflightResponse
-	(*CoverageSummary)(nil),                           // 64: globular.awareness_graph.CoverageSummary
-	(*EditCheckRequest)(nil),                          // 65: globular.awareness_graph.EditCheckRequest
-	(*EditWarning)(nil),                               // 66: globular.awareness_graph.EditWarning
-	(*EditCheckResponse)(nil),                         // 67: globular.awareness_graph.EditCheckResponse
-	(*ProposeRequest)(nil),                            // 68: globular.awareness_graph.ProposeRequest
-	(*ProposeResponse)(nil),                           // 69: globular.awareness_graph.ProposeResponse
-	(*ReferenceSitesRequest)(nil),                     // 70: globular.awareness_graph.ReferenceSitesRequest
-	(*ReferenceFamily)(nil),                           // 71: globular.awareness_graph.ReferenceFamily
-	(*ReferenceSitesResponse)(nil),                    // 72: globular.awareness_graph.ReferenceSitesResponse
-	(*ArchitectureSourceStatus)(nil),                  // 73: globular.awareness_graph.ArchitectureSourceStatus
-	(*ArchitectureProjectionMeta)(nil),                // 74: globular.awareness_graph.ArchitectureProjectionMeta
-	(*ArchitectureArtifactIdentity)(nil),              // 75: globular.awareness_graph.ArchitectureArtifactIdentity
-	(*ArchitectureLifecycleAssessment)(nil),           // 76: globular.awareness_graph.ArchitectureLifecycleAssessment
-	(*ArchitectureDimensionExplanation)(nil),          // 77: globular.awareness_graph.ArchitectureDimensionExplanation
-	(*ArchitectureDimensionAssessment)(nil),           // 78: globular.awareness_graph.ArchitectureDimensionAssessment
-	(*ArchitectureAttentionItem)(nil),                 // 79: globular.awareness_graph.ArchitectureAttentionItem
-	(*ArchitectureKeyedCount)(nil),                    // 80: globular.awareness_graph.ArchitectureKeyedCount
-	(*ArchitectureGraphAuthoritySummary)(nil),         // 81: globular.awareness_graph.ArchitectureGraphAuthoritySummary
-	(*ArchitectureCoverageSummary)(nil),               // 82: globular.awareness_graph.ArchitectureCoverageSummary
-	(*ArchitectureTaskSummary)(nil),                   // 83: globular.awareness_graph.ArchitectureTaskSummary
-	(*ArchitectureCompletionSummary)(nil),             // 84: globular.awareness_graph.ArchitectureCompletionSummary
-	(*ArchitectureFeedbackContext)(nil),               // 85: globular.awareness_graph.ArchitectureFeedbackContext
-	(*ArchitectureScopedFeedbackRef)(nil),             // 86: globular.awareness_graph.ArchitectureScopedFeedbackRef
-	(*ArchitectureControlSnapshot)(nil),               // 87: globular.awareness_graph.ArchitectureControlSnapshot
-	(*ArchitectureArtifactSummary)(nil),               // 88: globular.awareness_graph.ArchitectureArtifactSummary
-	(*ArchitectureArtifactIndex)(nil),                 // 89: globular.awareness_graph.ArchitectureArtifactIndex
-	(*ArchitectureArtifactState)(nil),                 // 90: globular.awareness_graph.ArchitectureArtifactState
-	(*ArchitectureNavigationClass)(nil),               // 91: globular.awareness_graph.ArchitectureNavigationClass
-	(*ArchitectureNavigationFamily)(nil),              // 92: globular.awareness_graph.ArchitectureNavigationFamily
-	(*OntologyNavigationDescriptor)(nil),              // 93: globular.awareness_graph.OntologyNavigationDescriptor
-	(*GetArchitectureControlSnapshotRequest)(nil),     // 94: globular.awareness_graph.GetArchitectureControlSnapshotRequest
-	(*GetArchitectureControlSnapshotResponse)(nil),    // 95: globular.awareness_graph.GetArchitectureControlSnapshotResponse
-	(*ListArchitectureArtifactsRequest)(nil),          // 96: globular.awareness_graph.ListArchitectureArtifactsRequest
-	(*ListArchitectureArtifactsResponse)(nil),         // 97: globular.awareness_graph.ListArchitectureArtifactsResponse
-	(*GetArchitectureArtifactStateRequest)(nil),       // 98: globular.awareness_graph.GetArchitectureArtifactStateRequest
-	(*GetArchitectureArtifactStateResponse)(nil),      // 99: globular.awareness_graph.GetArchitectureArtifactStateResponse
-	(*GetOntologyNavigationDescriptorRequest)(nil),    // 100: globular.awareness_graph.GetOntologyNavigationDescriptorRequest
-	(*GetOntologyNavigationDescriptorResponse)(nil),   // 101: globular.awareness_graph.GetOntologyNavigationDescriptorResponse
-	(*ArchitectureMutationRefusal)(nil),               // 102: globular.awareness_graph.ArchitectureMutationRefusal
-	(*ArchitectureMutationAudit)(nil),                 // 103: globular.awareness_graph.ArchitectureMutationAudit
-	(*ArchitectureDispositionInput)(nil),              // 104: globular.awareness_graph.ArchitectureDispositionInput
-	(*ArchitectureDispositionCandidate)(nil),          // 105: globular.awareness_graph.ArchitectureDispositionCandidate
-	(*PrepareArchitectAnswerDispositionRequest)(nil),  // 106: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
-	(*PrepareArchitectAnswerDispositionResponse)(nil), // 107: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
-	(*ArchitectureDispositionReceipt)(nil),            // 108: globular.awareness_graph.ArchitectureDispositionReceipt
-	(*RecordArchitectAnswerDispositionRequest)(nil),   // 109: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
-	(*RecordArchitectAnswerDispositionResponse)(nil),  // 110: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	(AuthorityVerdict)(0),                             // 10: globular.awareness_graph.AuthorityVerdict
+	(CandidateQueueState)(0),                          // 11: globular.awareness_graph.CandidateQueueState
+	(BenchmarkState)(0),                               // 12: globular.awareness_graph.BenchmarkState
+	(GovernancePackState)(0),                          // 13: globular.awareness_graph.GovernancePackState
+	(EvidenceLaneMode)(0),                             // 14: globular.awareness_graph.EvidenceLaneMode
+	(CertificationVerdict)(0),                         // 15: globular.awareness_graph.CertificationVerdict
+	(PromotionDecision)(0),                            // 16: globular.awareness_graph.PromotionDecision
+	(PreflightMode)(0),                                // 17: globular.awareness_graph.PreflightMode
+	(PreflightStatus)(0),                              // 18: globular.awareness_graph.PreflightStatus
+	(RiskClass)(0),                                    // 19: globular.awareness_graph.RiskClass
+	(Confidence)(0),                                   // 20: globular.awareness_graph.Confidence
+	(ProposeStatus)(0),                                // 21: globular.awareness_graph.ProposeStatus
+	(ArchitectureAvailability)(0),                     // 22: globular.awareness_graph.ArchitectureAvailability
+	(ArchitectureSourceAvailability)(0),               // 23: globular.awareness_graph.ArchitectureSourceAvailability
+	(ArchitectureSourceImpact)(0),                     // 24: globular.awareness_graph.ArchitectureSourceImpact
+	(ArchitectureArtifactClosure)(0),                  // 25: globular.awareness_graph.ArchitectureArtifactClosure
+	(ArchitectureDimensionState)(0),                   // 26: globular.awareness_graph.ArchitectureDimensionState
+	(ArchitectureLifecycleState)(0),                   // 27: globular.awareness_graph.ArchitectureLifecycleState
+	(ArchitectureAttentionSeverity)(0),                // 28: globular.awareness_graph.ArchitectureAttentionSeverity
+	(ArchitectureAssessmentCoverage)(0),               // 29: globular.awareness_graph.ArchitectureAssessmentCoverage
+	(ArchitectureDisposition)(0),                      // 30: globular.awareness_graph.ArchitectureDisposition
+	(ArchitectureReusability)(0),                      // 31: globular.awareness_graph.ArchitectureReusability
+	(ArchitectureDispositionOutcome)(0),               // 32: globular.awareness_graph.ArchitectureDispositionOutcome
+	(*BriefingRequest)(nil),                           // 33: globular.awareness_graph.BriefingRequest
+	(*BriefingResponse)(nil),                          // 34: globular.awareness_graph.BriefingResponse
+	(*BriefingFeedbackVerifiedRecord)(nil),            // 35: globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	(*BriefingFeedbackFinding)(nil),                   // 36: globular.awareness_graph.BriefingFeedbackFinding
+	(*BriefingFeedbackProjection)(nil),                // 37: globular.awareness_graph.BriefingFeedbackProjection
+	(*MatchedImplementationPattern)(nil),              // 38: globular.awareness_graph.MatchedImplementationPattern
+	(*ImpactRequest)(nil),                             // 39: globular.awareness_graph.ImpactRequest
+	(*ImpactResponse)(nil),                            // 40: globular.awareness_graph.ImpactResponse
+	(*CodeSymbolNode)(nil),                            // 41: globular.awareness_graph.CodeSymbolNode
+	(*KnowledgeNode)(nil),                             // 42: globular.awareness_graph.KnowledgeNode
+	(*NodeFact)(nil),                                  // 43: globular.awareness_graph.NodeFact
+	(*CodeAnchor)(nil),                                // 44: globular.awareness_graph.CodeAnchor
+	(*QueryRequest)(nil),                              // 45: globular.awareness_graph.QueryRequest
+	(*QueryRow)(nil),                                  // 46: globular.awareness_graph.QueryRow
+	(*QueryResponse)(nil),                             // 47: globular.awareness_graph.QueryResponse
+	(*ResolveRequest)(nil),                            // 48: globular.awareness_graph.ResolveRequest
+	(*ResolveResponse)(nil),                           // 49: globular.awareness_graph.ResolveResponse
+	(*MetadataRequest)(nil),                           // 50: globular.awareness_graph.MetadataRequest
+	(*GraphAuthority)(nil),                            // 51: globular.awareness_graph.GraphAuthority
+	(*MetadataResponse)(nil),                          // 52: globular.awareness_graph.MetadataResponse
+	(*AuthoritySurface)(nil),                          // 53: globular.awareness_graph.AuthoritySurface
+	(*ProofSlot)(nil),                                 // 54: globular.awareness_graph.ProofSlot
+	(*ProofObligation)(nil),                           // 55: globular.awareness_graph.ProofObligation
+	(*ForbiddenRepairMove)(nil),                       // 56: globular.awareness_graph.ForbiddenRepairMove
+	(*ForbiddenMoveEvidence)(nil),                     // 57: globular.awareness_graph.ForbiddenMoveEvidence
+	(*DetectedForbiddenMove)(nil),                     // 58: globular.awareness_graph.DetectedForbiddenMove
+	(*RepairClaim)(nil),                               // 59: globular.awareness_graph.RepairClaim
+	(*CertificationRequirement)(nil),                  // 60: globular.awareness_graph.CertificationRequirement
+	(*CertificationLaneResult)(nil),                   // 61: globular.awareness_graph.CertificationLaneResult
+	(*GovernanceCertification)(nil),                   // 62: globular.awareness_graph.GovernanceCertification
+	(*PreflightRequest)(nil),                          // 63: globular.awareness_graph.PreflightRequest
+	(*PreflightResponse)(nil),                         // 64: globular.awareness_graph.PreflightResponse
+	(*CoverageSummary)(nil),                           // 65: globular.awareness_graph.CoverageSummary
+	(*EditCheckRequest)(nil),                          // 66: globular.awareness_graph.EditCheckRequest
+	(*EditWarning)(nil),                               // 67: globular.awareness_graph.EditWarning
+	(*EditCheckResponse)(nil),                         // 68: globular.awareness_graph.EditCheckResponse
+	(*ProposeRequest)(nil),                            // 69: globular.awareness_graph.ProposeRequest
+	(*ProposeResponse)(nil),                           // 70: globular.awareness_graph.ProposeResponse
+	(*ReferenceSitesRequest)(nil),                     // 71: globular.awareness_graph.ReferenceSitesRequest
+	(*ReferenceFamily)(nil),                           // 72: globular.awareness_graph.ReferenceFamily
+	(*ReferenceSitesResponse)(nil),                    // 73: globular.awareness_graph.ReferenceSitesResponse
+	(*ArchitectureSourceStatus)(nil),                  // 74: globular.awareness_graph.ArchitectureSourceStatus
+	(*ArchitectureProjectionMeta)(nil),                // 75: globular.awareness_graph.ArchitectureProjectionMeta
+	(*ArchitectureArtifactIdentity)(nil),              // 76: globular.awareness_graph.ArchitectureArtifactIdentity
+	(*ArchitectureLifecycleAssessment)(nil),           // 77: globular.awareness_graph.ArchitectureLifecycleAssessment
+	(*ArchitectureDimensionExplanation)(nil),          // 78: globular.awareness_graph.ArchitectureDimensionExplanation
+	(*ArchitectureDimensionAssessment)(nil),           // 79: globular.awareness_graph.ArchitectureDimensionAssessment
+	(*ArchitectureAttentionItem)(nil),                 // 80: globular.awareness_graph.ArchitectureAttentionItem
+	(*ArchitectureKeyedCount)(nil),                    // 81: globular.awareness_graph.ArchitectureKeyedCount
+	(*ArchitectureGraphAuthoritySummary)(nil),         // 82: globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	(*ArchitectureCoverageSummary)(nil),               // 83: globular.awareness_graph.ArchitectureCoverageSummary
+	(*ArchitectureTaskSummary)(nil),                   // 84: globular.awareness_graph.ArchitectureTaskSummary
+	(*ArchitectureCompletionSummary)(nil),             // 85: globular.awareness_graph.ArchitectureCompletionSummary
+	(*ArchitectureFeedbackContext)(nil),               // 86: globular.awareness_graph.ArchitectureFeedbackContext
+	(*ArchitectureScopedFeedbackRef)(nil),             // 87: globular.awareness_graph.ArchitectureScopedFeedbackRef
+	(*ArchitectureControlSnapshot)(nil),               // 88: globular.awareness_graph.ArchitectureControlSnapshot
+	(*ArchitectureArtifactSummary)(nil),               // 89: globular.awareness_graph.ArchitectureArtifactSummary
+	(*ArchitectureArtifactIndex)(nil),                 // 90: globular.awareness_graph.ArchitectureArtifactIndex
+	(*ArchitectureArtifactState)(nil),                 // 91: globular.awareness_graph.ArchitectureArtifactState
+	(*ArchitectureNavigationClass)(nil),               // 92: globular.awareness_graph.ArchitectureNavigationClass
+	(*ArchitectureNavigationFamily)(nil),              // 93: globular.awareness_graph.ArchitectureNavigationFamily
+	(*OntologyNavigationDescriptor)(nil),              // 94: globular.awareness_graph.OntologyNavigationDescriptor
+	(*GetArchitectureControlSnapshotRequest)(nil),     // 95: globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	(*GetArchitectureControlSnapshotResponse)(nil),    // 96: globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	(*ListArchitectureArtifactsRequest)(nil),          // 97: globular.awareness_graph.ListArchitectureArtifactsRequest
+	(*ListArchitectureArtifactsResponse)(nil),         // 98: globular.awareness_graph.ListArchitectureArtifactsResponse
+	(*GetArchitectureArtifactStateRequest)(nil),       // 99: globular.awareness_graph.GetArchitectureArtifactStateRequest
+	(*GetArchitectureArtifactStateResponse)(nil),      // 100: globular.awareness_graph.GetArchitectureArtifactStateResponse
+	(*GetOntologyNavigationDescriptorRequest)(nil),    // 101: globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	(*GetOntologyNavigationDescriptorResponse)(nil),   // 102: globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	(*ArchitectureMutationRefusal)(nil),               // 103: globular.awareness_graph.ArchitectureMutationRefusal
+	(*ArchitectureMutationAudit)(nil),                 // 104: globular.awareness_graph.ArchitectureMutationAudit
+	(*ArchitectureDispositionInput)(nil),              // 105: globular.awareness_graph.ArchitectureDispositionInput
+	(*ArchitectureDispositionCandidate)(nil),          // 106: globular.awareness_graph.ArchitectureDispositionCandidate
+	(*PrepareArchitectAnswerDispositionRequest)(nil),  // 107: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	(*PrepareArchitectAnswerDispositionResponse)(nil), // 108: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	(*ArchitectureDispositionReceipt)(nil),            // 109: globular.awareness_graph.ArchitectureDispositionReceipt
+	(*RecordArchitectAnswerDispositionRequest)(nil),   // 110: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	(*RecordArchitectAnswerDispositionResponse)(nil),  // 111: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
 }
 var file_awareness_graph_proto_depIdxs = []int32{
 	0,   // 0: globular.awareness_graph.BriefingResponse.status:type_name -> globular.awareness_graph.BriefingStatus
-	37,  // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	50,  // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	36,  // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
+	38,  // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	51,  // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	37,  // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
 	2,   // 4: globular.awareness_graph.BriefingFeedbackVerifiedRecord.verification_class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
 	2,   // 5: globular.awareness_graph.BriefingFeedbackFinding.class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
 	3,   // 6: globular.awareness_graph.BriefingFeedbackFinding.disposition:type_name -> globular.awareness_graph.BriefingFeedbackDisposition
 	1,   // 7: globular.awareness_graph.BriefingFeedbackProjection.availability:type_name -> globular.awareness_graph.BriefingFeedbackAvailability
-	34,  // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	35,  // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
-	41,  // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	50,  // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	40,  // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
-	43,  // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
-	42,  // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
+	35,  // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	36,  // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
+	42,  // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	41,  // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
+	44,  // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
+	43,  // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
 	4,   // 25: globular.awareness_graph.QueryRequest.mode:type_name -> globular.awareness_graph.QueryMode
 	5,   // 26: globular.awareness_graph.QueryRequest.class:type_name -> globular.awareness_graph.QueryClass
-	45,  // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
-	50,  // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	41,  // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
-	50,  // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	46,  // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
+	51,  // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	42,  // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
 	9,   // 31: globular.awareness_graph.GraphAuthority.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
 	6,   // 32: globular.awareness_graph.GraphAuthority.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
 	8,   // 33: globular.awareness_graph.GraphAuthority.seed_state:type_name -> globular.awareness_graph.SeedState
-	6,   // 34: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
-	7,   // 35: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
-	8,   // 36: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
-	9,   // 37: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
-	10,  // 38: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
-	11,  // 39: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
-	12,  // 40: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
-	13,  // 41: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	53,  // 42: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
-	56,  // 43: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
-	13,  // 44: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	60,  // 45: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
-	14,  // 46: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
-	15,  // 47: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
-	16,  // 48: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
-	17,  // 49: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
-	18,  // 50: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
-	19,  // 51: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
-	41,  // 52: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 53: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 54: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 55: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	41,  // 56: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	37,  // 57: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	64,  // 58: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
-	41,  // 59: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	50,  // 60: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	66,  // 61: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
-	20,  // 62: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
-	71,  // 63: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
-	50,  // 64: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	22,  // 65: globular.awareness_graph.ArchitectureSourceStatus.availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
-	23,  // 66: globular.awareness_graph.ArchitectureSourceStatus.impact:type_name -> globular.awareness_graph.ArchitectureSourceImpact
-	21,  // 67: globular.awareness_graph.ArchitectureProjectionMeta.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
-	73,  // 68: globular.awareness_graph.ArchitectureProjectionMeta.sources:type_name -> globular.awareness_graph.ArchitectureSourceStatus
-	26,  // 69: globular.awareness_graph.ArchitectureLifecycleAssessment.state:type_name -> globular.awareness_graph.ArchitectureLifecycleState
-	22,  // 70: globular.awareness_graph.ArchitectureLifecycleAssessment.source_availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
-	25,  // 71: globular.awareness_graph.ArchitectureDimensionAssessment.state:type_name -> globular.awareness_graph.ArchitectureDimensionState
-	77,  // 72: globular.awareness_graph.ArchitectureDimensionAssessment.explanation:type_name -> globular.awareness_graph.ArchitectureDimensionExplanation
-	27,  // 73: globular.awareness_graph.ArchitectureAttentionItem.severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	74,  // 74: globular.awareness_graph.ArchitectureControlSnapshot.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	81,  // 75: globular.awareness_graph.ArchitectureControlSnapshot.graph_authority:type_name -> globular.awareness_graph.ArchitectureGraphAuthoritySummary
-	80,  // 76: globular.awareness_graph.ArchitectureControlSnapshot.counts_by_class:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	80,  // 77: globular.awareness_graph.ArchitectureControlSnapshot.assessment_coverage_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	80,  // 78: globular.awareness_graph.ArchitectureControlSnapshot.closure_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	80,  // 79: globular.awareness_graph.ArchitectureControlSnapshot.attention_counts_by_severity:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	79,  // 80: globular.awareness_graph.ArchitectureControlSnapshot.top_attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
-	82,  // 81: globular.awareness_graph.ArchitectureControlSnapshot.coverage:type_name -> globular.awareness_graph.ArchitectureCoverageSummary
-	83,  // 82: globular.awareness_graph.ArchitectureControlSnapshot.active_task:type_name -> globular.awareness_graph.ArchitectureTaskSummary
-	84,  // 83: globular.awareness_graph.ArchitectureControlSnapshot.completion:type_name -> globular.awareness_graph.ArchitectureCompletionSummary
-	85,  // 84: globular.awareness_graph.ArchitectureControlSnapshot.feedback_context:type_name -> globular.awareness_graph.ArchitectureFeedbackContext
-	75,  // 85: globular.awareness_graph.ArchitectureArtifactSummary.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
-	28,  // 86: globular.awareness_graph.ArchitectureArtifactSummary.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	26,  // 87: globular.awareness_graph.ArchitectureArtifactSummary.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleState
-	24,  // 88: globular.awareness_graph.ArchitectureArtifactSummary.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	27,  // 89: globular.awareness_graph.ArchitectureArtifactSummary.highest_severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	21,  // 90: globular.awareness_graph.ArchitectureArtifactSummary.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
-	74,  // 91: globular.awareness_graph.ArchitectureArtifactIndex.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	88,  // 92: globular.awareness_graph.ArchitectureArtifactIndex.page:type_name -> globular.awareness_graph.ArchitectureArtifactSummary
-	74,  // 93: globular.awareness_graph.ArchitectureArtifactState.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	75,  // 94: globular.awareness_graph.ArchitectureArtifactState.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
-	28,  // 95: globular.awareness_graph.ArchitectureArtifactState.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	24,  // 96: globular.awareness_graph.ArchitectureArtifactState.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	76,  // 97: globular.awareness_graph.ArchitectureArtifactState.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleAssessment
-	78,  // 98: globular.awareness_graph.ArchitectureArtifactState.dimensions:type_name -> globular.awareness_graph.ArchitectureDimensionAssessment
-	79,  // 99: globular.awareness_graph.ArchitectureArtifactState.attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
-	86,  // 100: globular.awareness_graph.ArchitectureArtifactState.feedback:type_name -> globular.awareness_graph.ArchitectureScopedFeedbackRef
-	28,  // 101: globular.awareness_graph.ArchitectureNavigationClass.coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	91,  // 102: globular.awareness_graph.ArchitectureNavigationFamily.classes:type_name -> globular.awareness_graph.ArchitectureNavigationClass
-	74,  // 103: globular.awareness_graph.OntologyNavigationDescriptor.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	92,  // 104: globular.awareness_graph.OntologyNavigationDescriptor.families:type_name -> globular.awareness_graph.ArchitectureNavigationFamily
-	91,  // 105: globular.awareness_graph.OntologyNavigationDescriptor.unknown_class_fallback:type_name -> globular.awareness_graph.ArchitectureNavigationClass
-	87,  // 106: globular.awareness_graph.GetArchitectureControlSnapshotResponse.snapshot:type_name -> globular.awareness_graph.ArchitectureControlSnapshot
-	24,  // 107: globular.awareness_graph.ListArchitectureArtifactsRequest.closure_filter:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	27,  // 108: globular.awareness_graph.ListArchitectureArtifactsRequest.severity_filter:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	89,  // 109: globular.awareness_graph.ListArchitectureArtifactsResponse.index:type_name -> globular.awareness_graph.ArchitectureArtifactIndex
-	90,  // 110: globular.awareness_graph.GetArchitectureArtifactStateResponse.state:type_name -> globular.awareness_graph.ArchitectureArtifactState
-	93,  // 111: globular.awareness_graph.GetOntologyNavigationDescriptorResponse.descriptor:type_name -> globular.awareness_graph.OntologyNavigationDescriptor
-	103, // 112: globular.awareness_graph.ArchitectureMutationRefusal.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
-	29,  // 113: globular.awareness_graph.ArchitectureDispositionInput.disposition:type_name -> globular.awareness_graph.ArchitectureDisposition
-	30,  // 114: globular.awareness_graph.ArchitectureDispositionInput.reusability:type_name -> globular.awareness_graph.ArchitectureReusability
-	104, // 115: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
-	105, // 116: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.candidate:type_name -> globular.awareness_graph.ArchitectureDispositionCandidate
-	102, // 117: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
-	31,  // 118: globular.awareness_graph.ArchitectureDispositionReceipt.outcome:type_name -> globular.awareness_graph.ArchitectureDispositionOutcome
-	103, // 119: globular.awareness_graph.ArchitectureDispositionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
-	104, // 120: globular.awareness_graph.RecordArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
-	108, // 121: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.receipt:type_name -> globular.awareness_graph.ArchitectureDispositionReceipt
-	102, // 122: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
-	32,  // 123: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
-	38,  // 124: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
-	44,  // 125: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
-	47,  // 126: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
-	49,  // 127: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
-	62,  // 128: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
-	65,  // 129: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
-	68,  // 130: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
-	70,  // 131: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
-	94,  // 132: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:input_type -> globular.awareness_graph.GetArchitectureControlSnapshotRequest
-	96,  // 133: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:input_type -> globular.awareness_graph.ListArchitectureArtifactsRequest
-	98,  // 134: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:input_type -> globular.awareness_graph.GetArchitectureArtifactStateRequest
-	100, // 135: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
-	106, // 136: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
-	109, // 137: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
-	33,  // 138: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
-	39,  // 139: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
-	46,  // 140: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
-	48,  // 141: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
-	51,  // 142: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
-	63,  // 143: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
-	67,  // 144: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
-	69,  // 145: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
-	72,  // 146: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
-	95,  // 147: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
-	97,  // 148: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
-	99,  // 149: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
-	101, // 150: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
-	107, // 151: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
-	110, // 152: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
-	138, // [138:153] is the sub-list for method output_type
-	123, // [123:138] is the sub-list for method input_type
-	123, // [123:123] is the sub-list for extension type_name
-	123, // [123:123] is the sub-list for extension extendee
-	0,   // [0:123] is the sub-list for field type_name
+	10,  // 34: globular.awareness_graph.GraphAuthority.verdict:type_name -> globular.awareness_graph.AuthorityVerdict
+	6,   // 35: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
+	7,   // 36: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
+	8,   // 37: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
+	9,   // 38: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
+	11,  // 39: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
+	12,  // 40: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
+	13,  // 41: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
+	14,  // 42: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	54,  // 43: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
+	57,  // 44: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
+	14,  // 45: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	61,  // 46: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
+	15,  // 47: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
+	16,  // 48: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
+	17,  // 49: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
+	18,  // 50: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
+	19,  // 51: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
+	20,  // 52: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
+	42,  // 53: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 54: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 55: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 56: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	42,  // 57: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	38,  // 58: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	65,  // 59: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
+	42,  // 60: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	51,  // 61: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	67,  // 62: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
+	21,  // 63: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
+	72,  // 64: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
+	51,  // 65: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	23,  // 66: globular.awareness_graph.ArchitectureSourceStatus.availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	24,  // 67: globular.awareness_graph.ArchitectureSourceStatus.impact:type_name -> globular.awareness_graph.ArchitectureSourceImpact
+	22,  // 68: globular.awareness_graph.ArchitectureProjectionMeta.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	74,  // 69: globular.awareness_graph.ArchitectureProjectionMeta.sources:type_name -> globular.awareness_graph.ArchitectureSourceStatus
+	27,  // 70: globular.awareness_graph.ArchitectureLifecycleAssessment.state:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	23,  // 71: globular.awareness_graph.ArchitectureLifecycleAssessment.source_availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	26,  // 72: globular.awareness_graph.ArchitectureDimensionAssessment.state:type_name -> globular.awareness_graph.ArchitectureDimensionState
+	78,  // 73: globular.awareness_graph.ArchitectureDimensionAssessment.explanation:type_name -> globular.awareness_graph.ArchitectureDimensionExplanation
+	28,  // 74: globular.awareness_graph.ArchitectureAttentionItem.severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	75,  // 75: globular.awareness_graph.ArchitectureControlSnapshot.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	82,  // 76: globular.awareness_graph.ArchitectureControlSnapshot.graph_authority:type_name -> globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	81,  // 77: globular.awareness_graph.ArchitectureControlSnapshot.counts_by_class:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	81,  // 78: globular.awareness_graph.ArchitectureControlSnapshot.assessment_coverage_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	81,  // 79: globular.awareness_graph.ArchitectureControlSnapshot.closure_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	81,  // 80: globular.awareness_graph.ArchitectureControlSnapshot.attention_counts_by_severity:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	80,  // 81: globular.awareness_graph.ArchitectureControlSnapshot.top_attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	83,  // 82: globular.awareness_graph.ArchitectureControlSnapshot.coverage:type_name -> globular.awareness_graph.ArchitectureCoverageSummary
+	84,  // 83: globular.awareness_graph.ArchitectureControlSnapshot.active_task:type_name -> globular.awareness_graph.ArchitectureTaskSummary
+	85,  // 84: globular.awareness_graph.ArchitectureControlSnapshot.completion:type_name -> globular.awareness_graph.ArchitectureCompletionSummary
+	86,  // 85: globular.awareness_graph.ArchitectureControlSnapshot.feedback_context:type_name -> globular.awareness_graph.ArchitectureFeedbackContext
+	76,  // 86: globular.awareness_graph.ArchitectureArtifactSummary.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	29,  // 87: globular.awareness_graph.ArchitectureArtifactSummary.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	27,  // 88: globular.awareness_graph.ArchitectureArtifactSummary.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	25,  // 89: globular.awareness_graph.ArchitectureArtifactSummary.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	28,  // 90: globular.awareness_graph.ArchitectureArtifactSummary.highest_severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	22,  // 91: globular.awareness_graph.ArchitectureArtifactSummary.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	75,  // 92: globular.awareness_graph.ArchitectureArtifactIndex.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	89,  // 93: globular.awareness_graph.ArchitectureArtifactIndex.page:type_name -> globular.awareness_graph.ArchitectureArtifactSummary
+	75,  // 94: globular.awareness_graph.ArchitectureArtifactState.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	76,  // 95: globular.awareness_graph.ArchitectureArtifactState.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	29,  // 96: globular.awareness_graph.ArchitectureArtifactState.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	25,  // 97: globular.awareness_graph.ArchitectureArtifactState.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	77,  // 98: globular.awareness_graph.ArchitectureArtifactState.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleAssessment
+	79,  // 99: globular.awareness_graph.ArchitectureArtifactState.dimensions:type_name -> globular.awareness_graph.ArchitectureDimensionAssessment
+	80,  // 100: globular.awareness_graph.ArchitectureArtifactState.attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	87,  // 101: globular.awareness_graph.ArchitectureArtifactState.feedback:type_name -> globular.awareness_graph.ArchitectureScopedFeedbackRef
+	29,  // 102: globular.awareness_graph.ArchitectureNavigationClass.coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	92,  // 103: globular.awareness_graph.ArchitectureNavigationFamily.classes:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	75,  // 104: globular.awareness_graph.OntologyNavigationDescriptor.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	93,  // 105: globular.awareness_graph.OntologyNavigationDescriptor.families:type_name -> globular.awareness_graph.ArchitectureNavigationFamily
+	92,  // 106: globular.awareness_graph.OntologyNavigationDescriptor.unknown_class_fallback:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	88,  // 107: globular.awareness_graph.GetArchitectureControlSnapshotResponse.snapshot:type_name -> globular.awareness_graph.ArchitectureControlSnapshot
+	25,  // 108: globular.awareness_graph.ListArchitectureArtifactsRequest.closure_filter:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	28,  // 109: globular.awareness_graph.ListArchitectureArtifactsRequest.severity_filter:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	90,  // 110: globular.awareness_graph.ListArchitectureArtifactsResponse.index:type_name -> globular.awareness_graph.ArchitectureArtifactIndex
+	91,  // 111: globular.awareness_graph.GetArchitectureArtifactStateResponse.state:type_name -> globular.awareness_graph.ArchitectureArtifactState
+	94,  // 112: globular.awareness_graph.GetOntologyNavigationDescriptorResponse.descriptor:type_name -> globular.awareness_graph.OntologyNavigationDescriptor
+	104, // 113: globular.awareness_graph.ArchitectureMutationRefusal.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	30,  // 114: globular.awareness_graph.ArchitectureDispositionInput.disposition:type_name -> globular.awareness_graph.ArchitectureDisposition
+	31,  // 115: globular.awareness_graph.ArchitectureDispositionInput.reusability:type_name -> globular.awareness_graph.ArchitectureReusability
+	105, // 116: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	106, // 117: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.candidate:type_name -> globular.awareness_graph.ArchitectureDispositionCandidate
+	103, // 118: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	32,  // 119: globular.awareness_graph.ArchitectureDispositionReceipt.outcome:type_name -> globular.awareness_graph.ArchitectureDispositionOutcome
+	104, // 120: globular.awareness_graph.ArchitectureDispositionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	105, // 121: globular.awareness_graph.RecordArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	109, // 122: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.receipt:type_name -> globular.awareness_graph.ArchitectureDispositionReceipt
+	103, // 123: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	33,  // 124: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
+	39,  // 125: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
+	45,  // 126: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
+	48,  // 127: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
+	50,  // 128: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
+	63,  // 129: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
+	66,  // 130: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
+	69,  // 131: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
+	71,  // 132: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
+	95,  // 133: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:input_type -> globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	97,  // 134: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:input_type -> globular.awareness_graph.ListArchitectureArtifactsRequest
+	99,  // 135: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:input_type -> globular.awareness_graph.GetArchitectureArtifactStateRequest
+	101, // 136: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	107, // 137: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	110, // 138: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	34,  // 139: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
+	40,  // 140: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
+	47,  // 141: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
+	49,  // 142: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
+	52,  // 143: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
+	64,  // 144: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
+	68,  // 145: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
+	70,  // 146: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
+	73,  // 147: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
+	96,  // 148: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	98,  // 149: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
+	100, // 150: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
+	102, // 151: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	108, // 152: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	111, // 153: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	139, // [139:154] is the sub-list for method output_type
+	124, // [124:139] is the sub-list for method input_type
+	124, // [124:124] is the sub-list for extension type_name
+	124, // [124:124] is the sub-list for extension extendee
+	0,   // [0:124] is the sub-list for field type_name
 }
 
 func init() { file_awareness_graph_proto_init() }
@@ -10824,7 +10908,7 @@ func file_awareness_graph_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_awareness_graph_proto_rawDesc), len(file_awareness_graph_proto_rawDesc)),
-			NumEnums:      32,
+			NumEnums:      33,
 			NumMessages:   79,
 			NumExtensions: 0,
 			NumServices:   1,
