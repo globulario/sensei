@@ -36,6 +36,7 @@ type Receipt struct {
 	DecisionTimestamp    string   `json:"decision_timestamp,omitempty" yaml:"decision_timestamp,omitempty"`
 	ValidForRevision     string   `json:"valid_for_revision,omitempty" yaml:"valid_for_revision,omitempty"`
 	ValidForGraphDigest  string   `json:"valid_for_graph_digest,omitempty" yaml:"valid_for_graph_digest,omitempty"`
+	ValidForCorpusDigest string   `json:"valid_for_corpus_digest,omitempty" yaml:"valid_for_corpus_digest,omitempty"`
 	ReviewStatus         string   `json:"review_status,omitempty" yaml:"review_status,omitempty"`
 	AdoptionBasis        []string `json:"adoption_basis,omitempty" yaml:"adoption_basis,omitempty"`
 	SourceReceipts       []string `json:"source_receipts,omitempty" yaml:"source_receipts,omitempty"`
@@ -71,6 +72,7 @@ func Normalize(in Receipt) Receipt {
 	out.DecisionTimestamp = normalizeTimestamp(out.DecisionTimestamp)
 	out.ValidForRevision = strings.TrimSpace(out.ValidForRevision)
 	out.ValidForGraphDigest = strings.ToLower(strings.TrimSpace(out.ValidForGraphDigest))
+	out.ValidForCorpusDigest = strings.ToLower(strings.TrimSpace(out.ValidForCorpusDigest))
 	out.ReviewStatus = strings.ToLower(strings.TrimSpace(out.ReviewStatus))
 	out.AdoptionBasis = normalizeList(out.AdoptionBasis)
 	out.SourceReceipts = normalizeList(out.SourceReceipts)

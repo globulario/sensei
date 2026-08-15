@@ -5,10 +5,8 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/authority"
-	"github.com/globulario/sensei/golang/seedmeta"
 )
 
 // repoRootFor walks up from a corpus directory to the checkout root.
@@ -38,26 +36,4 @@ func policyIndexFor(repoRoot string) authority.PolicyIndex {
 		return authority.PolicyIndex{}
 	}
 	return idx
-}
-
-// seedGraphDigest reads the digest the embedded seed was built at, so closure
-// binds to the corpus actually published rather than to a caller's assertion.
-func seedGraphDigest(repoRoot string) string {
-	raw, err := os.ReadFile(filepath.Join(repoRoot, "golang", "server", "embeddata", "awareness.nt"))
-	if err != nil {
-		return ""
-	}
-	_, marker := seedmeta.AppendMarker(stripExistingMarker(raw))
-	return marker.Digest
-}
-
-func stripExistingMarker(nt []byte) []byte {
-	var out []string
-	for _, line := range strings.Split(string(nt), "\n") {
-		if strings.Contains(line, "seedBuild/sha256-") {
-			continue
-		}
-		out = append(out, line)
-	}
-	return []byte(strings.Join(out, "\n"))
 }

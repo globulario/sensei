@@ -54,9 +54,13 @@ func AuthorizedPublisherPath(repoRoot string) string {
 // LoadOptions supplies what verification cannot read from the repository.
 type LoadOptions struct {
 	RepoRoot    string
-	GraphDigest string
 	EvaluatedAt time.Time
 	Index       authority.PolicyIndex
+
+	// Deprecated: v1 callers supplied the published graph digest here. v2 ignores
+	// it intentionally. Admission derives its own canonical authored-corpus digest
+	// from RepoRoot and the governed identities inside the signed manifest.
+	GraphDigest string
 
 	// Overrides for callers that provision trust out of band (tests, CI).
 	TrustStore          *governancepack.TrustStore
@@ -87,6 +91,17 @@ func LoadFromRepo(opts LoadOptions) (Admitted, Provenance, error) {
 	sig, err := base64.StdEncoding.DecodeString(strings.TrimSpace(string(rawSig)))
 	if err != nil {
 		return Admitted{}, Provenance{}, fmt.Errorf("%w: decode signature: %v", ErrNoAdmission, err)
+	}
+
+	// Derive freshness from the authored source, never from awareness.nt or a
+	// live graph marker. Freezing calls this SAME function, so there is one corpus
+	// definition rather than a freezer interpretation and a verifier interpretation.
+	// The manifest determines WHICH stable identities claim governing authority;
+	// the checkout determines WHAT those identities say. The outer signature is
+	// still what authenticates that claim — this precomputation grants no authority.
+	corpusDigest, err := AdmissionCorpusDigestForManifest(root, manifestBytes)
+	if err != nil {
+		return Admitted{}, Provenance{}, fmt.Errorf("%w: corpus digest: %v", ErrNoAdmission, err)
 	}
 
 	store := governancepack.TrustStore{}
@@ -137,12 +152,25 @@ func LoadFromRepo(opts LoadOptions) (Admitted, Provenance, error) {
 	}
 
 	return VerifySigned(sm, store, Context{
-		GraphDigest:         opts.GraphDigest,
+		CorpusDigest:        corpusDigest,
 		ExpectedPublisherID: publisher,
 		EvaluatedAt:         opts.EvaluatedAt,
 		Index:               opts.Index,
 		Resolver:            authority.NewLocalBundleResolver(bundle),
 	})
+}
+
+func governedIdentityClaims(m Manifest) []string {
+	out := make([]string, 0, len(m.Records))
+	for _, r := range m.Records {
+		if Disposition(strings.ToLower(strings.TrimSpace(string(r.Disposition)))) != DispositionGoverned {
+			continue
+		}
+		if id := strings.TrimSpace(r.Identity); id != "" {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 func firstKeyID(store governancepack.TrustStore, publisherID string) string {
