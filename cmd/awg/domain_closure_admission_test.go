@@ -284,3 +284,37 @@ func TestGeneratedOutputDoesNotPerturbAdmissionOrAuthority(t *testing.T) {
 		t.Fatal("unadmitted generated identity gained authority")
 	}
 }
+
+// #166 acceptance test 4. Once an identity is authoritatively admitted, the
+// published projection must contain its typed canonical subject. A dangling
+// reference with the same subject IRI is not a projection and must not launder
+// the omission into a green closure result.
+func TestRemovingAdmittedRequiredIdentityMakesClosureFail(t *testing.T) {
+	const admittedID = "invariant.admitted.one"
+	f := newAdmissionFixture(t, []string{admittedID})
+	root := f.writeCorpus(t, "invariants.yaml", admittedID)
+	a := f.admitted(t)
+
+	expected, excluded, err := expectedIdentities(root, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	iri, ok := expected[admittedID]
+	if !ok {
+		t.Fatal("admitted identity was not required before projection check")
+	}
+
+	// Simulate exactly the dangerous shape: the identity was removed from the
+	// published projection, but another relation still mentions its subject.
+	// Presence of the subject string alone must not satisfy semantic closure.
+	subs := map[string]*Subject{
+		iri: {IRI: iri, Class: "", Count: 1},
+	}
+	c := ComputeClosure(root, expected, excluded, subs)
+	if !containsStr(c.Missing, admittedID) {
+		t.Fatalf("removed admitted identity was not reported missing: %#v", c.Missing)
+	}
+	if authoritative, reasons := c.Authoritative(); authoritative {
+		t.Fatalf("closure remained authoritative after admitted projection removal; reasons=%v", reasons)
+	}
+}
