@@ -44,6 +44,7 @@ type Provenance struct {
 // establishes governed provenance.
 //
 //	out-of-band trusted-publishers.json
+//	  -> publisher is the AUTHORIZED knowledge-admission publisher [scope]
 //	  -> publisher/key lookup + key-state policy (revoked, future, expired)
 //	  -> Ed25519 over the exact manifest bytes        [issuer authenticity]
 //	  -> manifest parsed from those same bytes
@@ -66,6 +67,19 @@ func VerifySigned(sm SignedManifest, store governancepack.TrustStore, ctx Contex
 		Verification: changebinding.ProvenanceInvalid,
 		PublisherID:  strings.TrimSpace(sm.PublisherID),
 		KeyID:        strings.TrimSpace(sm.KeyID),
+	}
+
+	// Authorization scope, before any signature work. The publisher that signed
+	// must be the publisher trusted configuration authorizes for knowledge
+	// admission — not merely some publisher the trust store carries.
+	expected := strings.TrimSpace(ctx.ExpectedPublisherID)
+	if expected == "" {
+		return Admitted{}, prov, fmt.Errorf("admission context names no expected publisher")
+	}
+	if !strings.EqualFold(expected, strings.TrimSpace(sm.PublisherID)) {
+		return Admitted{}, prov, fmt.Errorf(
+			"admission manifest was signed by publisher %q, which is not the authorized knowledge-admission publisher %q",
+			strings.TrimSpace(sm.PublisherID), expected)
 	}
 
 	algorithm := strings.TrimSpace(sm.Algorithm)

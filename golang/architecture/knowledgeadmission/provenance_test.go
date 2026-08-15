@@ -4,7 +4,12 @@ package knowledgeadmission
 
 import (
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -175,4 +180,102 @@ func TestUnsignedManifestAdmitsNothing(t *testing.T) {
 	if len(admitted.GovernedIdentities()) != 0 {
 		t.Fatal("unsigned manifest admitted identities")
 	}
+}
+
+// A trust store is general-purpose: it can carry several publishers, all of them
+// legitimately trusted for their own operations. Being trusted is not the same as
+// being authorized to issue knowledge-admission decisions.
+//
+// Two active publishers, same store. The manifest is signed by the wrong one.
+func TestTrustedButUnauthorizedPublisherCannotAdmitKnowledge(t *testing.T) {
+	b := newBundle(t)
+	governance := newSigner(t)
+	vendor := newSigner(t)
+
+	// One store, both publishers trusted and active.
+	store := governancepack.TrustStore{
+		SchemaVersion: governancepack.TrustStoreSchemaV1,
+		Publishers: []governancepack.TrustedPublisher{
+			{PublisherID: testPublisher, Keys: []governancepack.TrustedKey{{
+				KeyID: testKeyID, Algorithm: "ed25519",
+				PublicKeyBase64: base64.StdEncoding.EncodeToString(governance.pub), Status: "active",
+			}}},
+			{PublisherID: "publisher.some.vendor", Keys: []governancepack.TrustedKey{{
+				KeyID: testKeyID, Algorithm: "ed25519",
+				PublicKeyBase64: base64.StdEncoding.EncodeToString(vendor.pub), Status: "active",
+			}}},
+		},
+	}
+
+	sm := vendor.sign(t, manifest(t, b, governedRecord("invariant.real.one")))
+	sm.PublisherID = "publisher.some.vendor" // truthful — the vendor really did sign it
+
+	admitted, _, err := VerifySigned(sm, store, testContext(b))
+	if err == nil && admitted.IsAuthoritativelyAdmitted("invariant.real.one") {
+		t.Fatal("a trusted but unauthorized publisher admitted knowledge: " +
+			"the trust store proves the signature, not authorization for THIS operation")
+	}
+}
+
+// The admission artifacts must live OUTSIDE the graph corpus they bind.
+//
+// Git-revision binding was dropped (3b944865) because a committed manifest
+// naming its own HEAD is stale the instant it lands. Graph-digest binding avoids
+// that only while the manifest is not itself projected into the graph — if a
+// later importer expansion started reading governance/, writing the manifest
+// would move the digest it names and the cycle would return through a different
+// door. Pin it.
+func TestAdmissionArtifactsDoNotAlterTheGovernedGraphDigest(t *testing.T) {
+	root := repoRoot(t)
+	corpus := filepath.Join(root, "docs", "awareness")
+
+	before := compileCorpusDigest(t, root, corpus)
+
+	// Perturb the admission artifacts exactly as signing them would.
+	manifestPath := filepath.Join(root, "governance", "knowledge-admission-baseline.yaml")
+	original, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Skipf("baseline not present: %v", err)
+	}
+	t.Cleanup(func() { os.WriteFile(manifestPath, original, 0o644) })
+	if err := os.WriteFile(manifestPath, append(original, []byte("\n# signature added\n")...), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sigPath := filepath.Join(root, "governance", "knowledge-admission-baseline.sig")
+	if err := os.WriteFile(sigPath, []byte("bm90LWEtcmVhbC1zaWduYXR1cmU=\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Remove(sigPath) })
+
+	if after := compileCorpusDigest(t, root, corpus); after != before {
+		t.Fatalf("admission artifacts moved the governed graph digest:\n before %s\n after  %s\n"+
+			"the revision-binding cycle has returned through the corpus walk", before, after)
+	}
+}
+
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	out, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		t.Skipf("not a git checkout: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// compileCorpusDigest digests the projected triples, which is what the graph
+// digest is: seedmeta hashes canonicalized N-Triples, not source bytes.
+func compileCorpusDigest(t *testing.T, root, corpus string) string {
+	t.Helper()
+	cmd := exec.Command("go", "run", "./cmd/yaml2nt", "-input", corpus)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		t.Skipf("yaml2nt unavailable: %v", err)
+	}
+	if len(out) == 0 {
+		t.Fatal("yaml2nt produced no triples — an empty compile digests as the " +
+			"sha256 of the empty string and would prove nothing")
+	}
+	sum := sha256.Sum256(out)
+	return hex.EncodeToString(sum[:])
 }

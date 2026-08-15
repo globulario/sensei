@@ -76,10 +76,12 @@ type Record struct {
 
 // Manifest is the governed admission artifact.
 //
-// The ActorBinding is the trust root. It is verified against governed policy
-// before any record in the manifest is believed, so authority traces back to an
-// actor holding an admitting role from an issuer that policy trusts — not to
-// whoever last wrote a YAML file.
+// The ActorBinding is a subordinate authorization layer, NOT the trust root.
+// The trust root is the authenticated publisher key that signs the manifest
+// bytes (see VerifySigned); the binding then establishes which actor, holding
+// which role, made the decision inside that authenticated envelope. Treating the
+// binding itself as the root is the mistake this package was built to correct —
+// its issuer field is a string the signer writes.
 type Manifest struct {
 	SchemaVersion string                       `yaml:"schema_version" json:"schema_version"`
 	PolicyID      string                       `yaml:"policy_id" json:"policy_id"`
@@ -104,9 +106,20 @@ type Manifest struct {
 // committed manifest, since committing it changes the very HEAD it names.
 type Context struct {
 	GraphDigest string
-	EvaluatedAt time.Time
-	Index       authority.PolicyIndex
-	Resolver    authority.ArtifactResolver
+
+	// ExpectedPublisherID is the publisher authorized to issue knowledge-admission
+	// decisions. It MUST come from trusted configuration — never from the manifest
+	// or its envelope, which are exactly what an attacker supplies.
+	//
+	// A trust store is general-purpose and may carry several publishers, all
+	// legitimately trusted for their own operations. Being trusted proves a
+	// signature is genuine; it does not prove authorization for THIS operation.
+	// Without this scope, any trusted publisher — a vendor, a mirror, a tool
+	// signer — could admit knowledge.
+	ExpectedPublisherID string
+	EvaluatedAt         time.Time
+	Index               authority.PolicyIndex
+	Resolver            authority.ArtifactResolver
 }
 
 // Admitted is a verified admission decision, ready to be consulted.

@@ -158,10 +158,11 @@ func testIndex() authority.PolicyIndex {
 
 func testContext(b *bundle) Context {
 	return Context{
-		GraphDigest: testGraphDigest,
-		EvaluatedAt: time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
-		Index:       testIndex(),
-		Resolver:    b.resolver(),
+		GraphDigest:         testGraphDigest,
+		ExpectedPublisherID: testPublisher,
+		EvaluatedAt:         time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
+		Index:               testIndex(),
+		Resolver:            b.resolver(),
 	}
 }
 

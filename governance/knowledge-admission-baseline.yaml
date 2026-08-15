@@ -1,7 +1,9 @@
 # Legacy authoritative baseline for governed knowledge admission.
 #
-# ONE-TIME MIGRATION SNAPSHOT. Frozen, reviewed, and signed by an out-of-band
-# governance key. This file is NOT regenerated. There is deliberately no
+# ONE-TIME MIGRATION SNAPSHOT. Frozen and AWAITING SIGNATURE by an out-of-band
+# governance key — it is not yet authority, and VerifySigned rejects it while
+# actor_binding carries TODO placeholders and no signature exists. This file is
+# NOT regenerated. There is deliberately no
 # standing generator of the form "walk everything except candidates/" — that
 # would launder pathname-based authority back in through the migration tool,
 # which is the exact defect #166 exists to remove.
@@ -12,6 +14,20 @@
 # Bound to the graph digest, not a git revision: the digest is computed over
 # projected triples, so changing knowledge invalidates this decision while
 # changing only code does not. See golang/architecture/knowledgeadmission.
+#
+# TRUST STORE PLACEMENT: this manifest and its .sig are public and committed, but
+# trusted-publishers.json is deliberately NOT committed. A repo-owned trust store
+# would be self-defeating — a repository writer could swap in their own public
+# key, edit this baseline, sign it, and the verifier would cheerfully discover
+# that the attacker is "trusted". Distribution is not authority. The public trust
+# store is provisioned by the installed Sensei distribution, user-global config,
+# or CI injection; the default read path is .sensei/governance/trusted-publishers.json,
+# which is gitignored. Public keys are easy to distribute precisely because they
+# are not secret.
+#
+# The verifier must also be configured with the AUTHORIZED knowledge-admission
+# publisher (Context.ExpectedPublisherID). A trusted publisher is not
+# automatically authorized for this operation.
 #
 # Identities enumerated via cmd/awg expectedIdentities() at the digest below.
 schema_version: "1"

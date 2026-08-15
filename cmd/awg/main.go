@@ -182,6 +182,8 @@ func dispatch(cmd string, args []string) int {
 		return runDomains(args)
 	case "governance":
 		return runGovernance(args)
+	case "knowledge-admission":
+		return runKnowledgeAdmission(args)
 	case "check":
 		return runCheck(args)
 	case "domain-closure":
