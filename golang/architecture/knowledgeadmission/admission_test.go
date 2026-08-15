@@ -14,6 +14,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture/adoption"
 	"github.com/globulario/sensei/golang/architecture/authority"
+	"github.com/globulario/sensei/golang/architecture/changebinding"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"gopkg.in/yaml.v3"
 )
@@ -196,7 +197,7 @@ func TestCandidateIsDiscoverableButNotAuthoritative(t *testing.T) {
 		governedRecord("invariant.real.one"),
 		Record{Identity: "candidate.invariant.authority.abort", Disposition: DispositionCandidate},
 	)
-	admitted, err := Verify(m, testContext(b))
+	admitted, err := verify(m, testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -220,7 +221,7 @@ func TestCandidateIsDiscoverableButNotAuthoritative(t *testing.T) {
 // start failing because of them.
 func TestGeneratingCandidatesDoesNotDegradeAuthority(t *testing.T) {
 	b := newBundle(t)
-	before, err := Verify(manifest(t, b, governedRecord("invariant.real.one")), testContext(b))
+	before, err := verify(manifest(t, b, governedRecord("invariant.real.one")), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -229,7 +230,7 @@ func TestGeneratingCandidatesDoesNotDegradeAuthority(t *testing.T) {
 	for _, id := range []string{"candidate.invariant.authority.aa", "candidate.invariant.authority.ab", "candidate.invariant.authority.abort"} {
 		records = append(records, Record{Identity: id, Disposition: DispositionCandidate})
 	}
-	after, err := Verify(manifest(t, b, records...), testContext(b))
+	after, err := verify(manifest(t, b, records...), testContext(b))
 	if err != nil {
 		t.Fatalf("verify after candidate generation: %v", err)
 	}
@@ -246,7 +247,7 @@ func TestOwnerGovernedPromotionConfersAuthority(t *testing.T) {
 	b := newBundle(t)
 	id := "invariant.promoted.one"
 
-	candidate, err := Verify(manifest(t, b, Record{Identity: id, Disposition: DispositionCandidate}), testContext(b))
+	candidate, err := verify(manifest(t, b, Record{Identity: id, Disposition: DispositionCandidate}), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -254,7 +255,7 @@ func TestOwnerGovernedPromotionConfersAuthority(t *testing.T) {
 		t.Fatal("candidate was authoritative before promotion")
 	}
 
-	promoted, err := Verify(manifest(t, b, governedRecord(id)), testContext(b))
+	promoted, err := verify(manifest(t, b, governedRecord(id)), testContext(b))
 	if err != nil {
 		t.Fatalf("verify promoted: %v", err)
 	}
@@ -273,7 +274,7 @@ func TestOwnerGovernedPromotionConfersAuthority(t *testing.T) {
 func TestPathIsNotPartOfTheAuthorityDecision(t *testing.T) {
 	b := newBundle(t)
 	id := "invariant.hb.probe.minted_from_candidates_dir"
-	admitted, err := Verify(manifest(t, b, Record{Identity: id, Disposition: DispositionCandidate}), testContext(b))
+	admitted, err := verify(manifest(t, b, Record{Identity: id, Disposition: DispositionCandidate}), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -310,7 +311,7 @@ func TestEditingCallerControlledStatusCannotManufactureAuthority(t *testing.T) {
 		ValidForGraphDigest: testGraphDigest,
 	}}
 
-	admitted, err := Verify(manifest(t, b, forged), testContext(b))
+	admitted, err := verify(manifest(t, b, forged), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -327,7 +328,7 @@ func TestManifestWithoutVerifiableProvenanceAdmitsNothing(t *testing.T) {
 	m := manifest(t, b, governedRecord("invariant.real.one"))
 	m.ActorBinding.RoleAttestationReceiptDigests = []string{strings.Repeat("ab", 32)}
 
-	if _, err := Verify(m, testContext(b)); err == nil {
+	if _, err := verify(m, testContext(b)); err == nil {
 		t.Fatal("manifest with an unresolvable role attestation was accepted")
 	}
 }
@@ -343,7 +344,7 @@ func TestLocallyEnrolledIssuerCannotAdmitKnowledge(t *testing.T) {
 		ActorBinding:  b.binding(t, localIssuer, []string{admittingRole}),
 		Records:       []Record{governedRecord("invariant.real.one")},
 	}
-	if _, err := Verify(m, testContext(b)); err == nil {
+	if _, err := verify(m, testContext(b)); err == nil {
 		t.Fatal("a locally enrolled identity admitted knowledge")
 	}
 }
@@ -358,7 +359,7 @@ func TestActorWithoutAdmittingRoleCannotAdmit(t *testing.T) {
 		ActorBinding:  b.binding(t, governedIssuer, []string{"role.repository_repair_agent"}),
 		Records:       []Record{governedRecord("invariant.real.one")},
 	}
-	if _, err := Verify(m, testContext(b)); err == nil {
+	if _, err := verify(m, testContext(b)); err == nil {
 		t.Fatal("an actor without the admitting role admitted knowledge")
 	}
 }
@@ -377,7 +378,7 @@ func TestNonGoverningDispositionsStayOutsideTheAuthoritySet(t *testing.T) {
 	} {
 		records = append(records, Record{Identity: id, Disposition: d, Receipt: boundReceipt()})
 	}
-	admitted, err := Verify(manifest(t, b, records...), testContext(b))
+	admitted, err := verify(manifest(t, b, records...), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -402,7 +403,7 @@ func TestStaleRevisionOrGraphDigestIsRejected(t *testing.T) {
 			b := newBundle(t)
 			rec := governedRecord("invariant.real.one")
 			tc.mutate(&rec)
-			if _, err := Verify(manifest(t, b, rec), testContext(b)); err == nil {
+			if _, err := verify(manifest(t, b, rec), testContext(b)); err == nil {
 				t.Fatalf("%s was accepted", tc.name)
 			}
 		})
@@ -417,7 +418,7 @@ func TestDuplicateIdentityIsRejected(t *testing.T) {
 		governedRecord("invariant.real.one"),
 		Record{Identity: "invariant.real.one", Disposition: DispositionRejected},
 	)
-	if _, err := Verify(m, testContext(b)); err == nil {
+	if _, err := verify(m, testContext(b)); err == nil {
 		t.Fatal("duplicate admission records were accepted")
 	}
 }
@@ -427,7 +428,7 @@ func TestDuplicateIdentityIsRejected(t *testing.T) {
 // knowledge inherit a decision it never received.
 func TestUnknownIdentityIsDistinctFromCandidate(t *testing.T) {
 	b := newBundle(t)
-	admitted, err := Verify(manifest(t, b, governedRecord("invariant.real.one")), testContext(b))
+	admitted, err := verify(manifest(t, b, governedRecord("invariant.real.one")), testContext(b))
 	if err != nil {
 		t.Fatalf("verify: %v", err)
 	}
@@ -441,19 +442,21 @@ func TestUnknownIdentityIsDistinctFromCandidate(t *testing.T) {
 
 // The trust boundary itself: nothing must be admissible on the strength of a
 // receipt naming a trusted issuer. Policy trusting the STRING
-// "sensei.governance" is not the same as sensei.governance having issued
-// anything.
+// "sensei.governance" is not sensei.governance having issued anything.
 //
-// This test hand-authors both receipts with issuer: sensei.governance, computes
-// every structural digest correctly, and supplies a correctly hashed
-// authentication artifact. Nothing here is malformed — it is exactly what a
-// caller with write access to the bundle can produce, because
-// EnrollOptions.Issuer is caller-supplied and sensei.local is only a default.
+// This hand-authors both receipts with issuer: sensei.governance, computes every
+// structural digest correctly, and supplies a correctly hashed authentication
+// artifact. Nothing is malformed — it is exactly what a caller with write access
+// to the repository and bundle can produce, because EnrollOptions.Issuer is
+// caller-supplied and sensei.local is only a default.
 //
-// While this fails, issuer authenticity is unresolved and no trusted_issuers
-// value creates a trust root.
+// It was red until issuer authenticity existed. What closes it is not a better
+// string check: the caller still writes whatever issuer it likes, and still
+// cannot produce a signature for a governance key it does not hold. The private
+// key lives outside the checkout, so repository mutation alone is insufficient.
 func TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge(t *testing.T) {
 	b := newBundle(t)
+	s := newSigner(t)
 	m := Manifest{
 		SchemaVersion: SchemaVersion,
 		PolicyID:      "knowledge.admission.v1",
@@ -462,9 +465,16 @@ func TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge(t *testing.T) {
 		ActorBinding: b.binding(t, governedIssuer, []string{admittingRole}),
 		Records:      []Record{governedRecord("invariant.real.one")},
 	}
-	admitted, err := Verify(m, testContext(b))
+
+	// The caller signs with its own key, since it does not hold a governance one.
+	forged := newSigner(t).sign(t, m)
+
+	admitted, prov, err := VerifySigned(forged, s.trustStore(testKeyID, "active"), testContext(b))
 	if err == nil && admitted.IsAuthoritativelyAdmitted("invariant.real.one") {
 		t.Fatal("a self-authored receipt claiming issuer=sensei.governance admitted knowledge: " +
 			"policy trusts the issuer STRING, and nothing authenticates the issuer")
+	}
+	if prov.Verification == changebinding.ProvenanceVerified {
+		t.Fatal("self-authored manifest reported ProvenanceVerified")
 	}
 }

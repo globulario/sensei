@@ -150,8 +150,13 @@ func (a Admitted) GovernedIdentities() []string {
 	return out
 }
 
-// Verify establishes governed provenance and contextual binding, then indexes
-// the admitted identities. It fails closed: any error means nothing is admitted.
+// verify checks contextual binding and the actor binding, then indexes the
+// admitted identities. It fails closed: any error means nothing is admitted.
+//
+// Deliberately unexported. It is the INNER half of admission and establishes no
+// issuer authenticity on its own — reaching it requires going through
+// VerifySigned, which authenticates the manifest bytes first. Exporting it would
+// leave a door into the authority decision that skips provenance entirely.
 //
 // Both halves are required, and neither substitutes for the other:
 //
@@ -164,7 +169,7 @@ func (a Admitted) GovernedIdentities() []string {
 //
 // A caller who can read the current revision and digest can write matching
 // valid_for_* fields, which is why they are checked second and never alone.
-func Verify(m Manifest, ctx Context) (Admitted, error) {
+func verify(m Manifest, ctx Context) (Admitted, error) {
 	if strings.TrimSpace(m.SchemaVersion) != SchemaVersion {
 		return Admitted{}, fmt.Errorf("admission manifest schema_version %q is not supported (want %s)", m.SchemaVersion, SchemaVersion)
 	}
