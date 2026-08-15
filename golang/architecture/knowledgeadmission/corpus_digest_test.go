@@ -51,6 +51,67 @@ invariants:
 	}
 }
 
+func TestAdmissionCorpusDigestRecognizesClassDiscriminatedSingleEntity(t *testing.T) {
+	const id = "implementation_pattern.example"
+
+	rootA := t.TempDir()
+	writeAdmissionCorpusFile(t, rootA, "architecture/patterns/ip_example.yaml", `id: implementation_pattern.example
+class: ImplementationPattern
+label: Example pattern
+status: active
+when_to_use:
+  - task one
+  - task two
+`)
+
+	rootB := t.TempDir()
+	writeAdmissionCorpusFile(t, rootB, "candidates/moved/example.yml", `# same declaration, moved and reformatted
+when_to_use:
+  - task one
+  - task two
+status: active
+label: "Example pattern"
+class: ImplementationPattern
+id: implementation_pattern.example
+`)
+
+	a := digestFor(t, rootA, id)
+	b := digestFor(t, rootB, id)
+	if a != b {
+		t.Fatalf("single-entity path/formatting changed corpus digest:\nA %s\nB %s", a, b)
+	}
+
+	writeAdmissionCorpusFile(t, rootB, "candidates/moved/example.yml", `id: implementation_pattern.example
+class: ImplementationPattern
+label: Changed pattern
+status: active
+when_to_use:
+  - task one
+  - task two
+`)
+	if changed := digestFor(t, rootB, id); changed == a {
+		t.Fatalf("single-entity governed mutation did not change corpus digest: %s", changed)
+	}
+}
+
+func TestAdmissionCorpusDigestSupportsImporterSingleEntityClasses(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		class string
+		id    string
+	}{
+		{name: "implementation pattern", class: "ImplementationPattern", id: "implementation_pattern.one"},
+		{name: "design pattern", class: "DesignPattern", id: "pattern.one"},
+		{name: "pattern misuse", class: "PatternMisuse", id: "pattern_misuse.one"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			root := t.TempDir()
+			writeAdmissionCorpusFile(t, root, "single.yaml", "id: "+tc.id+"\nclass: "+tc.class+"\nstatus: active\n")
+			_ = digestFor(t, root, tc.id)
+		})
+	}
+}
+
 func TestAdmissionCorpusDigestTreatsAliasAsExpandedValue(t *testing.T) {
 	const id = "invariant.alias.independent"
 
