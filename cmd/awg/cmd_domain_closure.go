@@ -9,8 +9,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/globulario/sensei/golang/extractor"
+
+	"github.com/globulario/sensei/golang/architecture/knowledgeadmission"
 )
 
 // classIRISegment maps a governed source schema to the IRI segment its
@@ -34,6 +37,7 @@ func runDomainClosure(args []string) int {
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", "docs/awareness", "certified source corpus directory")
 	ntFile := fs.String("ntriples", "", "emitted N-Triples to verify (default: compile from -input)")
+	graphDigest := fs.String("graph-digest", "", "graph digest the admission decision must be valid for (default: the embedded seed marker)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei domain-closure [flags]
 
@@ -83,7 +87,32 @@ Flags:
 		return 1
 	}
 
-	expected, excluded, err := expectedIdentities(root)
+	// Authority first. Without a verified admission decision the required set
+	// would be EMPTY, and closure would report itself proven precisely because
+	// it had nothing left to check. That vacuous green is worse than a red: it
+	// is the shape of false comfort this whole gate exists to contradict, so
+	// absent admission is UNPROVABLE, exactly like an unparseable governed file.
+	repoRoot := repoRootFor(root)
+	digest := strings.TrimSpace(*graphDigest)
+	if digest == "" {
+		digest = seedGraphDigest(repoRoot)
+	}
+	admitted, prov, aerr := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
+		RepoRoot:    repoRoot,
+		GraphDigest: digest,
+		EvaluatedAt: time.Now().UTC(),
+		Index:       policyIndexFor(repoRoot),
+	})
+	if aerr != nil {
+		fmt.Fprintln(os.Stderr, "  ✗ DOMAIN CLOSURE UNPROVABLE — no verified knowledge admission:")
+		fmt.Fprintf(os.Stderr, "    %v\n", aerr)
+		fmt.Fprintf(os.Stderr, "    provenance: %v\n", prov.Verification)
+		fmt.Fprintln(os.Stderr, "    Closure cannot be proven without knowing which identities govern.")
+		fmt.Fprintln(os.Stderr, "    An empty required set would report success while checking nothing.")
+		return 1
+	}
+
+	expected, excluded, err := expectedIdentities(root, admitted)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domain-closure: %v\n", err)
 		return 1
@@ -118,12 +147,24 @@ Flags:
 	return 0
 }
 
-// expectedIdentities walks the corpus and returns, for every governed schema
-// that projects, the identity id -> canonical subject IRI it must produce.
+// expectedIdentities walks the corpus and returns the identity id -> canonical
+// subject IRI that each AUTHORITATIVELY ADMITTED identity must produce.
 //
 // Deliberately derived from the SOURCE, not from the graph: an expectation read
 // out of the artifact being verified proves nothing.
-func expectedIdentities(root string) (map[string]string, []string, error) {
+//
+// The walk is discovery only. It answers "which identities exist and what class
+// are they", never "which identities govern". Authority comes from the admission
+// decision, so an identity's location cannot put it into or out of the required
+// set — that asymmetry is the defect #166 removes. A file carrying a governed
+// schema key under docs/awareness/candidates/ used to be REQUIRED here while the
+// importer skipped it by directory name, which is what produced the closure
+// failures; now neither walker consults a pathname for authority.
+//
+// There is deliberately no "generated/" skip either. It was a second pathname
+// rule, and admission makes it redundant: build output is not admitted, so it
+// lands in excluded like anything else nobody ruled on.
+func expectedIdentities(root string, admitted knowledgeadmission.Admitted) (map[string]string, []string, error) {
 	expected := map[string]string{}
 	var excluded []string
 
@@ -134,23 +175,19 @@ func expectedIdentities(root string) (map[string]string, []string, error) {
 		if info.IsDir() || (!strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml")) {
 			return nil
 		}
-		// Generated trees are build output, not authored source.
-		if strings.Contains(path, string(filepath.Separator)+"generated"+string(filepath.Separator)) {
-			return nil
-		}
 		data, rerr := os.ReadFile(path)
 		if rerr != nil {
 			return rerr
 		}
 		top, ids := topLevelKeyAndIDs(data)
-		seg, governed := classIRISegment[top]
-		if !governed {
-			for _, id := range ids {
-				excluded = append(excluded, id)
-			}
-			return nil
-		}
+		seg, governedClass := classIRISegment[top]
 		for _, id := range ids {
+			// Both conditions are about the identity, never its location: is
+			// this a class that projects, and did a verified actor admit it?
+			if !governedClass || !admitted.IsAuthoritativelyAdmitted(id) {
+				excluded = append(excluded, id)
+				continue
+			}
 			expected[id] = awarenessNS + seg + id
 		}
 		return nil

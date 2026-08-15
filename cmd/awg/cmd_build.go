@@ -23,6 +23,8 @@ import (
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store/oxigraph"
+
+	"github.com/globulario/sensei/golang/architecture/knowledgeadmission"
 )
 
 // finalizeBuildArtifact stamps a canonical whole-graph marker onto already
@@ -326,7 +328,17 @@ func buildClosureReport(domain string, inputDirs []string, markerPath string, ma
 	if info, serr := os.Stat(root); serr != nil || !info.IsDir() {
 		return nil
 	}
-	expected, excluded, eerr := expectedIdentities(root)
+	// A closure REPORT is advisory context, not a gate, so an unavailable
+	// admission decision degrades to no report rather than failing the build.
+	// `sensei domain-closure` is where absence is surfaced as unprovable.
+	admitted, _, aerr := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
+		RepoRoot: repoRootFor(root), GraphDigest: marker.Digest,
+		EvaluatedAt: time.Now().UTC(), Index: policyIndexFor(repoRootFor(root)),
+	})
+	if aerr != nil {
+		return nil
+	}
+	expected, excluded, eerr := expectedIdentities(root, admitted)
 	if eerr != nil {
 		return nil
 	}
