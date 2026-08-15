@@ -23,9 +23,10 @@ const (
 	testRevision    = "1111111111111111111111111111111111111111"
 	testGraphDigest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	admittingRole   = "role.knowledge_admitter"
-	// The governance issuer. Local enrollment cannot assert this — that is the
-	// entire point of the anchor.
-	governedIssuer = "sensei.governance"
+	// The governance issuer, deliberately the SAME name as the authorized
+	// publisher: one governance authority should not have two names inside the
+	// signed envelope.
+	governedIssuer = testPublisher
 	// identity.DefaultIssuer: what `sensei identity enroll` self-issues as.
 	localIssuer = "sensei.local"
 )

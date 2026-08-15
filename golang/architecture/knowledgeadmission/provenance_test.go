@@ -279,3 +279,19 @@ func compileCorpusDigest(t *testing.T, root, corpus string) string {
 	sum := sha256.Sum256(out)
 	return hex.EncodeToString(sum[:])
 }
+
+// One governance authority, one name. An authorized publisher must not
+// authenticate the envelope as itself while attributing the decision to an
+// unrelated issuer.
+func TestManifestAttributingToADifferentIssuerIsRejected(t *testing.T) {
+	b := newBundle(t)
+	s := newSigner(t)
+
+	m := manifest(t, b, governedRecord("invariant.real.one"))
+	m.ActorBinding.Issuer = "publisher.someone.else"
+	sm := s.sign(t, m)
+
+	if _, _, err := VerifySigned(sm, s.trustStore(testKeyID, "active"), testContext(b)); err == nil {
+		t.Fatal("a manifest attributing the decision to an unrelated issuer was accepted")
+	}
+}

@@ -4,6 +4,7 @@ package knowledgeadmission
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/changebinding"
@@ -50,7 +51,7 @@ type Provenance struct {
 //	  -> manifest parsed from those same bytes
 //	  -> receipt digests bind the referenced authn/role evidence [integrity]
 //	  -> VerifyActorBinding + admitting role
-//	  -> revision and graph-digest binding                       [freshness]
+//	  -> graph-digest binding                                    [freshness]
 //	  -> IsAuthoritativelyAdmitted(identity)
 //
 // The layers reinforce each other. The signature stops a caller inventing the
@@ -105,9 +106,43 @@ func VerifySigned(sm SignedManifest, store governancepack.TrustStore, ctx Contex
 		return Admitted{}, prov, fmt.Errorf("admission manifest: %w", err)
 	}
 
+	// One governance authority, one name. The actor binding is subordinate
+	// attribution inside the authenticated envelope, so it must attribute the
+	// decision to the same authority that signed it. Without this, an authorized
+	// publisher could authenticate the envelope as itself while attributing the
+	// admission to an unrelated issuer, and verification would not object.
+	//
+	// This is a consistency rule, not a security root: the inner issuer string
+	// carries no weight of its own.
+	if !strings.EqualFold(strings.TrimSpace(m.ActorBinding.Issuer), expected) {
+		return Admitted{}, prov, fmt.Errorf(
+			"admission manifest attributes the decision to issuer %q but was signed by %q",
+			strings.TrimSpace(m.ActorBinding.Issuer), expected)
+	}
+
 	admitted, err := verify(m, ctx)
 	if err != nil {
 		return Admitted{}, prov, err
 	}
 	return admitted, prov, nil
+}
+
+// BundleRoot is the committed public evidence bundle for baseline admission.
+//
+// The actor binding references its authentication and role-attestation receipts
+// by digest, so a verifier needs to resolve them. Leaving them only under
+// .sensei/identity/ would break every fresh clone and CI checkout: baseline and
+// signature present, trust root provisioned, receipts absent, verification fails.
+//
+// They contain no secret, and the signed manifest authenticates their exact
+// digests, so committing them as public evidence is safe — an attacker who swaps
+// a receipt changes its digest and the signed manifest stops matching. Only the
+// private signing key stays external.
+//
+//	governance/
+//	  knowledge-admission-baseline.yaml
+//	  knowledge-admission-baseline.sig
+//	  artifacts/sha256/<digest>.yaml
+func BundleRoot(repoRoot string) string {
+	return filepath.Join(repoRoot, "governance")
 }

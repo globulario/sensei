@@ -12512,6 +12512,18 @@ test_symbols:
     package: knowledgeadmission
     language: go
     doc: "Holding SOME verified role is not holding the admitting role."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestAdmissionDoesNotSurviveAKnowledgeChange
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestAdmissionDoesNotSurviveAKnowledgeChange
+    package: knowledgeadmission
+    language: go
+    doc: "The corresponding negative: when the KNOWLEDGE changes, the graph digest moves\nand the decision is stale."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestAdmissionSurvivesACodeOnlyRevisionChange
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestAdmissionSurvivesACodeOnlyRevisionChange
+    package: knowledgeadmission
+    language: go
+    doc: "Admission binds to the graph digest, NOT to a git revision. A commit that\nchanges only code must not invalidate knowledge that did not change —\notherwise every unrelated commit would force all 485 baseline identities to be\nre-signed, and a committed manifest naming its own HEAD would be stale the\ninstant it landed."
   - id: golang/architecture/knowledgeadmission/admission_test.go:TestCandidateIsDiscoverableButNotAuthoritative
     file: golang/architecture/knowledgeadmission/admission_test.go
     symbol: TestCandidateIsDiscoverableButNotAuthoritative
@@ -12572,9 +12584,9 @@ test_symbols:
     package: knowledgeadmission
     language: go
     doc: "The trust boundary itself: nothing must be admissible on the strength of a\nreceipt naming a trusted issuer. Policy trusting the STRING\n\"sensei.governance\" is not sensei.governance having issued anything.\n\nThis hand-authors both receipts with issuer: sensei.governance, computes every\nstructural digest correctly, and supplies a correctly hashed authentication\nartifact. Nothing is malformed — it is exactly what a caller with write access\nto the repository and bundle can produce, because EnrollOptions.Issuer is\ncaller-supplied and sensei.local is only a default.\n\nIt was red until issuer authenticity existed. What closes it is not a better\nstring check: the caller still writes whatever issuer it likes, and still\ncannot produce a signature for a governance key it does not hold. The private\nkey lives outside the checkout, so repository mutation alone is insufficient."
-  - id: golang/architecture/knowledgeadmission/admission_test.go:TestStaleRevisionOrGraphDigestIsRejected
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestStaleGraphDigestIsRejected
     file: golang/architecture/knowledgeadmission/admission_test.go
-    symbol: TestStaleRevisionOrGraphDigestIsRejected
+    symbol: TestStaleGraphDigestIsRejected
     package: knowledgeadmission
     language: go
     doc: "Contextual binding. A real past decision must not be replayed over changed\nknowledge — but binding alone is not provenance, which is what the issuer and\nrole tests above cover."
@@ -12584,6 +12596,18 @@ test_symbols:
     package: knowledgeadmission
     language: go
     doc: "Absence is not a disposition. \"Nobody ruled on this\" and \"this was ruled a\ncandidate\" are different states, and collapsing them would let unreviewed\nknowledge inherit a decision it never received."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestAdmissionArtifactsDoNotAlterTheGovernedGraphDigest
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestAdmissionArtifactsDoNotAlterTheGovernedGraphDigest
+    package: knowledgeadmission
+    language: go
+    doc: "The admission artifacts must live OUTSIDE the graph corpus they bind.\n\nGit-revision binding was dropped (3b944865) because a committed manifest\nnaming its own HEAD is stale the instant it lands. Graph-digest binding avoids\nthat only while the manifest is not itself projected into the graph — if a\nlater importer expansion started reading governance/, writing the manifest\nwould move the digest it names and the cycle would return through a different\ndoor. Pin it."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestManifestAttributingToADifferentIssuerIsRejected
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestManifestAttributingToADifferentIssuerIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "One governance authority, one name. An authorized publisher must not\nauthenticate the envelope as itself while attributing the decision to an\nunrelated issuer."
   - id: golang/architecture/knowledgeadmission/provenance_test.go:TestMutatingARecordAfterSigningIsRejected
     file: golang/architecture/knowledgeadmission/provenance_test.go
     symbol: TestMutatingARecordAfterSigningIsRejected
@@ -12608,6 +12632,12 @@ test_symbols:
     package: knowledgeadmission
     language: go
     doc: "The happy path: a manifest signed by a trusted governance key admits\nknowledge, and provenance is positively verified rather than assumed."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestTrustedButUnauthorizedPublisherCannotAdmitKnowledge
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestTrustedButUnauthorizedPublisherCannotAdmitKnowledge
+    package: knowledgeadmission
+    language: go
+    doc: "A trust store is general-purpose: it can carry several publishers, all of them\nlegitimately trusted for their own operations. Being trusted is not the same as\nbeing authorized to issue knowledge-admission decisions.\n\nTwo active publishers, same store. The manifest is signed by the wrong one."
   - id: golang/architecture/knowledgeadmission/provenance_test.go:TestUnknownKeyIDIsRejected
     file: golang/architecture/knowledgeadmission/provenance_test.go
     symbol: TestUnknownKeyIDIsRejected

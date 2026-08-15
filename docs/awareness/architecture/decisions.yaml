@@ -188,3 +188,14 @@ decisions:
     source_files:
       - golang/architecture/gosemantics/extract.go
 
+  - id: decision.sensei.knowledge_admission_trust_model_v1
+    title: 'Knowledge admission trust model v1: one root, subordinate attribution'
+    status: accepted
+    architectural_plane: intended
+    rationale: 'The knowledge-admission trust chain has exactly ONE cryptographic root: an Ed25519 signature over the exact admission manifest bytes, made by the publisher named in Context.ExpectedPublisherID, verified against an out-of-band trust store whose private half lives outside the repository and outside .sensei/. ActorBinding is SUBORDINATE: signed attribution and role/policy context, not an independent provenance root. Its authentication and role-attestation receipts can ultimately be self-authored, because identity.Enroll self-issues with a caller-supplied issuer and roles. What the outer signature proves is: the authorized governance publisher signed a document asserting that actor X, under role Y and policy Z, made this admission decision. That gives attribution, role semantics, auditability, and a seam for stronger actor authentication later — but the cryptographic authority comes from the publisher key alone. ActorBinding.Issuer must equal ExpectedPublisherID, a consistency rule so one governance authority does not carry two names inside the signed envelope; the inner issuer string carries no weight of its own.'
+    context: 'H-B (#166) required authoritative graph membership to stop depending on filesystem location or caller-editable YAML. Establishing that required answering what makes an admission decision authoritative. Two candidate roots were examined: the adoption receipt chain (authority.VerifyActorBinding) and an authenticated publisher signature (governancepack).'
+    consequences: 'Threat boundary CLAIMED: a caller with repository-content write access cannot manufacture governing authority. Threat boundary NOT claimed: compromise of the authorized publisher signing key permits forging ActorBinding attribution, and compromise of the developer account or host that can read the private key defeats the model entirely. Independent human/actor authentication would require an additional trust factor and is outside the v1 threat model. Distribution is separated from authority: the manifest and its signature and the public actor receipts are committed so fresh clones and CI can verify, but trusted-publishers.json is NOT repo-owned — a repository writer who could swap the public key could sign their own baseline and be discovered as trusted.'
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    mitigates:
+      - test_fixture_assumes_unproven_authority

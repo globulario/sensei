@@ -1,0 +1,6 @@
+Public evidence bundle for knowledge admission.
+
+The baseline actor_binding references its authentication and role-attestation
+receipts by digest; they are resolved from here so a fresh clone or CI checkout
+can verify. They contain no secret, and the signed manifest authenticates their
+exact digests. The private signing key is never stored here.

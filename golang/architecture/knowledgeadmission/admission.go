@@ -17,8 +17,8 @@
 // Path is organisation. It is not authority, and neither is any field a caller
 // can edit in the knowledge document itself. Authority comes from an admission
 // decision recorded OUTSIDE the knowledge, made by an actor whose roles were
-// verified against governed policy, and bound to the revision and graph digest
-// it was made for.
+// verified against governed policy, signed by an authorized governance publisher,
+// and bound to the graph digest it was made for.
 //
 // See docs/awareness/decisions/closure-disposition-authority.md.
 package knowledgeadmission
@@ -180,9 +180,13 @@ func (a Admitted) GovernedIdentities() []string {
 //
 // Both halves are required, and neither substitutes for the other:
 //
-//   - provenance — the manifest's actor binding verifies against governed
-//     policy, and the actor actually holds the admitting role. This is what a
-//     caller who can only edit YAML cannot manufacture.
+//   - attribution — the manifest's actor binding verifies against governed
+//     policy and the actor holds the admitting role. This is SUBORDINATE: it is
+//     signed attribution and role context, not an independent provenance root.
+//     Its authn and role receipts can ultimately be self-authored, so it cannot
+//     prove "this human really was authenticated by issuer X". What a
+//     YAML-editing caller cannot manufacture is the OUTER SIGNATURE, in
+//     VerifySigned — that, not this, is why the decision is trustworthy.
 //   - binding — the decision was made for THIS graph digest. This is what stops
 //     a real past decision being replayed over changed knowledge.
 //
