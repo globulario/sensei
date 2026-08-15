@@ -199,3 +199,14 @@ decisions:
       - invariant.sensei.evidence_receipts_are_validated_not_self_certified
     mitigates:
       - test_fixture_assumes_unproven_authority
+  - id: decision.sensei.dangling_reference_stubs_are_not_admitted_knowledge
+    title: Dangling reference stubs are not admitted knowledge
+    status: accepted
+    architectural_plane: intended
+    rationale: 'A node that exists only because something references it is NOT admitted knowledge and must not be admitted to preserve graph equivalence. Admitting the 161 would sign identities with no declaration and therefore no authority history, violating the rule that every admitted identity must have an explainable one. This is the H-B defect one level down: the corpus walker sees declarations while the publisher emits references, and the two disagree about what exists. Once publication consumes the admission decision these stubs stop being published, which is a repair rather than a regression.'
+    context: 'Preparing the H-B legacy admission baseline (#166/#169) surfaced 161 typed governed subjects present in the published seed but absent from the 487-identity baseline. Every one is in docs/awareness/dangling_refs_baseline.tsv: they are referenced-but-undeclared nodes, emitted as typed stubs because another node''s relation list points at them (for example ''- alias_bundle_sha_into_entrypoint_sha_variable'' in generic/state_authority_invariants.yaml). None carries an id: declaration anywhere. The set analysis was B - P = 0 and P - B = 161, so the baseline never over-claims; the graph over-emits.'
+    consequences: 'The post-wiring graph is deliberately NOT byte-identical to the pre-wiring graph. The equivalence check is restated: G_after MUST equal G_before MINUS exactly the typed governed subjects whose identities appear in dangling_refs_baseline.tsv, and MUST NOT differ in any other way. A difference outside that set means the admission wiring changed real authority and must be investigated, not re-signed. Declaring the referenced nodes, or removing the references, remains separate future work; until then the dangling baseline is the authoritative enumeration of the accepted gap.'
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    mitigates:
+      - test_fixture_assumes_unproven_authority

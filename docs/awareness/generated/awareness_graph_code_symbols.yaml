@@ -5013,6 +5013,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspaceIsRefusedBeforeMutation is the canonical negative control:\nthe exact command that destroyed the services slice three times."
+  - id: cmd/awg/domain_closure_admission_test.go:TestClosureAuthorityIsIndependentOfPath
+    file: cmd/awg/domain_closure_admission_test.go
+    symbol: TestClosureAuthorityIsIndependentOfPath
+    package: main
+    language: go
+    doc: "#166 acceptance test 5, at the closure boundary. Byte-identical knowledge,\ntwo locations. Before this change the candidates/ copy was REQUIRED by closure\nwhile the importer skipped it, which is what produced the failures."
+  - id: cmd/awg/domain_closure_admission_test.go:TestGeneratedCandidatesCreateNoClosureObligation
+    file: cmd/awg/domain_closure_admission_test.go
+    symbol: TestGeneratedCandidatesCreateNoClosureObligation
+    package: main
+    language: go
+    doc: "#166 acceptance test 1 and 2 at the closure boundary: generating candidates\nmust not create a closure obligation, so an otherwise authoritative repository\ndoes not degrade just because discovery ran."
+  - id: cmd/awg/domain_closure_admission_test.go:TestGeneratedIsBuildProvenanceNotAuthority
+    file: cmd/awg/domain_closure_admission_test.go
+    symbol: TestGeneratedIsBuildProvenanceNotAuthority
+    package: main
+    language: go
+    doc: "\"generated\" must be build provenance, not an authority disposition.\n\nRemoving the generated/ skip from expectedIdentities() exposed it as a SECOND\npathname authority rule hiding behind the first. Pin both directions so it\ncannot come back: an admitted identity is required wherever it sits, and an\nunadmitted one is required nowhere."
   - id: cmd/awg/domain_closure_test.go:TestClassWithoutProvenanceIsNamedNotFailed
     file: cmd/awg/domain_closure_test.go
     symbol: TestClassWithoutProvenanceIsNamedNotFailed
@@ -12670,6 +12688,12 @@ test_symbols:
     symbol: TestContractIntentAloneDoesNotCreateContract
     package: knowledgeadoption_test
     language: go
+  - id: golang/architecture/knowledgeadoption/engine_test.go:TestContractIntentNeedsAdmissionNotJustACompleteReceipt
+    file: golang/architecture/knowledgeadoption/engine_test.go
+    symbol: TestContractIntentNeedsAdmissionNotJustACompleteReceipt
+    package: knowledgeadoption_test
+    language: go
+    doc: "Contract intents must not be machine-adopted on the strength of a complete\nreceipt alone. ValidateMachineAdoption only checks that a caller filled in the\nright fields, and a self-authored receipt chain passes it — proven in this\nvery package's fixtures. Admission decides; the receipt is a secondary\nstructural check, so a node must be BOTH admitted and structurally complete."
   - id: golang/architecture/knowledgeadoption/engine_test.go:TestContractMaterializationPreservesIntentProvenance
     file: golang/architecture/knowledgeadoption/engine_test.go
     symbol: TestContractMaterializationPreservesIntentProvenance
@@ -19861,6 +19885,29 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestFailureMode_ViolatesContract_EmitsSpineEdges verifies the Phase-1 spine\nligament: a failure mode's violates_contracts produces BOTH the forward\nFailureMode --violatesContract--> Contract edge and the reverse\nContract --violatedBy--> FailureMode edge, so the contract-first chain\n(failure -> contract -> invariant/test) is traversable from either side."
+  - id: golang/extractor/contradiction_admission_test.go:TestContradictionScopeIgnoresCallerEditableStatus
+    file: golang/extractor/contradiction_admission_test.go
+    symbol: TestContradictionScopeIgnoresCallerEditableStatus
+    package: extractor
+    language: go
+    doc: "status/promotion_status no longer decide what is \"active\" for contradiction\npurposes — admission does."
+  - id: golang/extractor/contradiction_admission_test.go:TestContradictionScopeIsIndependentOfPath
+    file: golang/extractor/contradiction_admission_test.go
+    symbol: TestContradictionScopeIsIndependentOfPath
+    package: extractor
+    language: go
+    doc: "Location does not move contradiction scope in either direction."
+  - id: golang/extractor/contradiction_admission_test.go:TestContradictionValidationWithoutScopeIsUnavailable
+    file: golang/extractor/contradiction_admission_test.go
+    symbol: TestContradictionValidationWithoutScopeIsUnavailable
+    package: extractor
+    language: go
+  - id: golang/extractor/contradiction_admission_test.go:TestUnadmittedNodeCannotCreateAuthoritativeContradiction
+    file: golang/extractor/contradiction_admission_test.go
+    symbol: TestUnadmittedNodeCannotCreateAuthoritativeContradiction
+    package: extractor
+    language: go
+    doc: "An unadmitted candidate claiming a governed authority's state is a proposal,\nnot an authority conflict. If it counted, anyone could manufacture an\nauthoritative contradiction by dropping a YAML file in — inverting #166\nrather than implementing it."
   - id: golang/extractor/contradiction_validator_test.go:TestValidatorAllowsDocumentedException
     file: golang/extractor/contradiction_validator_test.go
     symbol: TestValidatorAllowsDocumentedException
@@ -20447,6 +20494,42 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestImporterUsesDeclaredPredicatesOnly walks yaml_import.go via go/ast,\ncollects every selector of the form `rdf.<Name>` that's used as a\npredicate-position argument, and asserts each one corresponds to a\nconstant declared in golang/rdf/vocab.go.\n\nWhat this catches:\n\n  - The importer emits a `rdf.PropFoo` selector that doesn't exist in\n    vocab.go (would fail compilation today, but the test pins it so a\n    future move from constants to a registry would still be checked).\n  - An author copy-pastes an emit block and renames an edge to\n    `rdf.PropProtectsX` — a typo that would compile if both ends of\n    the typo were edited, but here would fail because the test compares\n    against the canonical vocab set.\n  - A consultant adds a non-vocab predicate via a different package —\n    the test will surface it as unrecognized.\n\nWhat this does NOT catch:\n\n  - Whether the emitted predicate is semantically the right one. The\n    drift test covers ontology ↔ vocab; this test covers\n    importer-callsites ↔ vocab. Semantic correctness is the importer\n    tests' job.\n  - Predicate selectors built dynamically (e.g. via reflection). The\n    importer is intentionally written without dynamic predicate\n    construction; if that ever changes, this test should fail and the\n    extension needs to be designed."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPreAdmissionCandidateValidationIsNotCircular
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPreAdmissionCandidateValidationIsNotCircular
+    package: extractor
+    language: go
+    doc: "Pre-admission review must not require prior admission, or nothing could ever\nqualify for the admission it must already hold."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPromotionScopeFollowsAdmission
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPromotionScopeFollowsAdmission
+    package: extractor
+    language: go
+    doc: "The positive control: only the admission decision moves scope."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPromotionScopeIgnoresCallerEditableStatus
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPromotionScopeIgnoresCallerEditableStatus
+    package: extractor
+    language: go
+    doc: "`status:` was half the old selector — \"\" / active / accepted meant promoted.\nIt must no longer decide whether a node governs."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPromotionScopeIgnoresPromotionStatus
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPromotionScopeIgnoresPromotionStatus
+    package: extractor
+    language: go
+    doc: "promotion_status is caller-editable too, and receipt-field validation is not\nprovenance — proven earlier when a self-authored receipt chain verified."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPromotionScopeIsIndependentOfPath
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPromotionScopeIsIndependentOfPath
+    package: extractor
+    language: go
+    doc: "Moving identical knowledge into or out of candidates/ must not change which\nidentities are authoritatively validated."
+  - id: golang/extractor/promotion_gate_admission_test.go:TestPromotionValidationWithoutScopeIsUnavailable
+    file: golang/extractor/promotion_gate_admission_test.go
+    symbol: TestPromotionValidationWithoutScopeIsUnavailable
+    package: extractor
+    language: go
+    doc: "Absent scope is unavailable, never a silent pass. Zero violations because\nnothing was checked must not read as zero violations."
   - id: golang/extractor/promotion_gate_test.go:TestActiveRepairPlanValidation
     file: golang/extractor/promotion_gate_test.go
     symbol: TestActiveRepairPlanValidation
@@ -20489,12 +20572,12 @@ test_symbols:
     package: extractor
     language: go
     doc: "A bad_smell satisfies the trigger requirement; a zooms_out_to edge satisfies\nthe related-link requirement."
-  - id: golang/extractor/promotion_gate_test.go:TestIntentPromotion_CandidateStatusNotGated
+  - id: golang/extractor/promotion_gate_test.go:TestIntentPromotion_StatusDoesNotExemptAdmittedNode
     file: golang/extractor/promotion_gate_test.go
-    symbol: TestIntentPromotion_CandidateStatusNotGated
+    symbol: TestIntentPromotion_StatusDoesNotExemptAdmittedNode
     package: extractor
     language: go
-    doc: "Candidate / seed status is not gated — those are deliberately un-promoted."
+    doc: "CONTRACT CHANGE (#166). This test previously asserted the opposite: that\nstatus extracted_candidate/seed/proposed exempted a node from the quality bar.\nThat made a caller-editable word decide whether knowledge governed, which is\nexactly the shadow authority H-B removes — and it was reachable, because the\nwalker also skipped candidates/ by pathname, so nothing else constrained scope.\n\nScope is now settled BEFORE these validators run: ValidatePromotions consults\nthe signed admission set. Reaching this function means the identity governs, so\na contradictory `status:` no longer buys an exemption. Admission wins.\n\nThe un-promoted case is still covered — by TestPromotionScopeIgnoresCallerEditableStatus,\nwhich proves an unadmitted node is never validated whatever its status says."
   - id: golang/extractor/promotion_gate_test.go:TestIntentPromotion_WellFormedActivePasses
     file: golang/extractor/promotion_gate_test.go
     symbol: TestIntentPromotion_WellFormedActivePasses
