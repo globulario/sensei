@@ -632,3 +632,15 @@ forbidden_fixes:
     related_invariants:
       - graph.publication_requires_pre_mutation_domain_source_admission
     reason: CI has no operator registry, so a build refuses with 'no readable domain registry'. Writing one into the workspace (or $RUNNER_TEMP from repo-controlled content) makes the repository being published assert its own domain binding, which is the 2026-08-05 wrong-workspace incident with an extra step. Use an independent source the corpus cannot forge -- a runner-injected CI attestation -- never a self-authored registry.
+  - id: accept_self_authored_authority_fixture_as_valid_provenance
+    title: Accept a self-authored authority fixture as valid provenance
+    summary: 'Do not treat a structurally valid, correctly content-addressed, policy-compatible receipt chain as proof of issuer authority when the fixture or caller can choose the issuer and generate every artifact itself. Positive provenance must terminate in an independently controlled trust root. Concretely: passing VerifyActorBinding is NOT provenance — it checks that receipt.Issuer appears in the role''s trusted_issuers, and a caller writes that string. Content-addressing (commit 501df88a) proves integrity of a reference, not authenticity of an issuer. Admission must terminate in an Ed25519 signature verified against the out-of-band trusted-publishers.json whose private half lives outside the repository and outside .sensei/.'
+    protects:
+      files:
+        - golang/architecture/knowledgeadmission/provenance.go
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    reason: 'Do not treat a structurally valid, correctly content-addressed, policy-compatible receipt chain as proof of issuer authority when the fixture or caller can choose the issuer and generate every artifact itself. Positive provenance must terminate in an independently controlled trust root. Concretely: passing VerifyActorBinding is NOT provenance — it checks that receipt.Issuer appears in the role''s trusted_issuers, and a caller writes that string. Content-addressing (commit 501df88a) proves integrity of a reference, not authenticity of an issuer. Admission must terminate in an Ed25519 signature verified against the out-of-band trusted-publishers.json whose private half lives outside the repository and outside .sensei/.'
+    evidence:
+      - 'Adding role.knowledge_admitter with trusted_issuers: [sensei.governance] would NOT have created a trust root: identity.Enroll takes a caller-supplied EnrollOptions.Issuer, so sensei.local is only a default and any issuer string can be claimed.'
+      - Removing the publisher signature check from VerifySigned fails all six provenance tests, which is what demonstrates the signature — not the issuer string — is load-bearing.

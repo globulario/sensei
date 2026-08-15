@@ -1526,3 +1526,12 @@ required_tests:
     protects:
       invariants:
         - graph.publication_requires_pre_mutation_domain_source_admission
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestSignatureFromUntrustedKeyIsRejected
+    title: Admission rejects a signature from an untrusted key
+    protects:
+      invariants:
+        - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+      failure_modes:
+        - test_fixture_assumes_unproven_authority
+      files:
+        - golang/architecture/knowledgeadmission/provenance.go

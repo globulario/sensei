@@ -6993,6 +6993,18 @@ test_symbols:
     symbol: TestStructuredVendorProfilesReuseConfinedCommandConfiguration
     package: agentcommand
     language: go
+  - id: golang/architecture/authority/actor_test.go:TestVerifyActorBindingRejectsForgedAuthnReceiptWithoutSelfReportedDigest
+    file: golang/architecture/authority/actor_test.go
+    symbol: TestVerifyActorBindingRejectsForgedAuthnReceiptWithoutSelfReportedDigest
+    package: authority
+    language: go
+    doc: "Omitting ReceiptDigestSHA256 must not buy the forger anything. The field is\nself-reported, so the check that matters compares the digest the artifact was\nfiled under against one recomputed from its content."
+  - id: golang/architecture/authority/actor_test.go:TestVerifyActorBindingRejectsForgedRoleAttestation
+    file: golang/architecture/authority/actor_test.go
+    symbol: TestVerifyActorBindingRejectsForgedRoleAttestation
+    package: authority
+    language: go
+    doc: "A forged role attestation must not verify just because it was filed under a\ndigest the binding cites. The bundle locates artifacts by filename, so an\nactor able to write into artifacts/sha256/ could otherwise mint any role for\nitself: write a receipt granting role.repository_maintainer, name the file\nafter an arbitrary digest, cite that digest. Every other check in\nVerifyActorBinding passes, because the forger controls every field they\ncompare against."
   - id: golang/architecture/authority/actor_test.go:TestVerifyActorBindingRejectsUnknownIssuer
     file: golang/architecture/authority/actor_test.go
     symbol: TestVerifyActorBindingRejectsUnknownIssuer
@@ -12494,6 +12506,120 @@ test_symbols:
     symbol: TestValidateRefusesReceiptSemanticSpineMutations
     package: investigator
     language: go
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestActorWithoutAdmittingRoleCannotAdmit
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestActorWithoutAdmittingRoleCannotAdmit
+    package: knowledgeadmission
+    language: go
+    doc: "Holding SOME verified role is not holding the admitting role."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestCandidateIsDiscoverableButNotAuthoritative
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestCandidateIsDiscoverableButNotAuthoritative
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 1 ────────────────────────────────────────────────\nCandidate knowledge remains discoverable but is not authoritative-projection-\nrequired."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestDuplicateIdentityIsRejected
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestDuplicateIdentityIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "Two decisions about one identity is an unresolved disagreement. Picking\neither silently would invent an answer nobody recorded."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestEditingCallerControlledStatusCannotManufactureAuthority
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestEditingCallerControlledStatusCannotManufactureAuthority
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 6 — LOAD-BEARING ─────────────────────────────────\nEditing a caller-controlled status: field cannot manufacture governing\nauthority.\n\nThe receipt is inlined into the record, so `status:` and `promotion_status:`\nare literally editable in the same document. They must not matter: authority\ncomes from the verified binding plus the disposition, and nothing else."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestGeneratingCandidatesDoesNotDegradeAuthority
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestGeneratingCandidatesDoesNotDegradeAuthority
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 2 ────────────────────────────────────────────────\nGenerating new candidates does not by itself degrade an otherwise\nauthoritative repository. This is the self-defeating onboarding loop #166\nopens with: `sensei import --refresh` writes candidates, and closure must not\nstart failing because of them."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestLocallyEnrolledIssuerCannotAdmitKnowledge
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestLocallyEnrolledIssuerCannotAdmitKnowledge
+    package: knowledgeadmission
+    language: go
+    doc: "The anchor itself. A locally enrolled identity self-issues as sensei.local\nwith roles of its own choosing, so the admitting role must not trust it."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestManifestWithoutVerifiableProvenanceAdmitsNothing
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestManifestWithoutVerifiableProvenanceAdmitsNothing
+    package: knowledgeadmission
+    language: go
+    doc: "The same property one level up: the whole manifest is a file someone can\nwrite. Without a binding that verifies against governed policy, NOTHING is\nadmitted — the records are not partially believed."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestNonGoverningDispositionsStayOutsideTheAuthoritySet
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestNonGoverningDispositionsStayOutsideTheAuthoritySet
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 7 ────────────────────────────────────────────────\nRejected, stale, superseded and other non-governing dispositions remain\noutside the required authority set."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestOwnerGovernedPromotionConfersAuthority
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestOwnerGovernedPromotionConfersAuthority
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 3 ────────────────────────────────────────────────\nOwner-governed adoption/promotion makes that knowledge authoritative-\nprojection-required."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestPathIsNotPartOfTheAuthorityDecision
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestPathIsNotPartOfTheAuthorityDecision
+    package: knowledgeadmission
+    language: go
+    doc: "── #166 acceptance test 5 ────────────────────────────────────────────────\nMoving candidate content between directories does not alter its authority\ndisposition.\n\nThe admission record is keyed by stable identity and carries no path at all,\nso this holds structurally. The test pins that: if anyone reintroduces a path\ninto Record, they have to delete this test to do it."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge
+    package: knowledgeadmission
+    language: go
+    doc: "The trust boundary itself: nothing must be admissible on the strength of a\nreceipt naming a trusted issuer. Policy trusting the STRING\n\"sensei.governance\" is not sensei.governance having issued anything.\n\nThis hand-authors both receipts with issuer: sensei.governance, computes every\nstructural digest correctly, and supplies a correctly hashed authentication\nartifact. Nothing is malformed — it is exactly what a caller with write access\nto the repository and bundle can produce, because EnrollOptions.Issuer is\ncaller-supplied and sensei.local is only a default.\n\nIt was red until issuer authenticity existed. What closes it is not a better\nstring check: the caller still writes whatever issuer it likes, and still\ncannot produce a signature for a governance key it does not hold. The private\nkey lives outside the checkout, so repository mutation alone is insufficient."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestStaleRevisionOrGraphDigestIsRejected
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestStaleRevisionOrGraphDigestIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "Contextual binding. A real past decision must not be replayed over changed\nknowledge — but binding alone is not provenance, which is what the issuer and\nrole tests above cover."
+  - id: golang/architecture/knowledgeadmission/admission_test.go:TestUnknownIdentityIsDistinctFromCandidate
+    file: golang/architecture/knowledgeadmission/admission_test.go
+    symbol: TestUnknownIdentityIsDistinctFromCandidate
+    package: knowledgeadmission
+    language: go
+    doc: "Absence is not a disposition. \"Nobody ruled on this\" and \"this was ruled a\ncandidate\" are different states, and collapsing them would let unreviewed\nknowledge inherit a decision it never received."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestMutatingARecordAfterSigningIsRejected
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestMutatingARecordAfterSigningIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "Seam 1 — CONTENT INTEGRITY. Mutating any admission record after signing must\nbe rejected. This is what stops a caller taking a legitimately signed manifest\nand promoting one extra identity inside it."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestSignatureFromRevokedKeyIsRejected
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestSignatureFromRevokedKeyIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "Seam 3 — GOVERNANCE REVOCATION. A cryptographically valid signature from a key\nthat governance has revoked must be rejected. Revocation is a policy decision\nthe signature itself cannot express."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestSignatureFromUntrustedKeyIsRejected
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestSignatureFromUntrustedKeyIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "Seam 2 — ISSUER AUTHENTICITY. A perfectly well-formed manifest signed by a key\nthe trust store does not carry must be rejected. Holding a key is not the same\nas holding a TRUSTED key."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestSignedManifestFromTrustedPublisherAdmitsKnowledge
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestSignedManifestFromTrustedPublisherAdmitsKnowledge
+    package: knowledgeadmission
+    language: go
+    doc: "The happy path: a manifest signed by a trusted governance key admits\nknowledge, and provenance is positively verified rather than assumed."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestUnknownKeyIDIsRejected
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestUnknownKeyIDIsRejected
+    package: knowledgeadmission
+    language: go
+    doc: "An unknown key id under a trusted publisher must not resolve to some other\nkey that publisher happens to hold."
+  - id: golang/architecture/knowledgeadmission/provenance_test.go:TestUnsignedManifestAdmitsNothing
+    file: golang/architecture/knowledgeadmission/provenance_test.go
+    symbol: TestUnsignedManifestAdmitsNothing
+    package: knowledgeadmission
+    language: go
+    doc: "An unsigned manifest is not \"provenance we could not check\" — it is no\nprovenance. Nothing is admitted."
   - id: golang/architecture/knowledgeadoption/engine_test.go:TestCompilerEnforcedInternalBoundaryIsMachineAdopted
     file: golang/architecture/knowledgeadoption/engine_test.go
     symbol: TestCompilerEnforcedInternalBoundaryIsMachineAdopted

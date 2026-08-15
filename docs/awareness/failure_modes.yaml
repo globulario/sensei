@@ -1417,3 +1417,19 @@ failure_modes:
     evidence:
       - fresh compiled slice links workspacecontract/identity.go only to component.golang.architecture.workspacecontract; the live store after a successful --repo publish serves both that and component.golang.architecture
       - grep of the compiled slice shows 0 aw:repo triples on the sourceFile node; its only predicates are rdf:type and aw:implements
+  - id: test_fixture_assumes_unproven_authority
+    title: Test fixture assumes the unproven authority property under evaluation
+    severity: high
+    description: A test fixture can construct the very authority/provenance property under evaluation, causing downstream tests to go green without establishing that an untrusted caller could not construct the same world. Green tests prove behavior within the fixture's premises, not the truth of those premises.
+    protects:
+      files:
+        - golang/architecture/knowledgeadmission/admission_test.go
+        - golang/architecture/authority/actor.go
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    required_tests:
+      - golang/architecture/knowledgeadmission/provenance_test.go:TestSignatureFromUntrustedKeyIsRejected
+    evidence:
+      - knowledgeadmission bundle.binding() hand-authored an AuthenticationReceipt and RoleAttestationReceipt with a caller-chosen issuer, computed correct structural digests, and Verify() accepted the pair — so the 'valid' fixture WAS the forgery under test.
+      - All 12 tests in commit 3a006ab0 passed while running that forged binding; the suite was green and meaningless simultaneously.
+      - TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge, committed deliberately red at 497c9c1d, is the test that falsified the premise.
