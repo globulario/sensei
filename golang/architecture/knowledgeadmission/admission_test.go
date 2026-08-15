@@ -438,3 +438,33 @@ func TestUnknownIdentityIsDistinctFromCandidate(t *testing.T) {
 		t.Fatal("an unmentioned identity was authoritative")
 	}
 }
+
+// The trust boundary itself: nothing must be admissible on the strength of a
+// receipt naming a trusted issuer. Policy trusting the STRING
+// "sensei.governance" is not the same as sensei.governance having issued
+// anything.
+//
+// This test hand-authors both receipts with issuer: sensei.governance, computes
+// every structural digest correctly, and supplies a correctly hashed
+// authentication artifact. Nothing here is malformed — it is exactly what a
+// caller with write access to the bundle can produce, because
+// EnrollOptions.Issuer is caller-supplied and sensei.local is only a default.
+//
+// While this fails, issuer authenticity is unresolved and no trusted_issuers
+// value creates a trust root.
+func TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge(t *testing.T) {
+	b := newBundle(t)
+	m := Manifest{
+		SchemaVersion: SchemaVersion,
+		PolicyID:      "knowledge.admission.v1",
+		AdmittingRole: admittingRole,
+		// Self-authored, claiming the governance issuer.
+		ActorBinding: b.binding(t, governedIssuer, []string{admittingRole}),
+		Records:      []Record{governedRecord("invariant.real.one")},
+	}
+	admitted, err := Verify(m, testContext(b))
+	if err == nil && admitted.IsAuthoritativelyAdmitted("invariant.real.one") {
+		t.Fatal("a self-authored receipt claiming issuer=sensei.governance admitted knowledge: " +
+			"policy trusts the issuer STRING, and nothing authenticates the issuer")
+	}
+}
