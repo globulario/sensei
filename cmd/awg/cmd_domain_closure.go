@@ -11,9 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/globulario/sensei/golang/extractor"
-
 	"github.com/globulario/sensei/golang/architecture/knowledgeadmission"
+	"github.com/globulario/sensei/golang/extractor"
 )
 
 // classIRISegment maps a governed source schema to the IRI segment its
@@ -37,7 +36,6 @@ func runDomainClosure(args []string) int {
 	fs.SetOutput(os.Stderr)
 	input := fs.String("input", "docs/awareness", "certified source corpus directory")
 	ntFile := fs.String("ntriples", "", "emitted N-Triples to verify (default: compile from -input)")
-	graphDigest := fs.String("graph-digest", "", "graph digest the admission decision must be valid for (default: the embedded seed marker)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei domain-closure [flags]
 
@@ -47,6 +45,10 @@ certified source declares, and contains nothing authored outside that source.
 Projection coverage alone is insufficient. A slice built from the wrong working
 directory projects perfectly — it is simply the wrong corpus — and reports
 itself current and authoritative. Closure is the check that contradicts it.
+
+Knowledge authority is verified against the canonical authored-source corpus.
+The published graph is the object closure checks, never the trust anchor that
+admits the source used to produce it.
 
 Flags:
 `)
@@ -92,14 +94,13 @@ Flags:
 	// it had nothing left to check. That vacuous green is worse than a red: it
 	// is the shape of false comfort this whole gate exists to contradict, so
 	// absent admission is UNPROVABLE, exactly like an unparseable governed file.
+	//
+	// LoadFromRepo derives freshness from authored source. Never bind this call to
+	// the N-Triples being checked: admission controls publication, so doing that
+	// would make the trust anchor depend on its own downstream effect.
 	repoRoot := repoRootFor(root)
-	digest := strings.TrimSpace(*graphDigest)
-	if digest == "" {
-		digest = seedGraphDigest(repoRoot)
-	}
 	admitted, prov, aerr := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
 		RepoRoot:    repoRoot,
-		GraphDigest: digest,
 		EvaluatedAt: time.Now().UTC(),
 		Index:       policyIndexFor(repoRoot),
 	})
@@ -161,9 +162,11 @@ Flags:
 // importer skipped it by directory name, which is what produced the closure
 // failures; now neither walker consults a pathname for authority.
 //
-// There is deliberately no "generated/" skip either. It was a second pathname
-// rule, and admission makes it redundant: build output is not admitted, so it
-// lands in excluded like anything else nobody ruled on.
+// There is deliberately no generated/ authority rule here either. Generated
+// files may be discovered as evidence of what exists, but AdmissionCorpusDigest
+// excludes generated/ from the authored trust anchor. Therefore a generated-only
+// identity cannot become admitted, while a generated copy of an admitted stable
+// identity cannot change which identity is required.
 func expectedIdentities(root string, admitted knowledgeadmission.Admitted) (map[string]string, []string, error) {
 	expected := map[string]string{}
 	var excluded []string
