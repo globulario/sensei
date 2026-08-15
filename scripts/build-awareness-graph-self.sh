@@ -8,6 +8,19 @@
 #
 #   Normal   : regenerate this repo's code symbols, rebuild the seed + stamp.
 #   --check  : rebuild into a temp dir; fail (exit 1) if the committed seed drifted.
+#   --bootstrap-unadmitted : ONE-TIME initialization bridge. See below.
+#
+# The bootstrap bridge exists because the promotion and contradiction validators
+# require an authoritative admission scope, and that scope comes from a signed
+# baseline bound to a GRAPH DIGEST — which only a completed seed build produces:
+#
+#   validator -> seed producer -> graph digest -> admission activation -> validator
+#
+# Each link is individually correct and fail-closed. Together they deadlock an
+# uninitialized repository. --bootstrap-unadmitted breaks that loop exactly once,
+# by omitting ONLY the two admission-dependent validators. -strict, -validate-refs
+# and the dangling-ref baseline all still apply, and the mode REFUSES to run once
+# a signed admission baseline exists, so it cannot become a forgotten bypass.
 #
 # The server embeds BOTH the seed and the transaction stamp and cross-checks that
 # the stamp certifies the seed (golang/server/graph_authority.go). This script
@@ -26,8 +39,39 @@ SEED="$AG/golang/server/embeddata/awareness.nt"
 STAMP="$AG/golang/server/embeddata/awareness.transaction.tsv"
 
 CHECK_MODE=false
-[[ "${1:-}" == "--check" ]] && CHECK_MODE=true
-[[ "${1:-}" =~ ^(|--check)$ ]] || { echo "usage: $0 [--check]" >&2; exit 2; }
+BOOTSTRAP_UNADMITTED=false
+case "${1:-}" in
+    --check)                CHECK_MODE=true ;;
+    --bootstrap-unadmitted) BOOTSTRAP_UNADMITTED=true ;;
+    "")                     ;;
+    *) echo "usage: $0 [--check | --bootstrap-unadmitted]" >&2; exit 2 ;;
+esac
+
+ADMISSION_BASELINE="$AG/governance/knowledge-admission-baseline.yaml"
+ADMISSION_SIGNATURE="$AG/governance/knowledge-admission-baseline.sig"
+
+if [[ "$BOOTSTRAP_UNADMITTED" == true ]]; then
+    # Self-destruct guard: the bridge is only for an UNINITIALIZED repository.
+    # Once a signature exists the normal path must be used forever, so today's
+    # escape hatch cannot become next year's silent bypass.
+    if [[ -f "$ADMISSION_SIGNATURE" && -f "$ADMISSION_BASELINE" ]]; then
+        echo "error: --bootstrap-unadmitted refused: a signed knowledge-admission baseline already exists." >&2
+        echo "       $ADMISSION_SIGNATURE" >&2
+        echo "       Admission is active; run this script with no flags so the promotion and" >&2
+        echo "       contradiction validators are enforced." >&2
+        exit 2
+    fi
+    cat >&2 <<'BANNER'
+
+================================================================================
+BOOTSTRAP MODE: knowledge admission is not yet active.
+Promotion and contradiction verdicts were NOT produced.
+This seed exists only to derive the graph digest required to activate admission.
+It is NOT a certified build. Do not treat its success as validation.
+================================================================================
+
+BANNER
+fi
 
 command -v go >/dev/null 2>&1 || { echo "error: go toolchain required" >&2; exit 2; }
 [[ -f "$REGISTRY" ]] || { echo "error: missing namespace registry $REGISTRY" >&2; exit 2; }
@@ -60,10 +104,15 @@ run_yaml2nt() {
         -path-prefix "$AG"
         -strict
         -validate-refs
-        -validate-promotion
-        -validate-contradictions
         -output "$out_path"
     )
+    # The two admission-dependent validators. Omitted ONLY by the one-time
+    # bootstrap bridge; every normal build requires them, and "requested but
+    # unavailable" stays a failure rather than becoming a warning. A caller that
+    # asked for a verdict must not receive exit 0 when no verdict was produced.
+    if [[ "$BOOTSTRAP_UNADMITTED" != true ]]; then
+        cmd+=(-validate-promotion -validate-contradictions)
+    fi
     [[ -f "$BASELINE" ]] && cmd+=(-allowed-dangling-refs "$BASELINE")
     "${cmd[@]}"
 }
