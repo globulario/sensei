@@ -25,23 +25,24 @@ const (
 // receipt must never mint a different Invariant, Decision, Contract, or other
 // stable node ID.
 type Receipt struct {
-	Status               string   `json:"status,omitempty" yaml:"status,omitempty"`
-	PromotionStatus      string   `json:"promotion_status,omitempty" yaml:"promotion_status,omitempty"`
-	AssertionOrigin      string   `json:"assertion_origin,omitempty" yaml:"assertion_origin,omitempty"`
-	EpistemicStatus      string   `json:"epistemic_status,omitempty" yaml:"epistemic_status,omitempty"`
-	ArchitecturalPlane   string   `json:"architectural_plane,omitempty" yaml:"architectural_plane,omitempty"`
-	DecisionActor        string   `json:"decision_actor,omitempty" yaml:"decision_actor,omitempty"`
-	DecisionContext      string   `json:"decision_context,omitempty" yaml:"decision_context,omitempty"`
-	DecisionPolicy       string   `json:"decision_policy,omitempty" yaml:"decision_policy,omitempty"`
-	DecisionTimestamp    string   `json:"decision_timestamp,omitempty" yaml:"decision_timestamp,omitempty"`
-	ValidForRevision     string   `json:"valid_for_revision,omitempty" yaml:"valid_for_revision,omitempty"`
-	ValidForGraphDigest  string   `json:"valid_for_graph_digest,omitempty" yaml:"valid_for_graph_digest,omitempty"`
-	ReviewStatus         string   `json:"review_status,omitempty" yaml:"review_status,omitempty"`
-	AdoptionBasis        []string `json:"adoption_basis,omitempty" yaml:"adoption_basis,omitempty"`
-	SourceReceipts       []string `json:"source_receipts,omitempty" yaml:"source_receipts,omitempty"`
-	CorroborationKinds   []string `json:"corroboration_kinds,omitempty" yaml:"corroboration_kinds,omitempty"`
-	RevocationConditions []string `json:"revocation_conditions,omitempty" yaml:"revocation_conditions,omitempty"`
-	Limitations          []string `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	Status                 string   `json:"status,omitempty" yaml:"status,omitempty"`
+	PromotionStatus        string   `json:"promotion_status,omitempty" yaml:"promotion_status,omitempty"`
+	AssertionOrigin        string   `json:"assertion_origin,omitempty" yaml:"assertion_origin,omitempty"`
+	EpistemicStatus        string   `json:"epistemic_status,omitempty" yaml:"epistemic_status,omitempty"`
+	ArchitecturalPlane     string   `json:"architectural_plane,omitempty" yaml:"architectural_plane,omitempty"`
+	DecisionActor          string   `json:"decision_actor,omitempty" yaml:"decision_actor,omitempty"`
+	DecisionContext        string   `json:"decision_context,omitempty" yaml:"decision_context,omitempty"`
+	DecisionPolicy         string   `json:"decision_policy,omitempty" yaml:"decision_policy,omitempty"`
+	DecisionTimestamp      string   `json:"decision_timestamp,omitempty" yaml:"decision_timestamp,omitempty"`
+	ValidForRevision       string   `json:"valid_for_revision,omitempty" yaml:"valid_for_revision,omitempty"`
+	ValidForGraphDigest    string   `json:"valid_for_graph_digest,omitempty" yaml:"valid_for_graph_digest,omitempty"`
+	ValidForCorpusDigest   string   `json:"valid_for_corpus_digest,omitempty" yaml:"valid_for_corpus_digest,omitempty"`
+	ReviewStatus           string   `json:"review_status,omitempty" yaml:"review_status,omitempty"`
+	AdoptionBasis          []string `json:"adoption_basis,omitempty" yaml:"adoption_basis,omitempty"`
+	SourceReceipts         []string `json:"source_receipts,omitempty" yaml:"source_receipts,omitempty"`
+	CorroborationKinds     []string `json:"corroboration_kinds,omitempty" yaml:"corroboration_kinds,omitempty"`
+	RevocationConditions   []string `json:"revocation_conditions,omitempty" yaml:"revocation_conditions,omitempty"`
+	Limitations            []string `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
 var (
@@ -71,6 +72,7 @@ func Normalize(in Receipt) Receipt {
 	out.DecisionTimestamp = normalizeTimestamp(out.DecisionTimestamp)
 	out.ValidForRevision = strings.TrimSpace(out.ValidForRevision)
 	out.ValidForGraphDigest = strings.ToLower(strings.TrimSpace(out.ValidForGraphDigest))
+	out.ValidForCorpusDigest = strings.ToLower(strings.TrimSpace(out.ValidForCorpusDigest))
 	out.ReviewStatus = strings.ToLower(strings.TrimSpace(out.ReviewStatus))
 	out.AdoptionBasis = normalizeList(out.AdoptionBasis)
 	out.SourceReceipts = normalizeList(out.SourceReceipts)
