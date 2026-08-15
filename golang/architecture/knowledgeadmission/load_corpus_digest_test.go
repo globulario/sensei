@@ -71,6 +71,89 @@ func TestLoadFromRepoBindsToAuthoredCorpusNotPublishedGraphDigest(t *testing.T) 
 	}
 }
 
+func TestLoadFromRepoCleanRoomNeedsNoPublishedSeed(t *testing.T) {
+	root := t.TempDir()
+	bundleRoot := filepath.Join(root, "governance")
+	if err := os.MkdirAll(filepath.Join(bundleRoot, "artifacts", "sha256"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	b := &bundle{root: bundleRoot}
+
+	const id = "invariant.clean.room"
+	writeAdmissionCorpusFile(t, root, "invariants.yaml", `invariants:
+  - id: invariant.clean.room
+    title: clean room authority
+    severity: high
+`)
+	corpusDigest := digestFor(t, root, id)
+	m := manifest(t, b, Record{
+		Identity:    id,
+		Disposition: DispositionGoverned,
+		Receipt: adoption.Receipt{
+			ValidForCorpusDigest: corpusDigest,
+		},
+	})
+	raw, err := yaml.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(bundleRoot, BaselineFileName), raw, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := newSigner(t)
+	if err := os.WriteFile(filepath.Join(bundleRoot, SignatureFileName),
+		[]byte(base64.StdEncoding.EncodeToString(ed25519.Sign(s.priv, raw))+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	store := s.trustStore(testKeyID, "active")
+
+	seed := filepath.Join(root, "golang", "server", "embeddata", "awareness.nt")
+	if _, err := os.Stat(seed); !os.IsNotExist(err) {
+		t.Fatalf("fixture unexpectedly has a prior published seed: %v", err)
+	}
+	load := func() {
+		t.Helper()
+		admitted, _, err := LoadFromRepo(LoadOptions{
+			RepoRoot:            root,
+			EvaluatedAt:         time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
+			Index:               testIndex(),
+			TrustStore:          &store,
+			ExpectedPublisherID: testPublisher,
+		})
+		if err != nil {
+			t.Fatalf("clean-room LoadFromRepo: %v", err)
+		}
+		if !admitted.IsAuthoritativelyAdmitted(id) {
+			t.Fatal("clean-room load did not recover governed authority from authored source")
+		}
+	}
+
+	// First load: there has never been a seed. This is the load-bearing regression
+	// for the v1 bootstrap-by-lag defect.
+	load()
+
+	// A downstream publication may then appear and change arbitrarily without
+	// perturbing the upstream admission binding.
+	if err := os.MkdirAll(filepath.Dir(seed), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(seed, []byte("published graph generation A\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	load()
+	if err := os.WriteFile(seed, []byte("published graph generation B, different digest\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	load()
+
+	// And deleting publication again must not remove the authority needed to
+	// reconstruct it.
+	if err := os.Remove(seed); err != nil {
+		t.Fatal(err)
+	}
+	load()
+}
+
 func TestLoadFromRepoRejectsChangedGovernedSourceWithoutResigning(t *testing.T) {
 	root := t.TempDir()
 	bundleRoot := filepath.Join(root, "governance")
