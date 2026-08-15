@@ -16,6 +16,7 @@
 package extractor
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -38,16 +39,20 @@ func (v PromotionViolation) String() string {
 	return fmt.Sprintf("%s %q (%s): %s [%s]", v.Kind, v.NodeID, v.Path, v.Detail, v.Rule)
 }
 
-// promotedStatus reports whether a status means the node is promoted (subject
-// to the full quality bar). Empty status is treated as promoted: an authored
-// node with no explicit status is live by default, so it must meet the bar.
-func promotedStatus(status string) bool {
-	switch strings.ToLower(strings.TrimSpace(status)) {
-	case "", "active", "accepted":
-		return true
-	}
-	return false
-}
+// NOTE: promotedStatus is deliberately gone.
+//
+// It reported whether `status:` meant "promoted", treating "", active and
+// accepted as live — so an authored node with no explicit status governed by
+// default, and one word in a YAML file could exempt a node from the quality bar
+// it was supposed to meet. That is caller-editable metadata deciding authority,
+// which #166 forbids.
+//
+// Scope is now decided before these validators run: ValidatePromotions consults
+// the signed admission set (or an explicit pre-admission target). Anything that
+// reaches here governs, so it meets the bar regardless of what `status:` claims.
+// retiredStatus survives because deprecated/superseded is genuine LIFECYCLE
+// semantics about a node that still governs — it selects which bar applies, not
+// whether one applies at all.
 
 // retiredStatus reports whether a status means the node is deprecated or
 // superseded — allowed to be incomplete, but should explain its retirement.
@@ -74,9 +79,6 @@ func validateImplementationPatternPromotion(p yamlImplementationPattern, path st
 			add("retired_without_note", "deprecated/superseded pattern should carry a supersession note in rationale")
 		}
 		return out
-	}
-	if !promotedStatus(p.Status) {
-		return nil // draft/candidate — not gated
 	}
 
 	if strings.TrimSpace(p.Label) == "" {
@@ -112,9 +114,6 @@ func validateIntentPromotion(i yamlIntent, path string) []PromotionViolation {
 			add("retired_without_note", "deprecated/superseded intent should link a successor or carry a note")
 		}
 		return out
-	}
-	if !promotedStatus(i.Status) {
-		return nil // seed/extracted_candidate/proposed — not gated
 	}
 
 	if strings.TrimSpace(i.Title) == "" && strings.TrimSpace(i.Intent) == "" {
@@ -153,9 +152,6 @@ func validateRepairPlanPromotion(p yamlRepairPlan, path string) []PromotionViola
 			add("retired_without_note", "deprecated/superseded repair plan should carry a supersession note")
 		}
 		return out
-	}
-	if !promotedStatus(p.Status) {
-		return nil
 	}
 
 	if strings.TrimSpace(p.Label) == "" {
@@ -221,27 +217,87 @@ func countReferenceFiles(refs []yamlImplementationPatternReference) int {
 	return n
 }
 
-// ValidatePromotions walks the given directories and validates every
-// promotable node (ImplementationPattern, Intent) against the promotion bar.
-// The candidates/ subtree is skipped — those are deliberately un-promoted. The
-// returned violations are sorted by path then node id for deterministic output.
-func ValidatePromotions(dirs ...string) ([]PromotionViolation, error) {
+// AdmissionScope reports whether a stable knowledge identity governs.
+//
+// A narrow interface rather than a dependency on the admission package: this
+// validator needs the DECISION, not the machinery that produces it, and
+// knowledgeadmission.Admitted satisfies it structurally.
+type AdmissionScope interface {
+	IsAuthoritativelyAdmitted(identity string) bool
+}
+
+// ErrAdmissionUnavailable reports that authoritative scope could not be
+// established, so no authoritative validation verdict exists.
+//
+// Typed absence, never an empty pass. "Zero violations because nothing was
+// checked" and "zero violations because everything checked out" are different
+// worlds, and reporting the first as the second is how a gate becomes theatre.
+var ErrAdmissionUnavailable = errors.New("promotion validation scope unavailable: no verified knowledge admission")
+
+// PromotionRequest states which nodes are being validated, and why.
+//
+// The operation is explicit because the two uses have OPPOSITE preconditions:
+//
+//   - normal build: validate the quality of identities that already govern, so
+//     scope comes from the signed admission set.
+//   - pre-admission review: validate a candidate to decide whether it MAY be
+//     admitted. Requiring prior admission here would be circular — nothing could
+//     ever qualify for the admission it must already hold.
+//
+// So candidates are named explicitly in CandidateTargets rather than inferred
+// from `status: accepted` or from living outside candidates/. Inference is what
+// let location and caller-editable metadata decide scope in the first place.
+type PromotionRequest struct {
+	Dirs []string
+	// Scope is the authoritative admission decision. Required unless every node
+	// under validation is named in CandidateTargets.
+	Scope AdmissionScope
+	// CandidateTargets are identities under PRE-ADMISSION review. They are
+	// validated despite not governing, and are the only nodes exempt from Scope.
+	CandidateTargets []string
+}
+
+// ValidatePromotions validates the promotion bar for authoritative knowledge.
+//
+// Scope is decided by admission, not by pathname and not by `status:`. The old
+// rule skipped the candidates/ subtree and then treated "", active and accepted
+// as the promoted set — reconstructing "live knowledge" from location plus
+// caller-editable metadata, which is the semantic shadow #166 removes. An empty
+// status still means "live" for the QUALITY bar it must then meet, but it no
+// longer decides whether the node governs.
+func ValidatePromotions(req PromotionRequest) ([]PromotionViolation, error) {
+	targets := map[string]bool{}
+	for _, id := range req.CandidateTargets {
+		if id = strings.TrimSpace(id); id != "" {
+			targets[id] = true
+		}
+	}
+	if req.Scope == nil && len(targets) == 0 {
+		return nil, ErrAdmissionUnavailable
+	}
+
 	var out []PromotionViolation
-	for _, dir := range dirs {
+	for _, dir := range req.Dirs {
 		if dir == "" {
 			continue
 		}
+		// No pathname filter. Discovery walks everything; admission decides
+		// which discovered identities are in authoritative scope.
 		err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 			if d.IsDir() {
-				if d.Name() == "candidates" {
-					return fs.SkipDir
-				}
 				return nil
 			}
 			if !strings.HasSuffix(d.Name(), ".yaml") && !strings.HasSuffix(d.Name(), ".yml") {
+				return nil
+			}
+			id, ok := promotionFileID(path)
+			if !ok {
+				return nil
+			}
+			if !targets[id] && (req.Scope == nil || !req.Scope.IsAuthoritativelyAdmitted(id)) {
 				return nil
 			}
 			vs, verr := validatePromotionFile(path)
@@ -257,6 +313,21 @@ func ValidatePromotions(dirs ...string) ([]PromotionViolation, error) {
 	}
 	sortPromotionViolations(out)
 	return out, nil
+}
+
+// promotionFileID reads the node id a promotable file declares.
+func promotionFileID(path string) (string, bool) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", false
+	}
+	var raw map[string]any
+	if err := yaml.Unmarshal(data, &raw); err != nil {
+		return "", false
+	}
+	id, _ := raw["id"].(string)
+	id = strings.TrimSpace(id)
+	return id, id != ""
 }
 
 // validatePromotionFile classifies a single YAML file and validates it if it is

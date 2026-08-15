@@ -48,6 +48,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -487,7 +488,17 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if *intent != "" {
 			dirs = append(dirs, *intent)
 		}
-		vios, err := extractor.ValidatePromotions(dirs...)
+		// Scope comes from the signed admission set. Until a baseline is signed
+		// this reports UNAVAILABLE rather than passing: "zero violations because
+		// nothing was checked" must not read as "zero violations".
+		vios, err := extractor.ValidatePromotions(extractor.PromotionRequest{
+			Dirs: dirs, Scope: admissionScope(inputs),
+		})
+		if errors.Is(err, extractor.ErrAdmissionUnavailable) {
+			fmt.Fprintf(stderr, "yaml2nt: promotion validator: UNAVAILABLE — %v\n", err)
+			fmt.Fprintln(stderr, "yaml2nt:   no authoritative scope, so no promotion verdict was produced")
+			return exitRuntime
+		}
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: promotion validator: %v\n", err)
 			return exitRuntime

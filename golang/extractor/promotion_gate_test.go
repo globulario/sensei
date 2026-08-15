@@ -71,12 +71,23 @@ func TestIntentPromotion_BadSmellAndZoomEdgeSatisfy(t *testing.T) {
 	}
 }
 
-// Candidate / seed status is not gated — those are deliberately un-promoted.
-func TestIntentPromotion_CandidateStatusNotGated(t *testing.T) {
+// CONTRACT CHANGE (#166). This test previously asserted the opposite: that
+// status extracted_candidate/seed/proposed exempted a node from the quality bar.
+// That made a caller-editable word decide whether knowledge governed, which is
+// exactly the shadow authority H-B removes — and it was reachable, because the
+// walker also skipped candidates/ by pathname, so nothing else constrained scope.
+//
+// Scope is now settled BEFORE these validators run: ValidatePromotions consults
+// the signed admission set. Reaching this function means the identity governs, so
+// a contradictory `status:` no longer buys an exemption. Admission wins.
+//
+// The un-promoted case is still covered — by TestPromotionScopeIgnoresCallerEditableStatus,
+// which proves an unadmitted node is never validated whatever its status says.
+func TestIntentPromotion_StatusDoesNotExemptAdmittedNode(t *testing.T) {
 	for _, st := range []string{"extracted_candidate", "seed", "proposed", "learned_from_incident"} {
 		i := yamlIntent{ID: "x", Level: "principle", Title: "t", Receipt: adoption.Receipt{Status: st}}
-		if vs := validateIntentPromotion(i, "p.yaml"); len(vs) != 0 {
-			t.Errorf("status %q must not be gated, got %v", st, vs)
+		if vs := validateIntentPromotion(i, "p.yaml"); len(vs) == 0 {
+			t.Errorf("status %q exempted an admitted node from the quality bar", st)
 		}
 	}
 }
@@ -209,10 +220,12 @@ func TestActiveRepairPlanValidation(t *testing.T) {
 		t.Errorf("local blast-radius plan must not require an approval gate, got %v", got)
 	}
 
-	// Candidate status is not gated.
+	// CONTRACT CHANGE (#166): `status: draft` no longer exempts a node that
+	// admission placed in authoritative scope. See
+	// TestIntentPromotion_StatusDoesNotExemptAdmittedNode.
 	cand := yamlRepairPlan{ID: "globular.repair.cand", Class: "RepairPlan", Status: "draft"}
-	if vs := validateRepairPlanPromotion(cand, "r.yaml"); len(vs) != 0 {
-		t.Errorf("draft repair plan must not be gated, got %v", vs)
+	if vs := validateRepairPlanPromotion(cand, "r.yaml"); len(vs) == 0 {
+		t.Error("status: draft exempted an admitted repair plan from the quality bar")
 	}
 }
 
