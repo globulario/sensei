@@ -230,3 +230,31 @@ func containsStr(hay []string, needle string) bool {
 	}
 	return false
 }
+
+// "generated" must be build provenance, not an authority disposition.
+//
+// Removing the generated/ skip from expectedIdentities() exposed it as a SECOND
+// pathname authority rule hiding behind the first. Pin both directions so it
+// cannot come back: an admitted identity is required wherever it sits, and an
+// unadmitted one is required nowhere.
+func TestGeneratedIsBuildProvenanceNotAuthority(t *testing.T) {
+	const admittedID = "invariant.admitted.one"
+	const unadmittedID = "invariant.generated.unadmitted"
+	f := newAdmissionFixture(t, []string{admittedID})
+	a := f.admitted(t)
+
+	for _, rel := range []string{"generated/x.yaml", "foo/x.yaml"} {
+		root := f.writeCorpus(t, rel, admittedID, unadmittedID)
+		expected, _, err := expectedIdentities(root, a)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, ok := expected[admittedID]; !ok {
+			t.Fatalf("%s: admitted identity lost its authority to its location", rel)
+		}
+		if _, ok := expected[unadmittedID]; ok {
+			t.Fatalf("%s: unadmitted identity gained authority from its location", rel)
+		}
+		os.Remove(filepath.Join(root, filepath.FromSlash(rel)))
+	}
+}
