@@ -32,7 +32,8 @@ const admissionCorpusDigestDomain = "sensei/knowledge-admission-corpus/v1"
 //   - candidates/ has no special treatment: pathname never grants or removes
 //     authority; only the supplied identity set decides which declarations bind;
 //   - pathnames do not participate in the digest;
-//   - YAML formatting, comments, anchors and mapping-key order do not participate;
+//   - YAML formatting, comments, anchors, aliases and mapping-key order do not
+//     participate; aliases are canonicalized as the semantic node they reference;
 //   - sequence order and scalar/tag values do participate;
 //   - duplicate declarations are retained as distinct declarations and therefore
 //     affect the digest, even when byte-for-byte semantically identical;
@@ -209,14 +210,15 @@ func mappingScalar(n *yaml.Node, key string) string {
 }
 
 // writeCanonicalYAMLNode serializes YAML semantics, not source spelling. It
-// intentionally ignores comments, style, anchors and source positions.
+// intentionally ignores comments, style, anchors, aliases and source positions.
 func writeCanonicalYAMLNode(w io.Writer, n *yaml.Node) {
 	if n == nil {
 		writeDigestField(w, []byte("nil"))
 		return
 	}
 	if n.Kind == yaml.AliasNode && n.Alias != nil {
-		writeDigestField(w, []byte("alias"))
+		// Alias spelling and anchor names are serialization choices. Hash the
+		// referenced semantic node exactly as if it had been written inline.
 		writeCanonicalYAMLNode(w, n.Alias)
 		return
 	}
