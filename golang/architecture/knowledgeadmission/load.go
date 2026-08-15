@@ -94,15 +94,12 @@ func LoadFromRepo(opts LoadOptions) (Admitted, Provenance, error) {
 	}
 
 	// Derive freshness from the authored source, never from awareness.nt or a
-	// live graph marker. The manifest determines WHICH stable identities claim
-	// governing authority; the checkout determines WHAT those identities say.
-	// The outer signature is still what authenticates the manifest claim — this
-	// precomputation grants no authority on its own.
-	var manifest Manifest
-	if err := yamlUnmarshal(manifestBytes, &manifest); err != nil {
-		return Admitted{}, Provenance{}, fmt.Errorf("%w: baseline: %v", ErrNoAdmission, err)
-	}
-	corpusDigest, err := AdmissionCorpusDigest(root, governedIdentityClaims(manifest))
+	// live graph marker. Freezing calls this SAME function, so there is one corpus
+	// definition rather than a freezer interpretation and a verifier interpretation.
+	// The manifest determines WHICH stable identities claim governing authority;
+	// the checkout determines WHAT those identities say. The outer signature is
+	// still what authenticates that claim — this precomputation grants no authority.
+	corpusDigest, err := AdmissionCorpusDigestForManifest(root, manifestBytes)
 	if err != nil {
 		return Admitted{}, Provenance{}, fmt.Errorf("%w: corpus digest: %v", ErrNoAdmission, err)
 	}
