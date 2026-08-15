@@ -41,10 +41,11 @@ func loadContractCandidates(opts Options) ([]candidate, error) {
 			if walkErr != nil || entry.IsDir() {
 				return nil
 			}
+			// Discovery walks everything, candidates/ included. Location no
+			// longer decides which intents may govern — the admission check
+			// below does, per #166.
 			if strings.HasSuffix(entry.Name(), ".yaml") || strings.HasSuffix(entry.Name(), ".yml") {
-				if !strings.Contains(filepath.ToSlash(path), "/candidates/") {
-					paths = append(paths, path)
-				}
+				paths = append(paths, path)
 			}
 			return nil
 		})
@@ -98,7 +99,15 @@ func loadContractCandidates(opts Options) ([]candidate, error) {
 			IntentID: intent.ID, Theme: intent.ID, Title: intent.Title, Statement: strings.TrimSpace(intent.Intent),
 			SourceReceipts:     append(receipts, "documentation:"+relative(opts.RepositoryRoot, path)),
 			ProviderComponents: keys(providers), PublicConsumerCategory: consumer, Interaction: interaction,
-			ReadOrWrite: readWrite, Stability: stability, IntentMachineAdopted: adoption.ValidateMachineAdoption(intent.Receipt) == nil,
+			// Governed status comes from the admission decision. Receipt-field
+			// validation is NOT provenance: ValidateMachineAdoption only checks
+			// that a caller filled in the right fields, and a self-authored
+			// receipt chain passes it. It is kept as a secondary structural
+			// check, so a node must be BOTH admitted and structurally complete.
+			ReadOrWrite: readWrite, Stability: stability,
+			IntentMachineAdopted: opts.Admitted != nil &&
+				opts.Admitted.IsAuthoritativelyAdmitted(intent.ID) &&
+				adoption.ValidateMachineAdoption(intent.Receipt) == nil,
 			InvalidationConditions: []string{"source interface, provider component, consumer category, or required Tests change"},
 		})
 	}

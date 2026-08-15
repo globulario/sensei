@@ -13,6 +13,31 @@ import (
 )
 
 func adoptionFixture(t *testing.T, files map[string]string, graph string) knowledgeadoption.Result {
+	return adoptionFixtureScoped(t, files, graph, admitAllScope{})
+}
+
+// completeContractFixtureScoped runs the complete-contract fixture under an
+// explicit admission scope, so a test can vary ONLY the admission decision.
+func completeContractFixtureScoped(t *testing.T, scope knowledgeadoption.AdmissionScope) knowledgeadoption.Result {
+	t.Helper()
+	return adoptionFixtureScoped(t, map[string]string{
+		"binding.go": "package binding\n", "binding_test.go": "package binding\n",
+		"docs/intent/contract.yaml": `
+id: binding.complete_contract
+level: contract
+title: Binding contract
+intent: Binding reads the request and populates the caller target.
+public_consumer_category: external Go caller
+interaction: public_go_interface
+read_or_write: read_write
+stability: stable
+expressed_by: [binding.go]
+required_tests: [binding_test.go]
+` + completeContractReceipt,
+	}, componentFileGraph("component.binding", "binding.go"), scope)
+}
+
+func adoptionFixtureScoped(t *testing.T, files map[string]string, graph string, scope knowledgeadoption.AdmissionScope) knowledgeadoption.Result {
 	t.Helper()
 	root := t.TempDir()
 	for path, content := range files {
@@ -28,6 +53,7 @@ func adoptionFixture(t *testing.T, files map[string]string, graph string) knowle
 		RepositoryRoot: root, RepositoryDomain: "example.com/repo",
 		Revision: strings.Repeat("1", 40), GraphDigest: strings.Repeat("a", 64),
 		DecisionTimestamp: "2026-07-14T09:00:00Z", ProvisionalGraph: []byte(graph),
+		Admitted: scope,
 	})
 	if err != nil {
 		t.Fatalf("Run: %v", err)
@@ -161,6 +187,17 @@ source_paths: [file:query.go, "pr:3899:1"]
 		t.Fatalf("decision=%+v", got)
 	}
 }
+
+// admitAllScope keeps these tests exercising the ADOPTION policy rather than
+// the admission filter. Without it nothing is machine-adopted, which is correct
+// behaviour but a different test.
+type admitAllScope struct{}
+
+func (admitAllScope) IsAuthoritativelyAdmitted(string) bool { return true }
+
+type denyAllScope struct{}
+
+func (denyAllScope) IsAuthoritativelyAdmitted(string) bool { return false }
 
 func TestCompilerEnforcedInternalBoundaryIsMachineAdopted(t *testing.T) {
 	result := adoptionFixture(t, map[string]string{
@@ -568,4 +605,22 @@ func containsString(values []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// Contract intents must not be machine-adopted on the strength of a complete
+// receipt alone. ValidateMachineAdoption only checks that a caller filled in the
+// right fields, and a self-authored receipt chain passes it — proven in this
+// very package's fixtures. Admission decides; the receipt is a secondary
+// structural check, so a node must be BOTH admitted and structurally complete.
+func TestContractIntentNeedsAdmissionNotJustACompleteReceipt(t *testing.T) {
+	machineAdopted := func(res knowledgeadoption.Result) bool {
+		return decisionFor(t, res, "candidate.binding.complete_contract").Outcome ==
+			knowledgeadoption.OutcomeMachineAdopted
+	}
+	if machineAdopted(completeContractFixtureScoped(t, denyAllScope{})) {
+		t.Fatal("an unadmitted contract intent was machine-adopted on its receipt fields alone")
+	}
+	if !machineAdopted(completeContractFixtureScoped(t, admitAllScope{})) {
+		t.Fatal("an admitted, structurally complete contract intent was not machine-adopted")
+	}
 }

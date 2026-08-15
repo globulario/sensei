@@ -55,6 +55,20 @@ type Options struct {
 	GraphDigest       string
 	DecisionTimestamp string
 	ProvisionalGraph  []byte
+
+	// Admitted is the authoritative admission decision. When nil, no identity
+	// is authoritative and contract intents are read for DISCOVERY only — their
+	// governed status is never inferred from location or receipt fields.
+	Admitted AdmissionScope
+}
+
+// AdmissionScope reports whether a stable knowledge identity governs.
+//
+// The decision, not the machinery that produces it: knowledgeadmission.Admitted
+// satisfies this structurally, and taking the interface keeps this package free
+// of a dependency on the verifier.
+type AdmissionScope interface {
+	IsAuthoritativelyAdmitted(identity string) bool
 }
 
 type Binding struct {

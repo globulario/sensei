@@ -59,11 +59,34 @@ type corpusNode struct {
 	MustNotViolate []string
 }
 
-// ValidateContradictions walks the directories and returns detected
-// contradictions, sorted for deterministic output.
-func ValidateContradictions(dirs ...string) ([]Contradiction, error) {
+// ContradictionRequest states which corpus is being checked for AUTHORITATIVE
+// contradictions.
+//
+// Scope matters here for a specific reason: a contradiction is only meaningful
+// between things that both govern. An unadmitted candidate claiming the same
+// state object as a governed authority is not an authority conflict — it is a
+// proposal that has not earned authority. Treating it as a conflict would let
+// anyone create an authoritative contradiction by dropping a YAML file in, which
+// inverts #166 rather than implementing it.
+type ContradictionRequest struct {
+	Dirs  []string
+	Scope AdmissionScope
+}
+
+// ValidateContradictions returns contradictions among AUTHORITATIVE knowledge,
+// sorted for deterministic output.
+//
+// The old rule skipped the candidates/ subtree by directory name and then leaned
+// on status/promotion_status to decide what was "active" — location plus
+// caller-editable metadata again. Scope now comes from the signed admission set;
+// discovery still walks everything, including candidates/, so a candidate that
+// IS admitted is checked and one that is not never is, wherever it lives.
+func ValidateContradictions(req ContradictionRequest) ([]Contradiction, error) {
+	if req.Scope == nil {
+		return nil, ErrAdmissionUnavailable
+	}
 	var nodes []corpusNode
-	for _, dir := range dirs {
+	for _, dir := range req.Dirs {
 		if dir == "" {
 			continue
 		}
@@ -72,9 +95,6 @@ func ValidateContradictions(dirs ...string) ([]Contradiction, error) {
 				return err
 			}
 			if d.IsDir() {
-				if d.Name() == "candidates" {
-					return fs.SkipDir
-				}
 				return nil
 			}
 			if !strings.HasSuffix(d.Name(), ".yaml") && !strings.HasSuffix(d.Name(), ".yml") {
@@ -84,7 +104,11 @@ func ValidateContradictions(dirs ...string) ([]Contradiction, error) {
 			if verr != nil {
 				return verr
 			}
-			nodes = append(nodes, ns...)
+			for _, n := range ns {
+				if req.Scope.IsAuthoritativelyAdmitted(strings.TrimSpace(n.ID)) {
+					nodes = append(nodes, n)
+				}
+			}
 			return nil
 		})
 		if err != nil {

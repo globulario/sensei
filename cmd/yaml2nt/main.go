@@ -525,7 +525,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if *intent != "" {
 			dirs = append(dirs, *intent)
 		}
-		cons, err := extractor.ValidateContradictions(dirs...)
+		cons, err := extractor.ValidateContradictions(extractor.ContradictionRequest{
+			Dirs: dirs, Scope: admissionScope(inputs),
+		})
+		if errors.Is(err, extractor.ErrAdmissionUnavailable) {
+			fmt.Fprintf(stderr, "yaml2nt: contradiction validator: UNAVAILABLE — %v\n", err)
+			fmt.Fprintln(stderr, "yaml2nt:   no authoritative scope, so no contradiction verdict was produced")
+			return exitRuntime
+		}
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: contradiction validator: %v\n", err)
 			return exitRuntime

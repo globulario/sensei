@@ -8,10 +8,20 @@ import (
 	"github.com/globulario/sensei/golang/extractor"
 )
 
+// admitAll puts every discovered identity in authoritative scope, so these
+// tests keep exercising the CONTRADICTION rules rather than the admission
+// filter. Scope selection has its own coverage in
+// TestContradictionScopeFollowsAdmission.
+type admitAll struct{}
+
+func (admitAll) IsAuthoritativelyAdmitted(string) bool { return true }
+
 func contradictionRules(t *testing.T, files map[string]string) map[string]bool {
 	t.Helper()
 	root := makeDir(t, files)
-	cons, err := extractor.ValidateContradictions(root)
+	cons, err := extractor.ValidateContradictions(extractor.ContradictionRequest{
+		Dirs: []string{root}, Scope: admitAll{},
+	})
 	if err != nil {
 		t.Fatalf("ValidateContradictions: %v", err)
 	}
