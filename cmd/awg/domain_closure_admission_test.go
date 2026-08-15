@@ -223,7 +223,7 @@ func TestGeneratedCandidatesCreateNoClosureObligation(t *testing.T) {
 	// Exactly what `sensei import --refresh` produced: a governed schema key
 	// under candidates/. Neither authority nor the corpus binding may widen.
 	f.writeCorpus(t, "candidates/invariant_candidates.yaml",
-		"candidate.invariant.authority.aa", "candidate.invariant.authority.abort")
+		"candidate.invariant.authority.aa", "candidate.invariant.authority.ab", "candidate.invariant.authority.abort")
 	if _, _, err := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
 		RepoRoot: f.root, EvaluatedAt: time.Now().UTC(), TrustStore: &f.store,
 		ExpectedPublisherID: itPublisher,
@@ -304,17 +304,23 @@ func TestRemovingAdmittedRequiredIdentityMakesClosureFail(t *testing.T) {
 		t.Fatal("admitted identity was not required before projection check")
 	}
 
-	// Simulate exactly the dangerous shape: the identity was removed from the
-	// published projection, but another relation still mentions its subject.
-	// Presence of the subject string alone must not satisfy semantic closure.
-	subs := map[string]*Subject{
+	// Positive control: a typed canonical projection satisfies the obligation.
+	present := ComputeClosure(root, expected, excluded, map[string]*Subject{
+		iri: {IRI: iri, Class: "Invariant", AuthoredIn: []string{filepath.Join(root, "invariants.yaml")}, Count: 2},
+	})
+	if authoritative, reasons := present.Authoritative(); !authoritative {
+		t.Fatalf("valid admitted projection was not authoritative: %v", reasons)
+	}
+
+	// Now remove the typed projection while retaining a dangling mention of the
+	// same subject. Presence of the subject string alone must not satisfy closure.
+	missing := ComputeClosure(root, expected, excluded, map[string]*Subject{
 		iri: {IRI: iri, Class: "", Count: 1},
+	})
+	if !containsStr(missing.Missing, admittedID) {
+		t.Fatalf("removed admitted identity was not reported missing: %#v", missing.Missing)
 	}
-	c := ComputeClosure(root, expected, excluded, subs)
-	if !containsStr(c.Missing, admittedID) {
-		t.Fatalf("removed admitted identity was not reported missing: %#v", c.Missing)
-	}
-	if authoritative, reasons := c.Authoritative(); authoritative {
+	if authoritative, reasons := missing.Authoritative(); authoritative {
 		t.Fatalf("closure remained authoritative after admitted projection removal; reasons=%v", reasons)
 	}
 }
