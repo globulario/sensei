@@ -1,9 +1,11 @@
 # Legacy authoritative baseline for governed knowledge admission.
 #
 # ONE-TIME MIGRATION SNAPSHOT. Frozen and AWAITING SIGNATURE by an out-of-band
-# governance key — it is not yet authority, and VerifySigned rejects it while
-# actor_binding carries TODO placeholders and no signature exists. This file is
-# NOT regenerated. There is deliberately no
+# governance key — it is not yet authority. VerifySigned rejects it because no
+# signature exists. The actor binding and the public evidence it references are
+# finalized, but they do not establish authority on their own: without the
+# authenticated publisher signature they are unattested assertions in a file
+# anyone can edit. This file is NOT regenerated. There is deliberately no
 # standing generator of the form "walk everything except candidates/" — that
 # would launder pathname-based authority back in through the migration tool,
 # which is the exact defect #166 exists to remove.
