@@ -50,17 +50,18 @@ func TestLoadFromRepoBindsToAuthoredCorpusNotPublishedGraphDigest(t *testing.T) 
 	if err := os.WriteFile(filepath.Join(bundleRoot, SignatureFileName), []byte(base64.StdEncoding.EncodeToString(sig)+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	store := s.trustStore(testKeyID, "active")
 
 	// Deliberately supply a nonsense v1-style published graph digest. LoadFromRepo
 	// must ignore it and derive the binding from docs/awareness + the signed
 	// governed identity set.
 	admitted, _, err := LoadFromRepo(LoadOptions{
-		RepoRoot:             root,
-		GraphDigest:          "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-		EvaluatedAt:          time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
-		Index:                testIndex(),
-		TrustStore:           ptrTrustStore(s.trustStore(testKeyID, "active")),
-		ExpectedPublisherID:  testPublisher,
+		RepoRoot:            root,
+		GraphDigest:         "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		EvaluatedAt:         time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
+		Index:               testIndex(),
+		TrustStore:          &store,
+		ExpectedPublisherID: testPublisher,
 	})
 	if err != nil {
 		t.Fatalf("LoadFromRepo: %v", err)
@@ -105,6 +106,7 @@ func TestLoadFromRepoRejectsChangedGovernedSourceWithoutResigning(t *testing.T) 
 		[]byte(base64.StdEncoding.EncodeToString(ed25519.Sign(s.priv, raw))+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	store := s.trustStore(testKeyID, "active")
 
 	writeAdmissionCorpusFile(t, root, "invariants.yaml", `invariants:
   - id: invariant.real.one
@@ -116,11 +118,9 @@ func TestLoadFromRepoRejectsChangedGovernedSourceWithoutResigning(t *testing.T) 
 		RepoRoot:            root,
 		EvaluatedAt:         time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
 		Index:               testIndex(),
-		TrustStore:          ptrTrustStore(s.trustStore(testKeyID, "active")),
+		TrustStore:          &store,
 		ExpectedPublisherID: testPublisher,
 	}); err == nil {
 		t.Fatal("changed governed source was accepted under a stale signed corpus binding")
 	}
 }
-
-func ptrTrustStore(v interface{ }) *struct{} { return nil }
