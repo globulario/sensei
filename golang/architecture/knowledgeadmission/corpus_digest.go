@@ -31,6 +31,8 @@ const admissionCorpusDigestDomain = "sensei/knowledge-admission-corpus/v1"
 //   - generated/ subtrees are build output and never authored admission input;
 //   - candidates/ has no special treatment: pathname never grants or removes
 //     authority; only the supplied identity set decides which declarations bind;
+//   - both collection-form declarations (schema: [{id: ...}]) and the importer's
+//     class-discriminated single-entity documents are authored declarations;
 //   - pathnames do not participate in the digest;
 //   - YAML formatting, comments, anchors, aliases and mapping-key order do not
 //     participate; aliases are canonicalized as the semantic node they reference;
@@ -176,6 +178,23 @@ func authoredDeclarations(doc *yaml.Node, wanted map[string]struct{}) []authored
 	if n.Kind != yaml.MappingNode {
 		return nil
 	}
+
+	// The recursive awareness importer also supports class-discriminated
+	// single-entity documents such as:
+	//
+	//   id: implementation_pattern.awg_dashboard_read_only
+	//   class: ImplementationPattern
+	//   ...
+	//
+	// These are declarations just as much as collection-form `invariants:` or
+	// `failure_modes:` entries. Admission must recognize the same authored shape
+	// or a legitimately admitted identity becomes impossible to bind. Once a
+	// document is classified as a single entity, its nested sequences are data,
+	// not independent declaration collections, so return immediately.
+	if single, ok := authoredSingleEntityDeclaration(n, wanted); ok {
+		return []authoredDeclaration{single}
+	}
+
 	var out []authoredDeclaration
 	for i := 0; i+1 < len(n.Content); i += 2 {
 		key, value := n.Content[i], n.Content[i+1]
@@ -194,6 +213,39 @@ func authoredDeclarations(doc *yaml.Node, wanted map[string]struct{}) []authored
 		}
 	}
 	return out
+}
+
+func authoredSingleEntityDeclaration(n *yaml.Node, wanted map[string]struct{}) (authoredDeclaration, bool) {
+	id := mappingScalar(n, "id")
+	if _, ok := wanted[id]; !ok {
+		return authoredDeclaration{}, false
+	}
+
+	schema, ok := admissionSingleEntitySchema(mappingScalar(n, "class"))
+	if !ok {
+		return authoredDeclaration{}, false
+	}
+
+	var buf bytes.Buffer
+	writeCanonicalYAMLNode(&buf, n)
+	return authoredDeclaration{identity: id, schema: schema, body: buf.Bytes()}, true
+}
+
+// admissionSingleEntitySchema mirrors the awareness importer's current
+// class-discriminated single-entity forms. Keep this list explicit: accepting an
+// arbitrary caller-editable `class:` value as a declaration schema would turn
+// an unrecognized document shape into admission input without review.
+func admissionSingleEntitySchema(class string) (string, bool) {
+	switch strings.TrimSpace(class) {
+	case "ImplementationPattern":
+		return "implementation_pattern", true
+	case "DesignPattern":
+		return "design_pattern", true
+	case "PatternMisuse":
+		return "pattern_misuse", true
+	default:
+		return "", false
+	}
 }
 
 func mappingScalar(n *yaml.Node, key string) string {
