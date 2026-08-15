@@ -18,7 +18,7 @@
 // can edit in the knowledge document itself. Authority comes from an admission
 // decision recorded OUTSIDE the knowledge, made by an actor whose roles were
 // verified against governed policy, signed by an authorized governance publisher,
-// and bound to the graph digest it was made for.
+// and bound to the canonical authored corpus it admitted.
 //
 // See docs/awareness/decisions/closure-disposition-authority.md.
 package knowledgeadmission
@@ -35,7 +35,12 @@ import (
 )
 
 // SchemaVersion is the admission manifest schema this package reads.
-const SchemaVersion = "1"
+//
+// v1 bound governed records to the digest of the published graph. Admission
+// itself changes publication eligibility, so that made the trust anchor depend
+// on its own effect and created a one-generation bootstrap loop. v2 binds to the
+// canonical authored source corpus instead.
+const SchemaVersion = "2"
 
 // Disposition is the canonical authority disposition of one knowledge identity.
 // Only Governed confers authority; every other value is explicitly non-governing
@@ -92,20 +97,19 @@ type Manifest struct {
 
 // Context is the governed context an admission decision is evaluated against.
 //
-// GraphDigest is supplied by the caller from the real corpus — never read out of
-// the manifest. A receipt that carries its own idea of what it is valid for
-// proves nothing; the check is that its claim matches what is actually true here
-// and now.
+// CorpusDigest is derived from the authored declarations for the identities the
+// signed manifest claims as governed. It is never a publication digest and must
+// not be supplied from awareness.nt, a live store marker, or any other artifact
+// downstream of admission. A receipt that carries its own idea of what it is
+// valid for proves nothing; the check is that its claim matches the corpus that
+// actually exists in this checkout.
 //
 // There is deliberately no git revision here. Admission is a statement about
-// which KNOWLEDGE was admitted, and the graph digest pins exactly that: it is
-// computed over the projected triples, so changing knowledge moves it and
-// changing only code does not. Binding to a commit instead would over-bind
-// (invalidating all admission on every unrelated code commit, forcing knowledge
-// that did not change to be re-signed) and would be self-referential for a
-// committed manifest, since committing it changes the very HEAD it names.
+// which KNOWLEDGE was admitted. Binding to a commit would over-bind (invalidating
+// unchanged knowledge on unrelated code commits) and would be self-referential
+// for a committed manifest because committing it changes the very HEAD it names.
 type Context struct {
-	GraphDigest string
+	CorpusDigest string
 
 	// ExpectedPublisherID is the publisher authorized to issue knowledge-admission
 	// decisions. It MUST come from trusted configuration — never from the manifest
@@ -187,11 +191,13 @@ func (a Admitted) GovernedIdentities() []string {
 //     prove "this human really was authenticated by issuer X". What a
 //     YAML-editing caller cannot manufacture is the OUTER SIGNATURE, in
 //     VerifySigned — that, not this, is why the decision is trustworthy.
-//   - binding — the decision was made for THIS graph digest. This is what stops
-//     a real past decision being replayed over changed knowledge.
+//   - binding — the decision was made for THIS authored corpus digest. This stops
+//     a real past decision being replayed over changed governed knowledge without
+//     putting the trust anchor downstream of publication.
 //
 // A caller who can read the current digest can write a matching
-// valid_for_graph_digest, which is why it is checked second and never alone.
+// valid_for_corpus_digest, which is why contextual binding is checked second and
+// never substitutes for the authenticated outer signature.
 func verify(m Manifest, ctx Context) (Admitted, error) {
 	if strings.TrimSpace(m.SchemaVersion) != SchemaVersion {
 		return Admitted{}, fmt.Errorf("admission manifest schema_version %q is not supported (want %s)", m.SchemaVersion, SchemaVersion)
@@ -203,8 +209,8 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 	if ctx.Resolver == nil {
 		return Admitted{}, fmt.Errorf("admission context has no artifact resolver")
 	}
-	if strings.TrimSpace(ctx.GraphDigest) == "" {
-		return Admitted{}, fmt.Errorf("admission context has no graph digest")
+	if strings.TrimSpace(ctx.CorpusDigest) == "" {
+		return Admitted{}, fmt.Errorf("admission context has no corpus digest")
 	}
 
 	// Provenance. VerifyActorBinding resolves the authentication and
@@ -256,10 +262,12 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 // authority. Non-governing records are not bound: refusing to believe a stale
 // "this is a candidate" record would promote it by omission.
 //
-// ValidForRevision is deliberately NOT checked. See Context.
+// ValidForRevision and ValidForGraphDigest are deliberately NOT checked for
+// knowledge admission. The former over-binds to code history; the latter is a
+// publication artifact and caused the v1 admission/publication fixpoint.
 func verifyGovernedRecord(r Record, ctx Context) error {
-	if got, want := r.Receipt.ValidForGraphDigest, strings.ToLower(strings.TrimSpace(ctx.GraphDigest)); got != want {
-		return fmt.Errorf("admission record %s is valid for graph digest %q, not %q", r.Identity, got, want)
+	if got, want := r.Receipt.ValidForCorpusDigest, strings.ToLower(strings.TrimSpace(ctx.CorpusDigest)); got != want {
+		return fmt.Errorf("admission record %s is valid for corpus digest %q, not %q", r.Identity, got, want)
 	}
 	return nil
 }
