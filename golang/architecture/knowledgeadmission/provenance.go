@@ -51,16 +51,15 @@ type Provenance struct {
 //	  -> manifest parsed from those same bytes
 //	  -> receipt digests bind the referenced authn/role evidence [integrity]
 //	  -> VerifyActorBinding + admitting role
-//	  -> graph-digest binding                                    [freshness]
+//	  -> authored-corpus digest binding                         [freshness]
 //	  -> IsAuthoritativelyAdmitted(identity)
 //
 // The layers reinforce each other. The signature stops a caller inventing the
 // issuer, the actor binding, the dispositions or the admitted identities and
 // recomputing every digest to match. The receipt digests stop a referenced
-// receipt being swapped while its digest is retained. Neither alone is enough:
-// a signature over a document that names its own trust anchor proves nothing,
-// and digests under an unauthenticated document only prove it is internally
-// consistent.
+// receipt being swapped while its digest is retained. The corpus binding stops
+// a valid past admission being replayed after the governed source changed,
+// without depending on the publication that admission itself controls.
 //
 // Fails closed. Any error means nothing is admitted.
 func VerifySigned(sm SignedManifest, store governancepack.TrustStore, ctx Context) (Admitted, Provenance, error) {
