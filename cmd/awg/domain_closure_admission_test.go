@@ -26,16 +26,18 @@ const (
 	itKeyID     = "key.test.1"
 	itRole      = "role.knowledge_admitter"
 	itPrincipal = "human.tester"
-	itDigest    = "1111111111111111111111111111111111111111111111111111111111111111"
 )
 
-// admissionFixture builds a checkout with a corpus and a SIGNED admission
-// baseline, using an ephemeral key. Nothing here reaches the production
-// governance key: the whole point is that admission is provable in tests without
-// one existing.
+// admissionFixture builds a checkout with public provenance evidence and an
+// ephemeral signer. The actual admission manifest is frozen and signed only
+// after the test has written its authored corpus, so the fixture exercises the
+// same source-corpus binding as production.
 type admissionFixture struct {
-	root  string
-	store governancepack.TrustStore
+	root        string
+	store       governancepack.TrustStore
+	priv        ed25519.PrivateKey
+	admittedIDs []string
+	binding     closureprotocol.ActorBinding
 }
 
 func newAdmissionFixture(t *testing.T, admittedIDs []string) *admissionFixture {
@@ -90,55 +92,65 @@ func newAdmissionFixture(t *testing.T, admittedIDs []string) *admissionFixture {
 	att.ReceiptDigestSHA256 = rd
 	writeYAML(rd+".yaml", att)
 
-	records := make([]knowledgeadmission.Record, 0, len(admittedIDs))
-	for _, id := range admittedIDs {
+	pub, priv, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	binding := closureprotocol.ActorBinding{
+		PrincipalID: itPrincipal, ActorKind: closureprotocol.ActorHuman,
+		Roles: []string{itRole}, Issuer: itPublisher,
+		AuthenticationReceiptDigestSHA256: ad,
+		RoleAttestationReceiptDigests:     []string{rd},
+	}
+	return &admissionFixture{
+		root:        root,
+		priv:        priv,
+		admittedIDs: append([]string(nil), admittedIDs...),
+		binding:     binding,
+		store: governancepack.TrustStore{
+			SchemaVersion: governancepack.TrustStoreSchemaV1,
+			Publishers: []governancepack.TrustedPublisher{{PublisherID: itPublisher,
+				Keys: []governancepack.TrustedKey{{KeyID: itKeyID, Algorithm: "ed25519",
+					PublicKeyBase64: base64.StdEncoding.EncodeToString(pub), Status: "active"}}}},
+		},
+	}
+}
+
+func (f *admissionFixture) admitted(t *testing.T) knowledgeadmission.Admitted {
+	t.Helper()
+	digest, err := knowledgeadmission.AdmissionCorpusDigest(f.root, f.admittedIDs)
+	if err != nil {
+		t.Fatalf("derive admission corpus digest: %v", err)
+	}
+	records := make([]knowledgeadmission.Record, 0, len(f.admittedIDs))
+	for _, id := range f.admittedIDs {
 		records = append(records, knowledgeadmission.Record{
 			Identity: id, Disposition: knowledgeadmission.DispositionGoverned,
-			Receipt: adoption.Receipt{ValidForGraphDigest: itDigest},
+			Receipt: adoption.Receipt{ValidForCorpusDigest: digest},
 		})
 	}
 	m := knowledgeadmission.Manifest{
 		SchemaVersion: knowledgeadmission.SchemaVersion,
-		PolicyID:      "knowledge.admission.test.v1",
+		PolicyID:      "knowledge.admission.test.v2",
 		AdmittingRole: itRole,
-		ActorBinding: closureprotocol.ActorBinding{
-			PrincipalID: itPrincipal, ActorKind: closureprotocol.ActorHuman,
-			Roles: []string{itRole}, Issuer: itPublisher,
-			AuthenticationReceiptDigestSHA256: ad,
-			RoleAttestationReceiptDigests:     []string{rd},
-		},
-		Records: records,
+		ActorBinding:  f.binding,
+		Records:       records,
 	}
 	raw, err := yaml.Marshal(m)
 	if err != nil {
 		t.Fatal(err)
 	}
+	bundle := filepath.Join(f.root, "governance")
 	if err := os.WriteFile(filepath.Join(bundle, knowledgeadmission.BaselineFileName), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
-
-	pub, priv, err := ed25519.GenerateKey(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	sig := ed25519.Sign(priv, raw)
 	if err := os.WriteFile(filepath.Join(bundle, knowledgeadmission.SignatureFileName),
-		[]byte(base64.StdEncoding.EncodeToString(sig)+"\n"), 0o644); err != nil {
+		[]byte(base64.StdEncoding.EncodeToString(ed25519.Sign(f.priv, raw))+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	return &admissionFixture{root: root, store: governancepack.TrustStore{
-		SchemaVersion: governancepack.TrustStoreSchemaV1,
-		Publishers: []governancepack.TrustedPublisher{{PublisherID: itPublisher,
-			Keys: []governancepack.TrustedKey{{KeyID: itKeyID, Algorithm: "ed25519",
-				PublicKeyBase64: base64.StdEncoding.EncodeToString(pub), Status: "active"}}}},
-	}}
-}
-
-func (f *admissionFixture) admitted(t *testing.T) knowledgeadmission.Admitted {
-	t.Helper()
 	a, _, err := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
-		RepoRoot: f.root, GraphDigest: itDigest, EvaluatedAt: time.Now().UTC(),
+		RepoRoot: f.root, EvaluatedAt: time.Now().UTC(),
 		TrustStore: &f.store, ExpectedPublisherID: itPublisher,
 		Index: authority.PolicyIndex{ActorRoles: map[string]authority.ActorRole{
 			itRole: {ID: itRole, Status: "active", TrustedIssuers: []string{itPublisher},
@@ -168,16 +180,16 @@ func (f *admissionFixture) writeCorpus(t *testing.T, rel string, ids ...string) 
 }
 
 // #166 acceptance test 5, at the closure boundary. Byte-identical knowledge,
-// two locations. Before this change the candidates/ copy was REQUIRED by closure
-// while the importer skipped it, which is what produced the failures.
+// three locations. candidates/ is organisational metadata only; moving the
+// authored declaration there cannot change its authority disposition.
 func TestClosureAuthorityIsIndependentOfPath(t *testing.T) {
 	const admittedID = "invariant.admitted.one"
 	const candidateID = "invariant.candidate.one"
-	f := newAdmissionFixture(t, []string{admittedID})
-	a := f.admitted(t)
 
 	for _, rel := range []string{"invariants.yaml", "candidates/invariant/rule.yaml", "deeply/nested/rule.yaml"} {
+		f := newAdmissionFixture(t, []string{admittedID})
 		root := f.writeCorpus(t, rel, admittedID, candidateID)
+		a := f.admitted(t)
 		expected, excluded, err := expectedIdentities(root, a)
 		if err != nil {
 			t.Fatal(err)
@@ -191,28 +203,36 @@ func TestClosureAuthorityIsIndependentOfPath(t *testing.T) {
 		if !containsStr(excluded, candidateID) {
 			t.Fatalf("%s: unadmitted identity was not reported as excluded", rel)
 		}
-		os.Remove(filepath.Join(root, filepath.FromSlash(rel)))
 	}
 }
 
 // #166 acceptance test 1 and 2 at the closure boundary: generating candidates
-// must not create a closure obligation, so an otherwise authoritative repository
-// does not degrade just because discovery ran.
+// must not create a closure obligation or invalidate the existing admission
+// corpus binding when the governed authored declarations did not change.
 func TestGeneratedCandidatesCreateNoClosureObligation(t *testing.T) {
 	const admittedID = "invariant.admitted.one"
 	f := newAdmissionFixture(t, []string{admittedID})
+	root := f.writeCorpus(t, "invariants.yaml", admittedID)
 	a := f.admitted(t)
 
-	root := f.writeCorpus(t, "invariants.yaml", admittedID)
 	before, _, err := expectedIdentities(root, a)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// Exactly what `sensei import --refresh` produced: a governed schema key
-	// under candidates/, which took closure from 485/485 to 12695 missing.
+	// under candidates/. Neither authority nor the corpus binding may widen.
 	f.writeCorpus(t, "candidates/invariant_candidates.yaml",
 		"candidate.invariant.authority.aa", "candidate.invariant.authority.abort")
+	if _, _, err := knowledgeadmission.LoadFromRepo(knowledgeadmission.LoadOptions{
+		RepoRoot: f.root, EvaluatedAt: time.Now().UTC(), TrustStore: &f.store,
+		ExpectedPublisherID: itPublisher,
+		Index: authority.PolicyIndex{ActorRoles: map[string]authority.ActorRole{
+			itRole: {ID: itRole, Status: "active", TrustedIssuers: []string{itPublisher},
+				AllowedActorKinds: []closureprotocol.ActorKind{closureprotocol.ActorHuman}}}},
+	}); err != nil {
+		t.Fatalf("candidate generation invalidated admission: %v", err)
+	}
 	after, _, err := expectedIdentities(root, a)
 	if err != nil {
 		t.Fatal(err)
@@ -231,30 +251,36 @@ func containsStr(hay []string, needle string) bool {
 	return false
 }
 
-// "generated" must be build provenance, not an authority disposition.
-//
-// Removing the generated/ skip from expectedIdentities() exposed it as a SECOND
-// pathname authority rule hiding behind the first. Pin both directions so it
-// cannot come back: an admitted identity is required wherever it sits, and an
-// unadmitted one is required nowhere.
-func TestGeneratedIsBuildProvenanceNotAuthority(t *testing.T) {
+// generated/ is explicitly outside the authored admission corpus. A generated
+// copy must therefore neither perturb the corpus digest nor confer authority.
+func TestGeneratedOutputDoesNotPerturbAdmissionOrAuthority(t *testing.T) {
 	const admittedID = "invariant.admitted.one"
 	const unadmittedID = "invariant.generated.unadmitted"
 	f := newAdmissionFixture(t, []string{admittedID})
+	root := f.writeCorpus(t, "invariants.yaml", admittedID)
 	a := f.admitted(t)
 
-	for _, rel := range []string{"generated/x.yaml", "foo/x.yaml"} {
-		root := f.writeCorpus(t, rel, admittedID, unadmittedID)
-		expected, _, err := expectedIdentities(root, a)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, ok := expected[admittedID]; !ok {
-			t.Fatalf("%s: admitted identity lost its authority to its location", rel)
-		}
-		if _, ok := expected[unadmittedID]; ok {
-			t.Fatalf("%s: unadmitted identity gained authority from its location", rel)
-		}
-		os.Remove(filepath.Join(root, filepath.FromSlash(rel)))
+	before, err := knowledgeadmission.AdmissionCorpusDigest(f.root, []string{admittedID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.writeCorpus(t, "generated/x.yaml", admittedID, unadmittedID)
+	after, err := knowledgeadmission.AdmissionCorpusDigest(f.root, []string{admittedID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before != after {
+		t.Fatalf("generated output changed admission corpus digest: %s -> %s", before, after)
+	}
+
+	expected, _, err := expectedIdentities(root, a)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := expected[admittedID]; !ok {
+		t.Fatal("authored admitted identity was not required")
+	}
+	if _, ok := expected[unadmittedID]; ok {
+		t.Fatal("unadmitted generated identity gained authority")
 	}
 }
