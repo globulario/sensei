@@ -158,7 +158,6 @@ func testIndex() authority.PolicyIndex {
 
 func testContext(b *bundle) Context {
 	return Context{
-		Revision:    testRevision,
 		GraphDigest: testGraphDigest,
 		EvaluatedAt: time.Date(2026, 8, 14, 13, 0, 0, 0, time.UTC),
 		Index:       testIndex(),
@@ -390,12 +389,11 @@ func TestNonGoverningDispositionsStayOutsideTheAuthoritySet(t *testing.T) {
 // Contextual binding. A real past decision must not be replayed over changed
 // knowledge — but binding alone is not provenance, which is what the issuer and
 // role tests above cover.
-func TestStaleRevisionOrGraphDigestIsRejected(t *testing.T) {
+func TestStaleGraphDigestIsRejected(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		mutate func(*Record)
 	}{
-		{"stale revision", func(r *Record) { r.Receipt.ValidForRevision = "0000000000000000000000000000000000000000" }},
 		{"stale graph digest", func(r *Record) { r.Receipt.ValidForGraphDigest = strings.Repeat("b", 64) }},
 		{"absent binding", func(r *Record) { r.Receipt = adoption.Receipt{} }},
 	} {
@@ -476,5 +474,37 @@ func TestSelfAuthoredGovernanceIssuerCannotAdmitKnowledge(t *testing.T) {
 	}
 	if prov.Verification == changebinding.ProvenanceVerified {
 		t.Fatal("self-authored manifest reported ProvenanceVerified")
+	}
+}
+
+// Admission binds to the graph digest, NOT to a git revision. A commit that
+// changes only code must not invalidate knowledge that did not change —
+// otherwise every unrelated commit would force all 485 baseline identities to be
+// re-signed, and a committed manifest naming its own HEAD would be stale the
+// instant it landed.
+func TestAdmissionSurvivesACodeOnlyRevisionChange(t *testing.T) {
+	b := newBundle(t)
+	rec := governedRecord("invariant.real.one")
+	// Whatever revision this decision was made at, the knowledge is unchanged.
+	rec.Receipt.ValidForRevision = "0000000000000000000000000000000000000000"
+
+	admitted, err := verify(manifest(t, b, rec), testContext(b))
+	if err != nil {
+		t.Fatalf("verify: %v", err)
+	}
+	if !admitted.IsAuthoritativelyAdmitted("invariant.real.one") {
+		t.Fatal("a code-only revision change invalidated unchanged knowledge")
+	}
+}
+
+// The corresponding negative: when the KNOWLEDGE changes, the graph digest moves
+// and the decision is stale.
+func TestAdmissionDoesNotSurviveAKnowledgeChange(t *testing.T) {
+	b := newBundle(t)
+	ctx := testContext(b)
+	ctx.GraphDigest = strings.Repeat("f", 64) // corpus changed under the decision
+
+	if _, err := verify(manifest(t, b, governedRecord("invariant.real.one")), ctx); err == nil {
+		t.Fatal("a decision made for a different corpus was still authoritative")
 	}
 }

@@ -90,12 +90,19 @@ type Manifest struct {
 
 // Context is the governed context an admission decision is evaluated against.
 //
-// Revision and GraphDigest are supplied by the caller from the real repository
-// and the real corpus — never read out of the manifest. A receipt that carries
-// its own idea of which revision it is valid for proves nothing; the check is
-// that its claim matches what is actually true here and now.
+// GraphDigest is supplied by the caller from the real corpus — never read out of
+// the manifest. A receipt that carries its own idea of what it is valid for
+// proves nothing; the check is that its claim matches what is actually true here
+// and now.
+//
+// There is deliberately no git revision here. Admission is a statement about
+// which KNOWLEDGE was admitted, and the graph digest pins exactly that: it is
+// computed over the projected triples, so changing knowledge moves it and
+// changing only code does not. Binding to a commit instead would over-bind
+// (invalidating all admission on every unrelated code commit, forcing knowledge
+// that did not change to be re-signed) and would be self-referential for a
+// committed manifest, since committing it changes the very HEAD it names.
 type Context struct {
-	Revision    string
 	GraphDigest string
 	EvaluatedAt time.Time
 	Index       authority.PolicyIndex
@@ -163,12 +170,11 @@ func (a Admitted) GovernedIdentities() []string {
 //   - provenance — the manifest's actor binding verifies against governed
 //     policy, and the actor actually holds the admitting role. This is what a
 //     caller who can only edit YAML cannot manufacture.
-//   - binding — the decision was made for THIS revision and THIS graph digest.
-//     This is what stops a real past decision being replayed over changed
-//     knowledge.
+//   - binding — the decision was made for THIS graph digest. This is what stops
+//     a real past decision being replayed over changed knowledge.
 //
-// A caller who can read the current revision and digest can write matching
-// valid_for_* fields, which is why they are checked second and never alone.
+// A caller who can read the current digest can write a matching
+// valid_for_graph_digest, which is why it is checked second and never alone.
 func verify(m Manifest, ctx Context) (Admitted, error) {
 	if strings.TrimSpace(m.SchemaVersion) != SchemaVersion {
 		return Admitted{}, fmt.Errorf("admission manifest schema_version %q is not supported (want %s)", m.SchemaVersion, SchemaVersion)
@@ -179,9 +185,6 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 	}
 	if ctx.Resolver == nil {
 		return Admitted{}, fmt.Errorf("admission context has no artifact resolver")
-	}
-	if strings.TrimSpace(ctx.Revision) == "" {
-		return Admitted{}, fmt.Errorf("admission context has no revision")
 	}
 	if strings.TrimSpace(ctx.GraphDigest) == "" {
 		return Admitted{}, fmt.Errorf("admission context has no graph digest")
@@ -235,10 +238,9 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 // verifyGovernedRecord enforces contextual binding for a record that claims
 // authority. Non-governing records are not bound: refusing to believe a stale
 // "this is a candidate" record would promote it by omission.
+//
+// ValidForRevision is deliberately NOT checked. See Context.
 func verifyGovernedRecord(r Record, ctx Context) error {
-	if got, want := r.Receipt.ValidForRevision, strings.TrimSpace(ctx.Revision); got != want {
-		return fmt.Errorf("admission record %s is valid for revision %q, not %q", r.Identity, got, want)
-	}
 	if got, want := r.Receipt.ValidForGraphDigest, strings.ToLower(strings.TrimSpace(ctx.GraphDigest)); got != want {
 		return fmt.Errorf("admission record %s is valid for graph digest %q, not %q", r.Identity, got, want)
 	}
