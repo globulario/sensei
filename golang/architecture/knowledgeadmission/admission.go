@@ -111,6 +111,12 @@ type Manifest struct {
 type Context struct {
 	CorpusDigest string
 
+	// Deprecated: source compatibility for v1-era direct callers. When
+	// CorpusDigest is empty this value is treated only as an alias for an already
+	// computed CORPUS digest. LoadFromRepo never uses a caller-supplied value and
+	// therefore cannot reintroduce the published-seed fixpoint.
+	GraphDigest string
+
 	// ExpectedPublisherID is the publisher authorized to issue knowledge-admission
 	// decisions. It MUST come from trusted configuration — never from the manifest
 	// or its envelope, which are exactly what an attacker supplies.
@@ -209,7 +215,11 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 	if ctx.Resolver == nil {
 		return Admitted{}, fmt.Errorf("admission context has no artifact resolver")
 	}
-	if strings.TrimSpace(ctx.CorpusDigest) == "" {
+	corpusDigest := strings.TrimSpace(ctx.CorpusDigest)
+	if corpusDigest == "" {
+		corpusDigest = strings.TrimSpace(ctx.GraphDigest)
+	}
+	if corpusDigest == "" {
 		return Admitted{}, fmt.Errorf("admission context has no corpus digest")
 	}
 
@@ -250,7 +260,7 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 		if r.Disposition != DispositionGoverned {
 			continue
 		}
-		if err := verifyGovernedRecord(r, ctx); err != nil {
+		if err := verifyGovernedRecord(r, corpusDigest); err != nil {
 			return Admitted{}, err
 		}
 		governed[r.Identity] = r
@@ -262,11 +272,20 @@ func verify(m Manifest, ctx Context) (Admitted, error) {
 // authority. Non-governing records are not bound: refusing to believe a stale
 // "this is a candidate" record would promote it by omission.
 //
-// ValidForRevision and ValidForGraphDigest are deliberately NOT checked for
-// knowledge admission. The former over-binds to code history; the latter is a
-// publication artifact and caused the v1 admission/publication fixpoint.
-func verifyGovernedRecord(r Record, ctx Context) error {
-	if got, want := r.Receipt.ValidForCorpusDigest, strings.ToLower(strings.TrimSpace(ctx.CorpusDigest)); got != want {
+// ValidForRevision and the semantics of a published graph digest are deliberately
+// NOT checked for knowledge admission. The former over-binds to code history;
+// the latter caused the v1 admission/publication fixpoint.
+func verifyGovernedRecord(r Record, corpusDigest string) error {
+	got := strings.TrimSpace(r.Receipt.ValidForCorpusDigest)
+	if got == "" {
+		// Migration alias only. The old field name may carry a v2 CORPUS digest
+		// while manifests are being re-frozen, but LoadFromRepo never compares it
+		// to a published graph digest.
+		got = strings.TrimSpace(r.Receipt.ValidForGraphDigest)
+	}
+	got = strings.ToLower(got)
+	want := strings.ToLower(strings.TrimSpace(corpusDigest))
+	if got != want {
 		return fmt.Errorf("admission record %s is valid for corpus digest %q, not %q", r.Identity, got, want)
 	}
 	return nil
