@@ -20,10 +20,11 @@ import (
 // anything else is reported as declared/excluded rather than missing, so this
 // gate never invents obligations the importer was never asked to meet.
 var classIRISegment = map[string]string{
-	"invariants":        "invariant/",
-	"failure_modes":     "failureMode/",
-	"forbidden_fixes":   "forbiddenFix/",
-	"incident_patterns": "incidentPattern/",
+	"invariants":             "invariant/",
+	"failure_modes":          "failureMode/",
+	"forbidden_fixes":        "forbiddenFix/",
+	"incident_patterns":      "incidentPattern/",
+	"implementation_pattern": "implementationPattern/",
 	// NOTE: required_tests are deliberately absent. Their identities are file
 	// paths that the emitter percent-encodes into the IRI
 	// (test:golang%2Fnode_agent%2F...), so proving their projection needs the
