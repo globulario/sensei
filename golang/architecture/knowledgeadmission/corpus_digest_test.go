@@ -51,6 +51,29 @@ invariants:
 	}
 }
 
+func TestAdmissionCorpusDigestTreatsAliasAsExpandedValue(t *testing.T) {
+	const id = "invariant.alias.independent"
+
+	rootAlias := t.TempDir()
+	writeAdmissionCorpusFile(t, rootAlias, "invariants.yaml", `defaults: &details
+  severity: high
+invariants:
+  - id: invariant.alias.independent
+    details: *details
+`)
+
+	rootExpanded := t.TempDir()
+	writeAdmissionCorpusFile(t, rootExpanded, "invariants.yaml", `invariants:
+  - id: invariant.alias.independent
+    details:
+      severity: high
+`)
+
+	if a, b := digestFor(t, rootAlias, id), digestFor(t, rootExpanded, id); a != b {
+		t.Fatalf("alias spelling changed corpus digest:\naliased  %s\nexpanded %s", a, b)
+	}
+}
+
 func TestAdmissionCorpusDigestIgnoresUnadmittedCandidates(t *testing.T) {
 	const governed = "invariant.governed"
 	root := t.TempDir()
