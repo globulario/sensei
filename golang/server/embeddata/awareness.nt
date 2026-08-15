@@ -5,6 +5,13 @@
 <https://globular.io/awareness#actorRole/role.ci> <https://globular.io/awareness#authoredIn> "docs/awareness/actor_roles.yaml" .
 <https://globular.io/awareness#actorRole/role.ci> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#actorRole/role.ci> <https://globular.io/awareness#trustedIssuer> "github.actions" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ActorRole> .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <http://www.w3.org/2000/01/rdf-schema#label> "Knowledge admitter" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <https://globular.io/awareness#alias> "knowledge admitter" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <https://globular.io/awareness#allowedActorKind> "human" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <https://globular.io/awareness#authoredIn> "docs/awareness/actor_roles.yaml" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#actorRole/role.knowledge_admitter> <https://globular.io/awareness#trustedIssuer> "publisher.sensei.governance" .
 <https://globular.io/awareness#actorRole/role.repository_maintainer> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#ActorRole> .
 <https://globular.io/awareness#actorRole/role.repository_maintainer> <http://www.w3.org/2000/01/rdf-schema#label> "Repository maintainer" .
 <https://globular.io/awareness#actorRole/role.repository_maintainer> <https://globular.io/awareness#alias> "repository maintainer" .
@@ -8077,9 +8084,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 e3ff8a4b22cf" .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <https://globular.io/awareness#seedDigestSha256> "e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a" .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <https://globular.io/awareness#seedTripleCount> "8085" .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-e3ff8a4b22cf3fb549d9f5dfb2522958fb1387fd99684a89cbfc3efae5a6c31a> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 3196c5e48124" .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <https://globular.io/awareness#seedDigestSha256> "3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8" .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <https://globular.io/awareness#seedTripleCount> "8092" .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-3196c5e481241813a63064eed52a851a5df8fffb0dbd7d3b45ca138d754b9fb8> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

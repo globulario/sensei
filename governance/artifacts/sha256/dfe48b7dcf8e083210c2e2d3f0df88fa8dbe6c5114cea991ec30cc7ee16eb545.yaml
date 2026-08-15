@@ -1,0 +1,10 @@
+receipt_id: authn.human.davecourtois
+principal_id: human.davecourtois
+issuer: publisher.sensei.governance
+authentication_artifact:
+    path: artifacts/sha256/e18c5b783c9599bd55b3222ee5eb36fe1683a9021126a96efa47a743867bd773.bin
+    media_type: application/octet-stream
+    digest_sha256: e18c5b783c9599bd55b3222ee5eb36fe1683a9021126a96efa47a743867bd773
+authenticated_at: "2026-08-14T00:00:00Z"
+status: valid
+receipt_digest_sha256: dfe48b7dcf8e083210c2e2d3f0df88fa8dbe6c5114cea991ec30cc7ee16eb545

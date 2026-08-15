@@ -1,0 +1,10 @@
+receipt_id: role.human.davecourtois
+principal_id: human.davecourtois
+actor_kind: human
+issuer: publisher.sensei.governance
+role_ids:
+    - role.knowledge_admitter
+authentication_receipt_digest_sha256: dfe48b7dcf8e083210c2e2d3f0df88fa8dbe6c5114cea991ec30cc7ee16eb545
+issued_at: "2026-08-14T00:00:00Z"
+status: valid
+receipt_digest_sha256: d89d23ace12a03dc869e47a7748165ed30aed40ad65d386d0e5081048b6ad25e

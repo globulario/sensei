@@ -29,3 +29,23 @@ actor_roles:
       - service
     trusted_issuers:
       - github.actions
+
+  # Knowledge admission (H-B / #166). Deliberately NOT trusting sensei.local:
+  # `sensei identity enroll` self-issues as sensei.local with caller-chosen
+  # roles, so a role that trusted it could be minted by anyone able to run
+  # sensei in the checkout. The trusted issuer here is the governance publisher
+  # whose private key lives outside the repository, which is what makes
+  # repository write access insufficient to admit knowledge.
+  #
+  # This string is a consistency anchor, not the security root: the root is the
+  # Ed25519 signature over the admission manifest bytes. See
+  # decision.sensei.knowledge_admission_trust_model_v1.
+  - id: role.knowledge_admitter
+    label: Knowledge admitter
+    status: active
+    allowed_actor_kinds:
+      - human
+    trusted_issuers:
+      - publisher.sensei.governance
+    aliases:
+      - knowledge admitter
