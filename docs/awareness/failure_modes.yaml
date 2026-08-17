@@ -1417,3 +1417,16 @@ failure_modes:
     evidence:
       - fresh compiled slice links workspacecontract/identity.go only to component.golang.architecture.workspacecontract; the live store after a successful --repo publish serves both that and component.golang.architecture
       - grep of the compiled slice shows 0 aw:repo triples on the sourceFile node; its only predicates are rdf:type and aw:implements
+  - id: failure.publishing_one_registered_domain_invalidates_every_other_dom
+    title: Publishing one registered domain invalidates every other domain's authority proofs
+    description: 'The graph marker is a whole-graph fact stored once per repository, and the closure report is a per-domain fact bound to whole-graph identity. Building any domain recomputes the global marker and regenerates the proof set for only that domain, leaving every other registered domain holding a proof set that vouches for a publication that no longer exists. Observed in both build orders with two servers sharing one Oxigraph store: there was no state in which two domains were simultaneously authoritative. Repair: store the proof set once per store and publish it as one atomic generation; carry an unchanged domain''s verdict forward only after verifying its slice digest is identical.'
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+        - golang/server/graph_authority.go
+    related_invariants:
+      - graph.certified_domain_must_match_published_domain_content
+    required_tests:
+      - golang/graphgeneration/graphgeneration_test.go:TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
+    evidence:
+      - sensei build --repo services leaves sensei-code failing preflight with GRAPH_DOMAIN_CLOSURE_UNPROVEN; reversing the order fails services with a missing expected graph marker
