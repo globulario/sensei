@@ -322,3 +322,66 @@ func TestRegisteredButUnpublishedDomainIsAbsentNotUnproven(t *testing.T) {
 		t.Fatalf("%s has no content in this graph and should not appear in the proof set", domainB)
 	}
 }
+
+// Republishing byte-identical content reuses the generation directory. A
+// domain that was refused last time and is proven this time must not leave its
+// old refusal behind, or the verdict becomes a function of readdir order.
+func TestRepublishingSameGenerationClearsTheOtherVerdictFile(t *testing.T) {
+	dir := t.TempDir()
+	store := "http://127.0.0.1:7878/store?default"
+	g := marker("00000000000000000000000000000000000000000000000000000000000000ee", 4)
+
+	if err := Write(dir, store, &Set{
+		Generation: generationOf(g, domainA),
+		Marker:     g,
+		Domains: map[string]DomainProof{
+			domainA: {Report: provenReport(domainA, g.Digest), SliceDigest: "x"},
+			domainB: {SliceDigest: "y", CarryForwardRefusal: "no prior proof"},
+		},
+	}); err != nil {
+		t.Fatalf("first write: %v", err)
+	}
+	// Same digest, but domain B is now proven.
+	if err := Write(dir, store, &Set{
+		Generation: generationOf(g, domainB),
+		Marker:     g,
+		Domains: map[string]DomainProof{
+			domainA: {Report: provenReport(domainA, g.Digest), SliceDigest: "x"},
+			domainB: {Report: provenReport(domainB, g.Digest), SliceDigest: "y"},
+		},
+	}); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+
+	got, err := Load(dir)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	proof, _ := got.ProofFor(domainB)
+	if proof.CarryForwardRefusal != "" {
+		t.Fatalf("a stale refusal survived republication: %q", proof.CarryForwardRefusal)
+	}
+	if !proof.Proven() {
+		t.Fatal("domain B is not proven after being republished with a proof")
+	}
+}
+
+func TestLoopbackSpellingsResolveToOneProofSet(t *testing.T) {
+	want := StoreID("http://127.0.0.1:7878/store?default")
+	for _, u := range []string{
+		"http://localhost:7878/query",
+		"HTTP://LocalHost:7878/store",
+		"http://[::1]:7878/query",
+		"http://localhost.localdomain:7878/store?default",
+	} {
+		if got := StoreID(u); got != want {
+			t.Fatalf("%s resolved to a different proof set (%s != %s)", u, got, want)
+		}
+	}
+	if StoreID("http://localhost:7879/query") == want {
+		t.Fatal("a different port shares one proof set")
+	}
+	if StoreID("http://example.internal:7878/query") == want {
+		t.Fatal("a remote host collapsed into loopback")
+	}
+}

@@ -44,6 +44,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -166,6 +167,10 @@ func StoreID(storeURL string) string {
 // resolve to the same proof set. Keying on the full URL would give the writer
 // and the reader two different directories, which is the same split-brain this
 // package exists to remove.
+// Loopback spellings are also collapsed. A builder invoked with
+// http://localhost:7878 and a server configured with http://127.0.0.1:7878
+// address one store; giving them two proof-set directories would recreate the
+// split-brain this package removes, and would do it silently.
 func normalizeStoreKey(storeURL string) string {
 	s := strings.TrimSpace(strings.ToLower(storeURL))
 	if u, err := url.Parse(s); err == nil && u.Host != "" {
@@ -173,7 +178,15 @@ func normalizeStoreKey(storeURL string) string {
 		if scheme == "" {
 			scheme = "http"
 		}
-		return scheme + "://" + u.Host
+		host := u.Hostname()
+		switch host {
+		case "localhost", "127.0.0.1", "::1", "localhost.localdomain":
+			host = "127.0.0.1"
+		}
+		if port := u.Port(); port != "" {
+			host = net.JoinHostPort(host, port)
+		}
+		return scheme + "://" + host
 	}
 	s = strings.TrimSuffix(s, "/")
 	if i := strings.IndexByte(s, '?'); i >= 0 {
@@ -222,6 +235,15 @@ func Write(dir, storeURL string, s *Set) error {
 	}
 	for domain, proof := range s.Domains {
 		slug := DomainSlug(domain)
+		// A generation directory can already exist when a rebuild produces
+		// byte-identical content and therefore the same digest. Clear this
+		// domain's other verdict file first: leaving a stale .unproven.json
+		// beside a fresh .closure.json (or the reverse) makes the verdict depend
+		// on directory read order, and a proof set whose meaning depends on
+		// readdir order is not a proof set.
+		for _, stale := range []string{slug + closureSuffix, slug + refusalSuffix} {
+			_ = os.Remove(filepath.Join(genDir, domainsDirName, stale))
+		}
 		if proof.Report != nil {
 			if err := writeJSONAtomic(filepath.Join(genDir, domainsDirName, slug+closureSuffix), proof.Report); err != nil {
 				return err
@@ -326,6 +348,19 @@ func LoadGeneration(dir, generation string) (*Set, error) {
 			label = slice.Domain
 		}
 		if label == "" {
+			continue
+		}
+		// Belt and braces against the same hazard on the read side. If both
+		// verdict files somehow exist for one domain, the set is ambiguous and
+		// resolves to a refusal — never to the more agreeable of the two.
+		if prior, seen := set.Domains[label]; seen {
+			set.Domains[label] = DomainProof{
+				SliceDigest: proof.SliceDigest,
+				CarryForwardRefusal: fmt.Sprintf(
+					"domain %q has conflicting verdict files in generation %s; a proof set whose meaning depends on read order cannot vouch for anything",
+					label, shortDigest(set.Generation.MarkerDigest)),
+			}
+			_ = prior
 			continue
 		}
 		set.Domains[label] = proof
