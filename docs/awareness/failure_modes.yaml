@@ -1483,3 +1483,14 @@ failure_modes:
       - golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
     evidence:
       - Against a server started with -awareness-dir <services>/docs/awareness, a proposal naming domain github.com/globulario/sensei-code returned accepted:true and landed in services' candidates/proposals/. Three signals agreed on sensei-code (request domain, stored content, generated node id via domainHint) while the authoritative write location came only from -awareness-dir.
+  - id: failure.introducing_a_typed_error_silently_disabled_every_caller_tha
+    title: Introducing a typed error silently disabled every caller that detected the old untyped one
+    protects:
+      files:
+        - golang/architecture/senseireport/build.go
+    related_invariants:
+      - meta.authority_must_express_uncertainty
+    required_tests:
+      - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    evidence:
+      - Replacing a raw ENOENT with a typed ErrNoTaskSession made senseireport's os.IsNotExist absence check stop matching, so 'no active task' became a hard error and 8 tests failed. The new sentinel was correct; the change was incomplete because nothing about adding an error announces which existing callers stop recognizing it.
