@@ -2118,3 +2118,12 @@ invariants:
     required_tests:
       - golang/server/change_risk_fields_test.go:TestPreflightPopulatesChangeRiskAndAgreesWithProse
     contract: 'Preflight publishes change risk as a typed ChangeRisk message (blast_radius, approval_gate, reasons) alongside the human-readable line, both derived from ONE assessment so they cannot disagree. Unclassified is a distinct value from safe: the zero value of each enum is UNSPECIFIED, never LOCAL or NONE, so an absent or unrecognized classification can be refused by a consumer rather than proceeded on. Enum numbers ascend with severity, matching blastRadiusOrder/approvalGateOrder, so widest-wins is a numeric comparison on the wire.'
+  - id: invariant.a_task_audit_reports_malformed_sessions_and_never_repairs_th
+    title: A task audit reports malformed sessions and never repairs them
+    status: active
+    protects:
+      files:
+        - golang/architecture/tasksession/audit.go
+    required_tests:
+      - golang/architecture/tasksession/audit_test.go:TestAuditClassifiesATaskDirectoryWithNoSession
+    contract: 'sensei task-audit inventories every task directory read-only: a malformed or unreadable session is classified and PRESERVED, never deleted, cleared, superseded, or reconstructed. Reconstructing a session would manufacture a record of work nobody did. The exit code reports whether the audit ran, not what it found, so a repository with malformed tasks is not indistinguishable from a broken tool. An absent tasks directory is reported as absent rather than as an error.'

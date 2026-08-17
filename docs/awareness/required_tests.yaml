@@ -1556,3 +1556,8 @@ required_tests:
     protects:
       invariants:
         - invariant.a_risk_verdict_an_agent_must_act_on_is_published_as_structur
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditClassifiesATaskDirectoryWithNoSession
+    title: The audit classifies and preserves a task directory with no session
+    protects:
+      invariants:
+        - invariant.a_task_audit_reports_malformed_sessions_and_never_repairs_th

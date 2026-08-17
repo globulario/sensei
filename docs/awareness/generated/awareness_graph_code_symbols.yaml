@@ -17801,6 +17801,36 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestNextActionTableIsSingleStep asserts that every machine action identity the\norchestrator can emit has a summary, and that no summary smuggles a second action\n(no \" then \" / \" and \" connective that would recreate the flat-output failure)."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditClassifiesATaskDirectoryWithNoSession
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditClassifiesATaskDirectoryWithNoSession
+    package: tasksession
+    language: go
+    doc: "The state #151 reported: a task directory tracked with no session. It must be\nclassified and PRESERVED, never repaired away."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditIgnoresNonTaskEntries
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditIgnoresNonTaskEntries
+    package: tasksession
+    language: go
+    doc: "Non-task entries are ignored rather than miscounted as malformed tasks."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditOrderingIsDeterministic
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditOrderingIsDeterministic
+    package: tasksession
+    language: go
+    doc: "Ordering is deterministic so the report can be diffed across runs."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditReportsAnAbsentTasksDirectoryAsAbsent
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditReportsAnAbsentTasksDirectoryAsAbsent
+    package: tasksession
+    language: go
+    doc: "An absent tasks directory is answered, not treated as a fault — the same\ndistinction task_status now makes."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditReportsAnUnusableActivePointer
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditReportsAnUnusableActivePointer
+    package: tasksession
+    language: go
+    doc: "A present-but-unusable active pointer is reported, not silently dropped: \"no\nactive task\" and \"the pointer is broken\" are different facts."
   - id: golang/architecture/tasksession/briefing_feedback_test.go:TestPromotedKnowledgeDerivedFromProjection
     file: golang/architecture/tasksession/briefing_feedback_test.go
     symbol: TestPromotedKnowledgeDerivedFromProjection
