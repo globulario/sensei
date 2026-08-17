@@ -1450,3 +1450,47 @@ failure_modes:
       - meta.end_to_end_check_is_the_only_truth
     evidence:
       - make import-graph-check passed locally while CI reported STALE on the same commit. import-scan scans the working tree, so four untracked WIP files under golang/architecture/agentcommand/ entered the committed import graph (1 file entry) and the code-symbol inventory (14 symbols). The local gate regenerates from the same contaminated tree it compares against, so it agrees with itself; only a clean checkout disagrees.
+  - id: failure.governed_append_corrupted_a_scaffolded_yaml_marker_and_repor
+    title: Governed append corrupted a scaffolded YAML marker and reported success because nothing re-read the result
+    protects:
+      files:
+        - golang/architecture/governedmutation/apply.go
+    related_invariants:
+      - meta.end_to_end_check_is_the_only_truth
+    required_tests:
+      - golang/architecture/governedmutation/apply_scaffold_append_test.go:TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    evidence:
+      - 'sensei init scaffolds ''decisions: []''; the ^key: regex matched that inline marker as if it were a block marker, so the first append wrote block items under it and produced invalid YAML. Nothing in the propose path re-read the file, so the write reported success and every decision recorded afterwards was silently absent from the graph. In globulario/sensei-code this went unnoticed across many decisions and only surfaced when a rebuild was finally required.'
+  - id: failure.ordinary_absence_returned_as_a_filesystem_error_entered_an_a
+    title: Ordinary absence returned as a filesystem error entered an architect's evidence as an unavailable surface
+    protects:
+      files:
+        - golang/architecture/tasksession/control.go
+    related_invariants:
+      - meta.authority_must_express_uncertainty
+    required_tests:
+      - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    evidence:
+      - 'task_status in a repository that had never created a task session returned ''open .../.sensei/tasks: no such file or directory''. A governed run in globulario/sensei-code carried that errno into its architectural claims as evidence that the Sensei task surface was unavailable, when the accurate answer was simply that no task sessions exist. A missing tasks directory is the ordinary state of a repo that has not used tasks.'
+  - id: failure.propose_accepted_a_repository_domain_it_could_not_honour_and
+    title: Propose accepted a repository domain it could not honour and filed the candidate into another repository's queue
+    protects:
+      files:
+        - golang/server/propose_custody.go
+    related_invariants:
+      - meta.storage_is_not_semantic_authority
+    required_tests:
+      - golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    evidence:
+      - Against a server started with -awareness-dir <services>/docs/awareness, a proposal naming domain github.com/globulario/sensei-code returned accepted:true and landed in services' candidates/proposals/. Three signals agreed on sensei-code (request domain, stored content, generated node id via domainHint) while the authoritative write location came only from -awareness-dir.
+  - id: failure.introducing_a_typed_error_silently_disabled_every_caller_tha
+    title: Introducing a typed error silently disabled every caller that detected the old untyped one
+    protects:
+      files:
+        - golang/architecture/senseireport/build.go
+    related_invariants:
+      - meta.authority_must_express_uncertainty
+    required_tests:
+      - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    evidence:
+      - Replacing a raw ENOENT with a typed ErrNoTaskSession made senseireport's os.IsNotExist absence check stop matching, so 'no active task' became a hard error and 8 tests failed. The new sentinel was correct; the change was incomplete because nothing about adding an error announces which existing callers stop recognizing it.

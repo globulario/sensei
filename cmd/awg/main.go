@@ -296,6 +296,8 @@ func dispatch(cmd string, args []string) int {
 		return runPrepareChange(args)
 	case "task-status":
 		return runTaskStatus(args)
+	case "task-audit":
+		return runTaskAudit(args)
 	case "advance-task":
 		return runAdvanceTask(args)
 	case "task-briefing":

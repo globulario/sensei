@@ -61,6 +61,26 @@ func (s *server) Propose(_ context.Context, req *awarenesspb.ProposeRequest) (*a
 		}, nil
 	}
 
+	// A domain claim must be HONOURED OR REFUSED, never accepted and ignored.
+	// The request's domain shapes the stored content AND the generated node id
+	// (propose.domainHint), while the write location comes entirely from
+	// -awareness-dir. When those disagree, three signals said "sensei-code" and
+	// the file landed in services' review queue — with `accepted: true` returned.
+	//
+	// This server writes to exactly one awareness directory; it cannot route a
+	// proposal into a different checkout. So the only honest options are to
+	// confirm the claim matches this queue's owner, or to refuse. Refusing is
+	// typed as REJECTED with the reason, not a transport error: an agent asking
+	// where its proposal went deserves an answer.
+	if reason := foreignDomainClaim(root, pr); reason != "" {
+		return &awarenesspb.ProposeResponse{
+			Status:           awarenesspb.ProposeStatus_PROPOSE_STATUS_REJECTED,
+			ValidationErrors: []string{reason},
+			Note:             "domain custody could not be honoured; nothing written",
+			GeneratedInMs:    time.Since(start).Milliseconds(),
+		}, nil
+	}
+
 	cand, err := propose.RenderCandidate(pr)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "render candidate: %v", err)

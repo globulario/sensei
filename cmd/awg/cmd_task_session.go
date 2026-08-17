@@ -5,6 +5,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -146,6 +147,13 @@ Flags:
 	if compact || verbose {
 		control, taskDir, err := tasksession.ControlStatus(opts.RepoRoot, opts.TaskDir, opts.Active)
 		if err != nil {
+			// Same distinction the MCP bridge makes: no task session is an
+			// answer, so report it on stdout and succeed. The exit code is
+			// reserved for being unable to answer.
+			if errors.Is(err, tasksession.ErrNoTaskSession) {
+				fmt.Printf("task_identity: none\n%v\n", err)
+				return 0
+			}
 			fmt.Fprintf(os.Stderr, "sensei task-status: %v\n", err)
 			return 1
 		}
@@ -157,6 +165,10 @@ Flags:
 	}
 	res, err := tasksession.Status(opts)
 	if err != nil {
+		if errors.Is(err, tasksession.ErrNoTaskSession) {
+			fmt.Printf("task_identity: none\n%v\n", err)
+			return 0
+		}
 		fmt.Fprintf(os.Stderr, "sensei task-status: %v\n", err)
 		return 1
 	}

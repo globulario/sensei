@@ -159,6 +159,7 @@ components:
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
       - cmd/awg/cmd_synthesis_run.go
+      - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
       - cmd/awg/cmd_task_session.go
       - cmd/awg/cmd_validate.go
@@ -2064,6 +2065,7 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/tasksession/advance_result.go
+      - golang/architecture/tasksession/audit.go
       - golang/architecture/tasksession/briefing.go
       - golang/architecture/tasksession/briefing_promotion.go
       - golang/architecture/tasksession/control.go
@@ -2619,6 +2621,7 @@ components:
       - golang/server/preflight.go
       - golang/server/preflight_cli.go
       - golang/server/propose.go
+      - golang/server/propose_custody.go
       - golang/server/provenance.go
       - golang/server/query.go
       - golang/server/realized_contracts.go
@@ -2636,8 +2639,10 @@ components:
       - component.golang.architecture.briefingfeedback
       - component.golang.architecture.controlstate
       - component.golang.architecture.identity
+      - component.golang.architecture.packcustody
       - component.golang.architecture.protection
       - component.golang.architecture.questiondisposition
+      - component.golang.architecture.repodomain
       - component.golang.architecture.tasksession
       - component.golang.closure
       - component.golang.coverage

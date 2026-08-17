@@ -1120,6 +1120,60 @@ message PreflightResponse {
 
   // Current/provenance stamp for this graph-backed answer.
   GraphAuthority authority = 18;
+
+  // Change risk as STRUCTURED fields rather than only prose.
+  //
+  // The same verdict is still rendered into required_actions[0] as
+  // "Change risk: blast=..., approval=..." so existing consumers keep working;
+  // this field is the machine-readable form of that exact line. A consumer that
+  // has to regex a formatted sentence to learn whether a change needs approval
+  // is one wording change away from silently reading "no approval required".
+  ChangeRisk change_risk = 19;
+}
+
+// ChangeRisk is the preflight change-risk verdict: how far a change reaches and
+// what approval it therefore needs.
+message ChangeRisk {
+  // Blast radius, widest signal wins. Closed vocabulary; a value this server
+  // does not recognize must be treated as the widest, never ignored.
+  BlastRadius blast_radius = 1;
+
+  // Approval gate implied by the blast radius and the touched authority.
+  ApprovalGate approval_gate = 2;
+
+  // Why the classifier reached this verdict. Same strings already embedded in
+  // the prose line's parenthetical.
+  repeated string reasons = 3;
+}
+
+// BlastRadius mirrors golang/server/blast_radius.go's blastRadiusOrder exactly,
+// including its order: the numbers ascend with severity, so "widest signal wins"
+// is a numeric comparison on the wire as well as in the server.
+enum BlastRadius {
+  // Unspecified is a real answer: the server did not classify blast radius.
+  // It is NOT "local" — a consumer must never read an absent classification as
+  // a safe one. This is why the enum cannot start at LOCAL, even though proto3
+  // would make that the convenient default.
+  BLAST_RADIUS_UNSPECIFIED = 0;
+  BLAST_RADIUS_LOCAL = 1;
+  BLAST_RADIUS_SERVICE = 2;
+  BLAST_RADIUS_NODE = 3;
+  BLAST_RADIUS_CLUSTER = 4;
+  BLAST_RADIUS_SECURITY = 5;
+  BLAST_RADIUS_DATA_LOSS = 6;
+  BLAST_RADIUS_EXTERNAL = 7;
+}
+
+// ApprovalGate mirrors approvalGateOrder, likewise severity-ordered.
+enum ApprovalGate {
+  // Unspecified means unclassified, NOT "none". Defaulting an unclassified gate
+  // to "no approval needed" is exactly the failure this ordering prevents.
+  APPROVAL_GATE_UNSPECIFIED = 0;
+  APPROVAL_GATE_NONE = 1;
+  APPROVAL_GATE_REVIEW_REQUIRED = 2;
+  APPROVAL_GATE_HUMAN_APPROVAL_REQUIRED = 3;
+  APPROVAL_GATE_MULTI_STEP_APPROVAL_REQUIRED = 4;
+  APPROVAL_GATE_MANUAL_ONLY = 5;
 }
 
 message CoverageSummary {

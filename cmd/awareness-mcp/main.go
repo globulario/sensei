@@ -40,6 +40,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -643,6 +644,22 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		}
 		state, _, err := tasksession.ControlStatus(strings.TrimSpace(repo), strings.TrimSpace(task), strings.TrimSpace(task) == "")
 		if err != nil {
+			// A repository with no task session is answered, not errored. An
+			// agent that receives a tool error here carries the raw failure into
+			// its architectural claims as an unavailable governed surface; the
+			// accurate answer is that no task sessions exist. Absence of data is
+			// not failure to answer.
+			if errors.Is(err, tasksession.ErrNoTaskSession) {
+				return &toolResult{
+					Text: "task_identity: none\nno task session exists in this repository",
+					Structured: map[string]interface{}{
+						"task_identity": map[string]interface{}{
+							"state":  "none",
+							"reason": err.Error(),
+						},
+					},
+				}, nil
+			}
 			return nil, err
 		}
 		return &toolResult{Text: formatTaskControl(state), Structured: structFrom(state)}, nil

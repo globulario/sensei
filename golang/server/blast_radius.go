@@ -142,3 +142,59 @@ func changeAssessmentAction(a changeAssessment) string {
 	}
 	return line
 }
+
+// changeRiskProto projects the assessment into the structured wire form.
+//
+// It exists so the prose line and the structured fields come from ONE verdict.
+// A consumer that had to parse "Change risk: blast=..., approval=..." out of
+// required_actions[0] was one wording change away from silently reading "no
+// approval required" — the prose is for humans, and this is the contract.
+//
+// An unrecognized value maps to UNSPECIFIED, never to the safest member. That is
+// the whole reason the zero value is UNSPECIFIED rather than LOCAL/NONE: a
+// vocabulary this server does not know about must read as "unclassified", which a
+// caller can refuse, and never as "safe", which a caller would proceed on.
+func changeRiskProto(a changeAssessment) *awarenesspb.ChangeRisk {
+	return &awarenesspb.ChangeRisk{
+		BlastRadius:  blastRadiusProto(a.BlastRadius),
+		ApprovalGate: approvalGateProto(a.ApprovalGate),
+		Reasons:      append([]string(nil), a.Reasons...),
+	}
+}
+
+// blastRadiusEnums and approvalGateEnums are keyed by the exact strings in
+// blastRadiusOrder / approvalGateOrder above. Keeping them adjacent to those
+// slices is deliberate: adding a severity level there without adding it here
+// would otherwise silently downgrade the new level to UNSPECIFIED on the wire.
+// TestEveryVocabularyValueHasAnEnum fails when they drift apart.
+var blastRadiusEnums = map[string]awarenesspb.BlastRadius{
+	"local":     awarenesspb.BlastRadius_BLAST_RADIUS_LOCAL,
+	"service":   awarenesspb.BlastRadius_BLAST_RADIUS_SERVICE,
+	"node":      awarenesspb.BlastRadius_BLAST_RADIUS_NODE,
+	"cluster":   awarenesspb.BlastRadius_BLAST_RADIUS_CLUSTER,
+	"security":  awarenesspb.BlastRadius_BLAST_RADIUS_SECURITY,
+	"data_loss": awarenesspb.BlastRadius_BLAST_RADIUS_DATA_LOSS,
+	"external":  awarenesspb.BlastRadius_BLAST_RADIUS_EXTERNAL,
+}
+
+var approvalGateEnums = map[string]awarenesspb.ApprovalGate{
+	"none":                         awarenesspb.ApprovalGate_APPROVAL_GATE_NONE,
+	"review_required":              awarenesspb.ApprovalGate_APPROVAL_GATE_REVIEW_REQUIRED,
+	"human_approval_required":      awarenesspb.ApprovalGate_APPROVAL_GATE_HUMAN_APPROVAL_REQUIRED,
+	"multi_step_approval_required": awarenesspb.ApprovalGate_APPROVAL_GATE_MULTI_STEP_APPROVAL_REQUIRED,
+	"manual_only":                  awarenesspb.ApprovalGate_APPROVAL_GATE_MANUAL_ONLY,
+}
+
+func blastRadiusProto(s string) awarenesspb.BlastRadius {
+	if v, ok := blastRadiusEnums[strings.TrimSpace(s)]; ok {
+		return v
+	}
+	return awarenesspb.BlastRadius_BLAST_RADIUS_UNSPECIFIED
+}
+
+func approvalGateProto(s string) awarenesspb.ApprovalGate {
+	if v, ok := approvalGateEnums[strings.TrimSpace(s)]; ok {
+		return v
+	}
+	return awarenesspb.ApprovalGate_APPROVAL_GATE_UNSPECIFIED
+}

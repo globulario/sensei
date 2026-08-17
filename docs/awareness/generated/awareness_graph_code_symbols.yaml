@@ -11540,6 +11540,54 @@ test_symbols:
     symbol: TestValidateReportRejectsGraphDigestSubstitution
     package: governedimpact
     language: go
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestAppendBootstrapsMissingFileAndMissingKey
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestAppendBootstrapsMissingFileAndMissingKey
+    package: governedmutation
+    language: go
+    doc: "A missing file and a file with no such key both still bootstrap a block list."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestAppendToExistingBlockListIsUnchanged
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestAppendToExistingBlockListIsUnchanged
+    package: governedmutation
+    language: go
+    doc: "Existing block lists and their comments keep working exactly as before."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    package: governedmutation
+    language: go
+    doc: "The defect: `sensei init` scaffolds `decisions: []`, and the first append\nproduced block items underneath that inline marker — invalid YAML that no\nlater read caught, so every decision recorded afterwards was silently absent\nfrom the graph."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestMarkerConversionPreservesTrailingComment
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestMarkerConversionPreservesTrailingComment
+    package: governedmutation
+    language: go
+    doc: "A trailing comment on the marker line is preserved rather than destroyed."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestNonEmptyFlowSequenceIsRefusedAndFileUntouched
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestNonEmptyFlowSequenceIsRefusedAndFileUntouched
+    package: governedmutation
+    language: go
+    doc: "A non-empty inline sequence cannot be appended to textually. Refuse rather\nthan corrupt, and leave the file exactly as it was."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestSecondAppendAfterMarkerConversionStillParses
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestSecondAppendAfterMarkerConversionStillParses
+    package: governedmutation
+    language: go
+    doc: "A second append must also work — proving the conversion left a real block\nlist rather than something that only happens to parse once."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestTheCorruptShapeIsGenuinelyInvalidYAML
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestTheCorruptShapeIsGenuinelyInvalidYAML
+    package: governedmutation
+    language: go
+    doc: "Guard against the fix passing for the wrong reason: confirm the corrupt shape\nreally is invalid YAML, so the tests above are asserting something real."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestUnparseableResultIsRefusedBeforeTheRename
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestUnparseableResultIsRefusedBeforeTheRename
+    package: governedmutation
+    language: go
+    doc: "The general guard: a composed document that would not parse is never written,\nwhatever the cause. This is what makes the class closed rather than the one\nknown shape patched — the original bug survived because the write was never\nverified, not because the transform was hard to spot."
   - id: golang/architecture/governedmutation/owner_test.go:TestApplyRoutesEveryGovernedKind
     file: golang/architecture/governedmutation/owner_test.go
     symbol: TestApplyRoutesEveryGovernedKind
@@ -17753,6 +17801,36 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestNextActionTableIsSingleStep asserts that every machine action identity the\norchestrator can emit has a summary, and that no summary smuggles a second action\n(no \" then \" / \" and \" connective that would recreate the flat-output failure)."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditClassifiesATaskDirectoryWithNoSession
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditClassifiesATaskDirectoryWithNoSession
+    package: tasksession
+    language: go
+    doc: "The state #151 reported: a task directory tracked with no session. It must be\nclassified and PRESERVED, never repaired away."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditIgnoresNonTaskEntries
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditIgnoresNonTaskEntries
+    package: tasksession
+    language: go
+    doc: "Non-task entries are ignored rather than miscounted as malformed tasks."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditOrderingIsDeterministic
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditOrderingIsDeterministic
+    package: tasksession
+    language: go
+    doc: "Ordering is deterministic so the report can be diffed across runs."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditReportsAnAbsentTasksDirectoryAsAbsent
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditReportsAnAbsentTasksDirectoryAsAbsent
+    package: tasksession
+    language: go
+    doc: "An absent tasks directory is answered, not treated as a fault — the same\ndistinction task_status now makes."
+  - id: golang/architecture/tasksession/audit_test.go:TestAuditReportsAnUnusableActivePointer
+    file: golang/architecture/tasksession/audit_test.go
+    symbol: TestAuditReportsAnUnusableActivePointer
+    package: tasksession
+    language: go
+    doc: "A present-but-unusable active pointer is reported, not silently dropped: \"no\nactive task\" and \"the pointer is broken\" are different facts."
   - id: golang/architecture/tasksession/briefing_feedback_test.go:TestPromotedKnowledgeDerivedFromProjection
     file: golang/architecture/tasksession/briefing_feedback_test.go
     symbol: TestPromotedKnowledgeDerivedFromProjection
@@ -17936,6 +18014,30 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLedgerOrdersAuthorityBeforeAdmission proves the typed authority resolution\nis ledgered before any admission decision and that preparation records no\nplaceholder admission_decided event — the decision is produced later, by\nadmit-change (regression #8, #9)."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
+    package: tasksession
+    language: go
+    doc: "An EMPTY tasks directory is the same answer as an absent one: nothing to\nreport on."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    package: tasksession
+    language: go
+    doc: "A repository that has never created a task session must be ANSWERED, not\nerrored. The reported harm was concrete: an architect asked for task status,\nreceived `open .../.sensei/tasks: no such file or directory`, and carried that\nerrno into its architectural claims as evidence of an unavailable governed\nsurface. The truthful reading is that there is nothing to report."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestStatusAgreesWithControlStatusOnAbsence
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestStatusAgreesWithControlStatusOnAbsence
+    package: tasksession
+    language: go
+    doc: "Status (the default, non-compact surface) must agree with ControlStatus rather\nthan one answering and the other erroring."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestUnreadableTasksDirectoryStaysAnError
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestUnreadableTasksDirectoryStaysAnError
+    package: tasksession
+    language: go
+    doc: "The distinction that must survive: a directory that EXISTS and cannot be read\nis a real error. We were unable to look, which is not the same as having\nlooked and found nothing. Collapsing the two would let a permissions fault\nmasquerade as \"this repo has no tasks\"."
   - id: golang/architecture/tasksession/rename_synthesis_test.go:TestChangePlanFromScopeNeverEmitsRename
     file: golang/architecture/tasksession/rename_synthesis_test.go
     symbol: TestChangePlanFromScopeNeverEmitsRename
@@ -22047,6 +22149,42 @@ test_symbols:
     symbol: TestImpactPlanningReportsUnknowns
     package: main
     language: go
+  - id: golang/server/change_risk_fields_test.go:TestEnumNumbersAscendWithSeverity
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestEnumNumbersAscendWithSeverity
+    package: main
+    language: go
+    doc: "The enum numbers must ascend with severity, matching the order of the\nvocabulary slices, so \"widest wins\" is a numeric comparison on the wire too."
+  - id: golang/server/change_risk_fields_test.go:TestEveryVocabularyValueHasAnEnum
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestEveryVocabularyValueHasAnEnum
+    package: main
+    language: go
+    doc: "The drift guard. blastRadiusOrder / approvalGateOrder are the classifier's\nvocabulary; the enum maps are the wire projection. Adding a severity level to\none without the other would silently downgrade it to UNSPECIFIED — a NEW,\nWIDER blast radius reaching consumers as \"unclassified\" is exactly the kind of\nquiet loss this issue is about."
+  - id: golang/server/change_risk_fields_test.go:TestPreflightPopulatesChangeRiskAndAgreesWithProse
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestPreflightPopulatesChangeRiskAndAgreesWithProse
+    package: main
+    language: go
+    doc: "End to end through the real RPC: the field must actually be POPULATED, and it\nmust agree with the prose line in the same response. A correct projection\nhelper that nothing calls would leave the issue unfixed while every unit test\nabove still passed."
+  - id: golang/server/change_risk_fields_test.go:TestReasonsAreCopiedNotAliased
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestReasonsAreCopiedNotAliased
+    package: main
+    language: go
+    doc: "Reasons must be copied, not aliased: a caller mutating the response must not\nreach back into the assessment the server still holds."
+  - id: golang/server/change_risk_fields_test.go:TestStructuredFieldsAgreeWithTheProseLine
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestStructuredFieldsAgreeWithTheProseLine
+    package: main
+    language: go
+    doc: "The structured fields and the prose line must describe the SAME verdict — that\nis the entire point of deriving both from one assessment."
+  - id: golang/server/change_risk_fields_test.go:TestUnknownValueIsUnclassifiedNotSafe
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestUnknownValueIsUnclassifiedNotSafe
+    package: main
+    language: go
+    doc: "An unknown value must read as UNSPECIFIED, never as the safest member. A\nconsumer can refuse \"unclassified\"; it would proceed on \"local/none\"."
   - id: golang/server/code_symbol_conventions_test.go:TestAppendCodeContext_SharedConventions
     file: golang/server/code_symbol_conventions_test.go
     symbol: TestAppendCodeContext_SharedConventions
@@ -23330,6 +23468,54 @@ test_symbols:
     package: main
     language: go
     doc: "A test file inside a high-risk directory is a helper, not production surface:\nno anchors there must NOT degrade (improvement over the old bare-prefix gate)."
+  - id: golang/server/propose_custody_test.go:TestMatchingDomainClaimIsHonoured
+    file: golang/server/propose_custody_test.go
+    symbol: TestMatchingDomainClaimIsHonoured
+    package: main
+    language: go
+    doc: "The matching case is accepted: this is a custody check, not a blanket ban on\nnaming a domain."
+  - id: golang/server/propose_custody_test.go:TestNoDomainClaimIsUnaffected
+    file: golang/server/propose_custody_test.go
+    symbol: TestNoDomainClaimIsUnaffected
+    package: main
+    language: go
+    doc: "Absent claim, unchanged behaviour: this must not become a requirement to name\na domain on every proposal."
+  - id: golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    file: golang/server/propose_custody_test.go
+    symbol: TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    package: main
+    language: go
+    doc: "THE defect: three signals said sensei-code while the file landed in services'\nqueue, and `accepted: true` came back."
+  - id: golang/server/propose_custody_test.go:TestRepoFieldIsCheckedLikeDomain
+    file: golang/server/propose_custody_test.go
+    symbol: TestRepoFieldIsCheckedLikeDomain
+    package: main
+    language: go
+    doc: "The `repo` field participates in the generated node id exactly as `domain`\ndoes (propose.domainHint falls back to it), so it must be checked too —\notherwise the same misfiling happens through the other field."
+  - id: golang/server/propose_custody_test.go:TestScopeVocabularyIsNotARepositoryClaim
+    file: golang/server/propose_custody_test.go
+    symbol: TestScopeVocabularyIsNotARepositoryClaim
+    package: main
+    language: go
+    doc: "Scope vocabulary is not a repository-identity claim. `domain: shared` must not\nbe mistaken for a repository domain and refused."
+  - id: golang/server/propose_custody_test.go:TestTheClaimCannotVerifyItself
+    file: golang/server/propose_custody_test.go
+    symbol: TestTheClaimCannotVerifyItself
+    package: main
+    language: go
+    doc: "The request must never be able to establish which repository a directory\nbelongs to — that would let the claim verify itself. Proven by construction:\nthe same claim gets opposite verdicts depending only on the WRITE PATH's\nconfigured identity, never on the request."
+  - id: golang/server/propose_custody_test.go:TestUnverifiableClaimIsRefused
+    file: golang/server/propose_custody_test.go
+    symbol: TestUnverifiableClaimIsRefused
+    package: main
+    language: go
+    doc: "A claim that cannot be verified is refused rather than filed on hope. An\nunverifiable claim and a verified-matching one are different facts."
+  - id: golang/server/propose_custody_test.go:TestWritePathOutsideACheckoutIsRefused
+    file: golang/server/propose_custody_test.go
+    symbol: TestWritePathOutsideACheckoutIsRefused
+    package: main
+    language: go
+    doc: "A write path outside any Sensei checkout has no owner to compare against."
   - id: golang/server/propose_test.go:TestPropose_AcceptsAndWritesCandidate
     file: golang/server/propose_test.go
     symbol: TestPropose_AcceptsAndWritesCandidate
