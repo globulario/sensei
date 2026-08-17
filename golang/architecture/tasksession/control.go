@@ -661,6 +661,18 @@ func resolveControlTask(repoRoot, taskDir string, active bool) (string, string, 
 func singleNonCompletedTask(repoRoot string) (string, error) {
 	entries, err := os.ReadDir(filepath.Join(repoRoot, ".sensei", "tasks"))
 	if err != nil {
+		// A repository that has never created a task session has no tasks
+		// directory. That is the ORDINARY state of such a repo, and the accurate
+		// answer is "no task sessions exist" — an empty set, not a failure to
+		// answer. Returning the raw ENOENT put a filesystem path into an
+		// architect's evidence where a typed absence belonged.
+		//
+		// A directory that exists and cannot be read is a different fact and
+		// stays an error: we were unable to look, which is not the same as
+		// having looked and found nothing.
+		if os.IsNotExist(err) {
+			return "", ErrNoTaskSession
+		}
 		return "", err
 	}
 	var candidates []string
@@ -682,7 +694,9 @@ func singleNonCompletedTask(repoRoot string) (string, error) {
 		return candidates[0], nil
 	}
 	if len(candidates) == 0 {
-		return "", errors.New("no non-completed task found")
+		// An empty tasks directory and an absent one are the same answer: this
+		// repository has no task session to report on.
+		return "", ErrNoTaskSession
 	}
 	return "", errors.New("multiple non-completed tasks; specify --task")
 }

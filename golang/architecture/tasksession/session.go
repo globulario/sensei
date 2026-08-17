@@ -32,6 +32,19 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// ErrNoTaskSession reports that this repository has no task session to describe:
+// either no tasks directory exists yet, or it holds no non-completed task.
+//
+// It is a typed ABSENCE, not a failure. Callers that answer questions for an
+// agent must translate it into an explicit "no active task" answer rather than
+// surfacing it as a tool error — a raw errno reaching an architect gets carried
+// into its claims as evidence that a governed surface was unavailable, when the
+// truthful reading is simply that there is nothing to report. The distinction the
+// rest of this contract keeps carefully is that absence of data is not failure to
+// answer; an existing directory that cannot be READ stays an error, because then
+// we genuinely could not look.
+var ErrNoTaskSession = errors.New("no task session exists in this repository")
+
 const (
 	SchemaVersion = "1"
 	GeneratedBy   = "sensei prepare-change"
@@ -516,6 +529,12 @@ func Status(opts StatusOptions) (StatusResult, error) {
 	if opts.Active || taskDir == "" {
 		p, err := LoadActivePointer(abs)
 		if err != nil {
+			// No active pointer at all is the same typed absence the control
+			// path reports, so both surfaces answer identically instead of one
+			// returning a filesystem error and the other a "no task" state.
+			if os.IsNotExist(err) {
+				return StatusResult{}, ErrNoTaskSession
+			}
 			return StatusResult{}, err
 		}
 		pointer = &p

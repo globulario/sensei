@@ -11540,6 +11540,54 @@ test_symbols:
     symbol: TestValidateReportRejectsGraphDigestSubstitution
     package: governedimpact
     language: go
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestAppendBootstrapsMissingFileAndMissingKey
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestAppendBootstrapsMissingFileAndMissingKey
+    package: governedmutation
+    language: go
+    doc: "A missing file and a file with no such key both still bootstrap a block list."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestAppendToExistingBlockListIsUnchanged
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestAppendToExistingBlockListIsUnchanged
+    package: governedmutation
+    language: go
+    doc: "Existing block lists and their comments keep working exactly as before."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    package: governedmutation
+    language: go
+    doc: "The defect: `sensei init` scaffolds `decisions: []`, and the first append\nproduced block items underneath that inline marker — invalid YAML that no\nlater read caught, so every decision recorded afterwards was silently absent\nfrom the graph."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestMarkerConversionPreservesTrailingComment
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestMarkerConversionPreservesTrailingComment
+    package: governedmutation
+    language: go
+    doc: "A trailing comment on the marker line is preserved rather than destroyed."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestNonEmptyFlowSequenceIsRefusedAndFileUntouched
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestNonEmptyFlowSequenceIsRefusedAndFileUntouched
+    package: governedmutation
+    language: go
+    doc: "A non-empty inline sequence cannot be appended to textually. Refuse rather\nthan corrupt, and leave the file exactly as it was."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestSecondAppendAfterMarkerConversionStillParses
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestSecondAppendAfterMarkerConversionStillParses
+    package: governedmutation
+    language: go
+    doc: "A second append must also work — proving the conversion left a real block\nlist rather than something that only happens to parse once."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestTheCorruptShapeIsGenuinelyInvalidYAML
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestTheCorruptShapeIsGenuinelyInvalidYAML
+    package: governedmutation
+    language: go
+    doc: "Guard against the fix passing for the wrong reason: confirm the corrupt shape\nreally is invalid YAML, so the tests above are asserting something real."
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestUnparseableResultIsRefusedBeforeTheRename
+    file: golang/architecture/governedmutation/apply_scaffold_append_test.go
+    symbol: TestUnparseableResultIsRefusedBeforeTheRename
+    package: governedmutation
+    language: go
+    doc: "The general guard: a composed document that would not parse is never written,\nwhatever the cause. This is what makes the class closed rather than the one\nknown shape patched — the original bug survived because the write was never\nverified, not because the transform was hard to spot."
   - id: golang/architecture/governedmutation/owner_test.go:TestApplyRoutesEveryGovernedKind
     file: golang/architecture/governedmutation/owner_test.go
     symbol: TestApplyRoutesEveryGovernedKind
@@ -17936,6 +17984,30 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLedgerOrdersAuthorityBeforeAdmission proves the typed authority resolution\nis ledgered before any admission decision and that preparation records no\nplaceholder admission_decided event — the decision is produced later, by\nadmit-change (regression #8, #9)."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
+    package: tasksession
+    language: go
+    doc: "An EMPTY tasks directory is the same answer as an absent one: nothing to\nreport on."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    package: tasksession
+    language: go
+    doc: "A repository that has never created a task session must be ANSWERED, not\nerrored. The reported harm was concrete: an architect asked for task status,\nreceived `open .../.sensei/tasks: no such file or directory`, and carried that\nerrno into its architectural claims as evidence of an unavailable governed\nsurface. The truthful reading is that there is nothing to report."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestStatusAgreesWithControlStatusOnAbsence
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestStatusAgreesWithControlStatusOnAbsence
+    package: tasksession
+    language: go
+    doc: "Status (the default, non-compact surface) must agree with ControlStatus rather\nthan one answering and the other erroring."
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestUnreadableTasksDirectoryStaysAnError
+    file: golang/architecture/tasksession/no_task_session_test.go
+    symbol: TestUnreadableTasksDirectoryStaysAnError
+    package: tasksession
+    language: go
+    doc: "The distinction that must survive: a directory that EXISTS and cannot be read\nis a real error. We were unable to look, which is not the same as having\nlooked and found nothing. Collapsing the two would let a permissions fault\nmasquerade as \"this repo has no tasks\"."
   - id: golang/architecture/tasksession/rename_synthesis_test.go:TestChangePlanFromScopeNeverEmitsRename
     file: golang/architecture/tasksession/rename_synthesis_test.go
     symbol: TestChangePlanFromScopeNeverEmitsRename

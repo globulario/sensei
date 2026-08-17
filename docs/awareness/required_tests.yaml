@@ -1536,3 +1536,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.installed_shared_knowledge_acquires_repository_authorship_fr
+  - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    title: First governed append against a scaffolded empty marker stays valid YAML
+    protects:
+      failure_modes:
+        - failure.governed_append_corrupted_a_scaffolded_yaml_marker_and_repor
+  - id: golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
+    title: A missing tasks directory is a typed absence, not an error
+    protects:
+      failure_modes:
+        - failure.ordinary_absence_returned_as_a_filesystem_error_entered_an_a

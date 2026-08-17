@@ -212,10 +212,46 @@ var topKeyLine = func(key string) *regexp.Regexp {
 	return regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(key) + `:`)
 }
 
+// emptyFlowSeqLine matches a top-level key whose value is an EMPTY flow
+// sequence -- `key: []`, the marker `sensei init` scaffolds. A trailing comment
+// is tolerated; anything else after the brackets is not this shape.
+//
+// The capture group deliberately includes the whitespace BEFORE the comment. A
+// comment needs preceding whitespace to be a comment: re-emitting `key:` and
+// `#...` with nothing between them yields `key:#...`, which YAML reads as a
+// mapping value and refuses. verifyAppendResult caught exactly that while this
+// was being written.
+var emptyFlowSeqLine = func(key string) *regexp.Regexp {
+	return regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(key) + `:[ \t]*\[[ \t]*\]([ \t]*#[^\n]*)?[ \t]*$`)
+}
+
+// nonEmptyFlowSeqLine matches a top-level key holding a NON-empty flow sequence,
+// e.g. `key: [a, b]`. Block items cannot be appended to that textually, and
+// rewriting it is not a safe mechanical transform, so it is refused.
+var nonEmptyFlowSeqLine = func(key string) *regexp.Regexp {
+	return regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(key) + `:[ \t]*\[[ \t]*[^\]\s]`)
+}
+
 // atomicAppend appends one rendered list item to path under topKey via a
 // temp-write + rename, so a concurrent reader never sees a half-written file.
 // The canonical governed files carry a single top-level list running to EOF, so
 // appending at end-of-file preserves existing entries and their comments.
+//
+// Two things here are load-bearing.
+//
+// FIRST, the scaffolded empty-list marker. `sensei init` writes `key: []`, and
+// topKeyLine's `^key:` matches that just as happily as a block marker -- so the
+// original code took the "key exists" branch and appended block items under an
+// inline empty sequence, producing `decisions: []` followed by `  - id: ...`.
+// That is not valid YAML. The marker must be converted to a block marker first.
+//
+// SECOND, and more important: this function now REFUSES TO WRITE A FILE THAT
+// DOES NOT PARSE. The reason the marker bug survived so long is not that the
+// transform was subtle; it is that nothing re-read the result, so a corrupting
+// write reported success. Every decision recorded after the first was silently
+// absent from the graph, and a corpus that is never rebuilt never reveals that
+// it stopped parsing. Verifying the composed text before the rename closes that
+// whole class -- not just the one shape known to have caused it.
 func atomicAppend(path, topKey, itemText string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -225,12 +261,23 @@ func atomicAppend(path, topKey, itemText string) error {
 	switch {
 	case rerr == nil:
 		text = string(data)
-		if !topKeyLine(topKey).MatchString(text) {
+		switch {
+		case nonEmptyFlowSeqLine(topKey).MatchString(text):
+			return fmt.Errorf("%s: %q holds an inline (flow) sequence; refusing to append a block item to it — convert it to a block list first", path, topKey)
+		case emptyFlowSeqLine(topKey).MatchString(text):
+			// Convert the scaffolded `key: []` marker into a block marker,
+			// preserving any trailing comment on that line.
+			text = emptyFlowSeqLine(topKey).ReplaceAllString(text, topKey+":${1}")
+			if !strings.HasSuffix(text, "\n") {
+				text += "\n"
+			}
+			text += itemText
+		case !topKeyLine(topKey).MatchString(text):
 			if len(text) > 0 && !strings.HasSuffix(text, "\n") {
 				text += "\n"
 			}
 			text += topKey + ":\n" + itemText
-		} else {
+		default:
 			if len(text) > 0 && !strings.HasSuffix(text, "\n") {
 				text += "\n"
 			}
@@ -241,7 +288,29 @@ func atomicAppend(path, topKey, itemText string) error {
 	default:
 		return rerr
 	}
+	if err := verifyAppendResult(path, topKey, text); err != nil {
+		return err
+	}
 	return writeFileAtomic(path, []byte(text))
+}
+
+// verifyAppendResult refuses a composed document that does not parse, or whose
+// top-level key is not a sequence. It runs BEFORE the rename, so a refusal
+// leaves the existing file untouched rather than replacing good content with
+// unparseable content.
+func verifyAppendResult(path, topKey, text string) error {
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal([]byte(text), &doc); err != nil {
+		return fmt.Errorf("%s: appending under %q would produce a document that does not parse (%v); refusing to write", path, topKey, err)
+	}
+	value, ok := doc[topKey]
+	if !ok {
+		return fmt.Errorf("%s: appending under %q produced a document without that key; refusing to write", path, topKey)
+	}
+	if _, ok := value.([]interface{}); !ok {
+		return fmt.Errorf("%s: appending under %q produced a %T rather than a list; refusing to write", path, topKey, value)
+	}
+	return nil
 }
 
 // writeFileAtomic writes data to a sibling temp file then renames it over path.
