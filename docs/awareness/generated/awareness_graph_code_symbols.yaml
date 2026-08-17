@@ -6895,48 +6895,6 @@ test_symbols:
     symbol: TestAdoptionReceiptRequiresRevisionAndGraphBinding
     package: adoption_test
     language: go
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestAPIRequestNeverOffersToolsAndStatesEveryBound
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestAPIRequestNeverOffersToolsAndStatesEveryBound
-    package: agentcommand
-    language: go
-    doc: "The transport's central guarantee: a tool call is not a reachable outcome,\nbecause no tool is ever offered. This is stronger than disallowing tools --\nthe vocabulary simply does not contain them."
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestConstructionRefusesUnboundedOrUnsafeConfigurations
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestConstructionRefusesUnboundedOrUnsafeConfigurations
-    package: agentcommand
-    language: go
-    doc: "Construction must refuse any capability set whose evidence would be\nuntrustworthy, rather than substituting a default."
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestGenerateKeepsTheR1PlanContract
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestGenerateKeepsTheR1PlanContract
-    package: agentcommand
-    language: go
-    doc: "Generate must keep the R1 semantics: same prompt encoding, same schema, same\ndigest-bound replace protocol. Only the channel to the model changes."
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestMalformedAndEmptyResponsesFailClosed
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestMalformedAndEmptyResponsesFailClosed
-    package: agentcommand
-    language: go
-    doc: "A malformed or empty answer must fail closed rather than become a candidate."
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestOutputCeilingIsATransportClassNotAContentJudgement
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestOutputCeilingIsATransportClassNotAContentJudgement
-    package: agentcommand
-    language: go
-    doc: "Reaching the output ceiling means the model was cut off mid-answer. It must\nnever be recorded as a content judgement, or a benchmark will report an\nexecution problem as a repair the model got wrong."
-  - id: golang/architecture/agentcommand/api_agent_test.go:TestProviderFailuresKeepDistinctClasses
-    file: golang/architecture/agentcommand/api_agent_test.go
-    symbol: TestProviderFailuresKeepDistinctClasses
-    package: agentcommand
-    language: go
-    doc: "Each provider failure means something different to an operator; collapsing\nthem is what made the original CLI diagnosis require a probe."
-  - id: golang/architecture/agentcommand/canary_api_test.go:TestCanaryRealAPIOnKnownBadPrompt
-    file: golang/architecture/agentcommand/canary_api_test.go
-    symbol: TestCanaryRealAPIOnKnownBadPrompt
-    package: agentcommand
-    language: go
-    doc: "Canary: the exact generation prompt that defeated every CLI configuration\n(tool-loop at 1 and 6 turns; thinking starvation with and without a system\nprompt override). Not a benchmark task -- an established adversarial input\nfor the broken transport."
   - id: golang/architecture/agentcommand/command_agent_test.go:TestAgentPromptContainsNoFilesystemAuthority
     file: golang/architecture/agentcommand/command_agent_test.go
     symbol: TestAgentPromptContainsNoFilesystemAuthority
