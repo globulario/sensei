@@ -5,6 +5,7 @@ package senseireport
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -83,7 +84,11 @@ func Build(repoRoot string) (Report, error) {
 func buildCurrentWork(repoRoot string, r *Report) error {
 	state, taskDir, err := tasksession.ControlStatus(repoRoot, "", true)
 	if err != nil {
-		if os.IsNotExist(err) {
+		// ErrNoTaskSession is the typed form of what this used to detect as a
+		// raw ENOENT. os.IsNotExist is kept alongside it because absence can
+		// still surface that way from paths this one does not own — dropping it
+		// would trade one silent miss for another.
+		if errors.Is(err, tasksession.ErrNoTaskSession) || os.IsNotExist(err) {
 			r.CurrentWork = CurrentWork{Active: false, Note: "no active task"}
 			return nil
 		}
