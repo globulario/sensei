@@ -1430,3 +1430,23 @@ failure_modes:
       - golang/graphgeneration/graphgeneration_test.go:TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
     evidence:
       - sensei build --repo services leaves sensei-code failing preflight with GRAPH_DOMAIN_CLOSURE_UNPROVEN; reversing the order fails services with a missing expected graph marker
+  - id: failure.installed_shared_knowledge_acquires_repository_authorship_fr
+    title: Installed shared knowledge acquires repository authorship from its containing checkout
+    protects:
+      files:
+        - golang/architecture/packcustody/custody.go
+    related_invariants:
+      - meta.storage_is_not_semantic_authority
+    required_tests:
+      - golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
+    evidence:
+      - Live topology measured 143 subjects carrying two aw:repo tags, 134 of them principle-pack identities. sensei init installs a mirror of the portable pack into every project; sensei build --repo then tagged that mirror to whichever repository's corpus directory contained it, minting two authoritative authoring domains for one stable identity.
+  - id: failure.generated_inventory_committed_with_untracked_working_tree_so
+    title: Generated inventory committed with untracked working-tree sources, and the local freshness gate cannot detect it
+    protects:
+      files:
+        - docs/awareness/generated/awareness_graph_go_import_graph.yaml
+    related_invariants:
+      - meta.end_to_end_check_is_the_only_truth
+    evidence:
+      - make import-graph-check passed locally while CI reported STALE on the same commit. import-scan scans the working tree, so four untracked WIP files under golang/architecture/agentcommand/ entered the committed import graph (1 file entry) and the code-symbol inventory (14 symbols). The local gate regenerates from the same contaminated tree it compares against, so it agrees with itself; only a clean checkout disagrees.

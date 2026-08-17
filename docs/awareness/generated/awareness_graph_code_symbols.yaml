@@ -11596,6 +11596,36 @@ test_symbols:
     symbol: TestValidationRejectsIncompleteNoWrite
     package: governedmutation_test
     language: go
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
+    file: golang/architecture/graphbuild/custody_authorship_test.go
+    symbol: TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
+    package: graphbuild
+    language: go
+    doc: "TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains is the mechanical\nregression for #178: publishing two Sensei-initialized repositories that share\none store must not produce a single identity with two authors.\n\nIt asserts over EVERY stable subject rather than over the pack's ids, because\na check that only looked at meta.* would pass while the same collision\nreappeared under any other shared-knowledge class installed the same way."
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestSharedProjectionExclusionIsReportedWithItsEvidence
+    file: golang/architecture/graphbuild/custody_authorship_test.go
+    symbol: TestSharedProjectionExclusionIsReportedWithItsEvidence
+    package: graphbuild
+    language: go
+    doc: "The exclusion must be reported, not silent. Knowledge vanishing quietly and\nknowledge deliberately left to its owner are indistinguishable to an operator\nunless the build says which happened."
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestTheCollisionIsRealWhenCustodyDerivationIsOff
+    file: golang/architecture/graphbuild/custody_authorship_test.go
+    symbol: TestTheCollisionIsRealWhenCustodyDerivationIsOff
+    package: graphbuild
+    language: go
+    doc: "Proof that the test above is testing the mechanism and not an accident of the\nfixture: with custody derivation switched off, the SAME two repositories DO\ncollide on the installed pack. Without this, a fixture that happened never to\nshare an identity would make the invariant look enforced when nothing enforced\nit — the failure mode where a green regression test is itself the bug."
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestUngovernedMirrorIsTypedAsARefusal
+    file: golang/architecture/graphbuild/custody_authorship_test.go
+    symbol: TestUngovernedMirrorIsTypedAsARefusal
+    package: graphbuild
+    language: go
+    doc: "An ungoverned legacy mirror is refused, and the refusal is typed distinctly\nfrom a governed exclusion so an operator can tell \"not mine\" from \"unknown\"."
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestWithoutCustodyRootBehaviourIsUnchanged
+    file: golang/architecture/graphbuild/custody_authorship_test.go
+    symbol: TestWithoutCustodyRootBehaviourIsUnchanged
+    package: graphbuild
+    language: go
+    doc: "Without a custody root the build behaves exactly as it always did. This keeps\nthe change from silently altering every existing caller — seed builds, foreign\nimports, and the whole-graph path all compile unchanged."
   - id: golang/architecture/graphbuild/determinism_test.go:TestContextCancellation
     file: golang/architecture/graphbuild/determinism_test.go
     symbol: TestContextCancellation
@@ -12886,6 +12916,79 @@ test_symbols:
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
     language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestAdoptionReceiptProvesSharedProjection
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestAdoptionReceiptProvesSharedProjection
+    package: packcustody
+    language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestCustodyIsIndependentOfPathAndFilename
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestCustodyIsIndependentOfPathAndFilename
+    package: packcustody
+    language: go
+    doc: "Custody must not be decided by where a document lives or what it is called.\nIdentical content gets an identical verdict from any path, and a document named\nlike the mirror gets no special treatment."
+  - id: golang/architecture/packcustody/custody_test.go:TestDivergedMirrorIsRefusedNotAttributed
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestDivergedMirrorIsRefusedNotAttributed
+    package: packcustody
+    language: go
+    doc: "A mirror that has DIVERGED from every pack it could be a projection of is\nrefused, not attributed. This is the disposition that keeps the mechanism from\nbeing quietly relaxed into \"close enough\": the honest answer to \"who wrote\nthis?\" is nobody-knows, and both guesses corrupt something."
+  - id: golang/architecture/packcustody/custody_test.go:TestForgedInstallRecordOnlyCostsTheForgerItsOwnSlice
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestForgedInstallRecordOnlyCostsTheForgerItsOwnSlice
+    package: packcustody
+    language: go
+    doc: "The converse direction of the same asymmetry: a forged INSTALL RECORD can only\nremove the forger's own content from its own slice. It cannot inject anything\ninto the shared slice, because no repository-scoped publication writes there.\nThat is what makes the writability of these records non-load-bearing."
+  - id: golang/architecture/packcustody/custody_test.go:TestInstallRecordProvesSharedProjection
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestInstallRecordProvesSharedProjection
+    package: packcustody
+    language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestManagedMirrorWithoutProvenanceIsRefused
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestManagedMirrorWithoutProvenanceIsRefused
+    package: packcustody
+    language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestMarkerQuotedInABodyIsNotASelfDeclaration
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestMarkerQuotedInABodyIsNotASelfDeclaration
+    package: packcustody
+    language: go
+    doc: "The marker is a header. A principle whose BODY quotes the marker sentence —\nthis repository's own knowledge does exactly that when documenting the\nmechanism — must not thereby declare itself generated and refuse itself."
+  - id: golang/architecture/packcustody/custody_test.go:TestProjectRootForFindsTheOwningCheckout
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestProjectRootForFindsTheOwningCheckout
+    package: packcustody
+    language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestProjectRootForReportsAbsenceRatherThanGuessing
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestProjectRootForReportsAbsenceRatherThanGuessing
+    package: packcustody
+    language: go
+    doc: "No state directory anywhere above means no governed provenance exists. That\nmust be reported as absent so callers refuse, never silently treated as\n\"custody is fine\"."
+  - id: golang/architecture/packcustody/custody_test.go:TestProjectionOfAnOlderPackKeepsSettledCustody
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestProjectionOfAnOlderPackKeepsSettledCustody
+    package: packcustody
+    language: go
+    doc: "A mirror projecting an OLDER pack still has settled custody. Tying custody to\nthe current canonical digest would flip every project's ownership the moment\nupstream published a principle — reintroducing the whole-graph coupling that\nmade one domain's publication invalidate another's."
+  - id: golang/architecture/packcustody/custody_test.go:TestRepoAuthoredCorpusIsNotExcluded
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestRepoAuthoredCorpusIsNotExcluded
+    package: packcustody
+    language: go
+  - id: golang/architecture/packcustody/custody_test.go:TestSelfDeclarationCannotForgeSharedCustody
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestSelfDeclarationCannotForgeSharedCustody
+    package: packcustody
+    language: go
+    doc: "THE forgery test. The generated marker is file content, so it is exactly as\nforgeable as the aw:repo tag this package refuses to trust as an oracle. It is\ntherefore honoured in one direction only: it can cost a document its\nrepository authorship, never win it shared custody."
+  - id: golang/architecture/packcustody/custody_test.go:TestSymlinkedInstallRecordIsNotTrusted
+    file: golang/architecture/packcustody/custody_test.go
+    symbol: TestSymlinkedInstallRecordIsNotTrusted
+    package: packcustody
+    language: go
+    doc: "A symlinked install record pointing into another checkout must not be read as\nthis project's own evidence — that would let one repository borrow another's\nbaseline to have its divergence declared verified."
   - id: golang/architecture/plane/assess_test.go:TestActiveContractJustifiesIntendedPlane
     file: golang/architecture/plane/assess_test.go
     symbol: TestActiveContractJustifiesIntendedPlane

@@ -584,10 +584,10 @@ func TestPackRefresh_ReceiptBindsOldAndNewDigests(t *testing.T) {
 	if r.Source.SenseiRevision == "" {
 		t.Error("receipt does not bind a sensei revision")
 	}
-	if got := r.derivedDisposition(resulting); got != "applied" {
+	if got := r.DerivedDisposition(resulting); got != "applied" {
 		t.Errorf("derived disposition %q, want applied", got)
 	}
-	if got := r.derivedDisposition(previous); got != "intent_open" {
+	if got := r.DerivedDisposition(previous); got != "intent_open" {
 		t.Errorf("derived disposition at previous digest %q, want intent_open", got)
 	}
 	if r.DispositionIs != "derived" {

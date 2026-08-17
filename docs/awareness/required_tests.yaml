@@ -1531,3 +1531,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.publishing_one_registered_domain_invalidates_every_other_dom
+  - id: golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
+    title: Every stable subject has at most one authoritative authoring domain
+    protects:
+      failure_modes:
+        - failure.installed_shared_knowledge_acquires_repository_authorship_fr
