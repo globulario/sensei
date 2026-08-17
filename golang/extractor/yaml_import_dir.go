@@ -49,6 +49,19 @@ const (
 	// StatusInvalid means the file could not be read or could not be parsed
 	// as YAML.
 	StatusInvalid FileStatus = "invalid"
+	// StatusSharedCustody means the file was proven to be a projection of a
+	// canonical shared knowledge pack, so this repository does not author it.
+	// The content is not missing — it has an owner, and that owner is not the
+	// repository being compiled.
+	StatusSharedCustody FileStatus = "shared_custody"
+	// StatusCustodyRefused means the file declares itself a managed projection
+	// but no governed record proves which pack it projects. Its author is
+	// unknown, so it is published by nobody and the reason is recorded.
+	//
+	// Both of these are distinct from StatusIgnored on purpose: "deliberately
+	// not authority" and "authority that is not OURS to publish" are different
+	// facts, and only the second one means an operator may need to act.
+	StatusCustodyRefused FileStatus = "custody_refused"
 )
 
 // ── Per-file and aggregate report types ──────────────────────────────────────
@@ -709,6 +722,17 @@ type ImportDirOptions struct {
 	// artifacts are imported only from explicit generated roots, while generic
 	// extractor callers keep the historical recursive behaviour.
 	SkipNestedGenerated bool
+
+	// CustodyRoot is the project root whose governed provenance records decide
+	// which documents in this corpus the repository is allowed to author. Set it
+	// for a repository-scoped publication; leave it empty and every document is
+	// treated as repository-authored, which is the historical behaviour.
+	//
+	// It exists because DefaultRepo above is a blunt instrument: it attributes
+	// EVERY untagged node in the corpus to one repository, including installed
+	// shared knowledge that merely happens to live in the checkout. See
+	// golang/architecture/packcustody.
+	CustodyRoot string
 }
 
 // ImportAwarenessDir walks docsDir recursively, classifies every .yaml file,
@@ -776,6 +800,15 @@ func ImportAwarenessDirWithOpts(docsDir string, w io.Writer, opts ImportDirOptio
 			return nil
 		}
 		if !strings.HasSuffix(path, ".yaml") {
+			return nil
+		}
+		// Custody BEFORE import. Deciding after the triples are already in the
+		// emitter would mean unpicking one file's contribution from a shared
+		// buffer by subject, and a subject this repository genuinely authors can
+		// legitimately share an id with pack knowledge. Not importing at all is
+		// the only clean exclusion.
+		if fr, excluded := custodyExclusion(opts.CustodyRoot, path); excluded {
+			report.Files = append(report.Files, fr)
 			return nil
 		}
 		fr := classifyAndImport(e, path)

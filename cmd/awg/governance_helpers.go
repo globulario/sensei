@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
+	"github.com/globulario/sensei/golang/architecture/packcustody"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -49,15 +50,29 @@ func defaultBuildInputDirsFromRoot(root string) []string {
 // discovery stays here; compilation/canonicalization/validation live in the
 // package.
 func compileAwarenessInputs(inputDirs []string, repo, domain, sourceSet string, strict bool) ([]byte, int, error) {
+	scopedRepo := strings.TrimSpace(repo)
 	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs))
 	for _, dir := range inputDirs {
-		sources = append(sources, graphbuild.SourceRoot{
+		root := graphbuild.SourceRoot{
 			FilesystemPath:   dir,
 			IdentityRoot:     dir,
-			RepositoryDomain: strings.TrimSpace(repo),
+			RepositoryDomain: scopedRepo,
 			DefaultDomain:    strings.TrimSpace(domain),
 			DefaultSourceSet: strings.TrimSpace(sourceSet),
-		})
+		}
+		// Custody derivation is enabled exactly when a repository domain is
+		// named, because that is exactly when the build attributes authorship:
+		// RepositoryDomain above tags every otherwise-unscoped node in this tree
+		// to one repository, which is correct for the repository's own knowledge
+		// and wrong for shared knowledge merely installed into its checkout.
+		// A build with no repository domain claims no authorship, so there is
+		// nothing to mis-attribute and nothing to derive.
+		if scopedRepo != "" {
+			if custodyRoot, ok := packcustody.ProjectRootFor(dir); ok {
+				root.CustodyRoot = custodyRoot
+			}
+		}
+		sources = append(sources, root)
 	}
 	policy := graphbuild.ValidationPolicy{}
 	if strict {
@@ -66,6 +81,17 @@ func compileAwarenessInputs(inputDirs []string, repo, domain, sourceSet string, 
 	comp, err := graphbuild.Compile(context.Background(), graphbuild.CompileRequest{Sources: sources, Policy: policy})
 	if err != nil {
 		return nil, 0, err
+	}
+	// Exclusions are announced, never silent. A document dropped from a
+	// publication without a word looks exactly like knowledge that quietly went
+	// missing, and telling those two apart after the fact is the expensive kind
+	// of debugging this mechanism exists to prevent.
+	if out := comp.ImportReport.FormatCustodyExclusions(); out != "" {
+		fmt.Fprint(os.Stderr, out)
+		if comp.ImportReport.HasCustodyRefusal() {
+			fmt.Fprintln(os.Stderr,
+				"  custody: at least one managed projection has no governed provenance and was published by nobody.")
+		}
 	}
 	return comp.CanonicalNTriples, comp.UniqueTripleCount, nil
 }

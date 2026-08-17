@@ -69,6 +69,12 @@ type SourceRoot struct {
 
 	// SkipNestedGenerated skips nested generated/ directories during the walk.
 	SkipNestedGenerated bool
+
+	// CustodyRoot is the project root whose governed provenance records decide
+	// which documents in this tree the repository may author. Empty disables the
+	// derivation, which is the historical behaviour: every document is treated
+	// as repository-authored.
+	CustodyRoot string
 }
 
 // ValidationPolicy selects which recognized-but-unimported dispositions make a
@@ -202,6 +208,7 @@ func Compile(ctx context.Context, req CompileRequest) (Compilation, error) {
 			DefaultSourceSet:    root.DefaultSourceSet,
 			StripPathPrefixes:   root.StripPathPrefixes,
 			SkipNestedGenerated: root.SkipNestedGenerated,
+			CustodyRoot:         root.CustodyRoot,
 		})
 		if err != nil {
 			return Compilation{}, fmt.Errorf("graphbuild: import %s: %w", root.FilesystemPath, err)
