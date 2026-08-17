@@ -360,8 +360,10 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 	}
 
 	wanted := map[string]bool{}
+	// A registered domain earns a proof only once it has actually published
+	// something. Registered-but-absent is absent, not unproven.
 	for _, d := range registered {
-		if strings.TrimSpace(d) != "" {
+		if strings.TrimSpace(d) != "" && HasContent(postUpdateNT, d) {
 			wanted[d] = true
 		}
 	}
@@ -512,12 +514,72 @@ func PartitionByDomain(nt []byte, domain string) (owned, rest []byte) {
 
 // SliceDigest is the identity of one domain's published content.
 //
+// Ownership here is INCLUSIVE — every subject carrying this domain's repo tag,
+// whether or not another domain also claims it — and it deliberately differs
+// from the sole-ownership predicate PartitionByDomain uses for replacement.
+//
+// Sole ownership is correct for deciding what a rebuild may delete. It is wrong
+// for identity, and using it here reintroduced the exact defect this package
+// exists to remove. A live two-domain run found 143 subjects co-owned by
+// services and sensei-code: publishing sensei-code added its repo tag to those
+// shared subjects, which pushed them out of services' solely-owned set, which
+// moved services' digest even though not one byte of services' content had
+// changed. A per-domain fact must not be a function of what other domains
+// publish.
+//
+// Foreign repo tags are therefore excluded from the digest: another domain
+// declaring co-ownership of a shared subject is that domain's content, not
+// this one's. Everything else about a shared subject IS included, because if a
+// co-owned subject's properties really do change, this domain's closure proof
+// was computed against different content and must not be carried forward.
+//
 // Order-independent and duplicate-independent, so it answers "is this domain's
-// slice the same content?" rather than "were these bytes produced the same
-// way?". That is the question a carried-forward proof depends on.
+// content the same?" rather than "were these bytes produced the same way?".
 func SliceDigest(nt []byte, domain string) string {
-	owned, _ := PartitionByDomain(nt, domain)
-	return DigestLines(owned)
+	repoPredicate := "<" + seedmeta.NamespaceIRI + "repo>"
+	tagged := taggedSubjects(nt, domain)
+
+	var b strings.Builder
+	for _, line := range strings.Split(string(nt), "\n") {
+		subject, predicate, tail, ok := splitTriple(line)
+		if !ok || !tagged[subject] {
+			continue
+		}
+		if predicate == repoPredicate {
+			// Keep only this domain's own attribution.
+			if value, ok := literalValue(tail); !ok || value != domain {
+				continue
+			}
+		}
+		b.WriteString(strings.TrimSpace(line))
+		b.WriteByte('\n')
+	}
+	return DigestLines([]byte(b.String()))
+}
+
+// taggedSubjects collects every subject attributed to a domain, shared or not.
+func taggedSubjects(nt []byte, domain string) map[string]bool {
+	repoPredicate := "<" + seedmeta.NamespaceIRI + "repo>"
+	out := map[string]bool{}
+	for _, line := range strings.Split(string(nt), "\n") {
+		subject, predicate, tail, ok := splitTriple(line)
+		if !ok || predicate != repoPredicate {
+			continue
+		}
+		if value, ok := literalValue(tail); ok && value == domain {
+			out[subject] = true
+		}
+	}
+	return out
+}
+
+// HasContent reports whether a domain owns anything in this graph.
+//
+// A registered domain that was never published is ABSENT, not unproven. Listing
+// it as unproven would fill the proof set with permanent refusals for domains
+// nobody published, and drown the refusals that mean something.
+func HasContent(nt []byte, domain string) bool {
+	return len(taggedSubjects(nt, domain)) > 0
 }
 
 // DigestLines canonicalizes and digests a set of N-Triples lines.

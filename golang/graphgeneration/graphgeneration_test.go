@@ -278,3 +278,47 @@ func TestStoreIDIsStableAcrossEquivalentEndpoints(t *testing.T) {
 		t.Fatal("different stores share one proof set")
 	}
 }
+
+// Regression for a defect the live two-domain run found in the first version of
+// this package.
+//
+// SliceDigest used the same sole-ownership predicate as PartitionByDomain. A
+// real store had 143 subjects co-owned by services and sensei-code; publishing
+// sensei-code added its repo tag to those shared subjects, pushed them out of
+// services' solely-owned set, and moved services' digest even though services'
+// content was untouched. The carry-forward was then refused for a reason that
+// was not true.
+//
+// A per-domain identity must not be a function of what other domains publish.
+func TestSliceDigestIsUnaffectedByAnotherDomainClaimingASharedSubject(t *testing.T) {
+	shared := fmt.Sprintf("<urn:sensei:shared> <%srepo> %q .\n<urn:sensei:shared> <urn:sensei:title> \"shared\" .\n",
+		seedmeta.NamespaceIRI, domainA)
+	beforeB := slice(domainA, "a.one") + shared
+	// domainB now co-owns the shared subject. Nothing about A's content changed.
+	afterB := beforeB + fmt.Sprintf("<urn:sensei:shared> <%srepo> %q .\n", seedmeta.NamespaceIRI, domainB) +
+		slice(domainB, "b.one")
+
+	if got, want := sliceDigest(afterB, domainA), sliceDigest(beforeB, domainA); got != want {
+		t.Fatalf("another domain co-owning a shared subject changed %s's slice digest (%s -> %s)", domainA, want, got)
+	}
+	// But a real change to shared content must still be caught.
+	mutated := afterB + "<urn:sensei:shared> <urn:sensei:extra> \"added\" .\n"
+	if sliceDigest(mutated, domainA) == sliceDigest(afterB, domainA) {
+		t.Fatal("a change to shared content did not move the slice digest")
+	}
+}
+
+func TestRegisteredButUnpublishedDomainIsAbsentNotUnproven(t *testing.T) {
+	graph := slice(domainA, "a.one")
+	g1 := marker("00000000000000000000000000000000000000000000000000000000000000dd", 2)
+	next := compose(&Set{Domains: map[string]DomainProof{}}, generationOf(g1, domainA), g1, nil,
+		domainA, provenReport(domainA, g1.Digest), graph,
+		[]string{domainA, domainB, "github.com/globulario/never-published"})
+
+	if _, ok := next.ProofFor("github.com/globulario/never-published"); ok {
+		t.Fatal("a registered domain that has published nothing was listed as unproven rather than absent")
+	}
+	if _, ok := next.ProofFor(domainB); ok {
+		t.Fatalf("%s has no content in this graph and should not appear in the proof set", domainB)
+	}
+}
