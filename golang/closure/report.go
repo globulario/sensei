@@ -126,10 +126,25 @@ func Evaluate(markerPath, liveMarkerDigest string) (SemanticState, string, *Repo
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return SemanticClosureUnproven, fmt.Sprintf("closure report unreadable (%s): %v", path, err), nil
 	}
+	state, detail := EvaluateReport(&r, liveMarkerDigest)
+	return state, detail, &r
+}
+
+// EvaluateReport is the verdict half of Evaluate, for callers that already hold
+// the report.
+//
+// Kept separate so that a report loaded from the store-scoped proof set and a
+// report read from beside a marker file are judged by exactly the same rules.
+// Two verdict implementations would eventually disagree about what "proven"
+// means, and the disagreement would surface as authority.
+func EvaluateReport(r *Report, liveMarkerDigest string) (SemanticState, string) {
+	if r == nil {
+		return SemanticClosureUnproven, "no closure report: absence of a verdict is not a passing verdict"
+	}
 	if liveMarkerDigest != "" && r.MarkerDigest != "" && !strings.EqualFold(r.MarkerDigest, liveMarkerDigest) {
 		return SemanticClosureUnproven, fmt.Sprintf(
 			"closure report describes publication %s but the live marker is %s — the report vouches for different content",
-			shortDigest(r.MarkerDigest), shortDigest(liveMarkerDigest)), &r
+			shortDigest(r.MarkerDigest), shortDigest(liveMarkerDigest))
 	}
 	if !r.ClosureProven {
 		detail := fmt.Sprintf(
@@ -138,11 +153,11 @@ func Evaluate(markerPath, liveMarkerDigest string) (SemanticState, string, *Repo
 		if len(r.FailureReasons) > 0 {
 			detail += " — " + strings.Join(r.FailureReasons, "; ")
 		}
-		return SemanticClosureFailed, detail, &r
+		return SemanticClosureFailed, detail
 	}
 	return SemanticClosureProven, fmt.Sprintf(
 		"domain %q: %d/%d identities projected, 0 missing, 0 foreign, 0 unattributed",
-		r.Domain, r.Projected, r.ExpectedToProject), &r
+		r.Domain, r.Projected, r.ExpectedToProject)
 }
 
 func shortDigest(d string) string {

@@ -577,8 +577,11 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	if txPath == "" && agRepo != "" {
 		txPath = seedmeta.RuntimeTransactionPath(markerPath)
 	}
+	var txBytes []byte
 	if txPath != "" {
-		if txBytes, err := buildTransactionTSV(agRepo, svcRepo, fullWithMarker); err != nil {
+		var err error
+		if txBytes, err = buildTransactionTSV(agRepo, svcRepo, fullWithMarker); err != nil {
+			txBytes = nil
 			if txRequested {
 				fmt.Fprintf(os.Stderr, "sensei build: publish runtime transaction: %v\n", err)
 				return 1
@@ -604,17 +607,32 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// launched from the wrong working directory produces a report whose
 	// certified_source_root names that wrong directory — and the server, which
 	// refuses authority without a proven report, declines to vouch for it.
-	if rep := buildClosureReport(domain, inputDirs, markerPath, marker, sliceNT); rep != nil {
-		if err := rep.Write(markerPath); err != nil {
+	builtReport := buildClosureReport(domain, inputDirs, markerPath, marker, sliceNT)
+	if builtReport != nil {
+		if err := builtReport.Write(markerPath); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei build: publish closure report: %v\n", err)
 			return 1
 		}
 		status := "PROVEN"
-		if !rep.ClosureProven {
+		if !builtReport.ClosureProven {
 			status = "FAILED — the store will NOT be treated as authoritative"
 		}
 		fmt.Fprintf(os.Stderr, "  closure: %s (%d/%d projected, %d missing, %d foreign provenance)\n",
-			status, rep.Projected, rep.ExpectedToProject, rep.Missing, rep.Unexpected)
+			status, builtReport.Projected, builtReport.ExpectedToProject, builtReport.Missing, builtReport.Unexpected)
+	}
+
+	// Publish the complete proof set for EVERY registered domain, as one
+	// generation.
+	//
+	// The files written above are this repository's own copies. They are kept
+	// for one release so an older server keeps working, but they are exactly the
+	// arrangement that caused this defect: a whole-graph marker stored per
+	// repository goes stale in every OTHER repository the moment any domain is
+	// published. The store-scoped set below is the authoritative one, and it
+	// carries a proof for each registered domain rather than only for the domain
+	// that happened to be built.
+	if code := publishProofSet(storeEndpoint, domain, marker, txBytes, builtReport, fullWithMarker); code != 0 {
+		return code
 	}
 
 	fmt.Fprintf(os.Stderr, "  domain %s: %d triple(s) published; store now %d triples (was %d)\n", domain, uniqueCount, marker.TripleCount, before)

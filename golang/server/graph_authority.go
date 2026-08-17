@@ -4,8 +4,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/globulario/sensei/golang/closure"
+	"github.com/globulario/sensei/golang/graphgeneration"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
 )
@@ -96,12 +99,83 @@ func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.Semantic
 	if s != nil && s.closureEval != nil {
 		return s.closureEval()
 	}
-	if s == nil || s.graphMarkerFile == "" {
+	if s == nil {
+		return closure.SemanticClosureUnproven, "no server context, so no closure report can be located"
+	}
+	// The store-scoped proof set is authoritative when it describes the
+	// publication that is actually live. It holds one proof per registered
+	// domain, so a rebuild of some OTHER domain no longer takes authority away
+	// from this one.
+	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest); ok {
+		return state, detail
+	}
+	// Fall back to this repository's own copy. Reached when the proof set has
+	// not been published yet, or when it describes a different generation than
+	// the store currently holds — a `--all` build, for instance, which still
+	// writes only the legacy per-repository files. Falling back is safe because
+	// the legacy evaluator is itself fail-closed.
+	if s.graphMarkerFile == "" {
 		return closure.SemanticClosureUnproven,
 			"no graph marker path configured, so no closure report can be located for this publication"
 	}
 	state, detail, _ := closure.Evaluate(s.graphMarkerFile, snap.verification.Live.Digest)
 	return state, detail
+}
+
+// storeScopedClosureState resolves this server's domain against the store's
+// published proof set.
+//
+// Returns ok=false — meaning "use the legacy path" — only when no proof set
+// applies to the live publication. Once a set does apply it is the answer,
+// including when the answer is that this domain is unproven: a set that covers
+// the live generation and does not vouch for this domain is a real negative,
+// not a reason to go looking for a more agreeable file elsewhere.
+func storeScopedClosureState(s *server, liveDigest string) (closure.SemanticState, string, bool) {
+	if s.oxigraphQueryURL == "" || strings.TrimSpace(liveDigest) == "" {
+		return "", "", false
+	}
+	dir, err := graphgeneration.Dir(s.oxigraphQueryURL)
+	if err != nil {
+		return "", "", false
+	}
+	set, err := graphgeneration.Load(dir)
+	if err != nil || set == nil {
+		return "", "", false
+	}
+	if !strings.EqualFold(set.Marker.Digest, liveDigest) {
+		return "", "", false
+	}
+
+	domain := strings.TrimSpace(s.homeDomain)
+	if domain == "" {
+		return closure.SemanticClosureUnproven,
+			"the store's proof set covers this publication but this server declares no domain, so none of its proofs can be claimed", true
+	}
+	proof, ok := set.ProofFor(domain)
+	if !ok {
+		return closure.SemanticClosureUnproven, fmt.Sprintf(
+			"the proof set for publication %s carries no proof for domain %q — rebuild that domain to publish one",
+			shortDigest(liveDigest), domain), true
+	}
+	if proof.Report == nil {
+		detail := proof.CarryForwardRefusal
+		if detail == "" {
+			detail = "no closure report was recorded for this domain in the live publication"
+		}
+		return closure.SemanticClosureUnproven, detail, true
+	}
+	// One evaluator, not two. The report is handed to the same verdict logic the
+	// legacy path uses so the two surfaces cannot drift into disagreeing about
+	// what a report means.
+	state, detail := closure.EvaluateReport(proof.Report, liveDigest)
+	return state, detail, true
+}
+
+func shortDigest(d string) string {
+	if len(d) <= 12 {
+		return d
+	}
+	return d[:12]
 }
 
 func graphAuthorityBuildProvenance() awarenesspb.BuildProvenanceState {
