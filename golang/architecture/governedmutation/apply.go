@@ -136,9 +136,19 @@ func plan(req Request) (planned, error) {
 
 	var relPath, topKey string
 	isCandidate := false
-	if p.Kind == "contract_unknown" {
-		relPath = filepath.Join(GovernedSourceDir, "candidates", "contract_unknown_"+slugify(id)+".yaml")
-		topKey = "contract_unknown"
+	// Candidate-queue kinds. These are reviewable proposals, NOT canonical
+	// records: they route to candidates/, never to a governed source file, and
+	// are not graph nodes until a human promotes them.
+	//
+	// applied_repair is here deliberately rather than beside forbidden_fix. Its
+	// counterpart is a rule the project ENFORCES; an applied repair is a claim
+	// that something worked, and "it worked" is exactly the kind of assertion
+	// that should be reviewed before it becomes advice the next agent follows.
+	// Promoting it into canonical knowledge without review would let one
+	// session's fix become a law nobody agreed to.
+	if p.Kind == "contract_unknown" || p.Kind == "applied_repair" {
+		relPath = filepath.Join(GovernedSourceDir, "candidates", p.Kind+"_"+slugify(id)+".yaml")
+		topKey = p.Kind
 		isCandidate = true
 	} else {
 		route, ok := governedKinds[p.Kind]

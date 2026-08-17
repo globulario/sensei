@@ -1,0 +1,14 @@
+applied_repair:
+  - id: feedback.verify_the_composed_document_parses_before_renaming_it_into
+    kind: applied_repair
+    title: Verify the composed document parses before renaming it into place
+    description: 'Converted the scaffolded ''key: []'' flow marker to a block marker before appending, refused a non-empty flow sequence outright, and — the part that closes the class rather than the instance — added verifyAppendResult, which parses the composed document and confirms the top-level key is a list BEFORE the rename, so a refusal leaves the existing file untouched.'
+    related_failure_modes:
+      - failure.governed_append_corrupted_a_scaffolded_yaml_marker_and_repor
+    required_tests:
+      - golang/architecture/governedmutation/apply_scaffold_append_test.go:TestFirstAppendAgainstScaffoldedEmptyMarkerStaysValid
+    source_files:
+      - golang/architecture/governedmutation/apply.go
+    survival_evidence:
+      - 'The guard caught a bug in its own change: converting ''decisions: []  # comment'' initially dropped the space and produced ''decisions:#comment'', which YAML rejects. The specific marker fix alone would have shipped that.'
+      - 8 append tests pass including TestTheCorruptShapeIsGenuinelyInvalidYAML, which asserts the corrupt shape really is invalid so the others prove something.

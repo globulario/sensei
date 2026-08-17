@@ -6180,7 +6180,7 @@ func (x *EditCheckResponse) GetGeneratedInMs() int64 {
 // the shared propose.Request so validation is identical across surfaces.
 type ProposeRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Kind              string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"` // failure_mode | invariant | required_test | forbidden_fix | contract_unknown
+	Kind              string                 `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"` // failure_mode | invariant | required_test | forbidden_fix | applied_repair | decision | contract_unknown
 	Id                string                 `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`     // optional; derived from kind+title when empty
 	Title             string                 `protobuf:"bytes,3,opt,name=title,proto3" json:"title,omitempty"`
 	Description       string                 `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
@@ -6196,8 +6196,13 @@ type ProposeRequest struct {
 	Contract          string                 `protobuf:"bytes,14,opt,name=contract,proto3" json:"contract,omitempty"`                                         // the contract violated or clarified
 	ProposedContract  string                 `protobuf:"bytes,15,opt,name=proposed_contract,json=proposedContract,proto3" json:"proposed_contract,omitempty"` // contract_unknown only
 	RevisionRequest   string                 `protobuf:"bytes,16,opt,name=revision_request,json=revisionRequest,proto3" json:"revision_request,omitempty"`    // contract_unknown only
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// survival_evidence is applied_repair only: what shows the repair HELD, as
+	// opposed to `evidence`, which only shows it was applied. Reviewer acceptance
+	// is not admission — the two claims stay separate fields so the distinction
+	// is enforceable at validation rather than advisory.
+	SurvivalEvidence []string `protobuf:"bytes,17,rep,name=survival_evidence,json=survivalEvidence,proto3" json:"survival_evidence,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProposeRequest) Reset() {
@@ -6340,6 +6345,13 @@ func (x *ProposeRequest) GetRevisionRequest() string {
 		return x.RevisionRequest
 	}
 	return ""
+}
+
+func (x *ProposeRequest) GetSurvivalEvidence() []string {
+	if x != nil {
+		return x.SurvivalEvidence
+	}
+	return nil
 }
 
 type ProposeResponse struct {
@@ -10237,7 +10249,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x11EditCheckResponse\x12A\n" +
 	"\bwarnings\x18\x01 \x03(\v2%.globular.awareness_graph.EditWarningR\bwarnings\x12'\n" +
 	"\x0frules_evaluated\x18\x02 \x01(\x05R\x0erulesEvaluated\x12&\n" +
-	"\x0fgenerated_in_ms\x18\x03 \x01(\x03R\rgeneratedInMs\"\x91\x04\n" +
+	"\x0fgenerated_in_ms\x18\x03 \x01(\x03R\rgeneratedInMs\"\xbe\x04\n" +
 	"\x0eProposeRequest\x12\x12\n" +
 	"\x04kind\x18\x01 \x01(\tR\x04kind\x12\x0e\n" +
 	"\x02id\x18\x02 \x01(\tR\x02id\x12\x14\n" +
@@ -10255,7 +10267,8 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x06domain\x18\r \x01(\tR\x06domain\x12\x1a\n" +
 	"\bcontract\x18\x0e \x01(\tR\bcontract\x12+\n" +
 	"\x11proposed_contract\x18\x0f \x01(\tR\x10proposedContract\x12)\n" +
-	"\x10revision_request\x18\x10 \x01(\tR\x0frevisionRequest\"\xfd\x01\n" +
+	"\x10revision_request\x18\x10 \x01(\tR\x0frevisionRequest\x12+\n" +
+	"\x11survival_evidence\x18\x11 \x03(\tR\x10survivalEvidence\"\xfd\x01\n" +
 	"\x0fProposeResponse\x12?\n" +
 	"\x06status\x18\x01 \x01(\x0e2'.globular.awareness_graph.ProposeStatusR\x06status\x12%\n" +
 	"\x0ecandidate_path\x18\x02 \x01(\tR\rcandidatePath\x12\x19\n" +

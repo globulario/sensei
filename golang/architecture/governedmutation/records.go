@@ -80,6 +80,25 @@ type contractUnknownRecord struct {
 	Domain           string   `yaml:"domain,omitempty"`
 }
 
+// appliedRepairRecord is the positive counterpart to forbiddenFixRecord: what
+// actually worked, bound to the failure it repaired and the test that proves it.
+// SurvivalEvidence is separate from Evidence on purpose — "we applied this" and
+// "it held" are different claims, and only the second makes the record advice
+// rather than a changelog entry.
+type appliedRepairRecord struct {
+	ID               string   `yaml:"id"`
+	Kind             string   `yaml:"kind"`
+	Title            string   `yaml:"title"`
+	Description      string   `yaml:"description"`
+	RelatedFailures  []string `yaml:"related_failure_modes"`
+	RequiredTests    []string `yaml:"required_tests"`
+	SourceFiles      []string `yaml:"source_files"`
+	SurvivalEvidence []string `yaml:"survival_evidence"`
+	Evidence         []string `yaml:"evidence,omitempty"`
+	Domain           string   `yaml:"domain,omitempty"`
+	Repo             string   `yaml:"repo,omitempty"`
+}
+
 type decisionRecord struct {
 	ID                 string   `yaml:"id"`
 	Title              string   `yaml:"title"`
@@ -138,6 +157,13 @@ func buildCanonicalItem(p propose.Request, id string) interface{} {
 			DefinesContracts: p.DefinesContracts, AffectsComponents: p.AffectsComponents,
 			Mitigates: p.RelatedFailures, Rejects: p.ForbiddenFixes,
 			SupportedEvidence: p.SupportedEvidence, SourceFiles: p.SourceFiles,
+		}
+	case "applied_repair":
+		return appliedRepairRecord{
+			ID: id, Kind: "applied_repair", Title: p.Title, Description: p.Description,
+			RelatedFailures: p.RelatedFailures, RequiredTests: p.RequiredTests,
+			SourceFiles: p.SourceFiles, SurvivalEvidence: p.SurvivalEvidence,
+			Evidence: p.Evidence, Domain: p.Domain, Repo: p.Repo,
 		}
 	case "contract_unknown":
 		return contractUnknownRecord{

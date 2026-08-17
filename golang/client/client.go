@@ -181,7 +181,8 @@ func (c *Client) EditCheck(ctx context.Context, file, proposedContent, domain st
 }
 
 // Propose submits a typed feedback entry (failure_mode, invariant,
-// required_test, forbidden_fix, or contract_unknown) to the awareness review
+// required_test, forbidden_fix, applied_repair, decision, or contract_unknown)
+// to the awareness review
 // queue — the agent write path. The entry is validated with contract-first
 // rules; when valid it is written as a candidate (not a live graph node) for
 // human/CI promotion. Requires the server started with -awareness-dir

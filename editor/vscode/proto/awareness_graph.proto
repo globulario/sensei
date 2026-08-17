@@ -1234,7 +1234,7 @@ message EditCheckResponse {
 // ProposeRequest mirrors the CLI's typed feedback payload. Field names match
 // the shared propose.Request so validation is identical across surfaces.
 message ProposeRequest {
-  string kind = 1;   // failure_mode | invariant | required_test | forbidden_fix | contract_unknown
+  string kind = 1;   // failure_mode | invariant | required_test | forbidden_fix | applied_repair | decision | contract_unknown
   string id = 2;     // optional; derived from kind+title when empty
   string title = 3;
   string description = 4;
@@ -1250,6 +1250,11 @@ message ProposeRequest {
   string contract = 14;            // the contract violated or clarified
   string proposed_contract = 15;   // contract_unknown only
   string revision_request = 16;    // contract_unknown only
+  // survival_evidence is applied_repair only: what shows the repair HELD, as
+  // opposed to `evidence`, which only shows it was applied. Reviewer acceptance
+  // is not admission — the two claims stay separate fields so the distinction
+  // is enforceable at validation rather than advisory.
+  repeated string survival_evidence = 17;
 }
 
 enum ProposeStatus {

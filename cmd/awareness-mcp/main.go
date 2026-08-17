@@ -233,11 +233,11 @@ func (b *bridge) tools() []tool {
 		},
 		{
 			Name:        "awareness_propose",
-			Description: "Propose a typed awareness entry (failure_mode | invariant | required_test | forbidden_fix | contract_unknown) learned while working. SAFE write: validated with the same contract-first rules as `sensei propose` and written to the review queue (candidates/), NOT the live graph — a human/CI step promotes it. Requires the server to be started with propose enabled; otherwise returns unavailable.",
+			Description: "Propose a typed awareness entry (failure_mode | invariant | required_test | forbidden_fix | applied_repair | contract_unknown) learned while working. `applied_repair` is the positive counterpart to `forbidden_fix` — a repair that worked; it additionally requires related_failures, required_tests, source_files, description and survival_evidence (what shows it HELD, not merely that it was applied). SAFE write: validated with the same contract-first rules as `sensei propose` and written to the review queue (candidates/), NOT the live graph — a human/CI step promotes it. Requires the server to be started with propose enabled; otherwise returns unavailable.",
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"kind":               map[string]interface{}{"type": "string", "enum": []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "contract_unknown"}},
+					"kind":               map[string]interface{}{"type": "string", "enum": []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "applied_repair", "contract_unknown"}},
 					"title":              map[string]interface{}{"type": "string"},
 					"id":                 map[string]interface{}{"type": "string", "description": "optional explicit id; required for required_test as path/to/file_test.go:TestName"},
 					"description":        map[string]interface{}{"type": "string"},
@@ -248,6 +248,7 @@ func (b *bridge) tools() []tool {
 					"required_tests":     map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 					"forbidden_fixes":    map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
 					"evidence":           map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+					"survival_evidence":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}, "description": "applied_repair only: what shows the repair HELD across subsequent runs — distinct from evidence, which only shows it was applied"},
 					"contract":           map[string]interface{}{"type": "string"},
 					"proposed_contract":  map[string]interface{}{"type": "string"},
 					"revision_request":   map[string]interface{}{"type": "string"},
@@ -916,7 +917,7 @@ func toolRPCError(surface string, err error) error {
 func (b *bridge) callPropose(ctx context.Context, args map[string]interface{}) (*toolResult, error) {
 	kind := argString(args, "kind")
 	if kind == "" {
-		return nil, fmt.Errorf("kind is required (failure_mode | invariant | required_test | forbidden_fix | contract_unknown)")
+		return nil, fmt.Errorf("kind is required (failure_mode | invariant | required_test | forbidden_fix | applied_repair | contract_unknown)")
 	}
 	req := &awarenesspb.ProposeRequest{
 		Kind:              kind,
@@ -930,6 +931,7 @@ func (b *bridge) callPropose(ctx context.Context, args map[string]interface{}) (
 		RequiredTests:     argStrings(args, "required_tests"),
 		ForbiddenFixes:    argStrings(args, "forbidden_fixes"),
 		Evidence:          argStrings(args, "evidence"),
+		SurvivalEvidence:  argStrings(args, "survival_evidence"),
 		Repo:              argString(args, "repo"),
 		Domain:            argString(args, "domain"),
 		Contract:          argString(args, "contract"),

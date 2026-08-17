@@ -81,7 +81,7 @@ func runPropose(args []string) int {
 	fs.SetOutput(os.Stderr)
 
 	jsonPath := fs.String("json", "", "read the ProposeRequest from this JSON file (use '-' for stdin)")
-	kind := fs.String("kind", "", "entry kind: failure_mode | invariant | required_test | forbidden_fix | decision | contract_unknown")
+	kind := fs.String("kind", "", "entry kind: failure_mode | invariant | required_test | forbidden_fix | applied_repair | decision | contract_unknown")
 	id := fs.String("id", "", "stable id (derived from kind+title when omitted; required for required_test)")
 	title := fs.String("title", "", "short title")
 	description := fs.String("description", "", "what happened / what the entry documents")
@@ -99,6 +99,7 @@ func runPropose(args []string) int {
 	var sourceFiles, relatedInvariants, relatedFailures multiString
 	var requiredTests, forbiddenFixes, evidence multiString
 	var definesBoundaries, definesContracts, affectsComponents, supportedEvidence multiString
+	var survivalEvidence multiString
 	fs.Var(&sourceFiles, "source-file", "source file the entry anchors to (repeatable)")
 	fs.Var(&relatedInvariants, "related-invariant", "related invariant id (repeatable)")
 	fs.Var(&relatedFailures, "related-failure", "related failure_mode id (repeatable)")
@@ -109,6 +110,7 @@ func runPropose(args []string) int {
 	fs.Var(&definesContracts, "defines-contract", "decision: contract id defined by the decision (repeatable)")
 	fs.Var(&affectsComponents, "affects-component", "decision: component id affected by the decision (repeatable)")
 	fs.Var(&supportedEvidence, "supported-evidence", "decision: evidence id supporting the decision (repeatable)")
+	fs.Var(&survivalEvidence, "survival-evidence", "applied_repair: what shows the repair HELD, not merely that it was applied (repeatable)")
 
 	dryRun := fs.Bool("dry-run", false, "validate and render only; do not modify files")
 	noRebuild := fs.Bool("no-rebuild", false, "append YAML but skip rebuild/reload")
@@ -131,6 +133,9 @@ Kinds:
   invariant         a rule that must hold (anchors source files; names tests)
   required_test     a test that proves behavior (protects invariants/failures)
   forbidden_fix     a repair that must never be applied again
+  applied_repair    a repair that worked and HELD (queued for review; requires
+                    --related-failure, --required-test, --source-file,
+                    --description and --survival-evidence)
   decision          an architectural decision record on the canonical decisions surface
   contract_unknown  queued feedback whose contract is not yet known
                     (requires --proposed-contract or --revision-request)
@@ -185,6 +190,7 @@ Flags:
 		"defines-contract":    func() { req.DefinesContracts = append(req.DefinesContracts, definesContracts...) },
 		"affects-component":   func() { req.AffectsComponents = append(req.AffectsComponents, affectsComponents...) },
 		"supported-evidence":  func() { req.SupportedEvidence = append(req.SupportedEvidence, supportedEvidence...) },
+		"survival-evidence":   func() { req.SurvivalEvidence = append(req.SurvivalEvidence, survivalEvidence...) },
 	})
 
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)

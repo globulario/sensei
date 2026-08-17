@@ -47,6 +47,10 @@ type Request struct {
 	AffectsComponents []string `json:"affects_components,omitempty" yaml:"affects_components,omitempty"`
 	SupportedEvidence []string `json:"supported_by_evidence,omitempty" yaml:"supported_by_evidence,omitempty"`
 
+	// SurvivalEvidence is what shows the repair HELD — the thing that separates a
+	// repair from an anecdote about one. Required for applied_repair.
+	SurvivalEvidence []string `json:"survival_evidence,omitempty" yaml:"survival_evidence,omitempty"`
+
 	Repo   string `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Domain string `json:"domain,omitempty" yaml:"domain,omitempty"`
 
@@ -57,12 +61,12 @@ type Request struct {
 
 // Kinds returns the accepted entry kinds.
 func Kinds() []string {
-	return []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "decision", "contract_unknown"}
+	return []string{"failure_mode", "invariant", "required_test", "forbidden_fix", "applied_repair", "decision", "contract_unknown"}
 }
 
 var validKinds = map[string]bool{
 	"failure_mode": true, "invariant": true, "required_test": true,
-	"forbidden_fix": true, "decision": true, "contract_unknown": true,
+	"forbidden_fix": true, "applied_repair": true, "decision": true, "contract_unknown": true,
 }
 
 var validSeverities = map[string]bool{"critical": true, "high": true, "warning": true}
@@ -94,6 +98,7 @@ func Normalize(r *Request) {
 	r.DefinesContracts = cleanList(r.DefinesContracts)
 	r.AffectsComponents = cleanList(r.AffectsComponents)
 	r.SupportedEvidence = cleanList(r.SupportedEvidence)
+	r.SurvivalEvidence = cleanList(r.SurvivalEvidence)
 }
 
 // Validate enforces the contract-first rules. An empty slice means the request
@@ -103,7 +108,7 @@ func Validate(r Request) []string {
 
 	switch {
 	case r.Kind == "":
-		return []string{"kind is required (failure_mode | invariant | required_test | forbidden_fix | decision | contract_unknown)"}
+		return []string{"kind is required (failure_mode | invariant | required_test | forbidden_fix | applied_repair | decision | contract_unknown)"}
 	case !validKinds[r.Kind]:
 		return []string{fmt.Sprintf("unknown kind %q", r.Kind)}
 	}
@@ -164,6 +169,32 @@ func Validate(r Request) []string {
 		if r.Description == "" {
 			errs = append(errs, "forbidden_fix: description must state why the fix is forbidden")
 		}
+	case "applied_repair":
+		// The positive counterpart to forbidden_fix. Every scar previously taught
+		// the project one negative lesson and discarded the positive one, so the
+		// next agent facing the same failure_mode re-derived the repair from
+		// scratch — and derived it slightly differently, which is how two
+		// correct-looking fixes for one problem end up in the same codebase.
+		//
+		// Each requirement below exists to keep this from becoming a changelog:
+		// a repair with no failure is an anecdote, a repair with no test is
+		// unproven, and a repair with no files is not reproducible, because
+		// repairs are context-bound and the context IS the files.
+		if len(r.RelatedFailures) == 0 {
+			errs = append(errs, "applied_repair: name the failure it repaired via related_failure (a repair with no failure is an anecdote)")
+		}
+		if len(r.RequiredTests) == 0 {
+			errs = append(errs, "applied_repair: cite the required_test that proves it (a repair with no test is unproven)")
+		}
+		if len(r.SourceFiles) == 0 {
+			errs = append(errs, "applied_repair: anchor it with at least one source_file (repairs are context-bound; the context is the files)")
+		}
+		if r.Description == "" {
+			errs = append(errs, "applied_repair: description must state what the repair actually did")
+		}
+		if len(r.SurvivalEvidence) == 0 {
+			errs = append(errs, "applied_repair: provide survival_evidence (what shows the repair HELD, not merely that it was applied)")
+		}
 	case "decision":
 		if r.Severity != "" {
 			errs = append(errs, "decision: severity is not supported")
@@ -223,6 +254,7 @@ type candidateRequest struct {
 	DefinesContracts   []string `yaml:"defines_contracts,omitempty"`
 	AffectsComponents  []string `yaml:"affects_components,omitempty"`
 	SupportedEvidence  []string `yaml:"supported_by_evidence,omitempty"`
+	SurvivalEvidence   []string `yaml:"survival_evidence,omitempty"`
 	Repo               string   `yaml:"repo,omitempty"`
 	Domain             string   `yaml:"domain,omitempty"`
 	Contract           string   `yaml:"contract,omitempty"`
@@ -280,6 +312,7 @@ func candidateRequestFromRequest(r Request) candidateRequest {
 		DefinesContracts:   r.DefinesContracts,
 		AffectsComponents:  r.AffectsComponents,
 		SupportedEvidence:  r.SupportedEvidence,
+		SurvivalEvidence:   r.SurvivalEvidence,
 		Repo:               r.Repo,
 		Domain:             r.Domain,
 		Contract:           r.Contract,
