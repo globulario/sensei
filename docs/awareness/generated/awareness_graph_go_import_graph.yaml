@@ -182,6 +182,7 @@ components:
       - cmd/awg/governance_helpers.go
       - cmd/awg/governance_publish_helpers.go
       - cmd/awg/graph_marker.go
+      - cmd/awg/graph_proofset.go
       - cmd/awg/graph_publication_lock_unix.go
       - cmd/awg/graph_publication_lock_windows.go
       - cmd/awg/helpers.go
@@ -262,6 +263,7 @@ components:
       - component.golang.extractor.protoscan
       - component.golang.extractor.webcompscan
       - component.golang.governancepack
+      - component.golang.graphgeneration
       - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
@@ -2434,6 +2436,20 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.graphgeneration
+    name: graphgeneration
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/graphgeneration/graphgeneration.go
+    depends_on:
+      - component.golang.closure
+      - component.golang.seedmeta
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.netcfg
     name: netcfg
     kind: module
@@ -2607,6 +2623,7 @@ components:
       - component.golang.closure
       - component.golang.coverage
       - component.golang.governancepack
+      - component.golang.graphgeneration
       - component.golang.netcfg
       - component.golang.propose
       - component.golang.rdf
