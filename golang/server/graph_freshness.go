@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/globulario/sensei/golang/graphgeneration"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
@@ -64,6 +65,17 @@ func snapshotGraphFreshness(ctx context.Context, s *server) graphFreshnessSnapsh
 }
 
 func expectedGraphMarker(s *server) (seedmeta.Marker, string, bool) {
+	// The marker is a property of the STORE, not of this repository.
+	//
+	// Reading it from a per-repository file is one half of the defect in #176:
+	// publishing any domain recomputes the whole-graph marker and rewrites only
+	// the built repository's copy, so every other server keeps comparing the
+	// live store against a marker that no longer describes it and reports
+	// "missing expected graph marker". Prefer the store's own published
+	// generation, which every server reading that store resolves identically.
+	if marker, ok := storeScopedExpectedMarker(s); ok {
+		return marker, "", true
+	}
 	if s != nil && strings.TrimSpace(s.graphMarkerFile) != "" {
 		marker, err := seedmeta.ReadMarkerFile(s.graphMarkerFile)
 		if err != nil {
@@ -169,4 +181,25 @@ func graphFreshnessSummary(ver seedmeta.Verification) string {
 	default:
 		return ver.Detail
 	}
+}
+
+// storeScopedExpectedMarker resolves the marker from the store's published
+// generation rather than from this repository's copy of it.
+//
+// Returns false when no proof set has been published for this store yet, so a
+// deployment that has not rebuilt since the change keeps working through the
+// per-repository path.
+func storeScopedExpectedMarker(s *server) (seedmeta.Marker, bool) {
+	if s == nil || strings.TrimSpace(s.oxigraphQueryURL) == "" {
+		return seedmeta.Marker{}, false
+	}
+	dir, err := graphgeneration.Dir(s.oxigraphQueryURL)
+	if err != nil {
+		return seedmeta.Marker{}, false
+	}
+	set, err := graphgeneration.Load(dir)
+	if err != nil || set == nil || set.Marker.Digest == "" || set.Marker.IRI == "" {
+		return seedmeta.Marker{}, false
+	}
+	return set.Marker, true
 }

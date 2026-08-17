@@ -1526,3 +1526,8 @@ required_tests:
     protects:
       invariants:
         - graph.publication_requires_pre_mutation_domain_source_admission
+  - id: golang/graphgeneration/graphgeneration_test.go:TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
+    title: Publishing one registered domain leaves every other domain's proof valid
+    protects:
+      failure_modes:
+        - failure.publishing_one_registered_domain_invalidates_every_other_dom

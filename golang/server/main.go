@@ -134,6 +134,9 @@ type server struct {
 	metaPrinciples    []principleMatch
 	surfaceUsage      surfaceUsageCounters
 	graphMarkerFile   string
+	// oxigraphQueryURL identifies the store this server reads, which is also
+	// the key for the store-scoped graph proof set.
+	oxigraphQueryURL string
 
 	// closureEval overrides the semantic-closure verdict. Nil means "read the
 	// closure report beside graphMarkerFile", which is the production path and
@@ -411,6 +414,7 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 
 	grpcServer := grpc.NewServer(grpcOpts...)
 	srv := newServer(rdfStore)
+	srv.oxigraphQueryURL = cfg.OxigraphQueryURL
 	if homeDomain != "" {
 		srv.homeDomain = homeDomain
 	}

@@ -6895,6 +6895,48 @@ test_symbols:
     symbol: TestAdoptionReceiptRequiresRevisionAndGraphBinding
     package: adoption_test
     language: go
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestAPIRequestNeverOffersToolsAndStatesEveryBound
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestAPIRequestNeverOffersToolsAndStatesEveryBound
+    package: agentcommand
+    language: go
+    doc: "The transport's central guarantee: a tool call is not a reachable outcome,\nbecause no tool is ever offered. This is stronger than disallowing tools --\nthe vocabulary simply does not contain them."
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestConstructionRefusesUnboundedOrUnsafeConfigurations
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestConstructionRefusesUnboundedOrUnsafeConfigurations
+    package: agentcommand
+    language: go
+    doc: "Construction must refuse any capability set whose evidence would be\nuntrustworthy, rather than substituting a default."
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestGenerateKeepsTheR1PlanContract
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestGenerateKeepsTheR1PlanContract
+    package: agentcommand
+    language: go
+    doc: "Generate must keep the R1 semantics: same prompt encoding, same schema, same\ndigest-bound replace protocol. Only the channel to the model changes."
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestMalformedAndEmptyResponsesFailClosed
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestMalformedAndEmptyResponsesFailClosed
+    package: agentcommand
+    language: go
+    doc: "A malformed or empty answer must fail closed rather than become a candidate."
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestOutputCeilingIsATransportClassNotAContentJudgement
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestOutputCeilingIsATransportClassNotAContentJudgement
+    package: agentcommand
+    language: go
+    doc: "Reaching the output ceiling means the model was cut off mid-answer. It must\nnever be recorded as a content judgement, or a benchmark will report an\nexecution problem as a repair the model got wrong."
+  - id: golang/architecture/agentcommand/api_agent_test.go:TestProviderFailuresKeepDistinctClasses
+    file: golang/architecture/agentcommand/api_agent_test.go
+    symbol: TestProviderFailuresKeepDistinctClasses
+    package: agentcommand
+    language: go
+    doc: "Each provider failure means something different to an operator; collapsing\nthem is what made the original CLI diagnosis require a probe."
+  - id: golang/architecture/agentcommand/canary_api_test.go:TestCanaryRealAPIOnKnownBadPrompt
+    file: golang/architecture/agentcommand/canary_api_test.go
+    symbol: TestCanaryRealAPIOnKnownBadPrompt
+    package: agentcommand
+    language: go
+    doc: "Canary: the exact generation prompt that defeated every CLI configuration\n(tool-loop at 1 and 6 turns; thinking starvation with and without a system\nprompt override). Not a benchmark task -- an established adversarial input\nfor the broken transport."
   - id: golang/architecture/agentcommand/command_agent_test.go:TestAgentPromptContainsNoFilesystemAuthority
     file: golang/architecture/agentcommand/command_agent_test.go
     symbol: TestAgentPromptContainsNoFilesystemAuthority
@@ -20923,6 +20965,66 @@ test_symbols:
     symbol: TestVerifyPack_Valid
     package: governancepack
     language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
+    package: graphgeneration
+    language: go
+    doc: "TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative is issue #176's\nregression, expressed at the level where the decision is actually made.\n\nBoth build orders, twice over, with the assertion that matters: after any\nsingle-domain publication, EVERY registered domain still holds a proven\nclosure report bound to the publication that is actually live."
+  - id: golang/graphgeneration/graphgeneration_test.go:TestChangedSliceIsRefusedNotCarriedForward
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestChangedSliceIsRefusedNotCarriedForward
+    package: graphgeneration
+    language: go
+    doc: "A changed slice must never be re-stamped. This is the forbidden repair: it\nwould put a fresh publication identity on a verdict computed against\ndifferent content, which is the exact defect the closure report exists to\ncatch."
+  - id: golang/graphgeneration/graphgeneration_test.go:TestLoopbackSpellingsResolveToOneProofSet
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestLoopbackSpellingsResolveToOneProofSet
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestMissingPriorProofIsRecordedAsRefusal
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestMissingPriorProofIsRecordedAsRefusal
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestPartitionIsolatesOnlySolelyOwnedSubjects
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestPartitionIsolatesOnlySolelyOwnedSubjects
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestReaderNeverObservesAHalfUpdatedSet
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestReaderNeverObservesAHalfUpdatedSet
+    package: graphgeneration
+    language: go
+    doc: "A reader must observe one whole generation or the other. Writing a new\ngeneration must not disturb the one currently pointed at."
+  - id: golang/graphgeneration/graphgeneration_test.go:TestRegisteredButUnpublishedDomainIsAbsentNotUnproven
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestRegisteredButUnpublishedDomainIsAbsentNotUnproven
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestRepublishingSameGenerationClearsTheOtherVerdictFile
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestRepublishingSameGenerationClearsTheOtherVerdictFile
+    package: graphgeneration
+    language: go
+    doc: "Republishing byte-identical content reuses the generation directory. A\ndomain that was refused last time and is proven this time must not leave its\nold refusal behind, or the verdict becomes a function of readdir order."
+  - id: golang/graphgeneration/graphgeneration_test.go:TestSliceDigestIgnoresOrderAndDuplicates
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestSliceDigestIgnoresOrderAndDuplicates
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/graphgeneration_test.go:TestSliceDigestIsUnaffectedByAnotherDomainClaimingASharedSubject
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestSliceDigestIsUnaffectedByAnotherDomainClaimingASharedSubject
+    package: graphgeneration
+    language: go
+    doc: "Regression for a defect the live two-domain run found in the first version of\nthis package.\n\nSliceDigest used the same sole-ownership predicate as PartitionByDomain. A\nreal store had 143 subjects co-owned by services and sensei-code; publishing\nsensei-code added its repo tag to those shared subjects, pushed them out of\nservices' solely-owned set, and moved services' digest even though services'\ncontent was untouched. The carry-forward was then refused for a reason that\nwas not true.\n\nA per-domain identity must not be a function of what other domains publish."
+  - id: golang/graphgeneration/graphgeneration_test.go:TestStoreIDIsStableAcrossEquivalentEndpoints
+    file: golang/graphgeneration/graphgeneration_test.go
+    symbol: TestStoreIDIsStableAcrossEquivalentEndpoints
+    package: graphgeneration
+    language: go
   - id: golang/netcfg/netcfg_test.go:TestOxigraphBind
     file: golang/netcfg/netcfg_test.go
     symbol: TestOxigraphBind
@@ -22246,6 +22348,30 @@ test_symbols:
     symbol: TestAwarenessFinalForm_WorkflowBlockedResume
     package: main
     language: go
+  - id: golang/server/graph_authority_proofset_test.go:TestDomainMissingFromLiveProofSetIsUnproven
+    file: golang/server/graph_authority_proofset_test.go
+    symbol: TestDomainMissingFromLiveProofSetIsUnproven
+    package: main
+    language: go
+    doc: "A set that covers the live publication but carries no proof for this domain\nis a real negative. It must say which domain and why, not fall through to a\nmore agreeable file elsewhere."
+  - id: golang/server/graph_authority_proofset_test.go:TestDomainStaysAuthoritativeWhenAnotherDomainWasBuilt
+    file: golang/server/graph_authority_proofset_test.go
+    symbol: TestDomainStaysAuthoritativeWhenAnotherDomainWasBuilt
+    package: main
+    language: go
+    doc: "This is issue #176 at the surface that reports authority.\n\nThe publication was produced by building services. sensei-code was not built,\nand under the old per-repository layout its own copy of the proof would now\ndescribe a publication that no longer exists. It must nonetheless be\nauthoritative, because its slice did not change."
+  - id: golang/server/graph_authority_proofset_test.go:TestRecordedRefusalIsReportedVerbatim
+    file: golang/server/graph_authority_proofset_test.go
+    symbol: TestRecordedRefusalIsReportedVerbatim
+    package: main
+    language: go
+    doc: "A recorded carry-forward refusal must reach the operator verbatim. This is\nthe difference between \"we could not check\" and silence."
+  - id: golang/server/graph_authority_proofset_test.go:TestStaleProofSetIsNotUsed
+    file: golang/server/graph_authority_proofset_test.go
+    symbol: TestStaleProofSetIsNotUsed
+    package: main
+    language: go
+    doc: "A proof set that does not describe the live publication must not be used.\nThe server falls back to the legacy path, which is fail-closed when there is\nno marker file either."
   - id: golang/server/graph_authority_verdict_test.go:TestAuthorityVerdictAndBoolNeverDisagree
     file: golang/server/graph_authority_verdict_test.go
     symbol: TestAuthorityVerdictAndBoolNeverDisagree
