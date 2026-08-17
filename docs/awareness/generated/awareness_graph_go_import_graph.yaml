@@ -228,6 +228,7 @@ components:
       - component.golang.architecture.knowledgeadoption
       - component.golang.architecture.ledger
       - component.golang.architecture.maintenance
+      - component.golang.architecture.packcustody
       - component.golang.architecture.plane
       - component.golang.architecture.probe
       - component.golang.architecture.probeexec
@@ -1437,6 +1438,22 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.packcustody
+    name: packcustody
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/packcustody/custody.go
+      - golang/architecture/packcustody/records.go
+    depends_on:
+      - component.golang.statedir
+    external_imports:
+      - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.plane
     name: plane
     kind: module
@@ -2228,6 +2245,7 @@ components:
       - golang/extractor/contract_realizations_yaml_import.go
       - golang/extractor/contract_set_yaml_import.go
       - golang/extractor/contradiction_validator.go
+      - golang/extractor/custody_exclusion.go
       - golang/extractor/dedup_ntriples.go
       - golang/extractor/design_pattern_yaml_import.go
       - golang/extractor/detect.go
@@ -2253,6 +2271,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.adoption
+      - component.golang.architecture.packcustody
       - component.golang.architecture.plane
       - component.golang.architecture.probe
       - component.golang.rdf
