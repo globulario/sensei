@@ -2619,6 +2619,7 @@ components:
       - golang/server/preflight.go
       - golang/server/preflight_cli.go
       - golang/server/propose.go
+      - golang/server/propose_custody.go
       - golang/server/provenance.go
       - golang/server/query.go
       - golang/server/realized_contracts.go
@@ -2636,8 +2637,10 @@ components:
       - component.golang.architecture.briefingfeedback
       - component.golang.architecture.controlstate
       - component.golang.architecture.identity
+      - component.golang.architecture.packcustody
       - component.golang.architecture.protection
       - component.golang.architecture.questiondisposition
+      - component.golang.architecture.repodomain
       - component.golang.architecture.tasksession
       - component.golang.closure
       - component.golang.coverage

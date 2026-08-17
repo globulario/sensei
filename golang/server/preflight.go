@@ -281,6 +281,11 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if len(files) > 0 {
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
 			resp.Coverage.GetSufficient(), len(directAll) > 0)
+		// The SAME verdict, published twice: as the prose line existing consumers
+		// already read, and as structured fields. Both are derived from one
+		// assessment rather than computed twice, so the sentence and the fields
+		// cannot disagree about whether a change needs approval.
+		resp.ChangeRisk = changeRiskProto(assessment)
 		resp.RequiredActions = prependBounded(
 			[]string{changeAssessmentAction(assessment)}, resp.RequiredActions, caps.actionEntries)
 	}

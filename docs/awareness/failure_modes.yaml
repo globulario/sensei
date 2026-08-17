@@ -1472,3 +1472,14 @@ failure_modes:
       - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
     evidence:
       - 'task_status in a repository that had never created a task session returned ''open .../.sensei/tasks: no such file or directory''. A governed run in globulario/sensei-code carried that errno into its architectural claims as evidence that the Sensei task surface was unavailable, when the accurate answer was simply that no task sessions exist. A missing tasks directory is the ordinary state of a repo that has not used tasks.'
+  - id: failure.propose_accepted_a_repository_domain_it_could_not_honour_and
+    title: Propose accepted a repository domain it could not honour and filed the candidate into another repository's queue
+    protects:
+      files:
+        - golang/server/propose_custody.go
+    related_invariants:
+      - meta.storage_is_not_semantic_authority
+    required_tests:
+      - golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    evidence:
+      - Against a server started with -awareness-dir <services>/docs/awareness, a proposal naming domain github.com/globulario/sensei-code returned accepted:true and landed in services' candidates/proposals/. Three signals agreed on sensei-code (request domain, stored content, generated node id via domainHint) while the authoritative write location came only from -awareness-dir.

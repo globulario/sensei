@@ -1546,3 +1546,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.ordinary_absence_returned_as_a_filesystem_error_entered_an_a
+  - id: golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    title: A proposal claiming another repository's domain is refused, not misfiled
+    protects:
+      failure_modes:
+        - failure.propose_accepted_a_repository_domain_it_could_not_honour_and
+  - id: golang/server/change_risk_fields_test.go:TestPreflightPopulatesChangeRiskAndAgreesWithProse
+    title: Preflight populates change_risk and it agrees with the prose line
+    protects:
+      invariants:
+        - invariant.a_risk_verdict_an_agent_must_act_on_is_published_as_structur

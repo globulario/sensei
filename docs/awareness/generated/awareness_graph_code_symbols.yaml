@@ -22119,6 +22119,42 @@ test_symbols:
     symbol: TestImpactPlanningReportsUnknowns
     package: main
     language: go
+  - id: golang/server/change_risk_fields_test.go:TestEnumNumbersAscendWithSeverity
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestEnumNumbersAscendWithSeverity
+    package: main
+    language: go
+    doc: "The enum numbers must ascend with severity, matching the order of the\nvocabulary slices, so \"widest wins\" is a numeric comparison on the wire too."
+  - id: golang/server/change_risk_fields_test.go:TestEveryVocabularyValueHasAnEnum
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestEveryVocabularyValueHasAnEnum
+    package: main
+    language: go
+    doc: "The drift guard. blastRadiusOrder / approvalGateOrder are the classifier's\nvocabulary; the enum maps are the wire projection. Adding a severity level to\none without the other would silently downgrade it to UNSPECIFIED — a NEW,\nWIDER blast radius reaching consumers as \"unclassified\" is exactly the kind of\nquiet loss this issue is about."
+  - id: golang/server/change_risk_fields_test.go:TestPreflightPopulatesChangeRiskAndAgreesWithProse
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestPreflightPopulatesChangeRiskAndAgreesWithProse
+    package: main
+    language: go
+    doc: "End to end through the real RPC: the field must actually be POPULATED, and it\nmust agree with the prose line in the same response. A correct projection\nhelper that nothing calls would leave the issue unfixed while every unit test\nabove still passed."
+  - id: golang/server/change_risk_fields_test.go:TestReasonsAreCopiedNotAliased
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestReasonsAreCopiedNotAliased
+    package: main
+    language: go
+    doc: "Reasons must be copied, not aliased: a caller mutating the response must not\nreach back into the assessment the server still holds."
+  - id: golang/server/change_risk_fields_test.go:TestStructuredFieldsAgreeWithTheProseLine
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestStructuredFieldsAgreeWithTheProseLine
+    package: main
+    language: go
+    doc: "The structured fields and the prose line must describe the SAME verdict — that\nis the entire point of deriving both from one assessment."
+  - id: golang/server/change_risk_fields_test.go:TestUnknownValueIsUnclassifiedNotSafe
+    file: golang/server/change_risk_fields_test.go
+    symbol: TestUnknownValueIsUnclassifiedNotSafe
+    package: main
+    language: go
+    doc: "An unknown value must read as UNSPECIFIED, never as the safest member. A\nconsumer can refuse \"unclassified\"; it would proceed on \"local/none\"."
   - id: golang/server/code_symbol_conventions_test.go:TestAppendCodeContext_SharedConventions
     file: golang/server/code_symbol_conventions_test.go
     symbol: TestAppendCodeContext_SharedConventions
@@ -23402,6 +23438,54 @@ test_symbols:
     package: main
     language: go
     doc: "A test file inside a high-risk directory is a helper, not production surface:\nno anchors there must NOT degrade (improvement over the old bare-prefix gate)."
+  - id: golang/server/propose_custody_test.go:TestMatchingDomainClaimIsHonoured
+    file: golang/server/propose_custody_test.go
+    symbol: TestMatchingDomainClaimIsHonoured
+    package: main
+    language: go
+    doc: "The matching case is accepted: this is a custody check, not a blanket ban on\nnaming a domain."
+  - id: golang/server/propose_custody_test.go:TestNoDomainClaimIsUnaffected
+    file: golang/server/propose_custody_test.go
+    symbol: TestNoDomainClaimIsUnaffected
+    package: main
+    language: go
+    doc: "Absent claim, unchanged behaviour: this must not become a requirement to name\na domain on every proposal."
+  - id: golang/server/propose_custody_test.go:TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    file: golang/server/propose_custody_test.go
+    symbol: TestProposalForAnotherRepositoryIsRefusedNotMisfiled
+    package: main
+    language: go
+    doc: "THE defect: three signals said sensei-code while the file landed in services'\nqueue, and `accepted: true` came back."
+  - id: golang/server/propose_custody_test.go:TestRepoFieldIsCheckedLikeDomain
+    file: golang/server/propose_custody_test.go
+    symbol: TestRepoFieldIsCheckedLikeDomain
+    package: main
+    language: go
+    doc: "The `repo` field participates in the generated node id exactly as `domain`\ndoes (propose.domainHint falls back to it), so it must be checked too —\notherwise the same misfiling happens through the other field."
+  - id: golang/server/propose_custody_test.go:TestScopeVocabularyIsNotARepositoryClaim
+    file: golang/server/propose_custody_test.go
+    symbol: TestScopeVocabularyIsNotARepositoryClaim
+    package: main
+    language: go
+    doc: "Scope vocabulary is not a repository-identity claim. `domain: shared` must not\nbe mistaken for a repository domain and refused."
+  - id: golang/server/propose_custody_test.go:TestTheClaimCannotVerifyItself
+    file: golang/server/propose_custody_test.go
+    symbol: TestTheClaimCannotVerifyItself
+    package: main
+    language: go
+    doc: "The request must never be able to establish which repository a directory\nbelongs to — that would let the claim verify itself. Proven by construction:\nthe same claim gets opposite verdicts depending only on the WRITE PATH's\nconfigured identity, never on the request."
+  - id: golang/server/propose_custody_test.go:TestUnverifiableClaimIsRefused
+    file: golang/server/propose_custody_test.go
+    symbol: TestUnverifiableClaimIsRefused
+    package: main
+    language: go
+    doc: "A claim that cannot be verified is refused rather than filed on hope. An\nunverifiable claim and a verified-matching one are different facts."
+  - id: golang/server/propose_custody_test.go:TestWritePathOutsideACheckoutIsRefused
+    file: golang/server/propose_custody_test.go
+    symbol: TestWritePathOutsideACheckoutIsRefused
+    package: main
+    language: go
+    doc: "A write path outside any Sensei checkout has no owner to compare against."
   - id: golang/server/propose_test.go:TestPropose_AcceptsAndWritesCandidate
     file: golang/server/propose_test.go
     symbol: TestPropose_AcceptsAndWritesCandidate
