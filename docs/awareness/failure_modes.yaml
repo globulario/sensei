@@ -1630,3 +1630,12 @@ failure_modes:
       - golang/architecture/probe/nil_context_test.go:TestCommandBearingProbeLoadsWithoutAValidationContext
     evidence:
       - 'probe/model.go treated ctx == nil as a failed CommandMatches, so every command-bearing probe became permanently unloadable. Convergence generates such a probe FROM the graph (generate.go copies ev.Command with SourceRef evidence:+ev.ID, which verifies when a context is present), persists it, and then every ordinary load path rejects it: tasksession AdvanceTask and convergence both pass nil, having no graph to pass. prepare-change refused its own output and advance-task, the remediation its own error recommended, refused the same probe. Execution safety never depended on this check: probeexec rejects any step carrying a command outright.'
+  - id: failure.convergence_generates_a_control_probe_that_the_same_run_and
+    title: Convergence generates a control probe that the same run and its remediation both refuse
+    protects:
+      files:
+        - golang/architecture/probe/model.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    evidence:
+      - 'prepare-change synthesizes a control probe during convergence and then refuses it (''probe command must be copied exactly from a sourced Evidence node''), and advance-task -- the remediation its own error text recommends -- fails on that same probe when loading control probes. synthesis-run then stops at closure-digest-unavailable before reaching the governed driver. Deterministic across runs and across --mode modify and --mode inspect. Found by the #149 CLI smoke on its first real end-to-end run.'
