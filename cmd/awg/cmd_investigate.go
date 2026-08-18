@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/compositionbinding"
 	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/architecture/factextract"
 	"github.com/globulario/sensei/golang/architecture/howextract"
@@ -217,6 +218,7 @@ func runInvestigateWhy(args []string) int {
 func runInvestigateArchitecture(args []string) int {
 	fs := flag.NewFlagSet("sensei investigate architecture", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
+	root := fs.String("repo", ".", "repository root (used with --task to resolve the composition binding)")
 	howPath := fs.String("how", "", "HOW artifact")
 	whyPath := fs.String("why", "", "WHY artifact")
 	groundingPath := fs.String("grounding", "", "optional grounding snapshot; default derives from HOW and WHY")
@@ -225,6 +227,12 @@ func runInvestigateArchitecture(args []string) int {
 	closure := fs.String("closure-digest", "", "exact closure-state SHA-256")
 	questions := fs.String("questions-digest", "", "exact existing-questions SHA-256")
 	review := fs.String("review-digest", "", "exact review-history SHA-256")
+	// The five flags above are DECLARED digests: each is validated for shape
+	// only, so any 64 hex characters satisfies them, including the digest of
+	// nothing. --task resolves them instead from the governed documents of one
+	// task generation, recording which owner produced each.
+	taskFlag := fs.String("task", "", "resolve the five input digests from this task's current generation instead of the --*-digest flags (default when given: the active task)")
+	bindingOut := fs.String("binding-out", "", "write the resolved composition binding document to this path")
 	timestamp := fs.String("timestamp-source", "", "explicit RFC3339 deterministic timestamp source")
 	out := fs.String("out", "-", "output artifact path or -")
 	format := fs.String("format", "json", "json or yaml")
@@ -257,7 +265,68 @@ func runInvestigateArchitecture(args []string) int {
 	if len(limitsMap) == 0 {
 		limitsMap = map[string]string{"surface": "bounded"}
 	}
-	result, err := investigationsurface.RunArchitecture(investigationsurface.ArchitectureRequest{How: how, Why: why, Grounding: grounding, Digests: investigator.InputDigests{GraphDigestSHA256: *graph, CurrentClaimsDigestSHA256: *claims, ClosureStateDigestSHA256: *closure, ExistingQuestionsDigestSHA256: *questions, ReviewHistoryDigestSHA256: *review}, Options: investigator.ComposeOptions{TimestampSource: *timestamp, ResourceLimits: limitsMap}})
+
+	digests := investigator.InputDigests{
+		GraphDigestSHA256:             *graph,
+		CurrentClaimsDigestSHA256:     *claims,
+		ClosureStateDigestSHA256:      *closure,
+		ExistingQuestionsDigestSHA256: *questions,
+		ReviewHistoryDigestSHA256:     *review,
+	}
+	// --task RESOLVES the binding from governed documents. It refuses to be
+	// combined with the declared flags rather than silently choosing a winner:
+	// a run where one digest was resolved and another typed is exactly the
+	// ambiguity this resolution exists to remove, and a receipt could not say
+	// which was which.
+	abs, aerr := filepath.Abs(*root)
+	if aerr != nil {
+		return cliSurfaceError("investigate architecture", aerr)
+	}
+	if strings.TrimSpace(*taskFlag) != "" || *bindingOut != "" {
+		for name, v := range map[string]string{
+			"--graph-digest": *graph, "--claims-digest": *claims, "--closure-digest": *closure,
+			"--questions-digest": *questions, "--review-digest": *review,
+		} {
+			if strings.TrimSpace(v) != "" {
+				fmt.Fprintf(os.Stderr, "sensei investigate architecture: %s cannot be combined with --task; the binding is resolved or declared, never both\n", name)
+				return 2
+			}
+		}
+		taskDir, terr := resolveTaskDirForBundle(abs, *taskFlag)
+		if terr != nil {
+			return cliSurfaceError("investigate architecture", terr)
+		}
+		bound, berr := compositionbinding.Resolve(abs, taskDir)
+		if berr != nil {
+			return cliSurfaceError("investigate architecture", berr)
+		}
+		digests = investigator.InputDigests{}
+		for _, r := range bound.Resolutions {
+			switch r.Dimension {
+			case compositionbinding.DimensionGraph:
+				digests.GraphDigestSHA256 = r.Digest
+			case compositionbinding.DimensionClaims:
+				digests.CurrentClaimsDigestSHA256 = r.Digest
+			case compositionbinding.DimensionClosure:
+				digests.ClosureStateDigestSHA256 = r.Digest
+			case compositionbinding.DimensionQuestions:
+				digests.ExistingQuestionsDigestSHA256 = r.Digest
+			case compositionbinding.DimensionReview:
+				digests.ReviewHistoryDigestSHA256 = r.Digest
+			}
+		}
+		fmt.Fprintf(os.Stderr, "sensei investigate architecture: binding resolved from task %s generation %s\n", bound.TaskID, short(bound.Generation))
+		for _, r := range bound.Resolutions {
+			fmt.Fprintf(os.Stderr, "  %-18s %s  (%d record(s) from %s)\n", r.Dimension, r.Digest[:12], r.Count, r.Producer)
+		}
+		if *bindingOut != "" {
+			if werr := investigationsurface.WriteArtifact(*bindingOut, *format, bound); werr != nil {
+				return cliSurfaceError("investigate architecture", werr)
+			}
+		}
+	}
+
+	result, err := investigationsurface.RunArchitecture(investigationsurface.ArchitectureRequest{How: how, Why: why, Grounding: grounding, Digests: digests, Options: investigator.ComposeOptions{TimestampSource: *timestamp, ResourceLimits: limitsMap}})
 	if err != nil {
 		return cliSurfaceError("investigate architecture", err)
 	}
