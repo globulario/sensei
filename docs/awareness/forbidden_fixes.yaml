@@ -683,3 +683,9 @@ forbidden_fixes:
     related_invariants:
       - meta.single_derivation_path_must_reach_its_consumer
     reason: 'Adding a degraded world to synthesis-run''s vocabulary while pointing it at exitResolutionFailure, or at another world''s code. The exit code IS the contract that lets a caller act without parsing prose; two worlds sharing a code restores the collapse issue #149 forbids. A reason with no code of its own must fail as an internal defect instead.'
+  - id: forbidden_fix.accept_a_mutant_commit_timestamp_without_an_explicit_utc_off
+    title: Accept a mutant commit timestamp without an explicit UTC offset
+    summary: Relaxing evalmutant's CommittedAt check to a non-empty test. Git accepts an offset-less value like 2026-01-01T00:00:00 and reads it in the machine's local timezone, so the same mutant and the same string produce different revisions on a laptop and in CI. Both runs succeed and only the hashes disagree, which makes an unreproducible evaluation suite look healthy.
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    reason: Relaxing evalmutant's CommittedAt check to a non-empty test. Git accepts an offset-less value like 2026-01-01T00:00:00 and reads it in the machine's local timezone, so the same mutant and the same string produce different revisions on a laptop and in CI. Both runs succeed and only the hashes disagree, which makes an unreproducible evaluation suite look healthy.

@@ -149,10 +149,64 @@ func TestControlHasBaselineHistoryOnly(t *testing.T) {
 
 // An unstamped history would not be reproducible, so the timestamp is required
 // rather than defaulted to the wall clock.
-func TestMaterializeRepoRequiresAnExplicitTimestamp(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "repo")
-	if _, _, err := MaterializeRepo(root, Baseline(), RepoOptions{}); err == nil {
-		t.Fatal("a repository was materialized with no explicit commit timestamp")
+//
+// The offset cases matter as much as the empty one: git accepts a
+// timezone-less value and reads it in the MACHINE's local zone, so the same
+// mutant and the same string produce different revisions on a laptop and in
+// CI. Both runs succeed and only the hashes disagree, which is the quiet shape
+// of an unreproducible suite.
+func TestMaterializeRepoRequiresAnOffsetBearingTimestamp(t *testing.T) {
+	for name, stamp := range map[string]string{
+		"empty":        "",
+		"blank":        "   ",
+		"no timezone":  "2026-01-01T00:00:00",
+		"date only":    "2026-01-01",
+		"git relative": "yesterday",
+		"unix seconds": "1767225600",
+		"not a time":   "sometime",
+	} {
+		t.Run(name, func(t *testing.T) {
+			root := filepath.Join(t.TempDir(), "repo")
+			if _, _, err := MaterializeRepo(root, Baseline(), RepoOptions{CommittedAt: stamp}); err == nil {
+				t.Fatalf("%q was accepted; it does not name one instant on every machine", stamp)
+			}
+		})
+	}
+	// An explicit offset is accepted, including a non-UTC one.
+	for _, ok := range []string{"2026-01-01T00:00:00Z", "2026-01-01T00:00:00+02:00"} {
+		root := filepath.Join(t.TempDir(), "repo")
+		if _, _, err := MaterializeRepo(root, Baseline(), RepoOptions{CommittedAt: ok}); err != nil {
+			t.Errorf("%q was refused: %v", ok, err)
+		}
+	}
+}
+
+// The revision must not depend on the MACHINE, which is what requiring an
+// offset buys. It deliberately does NOT claim that two spellings of the same
+// instant agree: git records the offset inside the commit object, so
+// "...T02:00:00Z" and "...T04:00:00+02:00" are different commits by design.
+// The property that matters is that ONE string names one commit everywhere,
+// which an offset-less value cannot promise.
+func TestRevisionDoesNotDependOnTheAmbientTimezone(t *testing.T) {
+	m, err := Build(DefectAuthoritySplit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const stamp = "2026-01-01T02:00:00Z"
+	rev := func() string {
+		root := filepath.Join(t.TempDir(), "repo")
+		_, defectRev, err := MaterializeRepo(root, m, RepoOptions{CommittedAt: stamp})
+		if err != nil {
+			t.Fatalf("materialize: %v", err)
+		}
+		return defectRev
+	}
+	t.Setenv("TZ", "UTC")
+	inUTC := rev()
+	t.Setenv("TZ", "Pacific/Kiritimati") // UTC+14, the furthest offset there is
+	shifted := rev()
+	if inUTC != shifted {
+		t.Errorf("the same stamp produced %s under TZ=UTC and %s under TZ=Pacific/Kiritimati; the history is machine-dependent", inUTC, shifted)
 	}
 }
 

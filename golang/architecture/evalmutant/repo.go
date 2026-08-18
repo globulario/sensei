@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // MaterializeRepo writes a mutant as a real git repository with a real history:
@@ -49,6 +50,27 @@ type RepoOptions struct {
 // caller-supplied so the range a WHY arm binds to is identical across runs.
 const BaselineCommitSubject = "baseline: the control tree"
 
+// validateCommittedAt requires an explicit UTC offset.
+//
+// A non-empty check alone is not enough. Git accepts a timezone-less value like
+// "2026-01-01T00:00:00" and interprets it in the MACHINE's local zone, so the
+// same mutant and the same timestamp string produce different commit hashes on
+// a developer laptop and in CI. That defeats the property this type exists to
+// provide, and it fails silently: both runs succeed, and only the revisions
+// disagree. Requiring an offset makes the timestamp mean one instant
+// everywhere.
+func validateCommittedAt(v string) error {
+	t := strings.TrimSpace(v)
+	if t == "" {
+		return fmt.Errorf("evalmutant: RepoOptions.CommittedAt is required; a self-stamped history is not reproducible")
+	}
+	if _, err := time.Parse(time.RFC3339, t); err != nil {
+		return fmt.Errorf("evalmutant: RepoOptions.CommittedAt %q must be RFC3339 with an explicit UTC offset (e.g. 2026-01-01T00:00:00Z); "+
+			"git reads an offset-less value in the local timezone, so the same mutant would yield different revisions on different machines: %w", v, err)
+	}
+	return nil
+}
+
 // MaterializeRepo materializes the mutant into root as a two-commit git
 // repository and returns the baseline and defect revisions.
 //
@@ -57,8 +79,8 @@ const BaselineCommitSubject = "baseline: the control tree"
 // commit claim to do, and what did it actually change?" therefore reads a diff
 // that is the defect itself.
 func MaterializeRepo(root string, m Mutant, opts RepoOptions) (baselineRev, defectRev string, err error) {
-	if strings.TrimSpace(opts.CommittedAt) == "" {
-		return "", "", fmt.Errorf("evalmutant: RepoOptions.CommittedAt is required; a self-stamped history is not reproducible")
+	if err := validateCommittedAt(opts.CommittedAt); err != nil {
+		return "", "", err
 	}
 	if err := Materialize(root, Baseline()); err != nil {
 		return "", "", fmt.Errorf("materialize baseline: %w", err)
