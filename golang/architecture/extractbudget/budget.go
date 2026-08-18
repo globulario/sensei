@@ -83,15 +83,22 @@ func IsValidStatus(s Status) bool {
 // observations for entirely different reasons, and only the recorded scope
 // tells them apart.
 type Budget struct {
-	MaxWallClock            time.Duration
-	MaxFiles                int
-	MaxSourceBytes          int64
-	MaxPackages             int
-	MaxObservations         int
-	MaxEvidenceReceipts     int
-	MaxCapturedContentBytes int64
-	IncludePaths            []string
-	ExcludePaths            []string
+	// The serialized names are snake_case and stable: this struct is written
+	// into every HOW receipt, so a field renamed in Go must not silently
+	// rename itself in documents already on disk.
+	//
+	// max_wall_clock_ns is nanoseconds, spelled out in the name rather than
+	// left to whichever unit a reader assumes -- a duration that serializes as
+	// a bare integer is exactly the field someone later reads as seconds.
+	MaxWallClock            time.Duration `json:"max_wall_clock_ns,omitempty" yaml:"max_wall_clock_ns,omitempty"`
+	MaxFiles                int           `json:"max_files,omitempty" yaml:"max_files,omitempty"`
+	MaxSourceBytes          int64         `json:"max_source_bytes,omitempty" yaml:"max_source_bytes,omitempty"`
+	MaxPackages             int           `json:"max_packages,omitempty" yaml:"max_packages,omitempty"`
+	MaxObservations         int           `json:"max_observations,omitempty" yaml:"max_observations,omitempty"`
+	MaxEvidenceReceipts     int           `json:"max_evidence_receipts,omitempty" yaml:"max_evidence_receipts,omitempty"`
+	MaxCapturedContentBytes int64         `json:"max_captured_content_bytes,omitempty" yaml:"max_captured_content_bytes,omitempty"`
+	IncludePaths            []string      `json:"include_paths,omitempty" yaml:"include_paths,omitempty"`
+	ExcludePaths            []string      `json:"exclude_paths,omitempty" yaml:"exclude_paths,omitempty"`
 }
 
 // Bounded reports whether this budget constrains anything at all.
