@@ -2859,6 +2859,8 @@ components:
       - scripts/smokeplan/main.go
     depends_on:
       - component.golang.architecture.agentcommand
+      - component.golang.architecture.cognitivecommand
+      - component.golang.architecture.synthesis
     uml:
       kind: Component
       stereotype: service

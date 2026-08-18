@@ -2272,7 +2272,14 @@ func dedupeFileOps(in []FileOperation) []FileOperation {
 func normalizePath(p string) string {
 	p = filepath.ToSlash(strings.TrimSpace(p))
 	p = strings.TrimPrefix(p, "./")
-	if p == "." {
+	// Empty must stay empty. filepath.Clean("") is ".", so without this the
+	// function ping-pongs -- normalizePath(".") == "" and normalizePath("") ==
+	// "." -- and normalization stops being idempotent. Because normalizeDecision
+	// rewrites path slices IN PLACE on a backing array shared with the caller's
+	// Decision, a second normalization of the same decision then saw "" where
+	// the first had written it, produced ".", and the decision's own
+	// decision_digest_sha256 changed between two marshals of one value.
+	if p == "." || p == "" {
 		return ""
 	}
 	return filepath.ToSlash(filepath.Clean(p))
