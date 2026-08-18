@@ -1621,3 +1621,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped
+  - id: golang/architecture/evalmutant/repo_test.go:TestDefectCommitCarriesTheMutantsOwnMessage
+    title: Each defect commit carries the mutant's own message
+    protects:
+      failure_modes:
+        - failure.mutant_commit_messages_reached_no_repository_so_the_defect_
