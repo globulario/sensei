@@ -197,6 +197,10 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	outcome.Cancelled = outcome.Cancelled || semanticRes.Cancelled
 	outcome.WallClockExhausted = outcome.WallClockExhausted || semanticRes.WallClockExhausted
 	limitations = append(limitations, semanticRes.Selection.Limitations("go_semantic_extractor")...)
+	// A scope that names nothing produced a "completed" run over zero
+	// observations, which reads as evidence of absence. It is a degraded run:
+	// the extractor finished, but it searched nothing it was asked to.
+	outcome.Degraded = outcome.Degraded || semanticRes.Selection.ScopesMatchedNothing
 	if semanticErr != nil {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,

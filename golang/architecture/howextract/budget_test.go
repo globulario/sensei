@@ -266,3 +266,34 @@ func TestUnhonourableBudgetIsRefusedBeforeExtraction(t *testing.T) {
 		t.Fatal("an absolute include scope was accepted")
 	}
 }
+
+// End-to-end: a scope naming a directory that does not exist must not yield a
+// clean "completed" document with no observations.
+func TestScopeMatchingNothingIsPartialNotComplete(t *testing.T) {
+	root := deterministicFixture(t)
+	opts := defaultOpts()
+	opts.Budget = extractbudget.Budget{IncludePaths: []string{"nowhere"}}
+	doc, err := Extract(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rb := doc.Receipt.ResourceBudget
+	if rb == nil {
+		t.Fatal("no budget receipt")
+	}
+	if rb.Status == extractbudget.StatusCompleted {
+		t.Fatalf("a scope that matched no file reported %q over %d observations", rb.Status, len(doc.Observations))
+	}
+	if rb.Status != extractbudget.StatusPartial {
+		t.Errorf("status = %q, want partial", rb.Status)
+	}
+	var said bool
+	for _, l := range doc.Limitations {
+		if strings.Contains(l.Reason, "matched no source file") {
+			said = true
+		}
+	}
+	if !said {
+		t.Errorf("the document does not say the scope matched nothing: %+v", doc.Limitations)
+	}
+}

@@ -34,6 +34,12 @@ type Selection struct {
 	UnsearchedFiles int
 	UnsearchedBytes int64
 	OutOfScopeFiles int
+	// ScopesMatchedNothing is true when scopes were in force, candidates
+	// existed, and none survived them. Without this the run would report
+	// "completed" over zero observations -- which reads as evidence that the
+	// repository contains nothing of interest, when the real fact is that a
+	// scope was written that names nothing.
+	ScopesMatchedNothing bool
 }
 
 // Select applies the budget's scopes and then its file/byte ceilings to a
@@ -70,6 +76,11 @@ func Select(candidates []Candidate, b Budget) Selection {
 		if b.MaxSourceBytes > 0 && sel.Consumption.SourceBytes+c.Size > b.MaxSourceBytes {
 			truncated["max_source_bytes"] = true
 		}
+		// Break rather than skip. Skipping a file that overflows the byte
+		// ceiling and taking a later, smaller one would make the selection
+		// non-contiguous, and then "everything from FirstUnsearched onward was
+		// not searched" -- the whole reason the cut is reportable in a bounded
+		// string -- would simply be false.
 		if len(truncated) > 0 {
 			sel.FirstUnsearched = c.RelPath
 			sel.UnsearchedFiles = len(inScope) - i
@@ -86,6 +97,7 @@ func Select(candidates []Candidate, b Budget) Selection {
 		sel.Truncated = append(sel.Truncated, name)
 	}
 	sort.Strings(sel.Truncated)
+	sel.ScopesMatchedNothing = len(sel.Files) == 0 && len(inScope) == 0 && outOfScope > 0
 	return sel
 }
 
@@ -108,6 +120,14 @@ func (s Selection) Limitations(source string) []architecture.Limitation {
 			Source:   source,
 			Scope:    "repository",
 			Reason:   fmt.Sprintf("%d file(s) were outside the bound include/exclude scopes and were not searched", s.OutOfScopeFiles),
+			Blocking: false,
+		})
+	}
+	if s.ScopesMatchedNothing {
+		out = append(out, architecture.Limitation{
+			Source:   source,
+			Scope:    "repository",
+			Reason:   "the bound include/exclude scopes matched no source file; this document describes nothing, which is a fact about the scopes and not about the repository",
 			Blocking: false,
 		})
 	}

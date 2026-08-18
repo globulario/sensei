@@ -278,3 +278,35 @@ func TestDeadlineOnlyBindsWhenWallClockIsSet(t *testing.T) {
 		t.Errorf("deadline = %v, bounded = %v", d, bounded)
 	}
 }
+
+// A scope that names nothing must not produce a "completed" run over zero
+// observations. That reads as evidence that the repository contains nothing of
+// interest, when the real fact is that someone wrote a scope matching no file.
+func TestScopesThatMatchNothingAreFlaggedRatherThanReportedComplete(t *testing.T) {
+	sel := Select([]Candidate{sized("golang/a.go", 1), sized("cmd/b.go", 1)}, Budget{IncludePaths: []string{"nowhere"}})
+	if len(sel.Files) != 0 {
+		t.Fatalf("selection was not empty: %v", sel.Files)
+	}
+	if !sel.ScopesMatchedNothing {
+		t.Fatal("an empty selection under a scope was not flagged")
+	}
+	var said bool
+	for _, l := range sel.Limitations("go_semantic_extractor") {
+		if strings.Contains(l.Reason, "matched no source file") {
+			said = true
+		}
+	}
+	if !said {
+		t.Errorf("the limitations do not say the scope matched nothing: %+v", sel.Limitations("go_semantic_extractor"))
+	}
+}
+
+// An unscoped run over an empty candidate set is a different fact -- there was
+// nothing to search, not a scope that named nothing -- and must not be flagged
+// as a mis-written scope.
+func TestAnEmptyRepositoryIsNotAMisWrittenScope(t *testing.T) {
+	sel := Select(nil, Budget{})
+	if sel.ScopesMatchedNothing {
+		t.Fatal("an empty candidate set with no scopes was reported as a scope that matched nothing")
+	}
+}
