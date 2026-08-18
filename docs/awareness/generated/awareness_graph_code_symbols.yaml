@@ -5838,6 +5838,12 @@ test_symbols:
     symbol: TestIdentityPartialOnlyForThinCoverage_TrueForThinCoverageAlone
     package: main
     language: go
+  - id: cmd/awg/synthesis_run_stop_test.go:TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop
+    package: main
+    language: go
+    doc: "The COMMON shape of the graph world, and the one the first version of this\nchange missed: identity composition SUCCEEDS but returns a non-complete\nstate — a stale or non-authoritative graph, an unresolved revision, thin\ncoverage. Typing only composition's error return left that ordinary case on\nthe generic resolution code, so \"the graph is not authoritative\" was still\nindistinguishable from \"there is no task checkpoint\".\n\nAsserted structurally: every return in the identity block must route through\nthe typed stop. A behavioural test would need a live Metadata RPC, and the\ndefect here is precisely a return statement that was left behind."
   - id: cmd/awg/synthesis_run_stop_test.go:TestEveryStopReasonHasItsOwnExitCode
     file: cmd/awg/synthesis_run_stop_test.go
     symbol: TestEveryStopReasonHasItsOwnExitCode
