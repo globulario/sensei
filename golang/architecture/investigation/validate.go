@@ -731,6 +731,31 @@ func Validate(doc Document) error {
 				errs = append(errs, fmt.Sprintf("receipt resource_budget reports %q exhausted, but that limit is not set in the budget it records", d))
 			}
 		}
+		// Consumption must agree with the DOCUMENT and stay within the budget
+		// it records. Validating only the dimension names left the numbers
+		// unchecked, so an artifact carrying 100 observations could claim
+		// max_observations 1, consumption 0, and status completed, and still
+		// certify once its digest was recomputed -- `investigate validate`
+		// vouching for a budget the artifact visibly violates.
+		//
+		// Counted against the document rather than trusted, because the
+		// document is the thing a reader will act on.
+		for _, c := range []struct {
+			dimension string
+			recorded  int
+			actual    int
+			what      string
+		}{
+			{extractbudget.DimensionObservations, rb.Consumption.Observations, len(doc.Observations), "observations"},
+			{extractbudget.DimensionEvidenceReceipts, rb.Consumption.EvidenceReceipts, len(doc.RawEvidence), "evidence receipts"},
+		} {
+			if c.recorded != c.actual {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget records %d %s but the document contains %d", c.recorded, c.what, c.actual))
+			}
+			if limit, set := rb.Budget.Limit(c.dimension); set && int64(c.actual) > limit {
+				errs = append(errs, fmt.Sprintf("the document contains %d %s, exceeding the %s of %d the receipt records", c.actual, c.what, c.dimension, limit))
+			}
+		}
 	}
 	if receipt.NondeterminismDeclaration == "" {
 		errs = append(errs, "receipt nondeterminism_declaration is required")

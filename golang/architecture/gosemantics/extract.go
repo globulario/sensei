@@ -274,6 +274,16 @@ func searchedCandidates(root string) ([]extractbudget.Candidate, error) {
 	}
 	out := make([]extractbudget.Candidate, 0, len(selected))
 	for _, abs := range selected {
+		// SearchedFiles also returns go.mod/go.sum, which are semantic INPUTS
+		// and can never carry a source position an observation is attributed
+		// to. Letting them consume the file and byte ceilings spends the
+		// budget on files that cannot produce anything: in a repository with a
+		// root go.mod and z.go, `--max-files 1` selected go.mod (paths sort
+		// first), rejected every position in z.go, and returned no semantic
+		// observations while appearing to allow one source file.
+		if filepath.Ext(abs) != ".go" {
+			continue
+		}
 		rel, relErr := filepath.Rel(root, abs)
 		if relErr != nil {
 			return nil, fmt.Errorf("relativize selected source file %s: %w", abs, relErr)

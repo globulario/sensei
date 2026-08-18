@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -288,6 +289,23 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		}
 	}
 
+	// The wall clock is checked BETWEEN stages, because the stages themselves
+	// cannot check it: factextract.Extract, BuildSourceSnapshotManifest, and
+	// receipt composition take no context. Without this the deadline bounded
+	// only the package load, and a run that crossed it during the AST walk or
+	// evidence capture carried on and could still report "completed" -- a
+	// ceiling the receipt claims was enforced. Caller cancellation after
+	// semantic extraction was ignored the same way.
+	if stopped, wallClock := deadlineCrossed(ctx, opts.Budget); stopped {
+		outcome.Cancelled = outcome.Cancelled || !wallClock
+		outcome.WallClockExhausted = outcome.WallClockExhausted || wallClock
+		limitations = append(limitations, architecture.Limitation{
+			Source: "how_extraction_budget", Scope: "repository",
+			Reason:   "extraction stopped after the AST stage: " + ctx.Err().Error(),
+			Blocking: false,
+		})
+	}
+
 	// Normalize facts
 	normalizedFacts, normErr := architecture.NormalizeFacts(root, facts)
 	if normErr != nil {
@@ -309,6 +327,10 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		outcome.Truncated = append(outcome.Truncated, extractbudget.DimensionObservations)
 	}
 	consumption.Observations = len(normalizedFacts)
+	if stopped, wallClock := deadlineCrossed(ctx, opts.Budget); stopped {
+		outcome.Cancelled = outcome.Cancelled || !wallClock
+		outcome.WallClockExhausted = outcome.WallClockExhausted || wallClock
+	}
 
 	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations, semanticErr, astErr,
 		runMetrics{consumption: consumption, outcome: outcome})
@@ -735,4 +757,22 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 		bytes += size
 	}
 	return kept, nil, nil, nil
+}
+
+// deadlineCrossed reports whether the run must stop, and whether the budget's
+// own wall clock is what stopped it.
+//
+// Attribution matches gosemantics': a deadline is the budget's whenever the
+// budget set one, and an explicit cancellation is always the caller's. The two
+// prescribe opposite responses -- widen the ceiling, or stop asking -- so
+// collapsing them would send the operator the wrong way.
+func deadlineCrossed(ctx context.Context, budget extractbudget.Budget) (stopped, wallClock bool) {
+	err := ctx.Err()
+	if err == nil {
+		return false, false
+	}
+	if budget.MaxWallClock > 0 && errors.Is(err, context.DeadlineExceeded) {
+		return true, true
+	}
+	return true, false
 }

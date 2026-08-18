@@ -4,6 +4,7 @@ package howextract
 
 import (
 	"context"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -420,5 +421,67 @@ func TestValidateRejectsAFabricatedEnforcementClaim(t *testing.T) {
 				t.Fatal("a fabricated enforcement claim was certified")
 			}
 		})
+	}
+}
+
+// Validation must check the NUMBERS, not just the dimension names. Checking
+// names alone left an artifact free to carry 100 observations while claiming a
+// ceiling of 1 and a consumption of 0 — certifying a budget the document
+// visibly violates.
+func TestValidateRejectsConsumptionThatContradictsTheDocument(t *testing.T) {
+	root := deterministicFixture(t)
+	doc, err := Extract(root, defaultOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Observations) == 0 || len(doc.RawEvidence) == 0 {
+		t.Fatal("the fixture produced nothing to contradict")
+	}
+	if err := investigation.Validate(doc); err != nil {
+		t.Fatalf("the honest document does not validate: %v", err)
+	}
+
+	for name, mutate := range map[string]func(*extractbudget.Receipt){
+		"consumption understates the observations": func(r *extractbudget.Receipt) {
+			r.Consumption.Observations = 0
+		},
+		"consumption understates the evidence": func(r *extractbudget.Receipt) {
+			r.Consumption.EvidenceReceipts = 0
+		},
+		"the document exceeds the recorded ceiling": func(r *extractbudget.Receipt) {
+			r.Budget.MaxObservations = 1
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tampered := doc
+			rb := *doc.Receipt.ResourceBudget
+			mutate(&rb)
+			tampered.Receipt.ResourceBudget = &rb
+			if err := investigation.Validate(tampered); err == nil {
+				t.Fatal("a receipt contradicting its own document was certified")
+			}
+		})
+	}
+}
+
+// go.mod and go.sum are semantic inputs that can never carry a source position,
+// so they must not consume the attribution ceilings. Before this, a repository
+// whose first sorted path was go.mod spent `--max-files 1` on it and returned
+// no observations at all while appearing to allow one source file.
+func TestModuleMetadataDoesNotConsumeTheFileCeiling(t *testing.T) {
+	root := deterministicFixture(t)
+	opts := defaultOpts()
+	opts.Budget = extractbudget.Budget{MaxFiles: 1}
+	doc, err := Extract(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(doc.Observations) == 0 {
+		t.Fatal("a one-file budget produced no observations; the ceiling was spent on module metadata")
+	}
+	for _, obs := range doc.Observations {
+		if ext := filepath.Ext(obs.Evidence.SourceFile); ext != ".go" {
+			t.Fatalf("an observation is attributed to a non-Go file: %s", obs.Evidence.SourceFile)
+		}
 	}
 }

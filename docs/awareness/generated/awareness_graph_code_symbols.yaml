@@ -12095,6 +12095,12 @@ test_symbols:
     package: howextract
     language: go
     doc: "The load-bearing assertion for this checkpoint: a limit that is reached must\nactually reduce the work, be reported as the reason, and say what was left\nunsearched. Recording the limit and extracting everything anyway is the\ndefect the issue names."
+  - id: golang/architecture/howextract/budget_test.go:TestModuleMetadataDoesNotConsumeTheFileCeiling
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestModuleMetadataDoesNotConsumeTheFileCeiling
+    package: howextract
+    language: go
+    doc: "go.mod and go.sum are semantic inputs that can never carry a source position,\nso they must not consume the attribution ceilings. Before this, a repository\nwhose first sorted path was go.mod spent `--max-files 1` on it and returned\nno observations at all while appearing to allow one source file."
   - id: golang/architecture/howextract/budget_test.go:TestObservationCeilingBinds
     file: golang/architecture/howextract/budget_test.go
     symbol: TestObservationCeilingBinds
@@ -12131,6 +12137,12 @@ test_symbols:
     package: howextract
     language: go
     doc: "An externally supplied artifact must not be able to certify an enforcement\nthat could not have happened: claiming a limit was exhausted while that\nlimit is unset, or naming a dimension outside the closed vocabulary."
+  - id: golang/architecture/howextract/budget_test.go:TestValidateRejectsConsumptionThatContradictsTheDocument
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestValidateRejectsConsumptionThatContradictsTheDocument
+    package: howextract
+    language: go
+    doc: "Validation must check the NUMBERS, not just the dimension names. Checking\nnames alone left an artifact free to carry 100 observations while claiming a\nceiling of 1 and a consumption of 0 — certifying a budget the document\nvisibly violates."
   - id: golang/architecture/howextract/budget_test.go:TestWallClockDeadlineReachesTheWholeExtraction
     file: golang/architecture/howextract/budget_test.go
     symbol: TestWallClockDeadlineReachesTheWholeExtraction
