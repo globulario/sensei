@@ -282,31 +282,93 @@ func runPrinciplePackRefresh(args []string) int {
 		if rec, ok := recordForResult(root, packDigest); ok {
 			fmt.Printf("\ndisposition: %s — mirror already matches the pack; record %s\n",
 				rec.DerivedDisposition(mirrorDigest), short(rec.Target.ResultingDigest))
-		} else {
-			fmt.Printf("\ndisposition: already_current — mirror matches the pack, with no adoption record on file\n")
+			return 0
 		}
+
+		// Matching bytes with no record is a DEAD END, not a success: custody
+		// derives from a record, never from content, so this mirror stays
+		// Refused no matter how exactly it matches -- and every other path in
+		// this command declines to act precisely because there is nothing to
+		// change. An operator who reconciled by hand lands here permanently.
+		//
+		// --apply --reconcile-legacy is the exit. It writes nothing to the
+		// mirror (there is nothing to write) and only records what an operator
+		// attests: this content is the pack's, adopted here. The record is
+		// honest that no id moved -- previous and resulting digests are equal
+		// and every id list is empty -- so it proves provenance without
+		// claiming a change it did not make.
+		if *apply && *reconcile {
+			rec := buildPrinciplePackRecord(packDigest, len(packEntries), mirrorRelPath, packDigest, packDigest, packDiff{SharedSame: len(packEntries)}, "reconcile_legacy")
+			recPath, err := writePrinciplePackRecord(root, rec)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "sensei principle-pack refresh: recording adoption of already-current content: %v\n", err)
+				return 1
+			}
+			fmt.Printf("\ndisposition: adopted_in_place — mirror already matched the pack; provenance recorded\n")
+			fmt.Printf("  no id changed; the mirror was not modified\n")
+			fmt.Printf("  record:  %s (authorization: reconcile_legacy)\n", mustRel(root, recPath))
+			return 0
+		}
+		fmt.Printf("\ndisposition: already_current — mirror matches the pack, with no adoption record on file\n")
+		fmt.Printf("  Custody derives from a record, not from matching bytes, so this mirror is\n")
+		fmt.Printf("  still unproven. Re-run with --reconcile-legacy --apply to record that this\n")
+		fmt.Printf("  content is the pack's; nothing in the mirror will be modified.\n")
 		return 0
 	}
 
-	if !diff.clean() {
+	// An entry present ONLY in the mirror is project-authored content living in
+	// a file that declares itself generated. Adoption cannot resolve it: the
+	// pack has nothing to restore it from, so applying would DELETE knowledge
+	// only this project holds, permanently and with no upstream copy. No
+	// operator authorization makes that safe, which is why this refusal is
+	// unconditional -- --reconcile-legacy attests that local text carried no
+	// intent worth keeping, and an id upstream has never seen is the one case
+	// where that assertion cannot be true. Relocate it to a project-owned
+	// identity in the project's own corpus first; then it is no longer part of
+	// the managed projection and this refusal stops applying.
+	if len(diff.LocalOnly) > 0 {
+		fmt.Fprintf(os.Stderr, "\ndisposition: conflict — refusing to refresh.\n")
+		fmt.Fprintf(os.Stderr, "  %d id(s) exist only in this mirror, and the pack cannot restore them:\n", len(diff.LocalOnly))
+		fmt.Fprintf(os.Stderr, "    %s\n", strings.Join(diff.LocalOnly, ", "))
+		fmt.Fprintf(os.Stderr, "  Refreshing would delete them. Move them into this project's own corpus\n")
+		fmt.Fprintf(os.Stderr, "  under a project-owned id first; they do not belong in a managed mirror.\n")
+		return 1
+	}
+
+	// A locally changed shared entry, or a rewritten preamble, is divergence on
+	// an identity the PACK owns. Canonical wins -- but only an operator can
+	// attest that the local text carried no intent worth preserving, and that
+	// attestation is precisely what --reconcile-legacy is (see this file's
+	// header, which lists it as one of the three valid baselines).
+	//
+	// This gate consults that flag because otherwise the flag is unreachable for
+	// the exact population it exists to serve: a legacy mirror predating install
+	// records has no baseline AND has usually drifted, so it fails here and
+	// never reaches the baseline check below. Custody then refuses the file
+	// forever while pointing the operator at a flag that could not have helped.
+	diverged := len(diff.Changed) > 0 || diff.Preamble
+	if diverged && !*reconcile {
 		fmt.Fprintf(os.Stderr, "\ndisposition: conflict — refusing to refresh.\n")
 		fmt.Fprintf(os.Stderr, "  This mirror is not a clean copy of a previously installed pack, so an\n")
 		fmt.Fprintf(os.Stderr, "  automatic refresh could not tell an upstream change from a local edit.\n")
-		if ids := diff.conflicting(); len(ids) > 0 {
-			fmt.Fprintf(os.Stderr, "  conflicting ids (%d): %s\n", len(ids), strings.Join(ids, ", "))
+		if len(diff.Changed) > 0 {
+			fmt.Fprintf(os.Stderr, "  conflicting ids (%d): %s\n", len(diff.Changed), strings.Join(diff.Changed, ", "))
 		}
 		if diff.Preamble {
 			fmt.Fprintf(os.Stderr, "  the generated preamble also differs from the pack's\n")
 		}
+		fmt.Fprintf(os.Stderr, "  Review the divergence above. If none of it is intent worth keeping,\n")
+		fmt.Fprintf(os.Stderr, "  re-run with --reconcile-legacy --apply to restore the canonical text;\n")
+		fmt.Fprintf(os.Stderr, "  the adoption record will list exactly what was overwritten.\n")
 		return 1
 	}
-	if len(diff.UpstreamOnly) == 0 {
+	if len(diff.UpstreamOnly) == 0 && !diverged && !*reconcile {
 		fmt.Fprintf(os.Stderr, "\ndisposition: conflict — entries match but bytes differ (formatting drift); refusing\n")
 		return 1
 	}
 
 	authorization := "verified_baseline"
-	if !baseline {
+	if !baseline || diverged {
 		if !*reconcile {
 			fmt.Fprintf(os.Stderr, "\ndisposition: needs_reconciliation — refusing to apply without a baseline.\n")
 			fmt.Fprintf(os.Stderr, "  %d id(s) are present upstream and absent locally, but with no install or\n", len(diff.UpstreamOnly))
@@ -322,6 +384,11 @@ func runPrinciplePackRefresh(args []string) int {
 	if !*apply {
 		fmt.Printf("\ndisposition: plan — %d id(s) would be adopted: %s\n",
 			len(diff.UpstreamOnly), strings.Join(diff.UpstreamOnly, ", "))
+		// Overwrites are reported separately from adoptions and never folded
+		// into that count: adopting an entry the project never had and
+		// discarding one it edited are different acts, and an operator
+		// authorizing the second deserves to see it named.
+		reportOverwrites(os.Stdout, diff)
 		fmt.Printf("authorization: %s\n", authorization)
 		fmt.Printf("re-run with --apply to write the mirror and its adoption record\n")
 		return 0
@@ -345,6 +412,7 @@ func runPrinciplePackRefresh(args []string) int {
 
 	fmt.Printf("\ndisposition: applied\n")
 	fmt.Printf("  adopted: %s\n", strings.Join(diff.UpstreamOnly, ", "))
+	reportOverwrites(os.Stdout, diff)
 	fmt.Printf("  mirror:  %s → %s\n", short(mirrorDigest), short(packDigest))
 	fmt.Printf("  record:  %s (authorization: %s)\n", mustRel(root, recPath), authorization)
 	fmt.Printf("\nThe project graph is NOT rebuilt by this command — run the project's own\n")
@@ -609,6 +677,19 @@ func openIntentFor(root, mirrorDigest, packDigest string) (principlePackRecord, 
 		}
 	}
 	return principlePackRecord{}, false
+}
+
+// reportOverwrites names what a reconciled refresh discards. Adoption counts
+// say what the project GAINED; without this an operator reading "3 id(s)
+// adopted" would have no indication that four others were silently rewritten.
+func reportOverwrites(w io.Writer, d packDiff) {
+	if len(d.Changed) > 0 {
+		fmt.Fprintf(w, "  overwritten with canonical text (%d): %s\n",
+			len(d.Changed), strings.Join(d.Changed, ", "))
+	}
+	if d.Preamble {
+		fmt.Fprintf(w, "  the generated preamble is restored to the pack's\n")
+	}
 }
 
 func buildPrinciplePackRecord(packDigest string, count int, path, prev, next string, d packDiff, authorization string) principlePackRecord {
