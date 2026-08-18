@@ -372,11 +372,15 @@ func RecordBodyDigest(root, relPath, topKey, id string) (digest string, found bo
 }
 
 // seqItemLine matches a block-sequence item line and captures its indentation.
-var seqItemLine = regexp.MustCompile(`^([ \t]*)- `)
-
-// topLevelKeyLine matches any top-level mapping key, used to stop the scan
-// before wandering into a different key's value.
-var topLevelKeyLine = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]*:`)
+//
+// The indicator may stand alone: YAML allows `-` on its own line with the
+// item's content on the following lines. Requiring `- ` skipped such an item
+// and let the scan fall through to whatever came next -- which, in a governed
+// entry, is a NESTED sequence like protects.files. The record was then
+// reindented into that nested list, and verifyAppendResult only checks that
+// the top-level key is still a list, so the append could report success while
+// the record was not in the governed sequence at all.
+var seqItemLine = regexp.MustCompile(`^([ \t]*)-([ \t].*)?$`)
 
 // appendItemIndent reports the indentation of the first block-sequence item
 // under topKey in the file at path, defaulting to renderItem's own two spaces
@@ -405,14 +409,18 @@ func appendItemIndent(path, topKey string) string {
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
+		// The FIRST meaningful line after the key decides, and nothing after
+		// it does. Continuing the scan is what let a nested sequence be
+		// mistaken for the outer one: the item this function must match is the
+		// sequence's own first item, which by definition is the first thing
+		// under the key. If that line is not a sequence item, this key does not
+		// hold a block sequence whose style could be matched, and the rendered
+		// default stands -- verifyAppendResult then reports the real problem in
+		// the parser's own words rather than this function guessing.
 		if m := seqItemLine.FindStringSubmatch(ln); m != nil {
 			return m[1]
 		}
-		// A different top-level key began before any item appeared: this
-		// sequence is empty, so the rendered indentation is as good as any.
-		if topLevelKeyLine.MatchString(ln) {
-			return rendered
-		}
+		return rendered
 	}
 	return rendered
 }

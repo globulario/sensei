@@ -118,6 +118,13 @@ func TestAppendItemIndentReadsTheFirstItem(t *testing.T) {
 		"empty block marker":     {"decisions:\n", "  "},
 		"absent key":             {"other:\n- id: a\n", "  "},
 		"another key intervenes": {"decisions:\nother:\n- id: a\n", "  "},
+		// A bare indicator is a legal item: `-` alone, content below. It was
+		// skipped, and the scan then matched the first NESTED sequence.
+		"bare indicator, column zero": {"decisions:\n-\n  id: a\n  protects:\n    files:\n      - x.go\n", ""},
+		"bare indicator, indented":    {"decisions:\n  -\n    id: a\n    protects:\n      files:\n        - x.go\n", "  "},
+		// The key holds a mapping, not a sequence: there is no outer item
+		// whose style could be matched, and a nested one must NOT be borrowed.
+		"mapping value with a nested sequence": {"decisions:\n  protects:\n    files:\n      - x.go\n", "  "},
 	} {
 		t.Run(name, func(t *testing.T) {
 			path := appendTarget(t, tc.body)
@@ -164,4 +171,44 @@ func tailOf(s string, lines int) string {
 		parts = parts[len(parts)-lines:]
 	}
 	return strings.Join(parts, "\n")
+}
+
+// The record must land in the GOVERNED sequence, never in a nested one.
+//
+// With a bare `-` outer indicator the detector previously skipped the real
+// item and matched `protects.files` six columns in. The record was reindented
+// into that nested list, and because verifyAppendResult only checks that the
+// top-level key is still a list, the append could report success while the
+// record was not an entry of the governed sequence at all — the worst
+// available outcome, since a caller would have no reason to look again.
+func TestAppendNeverLandsInANestedSequence(t *testing.T) {
+	corpus := "decisions:\n" +
+		"-\n" +
+		"  id: entry.000\n" +
+		"  title: Entry 0\n" +
+		"  protects:\n" +
+		"    files:\n" +
+		"      - golang/some/file.go\n"
+	path := appendTarget(t, corpus)
+
+	item := reindentItem(decisionItem, appendItemIndent(path, "decisions"))
+	if err := atomicAppend(path, "decisions", item); err != nil {
+		t.Fatalf("append: %v", err)
+	}
+
+	list := mustParseList(t, path, "decisions")
+	if len(list) != 2 {
+		t.Fatalf("decisions holds %d entries, want 2 — the record did not join the governed sequence", len(list))
+	}
+	last, _ := list[1].(map[string]interface{})
+	if id, _ := last["id"].(string); id != "decision.first" {
+		t.Fatalf("last entry id = %q, want decision.first", id)
+	}
+	// And the original entry's nested list must be untouched.
+	first, _ := list[0].(map[string]interface{})
+	protects, _ := first["protects"].(map[string]interface{})
+	files, _ := protects["files"].([]interface{})
+	if len(files) != 1 {
+		t.Fatalf("the nested files list holds %d entries, want 1 — the record was appended into it", len(files))
+	}
 }

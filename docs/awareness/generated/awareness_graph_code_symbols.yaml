@@ -11617,6 +11617,12 @@ test_symbols:
     package: governedmutation
     language: go
     doc: "A round-trip per style: propose one entry into a realistic corpus and assert\nthe result parses and holds exactly one more entry than before."
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendNeverLandsInANestedSequence
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestAppendNeverLandsInANestedSequence
+    package: governedmutation
+    language: go
+    doc: "The record must land in the GOVERNED sequence, never in a nested one.\n\nWith a bare `-` outer indicator the detector previously skipped the real\nitem and matched `protects.files` six columns in. The record was reindented\ninto that nested list, and because verifyAppendResult only checks that the\ntop-level key is still a list, the append could report success while the\nrecord was not an entry of the governed sequence at all — the worst\navailable outcome, since a caller would have no reason to look again."
   - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestReindentItemPreservesRelativeNesting
     file: golang/architecture/governedmutation/apply_indent_append_test.go
     symbol: TestReindentItemPreservesRelativeNesting
