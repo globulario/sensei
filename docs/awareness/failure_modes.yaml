@@ -1608,3 +1608,25 @@ failure_modes:
       - meta.single_derivation_path_must_reach_its_consumer
     evidence:
       - 'sourceFile IRIs are keyed by repo-relative path with no domain scope, so every registered domain''s README.md and docs/awareness/invariants.yaml resolve to the same subject. Observed live with sensei and sensei-code sharing one store: sensei-code emitted ''<sourceFile/README.md> <implements> <decision/decision.sensei_code...>'', so sensei''s graph asserts its own README implements a sensei-code decision. The proof-set symptom (the other domain''s slice digest moves and its closure proof cannot be carried forward, costing a rebuild to converge) is downstream of that identity collapse, not a defect in SliceDigest, which already excludes foreign repo tags.'
+  - id: failure.a_governed_disposition_with_no_exit_code_case_was_reported_t
+    title: A governed disposition with no exit-code case was reported to the operator as an internal defect
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_run.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - cmd/awg/cmd_synthesis_run_test.go:TestExitCodeForDisposition_EveryDispositionHasADistinctCode
+    evidence:
+      - 'synthesisdriver has six dispositions; synthesis-run''s exitCodeForDisposition and nextStep switches handled five. DispositionInterpretationAdvisory fell through to exitInternalDefect, so an ordinary governed outcome (the interpretation''s closure receipt did not carry governing authority) told the operator to treat it as a bug in the tool. Observed live: disposition interpretation-advisory, exit_code 7 (internal defect), detail ''interpretation remains advisory: blockers=[completeness:incomplete]''. The guarding test could not catch it because it enumerated five dispositions by hand rather than ranging over the closed vocabulary.'
+  - id: failure.a_nil_validation_context_was_reported_as_a_probe_sourcing_vi
+    title: A nil validation context was reported as a probe sourcing violation, bricking the task
+    protects:
+      files:
+        - golang/architecture/probe/model.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - golang/architecture/probe/nil_context_test.go:TestCommandBearingProbeLoadsWithoutAValidationContext
+    evidence:
+      - 'probe/model.go treated ctx == nil as a failed CommandMatches, so every command-bearing probe became permanently unloadable. Convergence generates such a probe FROM the graph (generate.go copies ev.Command with SourceRef evidence:+ev.ID, which verifies when a context is present), persists it, and then every ordinary load path rejects it: tasksession AdvanceTask and convergence both pass nil, having no graph to pass. prepare-change refused its own output and advance-task, the remediation its own error recommended, refused the same probe. Execution safety never depended on this check: probeexec rejects any step carrying a command outright.'

@@ -323,7 +323,29 @@ func ValidateProbe(p EvidenceProbe, doc ProbeDocument, ctx *ValidationContext) e
 			errs = append(errs, "probe step target escapes repository")
 			break
 		}
-		if st.Command != "" && (st.SourceRef == "" || ctx == nil || !ctx.Graph.CommandMatches(st.SourceRef, st.Command)) {
+		// A command must CLAIM a source unconditionally: one with no SourceRef
+		// is malformed no matter what is available to check it against.
+		if st.Command != "" && st.SourceRef == "" {
+			errs = append(errs, "probe command must be copied exactly from a sourced Evidence node")
+			break
+		}
+		// But a MISSING validation context is absence, not violation.
+		//
+		// Treating ctx == nil as a failed match made every command-bearing probe
+		// permanently unloadable: convergence generates such a probe from the
+		// graph (generate.go copies ev.Command with SourceRef "evidence:"+ev.ID,
+		// which verifies correctly when a context is present), persists it, and
+		// then every ordinary load path -- AdvanceTask and convergence both pass
+		// nil, having no graph to pass -- rejected it. The task bricked, and the
+		// remediation its own error recommended, `sensei advance-task`, refused
+		// the same probe. See #198.
+		//
+		// Safety is unchanged by this. The guard still fires wherever it can
+		// actually be evaluated: a context that HAS a graph and disagrees is
+		// still a violation. And execution never depended on this check --
+		// probeexec's executors reject any step carrying a command outright
+		// (ReasonCommandRejected), so an unverified command is never run.
+		if st.Command != "" && ctx != nil && !ctx.Graph.CommandMatches(st.SourceRef, st.Command) {
 			errs = append(errs, "probe command must be copied exactly from a sourced Evidence node")
 			break
 		}
