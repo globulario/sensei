@@ -5856,6 +5856,12 @@ test_symbols:
     package: main
     language: go
     doc: "The JSON form must be a STOP, not a report. Emitting a report-shaped object\nwith empty receipt/disposition/candidate fields would let a caller read \"no\ncandidate\" as \"the run completed and produced nothing\", which is the\ncollapse this issue forbids."
+  - id: cmd/awg/synthesis_run_stop_test.go:TestRemainingGenericReturnsAreInfrastructureOnly
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestRemainingGenericReturnsAreInfrastructureOnly
+    package: main
+    language: go
+    doc: "The remaining generic returns must be INFRASTRUCTURE only -- resolving a\npath, digesting a session, creating a directory. Those are not worlds issue\n#149 enumerates, and inventing vocabulary for them would make the closed set\ndescribe things the issue never asked to distinguish.\n\nThis is the counterweight to the typing work: it pins that the unclassified\ncode is still reachable and still means \"untyped\", so a future world cannot\nbe quietly parked there. If a NAMED world regresses onto it, the routing\ntests above fail; if infrastructure grows, this list is edited deliberately."
   - id: cmd/awg/synthesis_run_stop_test.go:TestStopCodesDoNotCollideWithDispositionCodes
     file: cmd/awg/synthesis_run_stop_test.go
     symbol: TestStopCodesDoNotCollideWithDispositionCodes

@@ -181,8 +181,11 @@ Flags:
 	// validateCurrentBinding's own doc comment. Refused unconditionally,
 	// never something --force-unconverged is meant to bypass.
 	if err := validateCurrentBinding(control); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
-		return exitResolutionFailure
+		// Hard law 1 names this explicitly: a missing or unverified binding
+		// remains a TYPED stop.
+		return resolutionStop(*format, stopNoTaskCheckpoint,
+			fmt.Sprintf("task binding is not current and admitted: %v", err),
+			"run 'sensei prepare-change' to rebind a verified task checkpoint")
 	}
 	if control.PrimaryBlocker != nil && !*forceUnconverged {
 		return resolutionStop(*format, stopTaskAwaitingAnswer,
@@ -253,8 +256,8 @@ Flags:
 		}
 		challengePlan, challengePlanDigest, err = interpretationclosure.LoadChallengePlan(challengePath)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "sensei synthesis-run: load --interpretation-challenge: %v\n", err)
-			return exitResolutionFailure
+			return resolutionStop(*format, stopInterpretationUnavailable,
+				fmt.Sprintf("load --interpretation-challenge: %v", err), "")
 		}
 	}
 
@@ -290,13 +293,15 @@ Flags:
 
 	objective, err := resolveSynthesisRunObjective(*objectiveFlag, taskSession.TaskRequest.Description, interpretationProvider.Objective())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopInterpretationObjectiveMismatch,
+			err.Error(),
+			"align the interpretation's objective with the task, or pass --objective explicitly")
 	}
 
 	if err := validateNoRequiredProofObligations(interpretationProvider.RequiredProofObligations()); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopProofObligationsOutstanding,
+			fmt.Sprintf("the interpretation declares undischarged proof obligations: %v", err),
+			"discharge the obligations before synthesizing against this interpretation")
 	}
 
 	// The task's own admission decision -- already resolved above, from
@@ -306,8 +311,9 @@ Flags:
 	// necessary but not sufficient: it must never be read as clearing or
 	// overriding obligations the decision already recorded.
 	if err := validateNoDecisionProofObligations(taskDecision.ProofObligations); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopProofObligationsOutstanding,
+			fmt.Sprintf("the task's admission decision records undischarged proof obligations: %v", err),
+			"discharge the obligations the decision records before synthesizing")
 	}
 
 	// --- step 7: build the O1 Session and its SessionState ---
@@ -417,8 +423,11 @@ Flags:
 		SupportedOperations: []providerport.Operation{providerport.OperationPlanning},
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct planning provider: %v\n", err)
-		return exitResolutionFailure
+		// The planning provider is a cognitive-command provider, so its
+		// absence is the same world as the agent's.
+		return resolutionStop(*format, stopCognitiveProviderUnavailable,
+			fmt.Sprintf("construct planning provider: %v", err),
+			"check --agent-command points at an installed, executable provider CLI")
 	}
 
 	// --- step 9: O4 engine, wired to the real `sensei gate` evaluator ---

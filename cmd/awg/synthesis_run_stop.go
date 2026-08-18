@@ -38,6 +38,13 @@ const (
 	// repairs by different people.
 	stopCognitiveProviderUnavailable  resolutionStopReason = "cognitive-provider-unavailable"
 	stopGenerationProviderUnavailable resolutionStopReason = "generation-provider-unavailable"
+	// Two worlds where the inputs are PRESENT and REFUSED, which is not the
+	// same as unavailable and does not have the same repair. Folding either
+	// into interpretation-unavailable would report a missing artifact when the
+	// artifact is there and disagrees, sending an operator to regenerate
+	// something that already exists.
+	stopInterpretationObjectiveMismatch resolutionStopReason = "interpretation-objective-mismatch"
+	stopProofObligationsOutstanding     resolutionStopReason = "proof-obligations-outstanding"
 	// Unclassified. Deliberately retained rather than removed: a resolution
 	// failure nobody has typed yet must stay visible as untyped instead of
 	// being forced into whichever named world looks closest, which would make
@@ -50,27 +57,31 @@ const (
 // and a reason added without a code is a missing map entry rather than a
 // silent fallthrough to someone else's code.
 var stopExitCodes = map[resolutionStopReason]int{
-	stopUnclassified:                  exitResolutionFailure,
-	stopNoTaskCheckpoint:              10,
-	stopTaskAwaitingAnswer:            11,
-	stopGraphIdentityUnusable:         12,
-	stopClosureUnavailable:            13,
-	stopInterpretationUnavailable:     14,
-	stopCognitiveProviderUnavailable:  15,
-	stopGenerationProviderUnavailable: 16,
+	stopUnclassified:                    exitResolutionFailure,
+	stopNoTaskCheckpoint:                10,
+	stopTaskAwaitingAnswer:              11,
+	stopGraphIdentityUnusable:           12,
+	stopClosureUnavailable:              13,
+	stopInterpretationUnavailable:       14,
+	stopCognitiveProviderUnavailable:    15,
+	stopGenerationProviderUnavailable:   16,
+	stopInterpretationObjectiveMismatch: 17,
+	stopProofObligationsOutstanding:     18,
 }
 
 // stopMeanings is what an operator should DO about each state. The exit code
 // says which world it is; this says why it stopped there.
 var stopMeanings = map[resolutionStopReason]string{
-	stopUnclassified:                  "resolution failed before the governed run began",
-	stopNoTaskCheckpoint:              "no verified task checkpoint is bound; run 'sensei prepare-change' first",
-	stopTaskAwaitingAnswer:            "the task carries an unanswered primary blocker and is not ready to synthesize",
-	stopGraphIdentityUnusable:         "workspace/graph identity could not be composed completely",
-	stopClosureUnavailable:            "the task's closure proof could not be resolved or digested",
-	stopInterpretationUnavailable:     "a grounded interpretation could not be constructed",
-	stopCognitiveProviderUnavailable:  "the cognitive provider is unavailable or unsupported",
-	stopGenerationProviderUnavailable: "the generation provider could not be constructed",
+	stopUnclassified:                    "resolution failed before the governed run began",
+	stopNoTaskCheckpoint:                "no verified task checkpoint is bound; run 'sensei prepare-change' first",
+	stopTaskAwaitingAnswer:              "the task carries an unanswered primary blocker and is not ready to synthesize",
+	stopGraphIdentityUnusable:           "workspace/graph identity could not be composed completely",
+	stopClosureUnavailable:              "the task's closure proof could not be resolved or digested",
+	stopInterpretationUnavailable:       "a grounded interpretation could not be constructed",
+	stopCognitiveProviderUnavailable:    "the cognitive provider is unavailable or unsupported",
+	stopGenerationProviderUnavailable:   "the generation provider could not be constructed",
+	stopInterpretationObjectiveMismatch: "the interpretation's objective does not match the task's",
+	stopProofObligationsOutstanding:     "proof obligations are recorded and undischarged; this run may not proceed past them",
 }
 
 // synthesisRunStop is the machine-readable record of a pre-driver refusal. It

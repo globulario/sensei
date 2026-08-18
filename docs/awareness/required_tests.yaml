@@ -1626,3 +1626,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.mutant_commit_messages_reached_no_repository_so_the_defect_
+  - id: cmd/awg/synthesis_run_stop_test.go:TestRemainingGenericReturnsAreInfrastructureOnly
+    title: The generic resolution code is reachable only from infrastructure, never a named world
+    protects:
+      failure_modes:
+        - failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped
