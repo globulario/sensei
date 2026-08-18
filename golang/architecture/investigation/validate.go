@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 )
 
 var sha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -689,8 +690,31 @@ func Validate(doc Document) error {
 			errs = append(errs, fmt.Sprintf("receipt timestamp_source must be RFC3339 formatted, got %q", receipt.TimestampSource))
 		}
 	}
-	if len(receipt.ResourceLimits) == 0 {
-		errs = append(errs, "receipt resource_limits are required")
+	// A receipt must carry SOME resource statement. Historically the only one
+	// available was the declared string map, so it was mandatory -- which is
+	// why a surface that bounded nothing injected the literal
+	// {"surface": "bounded"} to get past this check. An enforced budget is a
+	// strictly stronger statement than a declared one, so it satisfies the
+	// same requirement without anyone having to fabricate a claim.
+	if len(receipt.ResourceLimits) == 0 && receipt.ResourceBudget == nil {
+		errs = append(errs, "receipt must carry resource_limits or an enforced resource_budget")
+	}
+	if rb := receipt.ResourceBudget; rb != nil {
+		if !extractbudget.IsValidStatus(rb.Status) {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget status %q is not a recognized disposition", rb.Status))
+		}
+		if rb.SchemaVersion != extractbudget.ReceiptSchemaVersion {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget schema_version %q is not %q", rb.SchemaVersion, extractbudget.ReceiptSchemaVersion))
+		}
+		// budget_exhausted is the only status that may name limits as the
+		// cause. Any other status naming them would blame a bound for a stop
+		// it did not cause.
+		if rb.Status != extractbudget.StatusBudgetExhausted && len(rb.ExhaustedDimensions) > 0 {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget status %q must not name exhausted dimensions %v", rb.Status, rb.ExhaustedDimensions))
+		}
+		if rb.Status == extractbudget.StatusBudgetExhausted && len(rb.ExhaustedDimensions) == 0 {
+			errs = append(errs, "receipt resource_budget reports budget_exhausted without naming which limit was reached")
+		}
 	}
 	if receipt.NondeterminismDeclaration == "" {
 		errs = append(errs, "receipt nondeterminism_declaration is required")

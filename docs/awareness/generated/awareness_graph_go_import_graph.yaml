@@ -218,6 +218,7 @@ components:
       - component.golang.architecture.convergence
       - component.golang.architecture.dashboardprojection
       - component.golang.architecture.evaluatorcomposition
+      - component.golang.architecture.extractbudget
       - component.golang.architecture.factextract
       - component.golang.architecture.governedmutation
       - component.golang.architecture.graphbuild
@@ -1097,6 +1098,20 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.extractbudget
+    name: extractbudget
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/extractbudget/budget.go
+      - golang/architecture/extractbudget/selection.go
+    depends_on:
+      - component.golang.architecture
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.factextract
     name: factextract
     kind: module
@@ -1143,6 +1158,7 @@ components:
     source_files:
       - golang/architecture/gosemantics/extract.go
     depends_on:
+      - component.golang.architecture.extractbudget
       - component.golang.extractor.importgraph
     external_imports:
       - golang.org/x/tools/go/packages
@@ -1238,6 +1254,7 @@ components:
       - golang/architecture/howextract/topology.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.extractbudget
       - component.golang.architecture.factextract
       - component.golang.architecture.gosemantics
       - component.golang.architecture.investigation
@@ -1318,6 +1335,7 @@ components:
       - golang/architecture/investigation/validate.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.extractbudget
     uml:
       kind: Component
       stereotype: module
@@ -1334,6 +1352,7 @@ components:
       - golang/architecture/investigationsurface/view.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.extractbudget
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
       - component.golang.architecture.investigator
