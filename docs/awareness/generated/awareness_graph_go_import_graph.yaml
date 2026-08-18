@@ -159,6 +159,7 @@ components:
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
       - cmd/awg/cmd_synthesis_admit.go
+      - cmd/awg/cmd_synthesis_apply.go
       - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
@@ -197,6 +198,7 @@ components:
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
       - cmd/awg/synthesis_run_identity.go
+      - cmd/awg/synthesis_task_drift.go
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.admission
@@ -206,6 +208,7 @@ components:
       - component.golang.architecture.authority
       - component.golang.architecture.benchmark
       - component.golang.architecture.binding
+      - component.golang.architecture.candidateapply
       - component.golang.architecture.certification
       - component.golang.architecture.changebinding
       - component.golang.architecture.changebindingconsumer
@@ -223,6 +226,7 @@ components:
       - component.golang.architecture.governedmutation
       - component.golang.architecture.graphbuild
       - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.howextract
       - component.golang.architecture.identity
       - component.golang.architecture.inference
       - component.golang.architecture.interpretationclosure
@@ -1247,6 +1251,7 @@ components:
       - golang/architecture/howextract/compose.go
       - golang/architecture/howextract/contracts.go
       - golang/architecture/howextract/datashapes.go
+      - golang/architecture/howextract/diffscope.go
       - golang/architecture/howextract/extract.go
       - golang/architecture/howextract/flow.go
       - golang/architecture/howextract/state.go

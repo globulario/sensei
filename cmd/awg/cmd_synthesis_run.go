@@ -580,7 +580,16 @@ Flags:
 		return exitInternalDefect
 	}
 
-	lineagePath, err := persistAdmissionLineage(ctx, result, candidateStore, *candidateStoreDir)
+	lineagePath, err := persistAdmissionLineage(ctx, result, candidateStore, *candidateStoreDir,
+		synthesisRunTaskBinding{
+			TaskID:                       taskSession.TaskID,
+			TaskControlStateDigestSHA256: taskcontrol.StateDigest(control),
+			SessionDigestSHA256:          sessionDigest,
+			// Reuses the SAME closureDigest step 5 already computed and the
+			// run itself was bound to -- recomputing it here could bind the
+			// receipt to a different value than the session actually used.
+			ClosureReportDigestSHA256: closureDigest,
+		})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: persist admission lineage: %v\n", err)
 		return exitInternalDefect
@@ -638,9 +647,55 @@ type synthesisRunLineage struct {
 	SynthesisReceipt              synthesis.Receipt                      `json:"synthesis_receipt"`
 	RunnerReceipt                 runnercomposition.RunnerReceipt        `json:"runner_receipt"`
 	EvaluationReceipt             evaluatorcomposition.EvaluationReceipt `json:"evaluation_receipt"`
+	TaskBinding                   synthesisRunTaskBinding                `json:"task_binding"`
 }
 
-const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v1"
+// synthesisRunTaskBinding is what the later steps need in order to notice that
+// the world moved after the candidate was sealed.
+//
+// Issue #149 hard law 10 requires refusing task, closure, and base-revision
+// drift when a run is resumed. The resumption that actually happens today is
+// `sensei synthesis-admit` and `sensei synthesis-apply` picking up a persisted
+// bundle minutes or days later -- and base-revision drift was the only one of
+// the three they could detect, because the bundle recorded the candidate's git
+// base and nothing about the governance state the run was bound to.
+//
+// A candidate generated against one closure state and admitted against another
+// is not the same proposal, even when every digest inside the bundle still
+// verifies against itself: internal consistency says the bundle was not
+// tampered with, and says nothing about whether it is still current.
+type synthesisRunTaskBinding struct {
+	TaskID                       string `json:"task_id"`
+	TaskControlStateDigestSHA256 string `json:"task_control_state_digest_sha256"`
+	ClosureReportDigestSHA256    string `json:"closure_report_digest_sha256"`
+	// SessionDigestSHA256 ties this binding to the SEALED candidate.
+	//
+	// The lineage bundle is a plain auxiliary file: anyone who can write it can
+	// rewrite these fields to the task's current values and walk past the drift
+	// refusal while the candidate's own digest chain still validates. This
+	// field does not make the bundle tamper-proof -- nothing here can, because
+	// nothing signs it -- but it removes the cheapest attack: the binding must
+	// now at least agree with the one document the store verifies
+	// independently, so a binding lifted from another run, or a candidate
+	// swapped underneath one, is refused.
+	//
+	// Closing it properly means recording the task binding INSIDE the sealed
+	// CandidateArtifact at O3 time, where the store's digest covers it. That is
+	// a runnercomposition schema change and is not attempted here; the residual
+	// exposure is stated rather than implied.
+	SessionDigestSHA256 string `json:"session_digest_sha256"`
+}
+
+// v2 adds TaskBinding.
+//
+// A candidate sealed without a task binding can never be drift-checked
+// afterwards, because the governance state it was generated under is not
+// recoverable from anything else in the bundle.
+//
+// It is consumed by verifyTaskBindingUnchanged (synthesis_task_drift.go),
+// which synthesis-admit and synthesis-apply both call before doing anything:
+// #149 hard law 10, for the resumption that actually exists.
+const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v2"
 
 // persistAdmissionLineage writes the complete O5 input chain to
 // <candidateStoreDir>/<candidate-digest>.lineage.json when (and only when)
@@ -662,7 +717,7 @@ const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v1"
 // candidateStoreDir is still threaded through separately, but only ever
 // used to build the human-facing CandidateArtifactPath/return-path
 // strings, never to perform the write itself.
-func persistAdmissionLineage(ctx context.Context, result synthesisdriver.Result, candidateStore runnercomposition.CandidateArtifactStore, candidateStoreDir string) (string, error) {
+func persistAdmissionLineage(ctx context.Context, result synthesisdriver.Result, candidateStore runnercomposition.CandidateArtifactStore, candidateStoreDir string, taskBinding synthesisRunTaskBinding) (string, error) {
 	r := result.Receipt
 	if r.Disposition != synthesisdriver.DispositionCandidateReady {
 		return "", nil
@@ -701,6 +756,7 @@ func persistAdmissionLineage(ctx context.Context, result synthesisdriver.Result,
 
 	lineage := synthesisRunLineage{
 		SchemaVersion:                 synthesisRunLineageSchemaVersion,
+		TaskBinding:                   taskBinding,
 		CandidateArtifactDigestSHA256: candidateDigest,
 		CandidateArtifactPath:         filepath.Join(candidateStoreDir, candidateDigest+".json"),
 		SynthesisReceipt:              *result.SessionState.Receipt,

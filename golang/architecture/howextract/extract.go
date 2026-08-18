@@ -25,6 +25,11 @@ type Options struct {
 	// behaviour it had before, and one that supplies limits gets a run that
 	// refuses to exceed them and a receipt that says what it did not search.
 	Budget extractbudget.Budget
+	// Diff, when set, asks for an incremental extraction bound to an exact
+	// base/head pair. It narrows which files may produce observations; it
+	// never narrows the semantic inputs, because a changed file's types can
+	// come from anywhere in the module.
+	Diff *DiffBinding
 }
 
 // Extract parses the codebase using explicit deterministic inputs and returns

@@ -97,7 +97,7 @@ func Select(candidates []Candidate, b Budget) Selection {
 		sel.Truncated = append(sel.Truncated, name)
 	}
 	sort.Strings(sel.Truncated)
-	sel.ScopesMatchedNothing = len(sel.Files) == 0 && len(inScope) == 0 && outOfScope > 0
+	sel.ScopesMatchedNothing = len(sel.Files) == 0 && len(inScope) == 0 && outOfScope > 0 && b.ScopesActive()
 	return sel
 }
 

@@ -397,6 +397,16 @@ Every investigation run must record:
   unbounded run says so;
 - nondeterminism declaration.
 
+An incremental run additionally carries a `diff_scope`: the exact base/head
+revision pair it was bound to, the changed paths, the subset actually searched,
+and an explicit `whole_repository_not_searched`. Its **presence** is the
+document's own statement that it describes a change rather than a repository —
+a consumer reading only the observations would otherwise take a
+pull-request-sized extraction for a whole-repository one. A diff narrows only
+which files may produce observations; the semantic compiler inputs stay whole,
+because a changed file's types can come from anywhere in the module, and the
+source-snapshot identity is therefore unchanged from a whole-repository run.
+
 The two resource fields are deliberately distinct. Declared limits are a claim;
 the enforced budget is a measurement. Elapsed wall clock is not recorded in the
 consumption, because these receipts are compared by digest and a measured

@@ -3049,6 +3049,11 @@ test_symbols:
     symbol: TestMachineAdoptedContractCategoryUsesContractLevel
     package: main
     language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowDiffFlagsBindThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowDiffFlagsBindThroughTheCLI
+    package: main
+    language: go
   - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowFileCeilingBindsThroughTheCLI
     file: cmd/awg/cmd_investigate_budget_test.go
     symbol: TestInvestigateHowFileCeilingBindsThroughTheCLI
@@ -3060,6 +3065,12 @@ test_symbols:
     package: main
     language: go
     doc: "A budget that cannot be honoured as written is refused before any work,\nrather than normalized into one that searches somewhere else."
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowRefusesHalfADiffBinding
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowRefusesHalfADiffBinding
+    package: main
+    language: go
+    doc: "Half a diff binding is not a smaller diff. Defaulting the missing side to\nHEAD would make the same command mean different things on different days."
   - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowScopeFlagsBindThroughTheCLI
     file: cmd/awg/cmd_investigate_budget_test.go
     symbol: TestInvestigateHowScopeFlagsBindThroughTheCLI
@@ -4339,6 +4350,12 @@ test_symbols:
     symbol: TestSuggest_SkipsAlreadyAuthoritative
     package: main
     language: go
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitAcceptsAnUnmovedTask
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitAcceptsAnUnmovedTask
+    package: main
+    language: go
+    doc: "And an unmoved task must still compose, or the check above would pass by\nrefusing everything."
   - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
     file: cmd/awg/cmd_synthesis_admit_test.go
     symbol: TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
@@ -4399,12 +4416,147 @@ test_symbols:
     package: main
     language: go
     doc: "Hard law 10: the base binding is refused on drift rather than silently\nre-derived against whatever the checkout happens to hold now. Without this,\na candidate built against one tree would produce a scope describing a\ndifferent one, and every downstream digest would still verify."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesTaskAndClosureDrift
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesTaskAndClosureDrift
+    package: main
+    language: go
+    doc: "The same drift refusal guards composition, not only application: admitting a\ncandidate whose task has moved would produce an admission request bound to a\nclosure state that is no longer current."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestARefusedApplyReleasesItsClaim
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestARefusedApplyReleasesItsClaim
+    package: main
+    language: go
+    doc: "A refusal that never mutated the target must release its claim, or one\nrefused run would permanently block every later attempt."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestRemovingTheReceiptPermitsADeliberateReapply
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestRemovingTheReceiptPermitsADeliberateReapply
+    package: main
+    language: go
+    doc: "Removing the receipt is the deliberate human act that permits a re-apply.\nIf it were not, the refusal above would be a dead end rather than a gate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyClaimsConsumptionAtomically
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyClaimsConsumptionAtomically
+    package: main
+    language: go
+    doc: "Two concurrent applies of one candidate must not both proceed. The stat\ncheck is a courtesy that produces a good message; the O_EXCL claim is the\ngate, because both processes pass a stat before either writes a receipt."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyInvocationErrorsAreDeterministic
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyInvocationErrorsAreDeterministic
+    package: main
+    language: go
+    doc: "Missing flags are reported in a fixed order, so the same wrong invocation\nalways produces the same message."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyJSONReport
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyJSONReport
+    package: main
+    language: go
+    doc: "The report renders as JSON for callers that script this step."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyMaterializesTheAdmittedCandidate
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyMaterializesTheAdmittedCandidate
+    package: main
+    language: go
+    doc: "The whole point of the command: the admitted bytes reach the worktree, and\nnothing else happens."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyPersistsItsReceipt
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyPersistsItsReceipt
+    package: main
+    language: go
+    doc: "The receipt has to survive the process, or the application is unauditable."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusalClassesAreDistinct
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusalClassesAreDistinct
+    package: main
+    language: go
+    doc: "The three refusal classes must stay distinguishable, because they call for\ndifferent actions: go back to admission, fix the worktree, or investigate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesABindingFromAnotherSession
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesABindingFromAnotherSession
+    package: main
+    language: go
+    doc: "A binding lifted from a different run must not authorize this candidate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesABundleWithNoTaskBinding
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesABundleWithNoTaskBinding
+    package: main
+    language: go
+    doc: "A bundle with no task binding at all is refused rather than accepted with\nthe check silently skipped. Accepting it would make \"no drift detected\" a\nstatement the command never actually checked."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesADecisionForAnotherComposition
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesADecisionForAnotherComposition
+    package: main
+    language: go
+    doc: "A decision bound to a different composition must not authorize this\ncandidate, even though every field looks well-formed."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesADirtyTarget
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesADirtyTarget
+    package: main
+    language: go
+    doc: "Hard law 5: the target must be clean and pinned to the admitted base."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAPreviouslyConsumedCandidate
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAPreviouslyConsumedCandidate
+    package: main
+    language: go
+    doc: "The proof matrix's \"previously-consumed application refusal\". Without it, a\nsecond run against a reset worktree applies the same candidate again and\noverwrites the first receipt -- making two applications indistinguishable\nfrom one, which is exactly the property an audit of a governed mutation\nexists to provide."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesATargetOnTheWrongBase
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesATargetOnTheWrongBase
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAdmittedWithoutMutationCapability
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAdmittedWithoutMutationCapability
+    package: main
+    language: go
+    doc: "A decision can be \"admitted\" overall while refusing mutation specifically.\nApplying on the strength of the headline verdict alone would ignore the\nnarrower statement that was the reason for recording it separately."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAnUnadmittedDecision
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAnUnadmittedDecision
+    package: main
+    language: go
+    doc: "A decision that does not admit mutation must stop the command before it\ntouches the worktree, and must be distinguishable from a bad target."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesControlAndClosureDrift
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesControlAndClosureDrift
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesTaskDrift
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesTaskDrift
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesTheSourceCheckoutAsTarget
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesTheSourceCheckoutAsTarget
+    package: main
+    language: go
+    doc: "The dedicated-worktree requirement is this command's own; candidateapply\nnever receives the source path and so cannot enforce it. `--repo . --target .`\npasses every check it makes and mutates the checkout the task and base\nmanifest are read from."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyReportsAFailedVerification
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyReportsAFailedVerification
+    package: main
+    language: go
+    doc: "A verification that says the applied result left the admitted scope must not\nbe reported as a successful application."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyWithoutAComposedRequestSaysWhatToRun
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyWithoutAComposedRequestSaysWhatToRun
+    package: main
+    language: go
+    doc: "Skipping synthesis-admit leaves nothing to apply, and the message has to say\nwhich command to run rather than reporting a bare missing file."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     package: main
     language: go
     doc: "TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle is the\nreal regression test for a live review finding: a candidate-ready run's\nfull SynthesisReceipt/RunnerReceipt/EvaluationReceipt documents (not\nmerely their digests) must be durably persisted somewhere\nadmissioncomposition.ComposeInput can actually be constructed from --\nthey previously existed only in-memory and vanished when the process\nexited."
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CapturesTheTaskBinding
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_CapturesTheTaskBinding
+    package: main
+    language: go
+    doc: "The task binding must actually reach the bundle. It is the one thing that\ncannot be reconstructed later: a candidate sealed without it can never be\ndrift-checked, because the governance state it was generated under is not\nrecoverable from anything else the bundle holds."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
@@ -11278,6 +11430,35 @@ test_symbols:
     package: extractbudget
     language: go
     doc: "A cut must always produce a limitation. A bounded run that reported no\nlimitation would be indistinguishable from a complete one."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesAdmitsOnlyTheListedPaths
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesAdmitsOnlyTheListedPaths
+    package: extractbudget
+    language: go
+    doc: "ExactFiles is an allowlist a prefix scope cannot express: a changed-file set\nis an arbitrary list, not a subtree."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesCannotOverrideAnExcludeScope
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesCannotOverrideAnExcludeScope
+    package: extractbudget
+    language: go
+    doc: "ExactFiles narrows and never widens: a diff must not be usable as a way back\ninto a directory the operator excluded."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesCountsAsBounded
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesCountsAsBounded
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesIntersectsWithIncludeScopes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesIntersectsWithIncludeScopes
+    package: extractbudget
+    language: go
+    doc: "It must also respect a narrower include scope, for the same reason."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesMatchesExactlyNotByPrefix
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesMatchesExactlyNotByPrefix
+    package: extractbudget
+    language: go
+    doc: "Equality, not prefix. Treating an entry as a prefix would silently admit a\ndirectory that happens to share a changed file's name."
   - id: golang/architecture/extractbudget/budget_test.go:TestExcludeBeatsInclude
     file: golang/architecture/extractbudget/budget_test.go
     symbol: TestExcludeBeatsInclude
@@ -12184,6 +12365,70 @@ test_symbols:
     package: howextract
     language: go
     doc: "The wall clock must bound the WHOLE extraction, not only the package load.\nIt previously derived a deadline inside the semantic extractor and discarded\nit on return, so the AST walk, manifest hashing, and evidence capture ran\nunbounded afterwards — a ceiling the receipt claimed was enforced and that\nstopped applying partway through."
+  - id: golang/architecture/howextract/diffscope_test.go:TestAmbiguousRevisionsAreRefused
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestAmbiguousRevisionsAreRefused
+    package: howextract
+    language: go
+    doc: "An ambiguous revision makes the same command mean different things on\ndifferent days, so it is refused rather than resolved."
+  - id: golang/architecture/howextract/diffscope_test.go:TestDeletedPathsAreChangedButNotSearched
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestDeletedPathsAreChangedButNotSearched
+    package: howextract
+    language: go
+    doc: "A deleted file is a real change with no source position to anchor to. It\nmust appear as changed-but-not-searched rather than vanish, or the document\nwould silently understate what the change set contained."
+  - id: golang/architecture/howextract/diffscope_test.go:TestDiffCannotEscapeAnExcludeScope
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestDiffCannotEscapeAnExcludeScope
+    package: howextract
+    language: go
+    doc: "A diff cannot be used to reach into a directory the operator excluded.\nExactFiles narrows; it never widens."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIdenticalBaseAndHeadIsRefused
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIdenticalBaseAndHeadIsRefused
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalReceiptSaysTheRepositoryWasNotSearched
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalReceiptSaysTheRepositoryWasNotSearched
+    package: howextract
+    language: go
+    doc: "A consumer that reads only the observations must still be able to tell this\nis not a description of the repository."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunDescribesOnlyChangedFiles
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunDescribesOnlyChangedFiles
+    package: howextract
+    language: go
+    doc: "The core of checkpoint B: an incremental run describes what changed, and\nnothing else."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunPreservesWholeRepositorySnapshotIdentity
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunPreservesWholeRepositorySnapshotIdentity
+    package: howextract
+    language: go
+    doc: "The semantic snapshot must still cover the whole module. An incremental run\nthat also narrowed its compiler inputs would produce observations about\ntypes it could not see -- and its source-snapshot identity would no longer\nidentify the tree the observations were derived from."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunRefusesAHeadThatIsNotCheckedOut
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunRefusesAHeadThatIsNotCheckedOut
+    package: howextract
+    language: go
+    doc: "The extractors read the ambient tree, so a head that is not checked out --\nor a dirty tree -- would make the observations describe different content\nthan the receipt claims, with every digest still verifying against itself."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunWithNoSearchablePathsDescribesNothing
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunWithNoSearchablePathsDescribesNothing
+    package: howextract
+    language: go
+    doc: "A diff whose changed paths are all deleted or excluded must describe\nNOTHING. Falling back to the whole repository would produce a\nwhole-repository result wearing an incremental document's receipt, while the\nreceipt truthfully reported zero searched paths."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunsAreDeterministic
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunsAreDeterministic
+    package: howextract
+    language: go
+    doc: "Repeated identical runs must be byte-equivalent. The captured_at input is\nexplicit, so nothing here is allowed to vary."
+  - id: golang/architecture/howextract/diffscope_test.go:TestResolveChangedPathsIsSortedAndDeduplicated
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestResolveChangedPathsIsSortedAndDeduplicated
+    package: howextract
+    language: go
   - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
     file: golang/architecture/howextract/howextract_test.go
     symbol: TestAllCaptureFailuresAreUnavailable
