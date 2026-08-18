@@ -11049,6 +11049,54 @@ test_symbols:
     symbol: TestUnknownDefectIsRefused
     package: evalmutant
     language: go
+  - id: golang/architecture/evalmutant/repo_test.go:TestControlHasBaselineHistoryOnly
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestControlHasBaselineHistoryOnly
+    package: evalmutant
+    language: go
+    doc: "The control has no defect, so it must have no defect commit — giving it one\nwould hand the control a history shape no mutant has."
+  - id: golang/architecture/evalmutant/repo_test.go:TestDefectCommitCarriesTheMutantsOwnMessage
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestDefectCommitCarriesTheMutantsOwnMessage
+    package: evalmutant
+    language: go
+    doc: "THE reason this exists. The mutant's commit message must actually BE the\ndefect commit's message, or the misleading-commit-message class is witnessed\nby proxy — its own witness says \"the message lives outside the tree\" — and\nthe suite measures whether an evaluator noticed a rename rather than whether\nit caught a message describing work the diff does not contain."
+  - id: golang/architecture/evalmutant/repo_test.go:TestDefectCommitDiffIsExactlyTheMutation
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestDefectCommitDiffIsExactlyTheMutation
+    package: evalmutant
+    language: go
+    doc: "The defect commit's diff must be exactly the mutation: that is what lets an\narm ask \"what did this commit claim, and what did it change?\" A diff\ncontaining baseline noise would make every such comparison unreliable."
+  - id: golang/architecture/evalmutant/repo_test.go:TestMaterializeRepoRequiresAnOffsetBearingTimestamp
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestMaterializeRepoRequiresAnOffsetBearingTimestamp
+    package: evalmutant
+    language: go
+    doc: "An unstamped history would not be reproducible, so the timestamp is required\nrather than defaulted to the wall clock.\n\nThe offset cases matter as much as the empty one: git accepts a\ntimezone-less value and reads it in the MACHINE's local zone, so the same\nmutant and the same string produce different revisions on a laptop and in\nCI. Both runs succeed and only the hashes disagree, which is the quiet shape\nof an unreproducible suite."
+  - id: golang/architecture/evalmutant/repo_test.go:TestRemovedFilesAreDeletedInTheDefectCommit
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestRemovedFilesAreDeletedInTheDefectCommit
+    package: evalmutant
+    language: go
+    doc: "A removal defect must appear as a deletion in history. Writing only the\nmutant's files would leave the baseline copy in place, so the removal would\nbe invisible and the commit would misdescribe its own mutation."
+  - id: golang/architecture/evalmutant/repo_test.go:TestRepoHistoryIsReproducible
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestRepoHistoryIsReproducible
+    package: evalmutant
+    language: go
+    doc: "The history must be reproducible, or two runs of the same mutant bind to\ndifferent revisions and every digest derived from them stops comparing."
+  - id: golang/architecture/evalmutant/repo_test.go:TestRevisionDoesNotDependOnTheAmbientTimezone
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestRevisionDoesNotDependOnTheAmbientTimezone
+    package: evalmutant
+    language: go
+    doc: "The revision must not depend on the MACHINE, which is what requiring an\noffset buys. It deliberately does NOT claim that two spellings of the same\ninstant agree: git records the offset inside the commit object, so\n\"...T02:00:00Z\" and \"...T04:00:00+02:00\" are different commits by design.\nThe property that matters is that ONE string names one commit everywhere,\nwhich an offset-less value cannot promise."
+  - id: golang/architecture/evalmutant/repo_test.go:TestWitnessesStillHoldInAGitMaterializedTree
+    file: golang/architecture/evalmutant/repo_test.go
+    symbol: TestWitnessesStillHoldInAGitMaterializedTree
+    package: evalmutant
+    language: go
+    doc: "The witness must still find the defect in a git-materialized tree: if\ncommitting changed what is on disk, the suite would measure a different tree\nthan the one it certifies."
   - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
     file: golang/architecture/evaluatorcomposition/adapters_test.go
     symbol: TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority

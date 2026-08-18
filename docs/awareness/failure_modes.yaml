@@ -1588,3 +1588,14 @@ failure_modes:
       - cmd/awg/synthesis_run_stop_test.go:TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode
     evidence:
       - 'sensei synthesis-run returned exitResolutionFailure with free-text stderr for every refusal before the governed driver started: no task checkpoint, unanswered primary blocker, unusable workspace/graph identity, closure digest unavailable, interpretation unavailable, cognitive provider unavailable, generation provider unavailable. Issue #149 requires these worlds be distinguishable and forbids collapsing them; each calls for a different operator repair, so a caller had to parse prose to know what to do. One flag-validation path was also miscategorised as a resolution failure rather than an invalid invocation.'
+  - id: failure.mutant_commit_messages_reached_no_repository_so_the_defect_w
+    title: Mutant commit messages reached no repository, so the defect was witnessed by proxy
+    protects:
+      files:
+        - golang/architecture/evalmutant/repo.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - golang/architecture/evalmutant/repo_test.go:TestDefectCommitCarriesTheMutantsOwnMessage
+    evidence:
+      - evalmutant.Mutant carries a CommitMessage documented as present 'so history-based evidence is uniform across the suite', but Materialize only wrote files and never created a repository. The misleading-commit-message witness says so outright ('the message lives outside the tree, so the witness reads the change the message describes'), meaning the suite measured whether an evaluator noticed a rename rather than whether it caught a message describing work the diff does not contain. It also left every history-reading arm unrunnable over the suite, since WHY investigation requires an explicit commit range.

@@ -1093,6 +1093,7 @@ components:
     source_files:
       - golang/architecture/evalmutant/defects.go
       - golang/architecture/evalmutant/mutant.go
+      - golang/architecture/evalmutant/repo.go
     uml:
       kind: Component
       stereotype: module
