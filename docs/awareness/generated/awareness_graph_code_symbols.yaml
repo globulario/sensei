@@ -3049,6 +3049,23 @@ test_symbols:
     symbol: TestMachineAdoptedContractCategoryUsesContractLevel
     package: main
     language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowFileCeilingBindsThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowFileCeilingBindsThroughTheCLI
+    package: main
+    language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowRefusesAnUnhonourableScope
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowRefusesAnUnhonourableScope
+    package: main
+    language: go
+    doc: "A budget that cannot be honoured as written is refused before any work,\nrather than normalized into one that searches somewhere else."
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowScopeFlagsBindThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowScopeFlagsBindThroughTheCLI
+    package: main
+    language: go
+    doc: "A scope narrows what the document describes, and is recorded so a later\nreader can tell a deliberately narrow search from an exhausted one."
   - id: cmd/awg/cmd_lifecycle_test.go:TestTallyCoverageTiers_DeclarationIsClassifiedNotUnclassified
     file: cmd/awg/cmd_lifecycle_test.go
     symbol: TestTallyCoverageTiers_DeclarationIsClassifiedNotUnclassified
@@ -4322,6 +4339,66 @@ test_symbols:
     symbol: TestSuggest_SkipsAlreadyAuthoritative
     package: main
     language: go
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
+    package: main
+    language: go
+    doc: "The happy path: one modified file becomes one derived modify operation, and\nthe concrete admission request lands where `sensei admit-change --request`\ncan be pointed at it."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitDistinguishesANoOpCandidateFromARefusal
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitDistinguishesANoOpCandidateFromARefusal
+    package: main
+    language: go
+    doc: "\"Refused because admission has no vocabulary for this\" and \"there is nothing\nhere to admit\" are different facts. Collapsing them would send an operator\nhunting for a defect in the second case."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitDoesNotFollowTheRecordedCandidatePath
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitDoesNotFollowTheRecordedCandidatePath
+    package: main
+    language: go
+    doc: "The store root is the lineage bundle's own directory. A bundle whose\nrecorded CandidateArtifactPath points somewhere else must not redirect the\nread -- that string is data written by a previous process, not authority."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitIgnoresTheTemplateScope
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitIgnoresTheTemplateScope
+    package: main
+    language: go
+    doc: "The derived scope must come from the sealed manifests, not from the\ntemplate. A template naming a different file entirely must not survive into\nthe request -- that is precisely the hand-authoring hazard this command\nexists to remove."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitInvocationErrors
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitInvocationErrors
+    package: main
+    language: go
+    doc: "Invocation errors stay distinct from resolution failures so a caller can\ntell \"you called this wrong\" from \"the inputs did not line up\"."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesAMalformedLineageBundle
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesAMalformedLineageBundle
+    package: main
+    language: go
+    doc: "A bundle that is not the shape this command's own writer produces is\nrefused, including one carrying extra fields: silently dropping an unknown\nfield would let a future, richer bundle be read as if the parts this version\ncannot see did not exist."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesATemplateBoundToAnotherBase
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesATemplateBoundToAnotherBase
+    package: main
+    language: go
+    doc: "A template bound to a different repository or revision than the candidate is\nrefused rather than grafted, because the composed request would otherwise\nclaim a convergence iteration that never saw this candidate's base."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesAnUnrelatedCheckout
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesAnUnrelatedCheckout
+    package: main
+    language: go
+    doc: "The checkout simply not containing the candidate's base revision is a\ndistinct, equally refusable input -- not something to work around by using\nthe current tree."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesAnUnsupportedOperationWithAReceipt
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesAnUnsupportedOperationWithAReceipt
+    package: main
+    language: go
+    doc: "An added file is outside admission's operation vocabulary. That is a\ngoverned refusal with a receipt, not an error and not a silent success."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesBaseRevisionDrift
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesBaseRevisionDrift
+    package: main
+    language: go
+    doc: "Hard law 10: the base binding is refused on drift rather than silently\nre-derived against whatever the checkout happens to hold now. Without this,\na candidate built against one tree would produce a scope describing a\ndifferent one, and every downstream digest would still verify."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
@@ -4374,21 +4451,21 @@ test_symbols:
     symbol: TestExitCodeForDisposition_UnknownDispositionIsInternalDefect
     package: main
     language: go
-  - id: cmd/awg/cmd_synthesis_run_test.go:TestHelp_DoesNotClaimAdmitChangeConsumesLineage
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestHelp_NamesSynthesisAdmitAsTheLineageReader
     file: cmd/awg/cmd_synthesis_run_test.go
-    symbol: TestHelp_DoesNotClaimAdmitChangeConsumesLineage
+    symbol: TestHelp_NamesSynthesisAdmitAsTheLineageReader
     package: main
     language: go
-    doc: "TestHelp_DoesNotClaimAdmitChangeConsumesLineage is the direct\nregression test for a live review finding: the \"--help\" text (separate\nfrom nextStep's candidate-ready text, fixed in an earlier round) still\ntold the operator to run admit-change/verify-admission \"to review and\napply\" a sealed candidate, the same misleading implication that neither\ncommand currently consumes the lineage bundle."
+    doc: "These two started life as regressions against overclaiming: the help text\nand nextStep both told the operator to run admit-change \"to review and\napply\" a sealed candidate, when nothing consumed the lineage bundle at all.\n`sensei synthesis-admit` now does, so the honest statement changed -- but\nthe hazard did not. admit-change STILL does not read the bundle; it decides\nthe request synthesis-admit derives from it. Naming the wrong command as the\nreader would send an operator to a tool that cannot take the input, so both\nsurfaces must name synthesis-admit AND keep admit-change a separate step."
   - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
     file: cmd/awg/cmd_synthesis_run_test.go
     symbol: TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions
     package: main
     language: go
     doc: "TestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\nis the direct regression test for a live review finding:\nDispositionTerminalFailure's text unconditionally claimed \"No candidate\nexists,\" directly contradicting the same report's candidate_path field\nwhenever a candidate actually was sealed. runnercomposition.Run seals a\ncandidate unconditionally on every O3-verified attempt, strictly before\nO4 evaluation runs -- so a candidate can be sealed and the run still end\nin DispositionTerminalFailure (this attempt's own O4 recommends abort)\nor DispositionRunnerStopped (an earlier attempt in the same retry loop\nsealed one, then a later attempt's O3 generation itself failed) --\nconfirmed via dedicated golang/architecture/synthesisdriver tests\n(TestRunFinalizesTerminalFailureReachedOnTheLastAllowedStep and direct\nempirical verification for RunnerStopped) before this fix.\nTestNextStep_AcknowledgesASealedCandidateOnNonCandidateReadyDispositions\ncovers all four non-candidate-ready dispositions uniformly, including\nDispositionProviderStopped -- a live review found that a candidate\nsealed by an EARLIER attempt in the same run can survive into a\nDispositionProviderStopped outcome via the replan path (PhaseAttempting\n-> O4 recommends replan -> PhaseReplan -> PhasePlanning, a SECOND,\nlater call to the planning provider; if that later call itself fails,\nthe disposition is ProviderStopped despite a candidate already being\nsealed from before the replan), disproving an earlier assumption in\nthis same fix that ProviderStopped could never carry a candidate."
-  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_CandidateReadyNamesSynthesisAdmitAsTheLineageReader
     file: cmd/awg/cmd_synthesis_run_test.go
-    symbol: TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage
+    symbol: TestNextStep_CandidateReadyNamesSynthesisAdmitAsTheLineageReader
     package: main
     language: go
   - id: cmd/awg/cmd_synthesis_run_test.go:TestNextStep_NeverSuggestsAdmissionExceptForCandidateReady
@@ -11167,6 +11244,110 @@ test_symbols:
     symbol: TestValidate
     package: evidencereceipt
     language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestAnEmptyRepositoryIsNotAMisWrittenScope
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestAnEmptyRepositoryIsNotAMisWrittenScope
+    package: extractbudget
+    language: go
+    doc: "An unscoped run over an empty candidate set is a different fact -- there was\nnothing to search, not a scope that named nothing -- and must not be flagged\nas a mis-written scope."
+  - id: golang/architecture/extractbudget/budget_test.go:TestBudgetRefusesEscapingScopes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestBudgetRefusesEscapingScopes
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestBudgetThatExcludesEverythingItIncludesIsRefused
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestBudgetThatExcludesEverythingItIncludesIsRefused
+    package: extractbudget
+    language: go
+    doc: "A budget whose excludes swallow every include would produce an empty,\n\"completed\" extraction of a repository nobody searched. That reads as\nevidence of absence, and it is not."
+  - id: golang/architecture/extractbudget/budget_test.go:TestByteCeilingCutsAtAWholeFile
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestByteCeilingCutsAtAWholeFile
+    package: extractbudget
+    language: go
+    doc: "The byte ceiling cuts at a whole file. Half a file is not weaker evidence,\nit is evidence about source positions that do not mean what they say."
+  - id: golang/architecture/extractbudget/budget_test.go:TestDeadlineOnlyBindsWhenWallClockIsSet
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestDeadlineOnlyBindsWhenWallClockIsSet
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestEveryCutProducesALimitationNamingTheGap
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestEveryCutProducesALimitationNamingTheGap
+    package: extractbudget
+    language: go
+    doc: "A cut must always produce a limitation. A bounded run that reported no\nlimitation would be indistinguishable from a complete one."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExceededNamesEveryReachedDimension
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExceededNamesEveryReachedDimension
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestExcludeBeatsInclude
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExcludeBeatsInclude
+    package: extractbudget
+    language: go
+    doc: "Exclude wins over include: the narrower, negative statement is the one a\ncaller is more likely to have meant literally."
+  - id: golang/architecture/extractbudget/budget_test.go:TestNormalizeMakesEquivalentBudgetsIdentical
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestNormalizeMakesEquivalentBudgetsIdentical
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestReceiptIsDeterministic
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestReceiptIsDeterministic
+    package: extractbudget
+    language: go
+    doc: "Two identical runs must produce byte-identical receipts, which is why no\nmeasured duration lives in Consumption."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesApplyBeforeCeilings
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesApplyBeforeCeilings
+    package: extractbudget
+    language: go
+    doc: "Scopes are applied BEFORE ceilings. A caller who narrowed the search to one\ndirectory should get all of it, not a file ceiling already spent on files\nthe scope had ruled out."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesMatchSegmentsNotStringPrefixes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesMatchSegmentsNotStringPrefixes
+    package: extractbudget
+    language: go
+    doc: "Exclusion matches path segments, never raw string prefixes. \"internal\" must\nnot swallow \"internal_docs/\" -- an operator excluding one directory would\nsilently lose an unrelated one, and the receipt would truthfully report a\ncomplete search of a scope that was not what they wrote."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesThatMatchNothingAreFlaggedRatherThanReportedComplete
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesThatMatchNothingAreFlaggedRatherThanReportedComplete
+    package: extractbudget
+    language: go
+    doc: "A scope that names nothing must not produce a \"completed\" run over zero\nobservations. That reads as evidence that the repository contains nothing of\ninterest, when the real fact is that someone wrote a scope matching no file."
+  - id: golang/architecture/extractbudget/budget_test.go:TestStatusPrecedence
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestStatusPrecedence
+    package: extractbudget
+    language: go
+    doc: "Status precedence is load-bearing. A cancelled run may never have reached a\nlimit, and reporting budget_exhausted would send the operator to widen a\nlimit that was not the constraint."
+  - id: golang/architecture/extractbudget/budget_test.go:TestStatusVocabularyIsClosed
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestStatusVocabularyIsClosed
+    package: extractbudget
+    language: go
+    doc: "Only the enumerated dispositions exist; a caller must not be able to invent\na status the reader has no rule for."
+  - id: golang/architecture/extractbudget/budget_test.go:TestTruncationIsDeterministicAndNamesWhatWasNotSearched
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestTruncationIsDeterministicAndNamesWhatWasNotSearched
+    package: extractbudget
+    language: go
+    doc: "The cut has to be deterministic and it has to be REPORTABLE. Selection is\nsorted, so naming the first unsearched path is a complete statement of what\nwas skipped -- without a receipt that grows with the repository."
+  - id: golang/architecture/extractbudget/budget_test.go:TestWallClockExhaustionIsADistinctOutcomeFromCancellation
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestWallClockExhaustionIsADistinctOutcomeFromCancellation
+    package: extractbudget
+    language: go
+    doc: "The wall clock is the one limit that cannot be reported by comparing a\nmeasured number against a bound: elapsed time is nondeterministic, and a\nreceipt carrying it would never be equal twice. It is reported as an outcome\ninstead -- and it must stay distinguishable from the caller stopping the\nrun, since the two prescribe opposite responses."
+  - id: golang/architecture/extractbudget/budget_test.go:TestZeroBudgetIsUnbounded
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestZeroBudgetIsUnbounded
+    package: extractbudget
+    language: go
+    doc: "The zero budget must be exactly \"no limits\", because it is what every\nexisting caller passes implicitly. A zero value that quietly meant \"bound\neverything to zero\" would turn adoption into a repository-wide outage."
   - id: golang/architecture/fact_test.go:TestCanonicalFactDoesNotContainWallClockTime
     file: golang/architecture/fact_test.go
     symbol: TestCanonicalFactDoesNotContainWallClockTime
@@ -11871,6 +12052,72 @@ test_symbols:
     symbol: TestVerifyDigestResolved
     package: graphsnapshot
     language: go
+  - id: golang/architecture/howextract/budget_test.go:TestBoundedAndUnboundedAgreeWhenNothingIsCut
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestBoundedAndUnboundedAgreeWhenNothingIsCut
+    package: howextract
+    language: go
+    doc: "Adopting the contract must not change what an unbounded extraction produces.\nIf it did, every existing receipt's digest would move for reasons unrelated\nto the repository it describes."
+  - id: golang/architecture/howextract/budget_test.go:TestBudgetDroppedEvidenceIsNotReportedAsNoResult
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestBudgetDroppedEvidenceIsNotReportedAsNoResult
+    package: howextract
+    language: go
+    doc: "A provider whose evidence the budget discarded must NOT be reported as\n\"searched, no result\". That sentence, in a governed document, says the\nprovider looked and found nothing — when it found something the budget threw\naway. Coverage has to carry the difference or the document lies about the\nrepository rather than about itself."
+  - id: golang/architecture/howextract/budget_test.go:TestCancellationIsNotReportedAsBudgetExhaustion
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestCancellationIsNotReportedAsBudgetExhaustion
+    package: howextract
+    language: go
+    doc: "A cancelled run is reported as cancelled -- never as a zero-observation\nsuccess, and never blamed on a budget limit it may not have reached.\nWidening a limit that was not the constraint is the wrong response, and a\nreceipt that suggested it would cause exactly that."
+  - id: golang/architecture/howextract/budget_test.go:TestEnforcedBudgetSatisfiesTheResourceStatementRequirement
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestEnforcedBudgetSatisfiesTheResourceStatementRequirement
+    package: howextract
+    language: go
+    doc: "A receipt must carry SOME resource statement, and an enforced budget is a\nstrictly stronger one than a declared string map. Before this, the only way\npast the validator was the declared map -- which is why a surface that\nbounded nothing injected the literal {\"surface\": \"bounded\"} to satisfy it."
+  - id: golang/architecture/howextract/budget_test.go:TestEvidenceCeilingCutsReceiptsRatherThanCountingThem
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestEvidenceCeilingCutsReceiptsRatherThanCountingThem
+    package: howextract
+    language: go
+    doc: "An evidence ceiling has to CUT receipts, not merely count them. A receipt\nreporting budget_exhausted over a set nothing trimmed would be the same lie\nas the string map, wearing a typed struct."
+  - id: golang/architecture/howextract/budget_test.go:TestFileCeilingActuallyReducesTheSearchedSet
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestFileCeilingActuallyReducesTheSearchedSet
+    package: howextract
+    language: go
+    doc: "The load-bearing assertion for this checkpoint: a limit that is reached must\nactually reduce the work, be reported as the reason, and say what was left\nunsearched. Recording the limit and extracting everything anyway is the\ndefect the issue names."
+  - id: golang/architecture/howextract/budget_test.go:TestObservationCeilingBinds
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestObservationCeilingBinds
+    package: howextract
+    language: go
+    doc: "An observation ceiling binds on the normalized set and is reported."
+  - id: golang/architecture/howextract/budget_test.go:TestScopeMatchingNothingIsPartialNotComplete
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestScopeMatchingNothingIsPartialNotComplete
+    package: howextract
+    language: go
+    doc: "End-to-end: a scope naming a directory that does not exist must not yield a\nclean \"completed\" document with no observations."
+  - id: golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestScopesNarrowTheSearchAndAreRecorded
+    package: howextract
+    language: go
+    doc: "Scopes narrow the search and are recorded, because a run over a deliberately\nnarrowed repository and a run that ran out of budget produce the same\nobservations for entirely different reasons."
+  - id: golang/architecture/howextract/budget_test.go:TestUnboundedRunSaysSoRatherThanClaimingBoundedness
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestUnboundedRunSaysSoRatherThanClaimingBoundedness
+    package: howextract
+    language: go
+    doc: "The distinction this whole checkpoint rests on: a caller-declared limit that\nnothing reads must not be mistaken for one that binds. An unbounded run says\nso with an all-zero Budget -- which is a plainer statement than an absent\nfield, and keeps the disposition available on every run -- while still\nrecording what it measured."
+  - id: golang/architecture/howextract/budget_test.go:TestUnhonourableBudgetIsRefusedBeforeExtraction
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestUnhonourableBudgetIsRefusedBeforeExtraction
+    package: howextract
+    language: go
+    doc: "A budget that cannot be honoured as written is refused before any work,\nrather than repaired into a plausible one that searches somewhere else."
   - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
     file: golang/architecture/howextract/howextract_test.go
     symbol: TestAllCaptureFailuresAreUnavailable
@@ -17699,6 +17946,24 @@ test_symbols:
     symbol: TestUncertifiableClassificationRemainsVisible
     package: taskcontrol
     language: go
+  - id: golang/architecture/tasksession/admission_request_path_test.go:TestResolveCurrentAdmissionRequestPathFallsBackToPrepareTime
+    file: golang/architecture/tasksession/admission_request_path_test.go
+    symbol: TestResolveCurrentAdmissionRequestPathFallsBackToPrepareTime
+    package: tasksession
+    language: go
+    doc: "Before a generation exists, the prepare-time request IS the current one."
+  - id: golang/architecture/tasksession/admission_request_path_test.go:TestResolveCurrentAdmissionRequestPathPrefersTheCurrentGeneration
+    file: golang/architecture/tasksession/admission_request_path_test.go
+    symbol: TestResolveCurrentAdmissionRequestPathPrefersTheCurrentGeneration
+    package: tasksession
+    language: go
+    doc: "Once advance-task publishes a generation, the prepare-time request is no\nlonger current: it was computed against a convergence iteration that has\nsince advanced. Resolving to it would bind a derived admission scope to an\niteration no decision would be evaluated against."
+  - id: golang/architecture/tasksession/admission_request_path_test.go:TestResolveCurrentAdmissionRequestPathRefusesAnIncompletePointer
+    file: golang/architecture/tasksession/admission_request_path_test.go
+    symbol: TestResolveCurrentAdmissionRequestPathRefusesAnIncompletePointer
+    package: tasksession
+    language: go
+    doc: "A pointer that does not describe a complete generation is refused rather\nthan silently falling back to the prepare-time request, which would answer a\ndifferent question than the caller asked."
   - id: golang/architecture/tasksession/advance_e2e_postcommit_test.go:TestE2EPostCommitRecoveryRetriesWithoutSecondEvent
     file: golang/architecture/tasksession/advance_e2e_postcommit_test.go
     symbol: TestE2EPostCommitRecoveryRetriesWithoutSecondEvent

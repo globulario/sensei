@@ -1561,3 +1561,10 @@ required_tests:
     protects:
       invariants:
         - invariant.a_task_audit_reports_malformed_sessions_and_never_repairs_th
+  - id: golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    title: A bound include/exclude scope reaches every extractor, and the receipt records it
+    protects:
+      failure_modes:
+        - failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
+      files:
+        - golang/architecture/howextract/compose.go
