@@ -1650,3 +1650,25 @@ failure_modes:
       - golang/architecture/evalharness/composition_test.go:TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
     evidence:
       - investigator.Compose mandates five explicit SHA256 input digests with no unavailable status, and the composed document's receipt graph digest is validated against its binding's repository graph digest. A synthetic mutant has no graph, so supplying digests without a binding is refused and making them agree would declare a resolved graph digest for a repository that has none. Observed as candidates 0/9 while HOW produced 27-38 observations per mutant, a count that reads as composition found nothing unless the arm states that composition never ran. Resolved by onboarding the mutants with their own awareness corpus so the digest is earned.
+  - id: failure.a_governed_decision_declared_two_identities_within_one_proce
+    title: A governed decision declared two identities within one process
+    description: normalizePath was not idempotent for the empty string (filepath.Clean("") is ".", so normalizePath(".")=="" and normalizePath("")=="."), and normalizeDecision rewrites path slices in place on a backing array shared with the caller's Decision. The second normalization read the emptied slot, produced ".", added a phantom files_to_read entry and changed the digest. A declared-equals-computed check cannot catch this because both sides move together; only comparing two serializations of one value exposes it.
+    protects:
+      files:
+        - golang/architecture/admission/admission.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    required_tests:
+      - golang/architecture/admission/decision_identity_stability_test.go:TestDecisionDigestIsStableAcrossRepeatedMarshals
+    evidence:
+      - sensei admit-change --output <file> --format json marshalled one Decision twice and the stored copy declared decision_digest_sha256 ea114a3e1a08 while the printed copy declared a5e545fe5043; each serialization alone produced ea114a3e1a08, so the second marshal in a process changed the artifact's identity
+  - id: failure.a_candidate_s_graph_identity_is_never_revalidated_after_the
+    title: A candidate's graph identity is never revalidated after the run that produced it
+    description: 'synthesis-admit and synthesis-apply refuse base-revision drift when they revisit a persisted bundle, but do not re-verify the workspace or graph identity the candidate was produced under, because recomputing workspace identity needs a live Metadata RPC. A candidate sealed against one graph publication can therefore be composed into an admission request under another, or under none at all. Named in issue #149 hard law 10 and now measured rather than assumed.'
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_admit.go
+    related_invariants:
+      - invariant.synthesis.session_resumption_rejects_all_bound_identity_drift
+    evidence:
+      - with the graph server stopped, sensei synthesis-run refuses (exit 12, graph-identity-unusable) but sensei synthesis-admit composed an admission request from the persisted lineage bundle anyway; measured by scripts/synthesis-run-smoke.sh with the refusing run as its control

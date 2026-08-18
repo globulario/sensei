@@ -6969,6 +6969,17 @@ test_symbols:
     symbol: TestConsumeCapabilityRejectsUnadmittedOperation
     package: admission
     language: go
+  - id: golang/architecture/admission/decision_identity_stability_test.go:TestDecisionDigestIsStableAcrossRepeatedMarshals
+    file: golang/architecture/admission/decision_identity_stability_test.go
+    symbol: TestDecisionDigestIsStableAcrossRepeatedMarshals
+    package: admission
+    language: go
+    doc: "A decision's decision_digest_sha256 is its identity. `sensei admit-change\n--output <file> --format json` marshals ONE decision twice -- once to the\nfile it stores, once to the stream it prints -- and the two must agree about\nwhat decision they are. They did not: the stored decision declared one digest\nand the printed decision another, so an application receipt binding the\nstored decision could never be matched against the printed one.\n\nThe cause was normalizePath being non-idempotent for the empty string\n(filepath.Clean(\"\") == \".\"), combined with normalizeDecision rewriting path\nslices in place on a backing array shared with the caller's Decision."
+  - id: golang/architecture/admission/decision_identity_stability_test.go:TestNormalizePathIsIdempotent
+    file: golang/architecture/admission/decision_identity_stability_test.go
+    symbol: TestNormalizePathIsIdempotent
+    package: admission
+    language: go
   - id: golang/architecture/admission/decision_v2_test.go:TestDecideAdmissionAdmitsResolvedOperation
     file: golang/architecture/admission/decision_v2_test.go
     symbol: TestDecideAdmissionAdmitsResolvedOperation

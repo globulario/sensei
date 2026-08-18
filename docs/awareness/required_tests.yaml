@@ -1646,3 +1646,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.composition_cannot_be_evaluated_on_a_repository_with_no_grap
+  - id: golang/architecture/admission/decision_identity_stability_test.go:TestDecisionDigestIsStableAcrossRepeatedMarshals
+    title: One decision marshalled twice declares one identity, and its stored and printed forms agree
+    protects:
+      failure_modes:
+        - failure.a_governed_decision_declared_two_identities_within_one_proce
