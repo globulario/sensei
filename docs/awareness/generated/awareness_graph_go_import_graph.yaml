@@ -158,6 +158,7 @@ components:
       - cmd/awg/cmd_skill_ingest.go
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
+      - cmd/awg/cmd_synthesis_admit.go
       - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
@@ -199,6 +200,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.admission
+      - component.golang.architecture.admissioncomposition
       - component.golang.architecture.adoption
       - component.golang.architecture.agentcommand
       - component.golang.architecture.authority

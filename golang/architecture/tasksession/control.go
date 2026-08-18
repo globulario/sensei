@@ -827,6 +827,31 @@ func currentControlPaths(taskDir string) (controlPaths, string, error) {
 	}, ptr.DigestSHA256, nil
 }
 
+// ResolveCurrentAdmissionRequestPath returns the admission request document
+// that describes the task's CURRENT generation -- the same generation-scoped
+// resolution projectControlStatusAndClosure uses for the decision, never the
+// fixed prepare-time admission/request.yaml once a generation exists.
+//
+// The two genuinely diverge: `sensei advance-task` recomputes the request
+// against the convergence iteration it just advanced, so a caller that grafts
+// a derived scope onto the prepare-time request would bind a decision to an
+// iteration that is no longer current. Callers outside this package (the O5A
+// composition path in particular) need that resolution without reaching into
+// controlPaths, which is deliberately unexported.
+//
+// When the task has no published generation yet, the prepare-time request IS
+// the current one, and its path is returned.
+func ResolveCurrentAdmissionRequestPath(taskDir string) (string, error) {
+	paths, _, err := currentControlPaths(taskDir)
+	if err != nil {
+		return "", err
+	}
+	if paths.Results == "" {
+		return filepath.Join(taskDir, "admission", "request.yaml"), nil
+	}
+	return filepath.Join(filepath.Dir(paths.Results), "admission-request.yaml"), nil
+}
+
 func baseControlPaths(taskDir string) controlPaths {
 	return controlPaths{
 		Claims:      filepath.Join(taskDir, "convergence", "latest", "maintained-claims.yaml"),
