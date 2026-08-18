@@ -159,6 +159,7 @@ components:
       - cmd/awg/cmd_source_check.go
       - cmd/awg/cmd_suggest_realizations.go
       - cmd/awg/cmd_synthesis_admit.go
+      - cmd/awg/cmd_synthesis_apply.go
       - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
@@ -206,6 +207,7 @@ components:
       - component.golang.architecture.authority
       - component.golang.architecture.benchmark
       - component.golang.architecture.binding
+      - component.golang.architecture.candidateapply
       - component.golang.architecture.certification
       - component.golang.architecture.changebinding
       - component.golang.architecture.changebindingconsumer

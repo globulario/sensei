@@ -325,14 +325,30 @@ exhaustion, deterministic replay, and the rest) have been demonstrated. Gap 2
 (the pre-onboarded-repository precondition) also remains an implicit
 precondition rather than an explicit, authored contract.
 
-`sensei synthesis-admit` narrows the first of those two remaining steps
-without completing it. The composition half of the submission path now
-exists and is covered by its own tests, including base-revision drift — but
-*composed* is not *decided*: no real `admit-change` evaluation of a derived
-request, and no O5B application, has been run end to end. `candidateapply`
-(O5B) still has no CLI surface at all, so the apply and post-application
-verification scenarios in the proof matrix remain unreachable from the
-command line.
+`sensei synthesis-admit` and `sensei synthesis-apply` complete the *surface*
+of that path. Every owner in the chain is now reachable from a command line:
+
+```
+sensei synthesis-run     -> sealed candidate + lineage bundle
+sensei synthesis-admit   -> derived admission request        (O5A)
+sensei admit-change      -> admission decision               (separate)
+sensei synthesis-apply   -> admitted candidate materialized  (O5B)
+```
+
+`synthesis-apply` binds the decision to the composed request through O5A's own
+`ComposeDecisionReceipt` rather than by comparing fields, checks that the
+decision admits *mutation* specifically before touching anything, and then
+delegates to `candidateapply`, whose existing refusals — dirty target, HEAD not
+at the admitted base, wrong artifact, any operation outside modify — are
+surfaced with distinct exit codes rather than collapsed. It never commits,
+pushes, opens a pull request, approves, merges, or promotes knowledge.
+
+What remains open is *proof*, not surface. The completion proof matrix has not
+been run end to end on a real repository: no real `admit-change` evaluation of
+a derived request, no admission-refusal-after-accept scenario, no tampering or
+previously-consumed-artifact case, no retry/replan exhaustion, and no
+deterministic-replay run. Resume with workspace/graph/task/closure/base-revision
+drift refusal is also still unbuilt.
 
 Closing this contract for real still requires, in order: (a) run the
 completion proof matrix above end-to-end through real admission, apply, and
