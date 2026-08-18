@@ -115,7 +115,10 @@ Flags:
 	}
 	if !filepath.IsAbs(*agentCommand) {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: --agent-command must be an absolute path, got %q (no PATH lookup is performed -- pass \"$(command -v %s)\")\n", *agentCommand, *agentFlag)
-		return exitResolutionFailure
+		// A malformed flag value is an invocation error, not a failure to
+		// resolve repository state; it sat under exitResolutionFailure while
+		// every sibling flag check returned exitInvalidInvocation.
+		return exitInvalidInvocation
 	}
 	if *format != "text" && *format != "json" {
 		fmt.Fprintln(os.Stderr, "sensei synthesis-run: --format must be \"text\" or \"json\"")
@@ -136,8 +139,9 @@ Flags:
 	if taskDir == "" {
 		ptr, err := tasksession.LoadActivePointer(absRepo)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "sensei synthesis-run: no active task and --task not given; run 'sensei prepare-change' first: %v\n", err)
-			return exitResolutionFailure
+			return resolutionStop(*format, stopNoTaskCheckpoint,
+				fmt.Sprintf("no active task pointer and --task not given: %v", err),
+				"run 'sensei prepare-change' to bind a task checkpoint")
 		}
 		taskDir = filepath.Dir(ptr.SessionPath)
 	} else if !filepath.IsAbs(taskDir) {
@@ -147,8 +151,9 @@ Flags:
 	// --- step 2: load the task session (self digest-verifying) ---
 	taskSession, err := tasksession.LoadSession(filepath.Join(taskDir, "session.yaml"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: load task session: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopNoTaskCheckpoint,
+			fmt.Sprintf("load task session: %v", err),
+			"run 'sensei prepare-change' to rebind a verified task checkpoint")
 	}
 
 	// --- step 3: refuse an unconverged task unless overridden, and resolve
@@ -168,8 +173,9 @@ Flags:
 	// declaring real proof obligations the stale decision never had. ---
 	control, closureReport, taskDecision, err := tasksession.ResolveControlAndClosure(absRepo, taskDir, false)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: resolve task control state and closure report (run 'sensei advance-task' to converge closure first): %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopClosureUnavailable,
+			fmt.Sprintf("resolve task control state and closure report: %v", err),
+			"run 'sensei advance-task' to converge closure first")
 	}
 	// A stale binding is not necessarily represented by PrimaryBlocker; see
 	// validateCurrentBinding's own doc comment. Refused unconditionally,
@@ -179,15 +185,16 @@ Flags:
 		return exitResolutionFailure
 	}
 	if control.PrimaryBlocker != nil && !*forceUnconverged {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: task has an active primary blocker (%s); pass --force-unconverged to proceed anyway\n", control.PrimaryBlocker.Statement)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopTaskAwaitingAnswer,
+			fmt.Sprintf("task has an active primary blocker: %s", control.PrimaryBlocker.Statement),
+			"answer the blocker, or pass --force-unconverged to proceed anyway")
 	}
 
 	// --- step 4: compose workspace identity via a live Metadata RPC ---
 	identity, err := composeSynthesisRunIdentity(ctx, *addr, absRepo, taskDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: compose workspace identity: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopGraphIdentityUnusable,
+			fmt.Sprintf("compose workspace identity: %v", err), "")
 	}
 	if identity.CompositionState != workspacecontract.CompositionComplete {
 		if *forceThinCoverage && identityPartialOnlyForThinCoverage(identity) {
@@ -221,8 +228,8 @@ Flags:
 	// resolved atomically alongside control readiness ---
 	closureDigest, err := closureprotocol.SemanticDigest(closureReport)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: digest closure report: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopClosureUnavailable,
+			fmt.Sprintf("digest closure report: %v", err), "")
 	}
 
 	// Optional Gate-1 challenge input contains queries only. It cannot carry
@@ -247,8 +254,8 @@ Flags:
 		ChallengePlanDigestSHA256: challengePlanDigest,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct interpretation authority: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopInterpretationUnavailable,
+			fmt.Sprintf("construct interpretation authority: %v", err), "")
 	}
 
 	// --- step 6: file-backed interpretation provider, and the two
@@ -267,8 +274,8 @@ Flags:
 		ObservedAt: now,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct interpretation provider: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopInterpretationUnavailable,
+			fmt.Sprintf("construct interpretation provider: %v", err), "")
 	}
 
 	objective, err := resolveSynthesisRunObjective(*objectiveFlag, taskSession.TaskRequest.Description, interpretationProvider.Objective())
@@ -372,8 +379,9 @@ Flags:
 		}
 	}
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct %s agent: %v\n", *agentFlag, err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopCognitiveProviderUnavailable,
+			fmt.Sprintf("construct %s agent: %v", *agentFlag, err),
+			"check --agent-command points at an installed, executable provider CLI")
 	}
 
 	generationFactory, err := agentcommand.NewFactory(agentcommand.Config{
@@ -386,8 +394,8 @@ Flags:
 		MaxSnapshotBytes: *maxSnapshotBytes,
 	})
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: construct generation factory: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopGenerationProviderUnavailable,
+			fmt.Sprintf("construct generation factory: %v", err), "")
 	}
 
 	planningProvider, err := cognitivecommand.New(cognitivecommand.Config{

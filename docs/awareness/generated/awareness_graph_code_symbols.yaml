@@ -5838,6 +5838,36 @@ test_symbols:
     symbol: TestIdentityPartialOnlyForThinCoverage_TrueForThinCoverageAlone
     package: main
     language: go
+  - id: cmd/awg/synthesis_run_stop_test.go:TestEveryStopReasonHasItsOwnExitCode
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestEveryStopReasonHasItsOwnExitCode
+    package: main
+    language: go
+    doc: "THE requirement issue #149 states: the degraded worlds may not be collapsed.\nIf two of them share an exit code, a caller scripting this command cannot\ntell them apart without parsing prose, which is exactly the state this\nvocabulary replaced."
+  - id: cmd/awg/synthesis_run_stop_test.go:TestJSONStopIsTypedAndDoesNotImpersonateACompletedRun
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestJSONStopIsTypedAndDoesNotImpersonateACompletedRun
+    package: main
+    language: go
+    doc: "The JSON form must be a STOP, not a report. Emitting a report-shaped object\nwith empty receipt/disposition/candidate fields would let a caller read \"no\ncandidate\" as \"the run completed and produced nothing\", which is the\ncollapse this issue forbids."
+  - id: cmd/awg/synthesis_run_stop_test.go:TestStopCodesDoNotCollideWithDispositionCodes
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestStopCodesDoNotCollideWithDispositionCodes
+    package: main
+    language: go
+    doc: "The pre-run codes must not collide with the driver's disposition codes, or a\ncaller would read \"the generation provider is missing\" as \"the governed run\nhit its step limit\" — a completely different situation with a different fix."
+  - id: cmd/awg/synthesis_run_stop_test.go:TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode
+    package: main
+    language: go
+    doc: "End to end through the real command: a repository with no task checkpoint\nmust exit with the no-task-checkpoint code specifically, not the generic\nresolution code it used to share with every other pre-run failure."
+  - id: cmd/awg/synthesis_run_stop_test.go:TestUnknownStopReasonIsAnInternalDefect
+    file: cmd/awg/synthesis_run_stop_test.go
+    symbol: TestUnknownStopReasonIsAnInternalDefect
+    package: main
+    language: go
+    doc: "A reason with no code is a defect in this vocabulary, and must fail loudly\nrather than borrow a typed world's code and misreport which state occurred."
   - id: cmd/awg/wb3_loop_test.go:TestWriteBackLoop_EndToEnd
     file: cmd/awg/wb3_loop_test.go
     symbol: TestWriteBackLoop_EndToEnd

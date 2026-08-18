@@ -1616,3 +1616,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan
+  - id: cmd/awg/synthesis_run_stop_test.go:TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode
+    title: A missing task checkpoint exits its own code, not the generic resolution code
+    protects:
+      failure_modes:
+        - failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped

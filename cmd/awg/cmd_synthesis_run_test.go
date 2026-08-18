@@ -238,8 +238,12 @@ func TestRunSynthesisRun_RequiresAgentCommand(t *testing.T) {
 
 func TestRunSynthesisRun_RejectsRelativeAgentCommand(t *testing.T) {
 	out, code := captureSynthesisRunStderr(t, []string{"--interpretation", "x.json", "--agent", "codex", "--agent-command", "codex"})
-	if code != 1 {
-		t.Fatalf("code = %d, want 1", code)
+	// A malformed flag value is an invalid invocation, like every sibling flag
+	// check, not a failure to resolve repository state. It previously returned
+	// the resolution code, which told a caller the repository was not ready
+	// when in fact the command line was wrong.
+	if code != exitInvalidInvocation {
+		t.Fatalf("code = %d, want %d (invalid invocation)", code, exitInvalidInvocation)
 	}
 	if !containsAll(out, "absolute path", "PATH lookup") {
 		t.Fatalf("expected error to explain the absolute-path requirement, got: %s", out)
@@ -268,11 +272,19 @@ func TestRunSynthesisRun_FailsWithoutActiveOrExplicitTask(t *testing.T) {
 		"--agent", "codex",
 		"--agent-command", "/bin/true",
 	})
-	if code != 1 {
-		t.Fatalf("code = %d, want 1", code)
+	// Issue #149 requires this world be distinguishable from every other
+	// pre-run refusal. It used to share the generic resolution code with
+	// "the graph is stale" and "the provider is missing", which need
+	// completely different repairs.
+	if code != stopExitCodes[stopNoTaskCheckpoint] {
+		t.Fatalf("code = %d, want %d (no-task-checkpoint); %d is the generic resolution code",
+			code, stopExitCodes[stopNoTaskCheckpoint], exitResolutionFailure)
 	}
 	if !containsAll(out, "prepare-change") {
 		t.Fatalf("expected error to point at 'sensei prepare-change', got: %s", out)
+	}
+	if !containsAll(out, string(stopNoTaskCheckpoint)) {
+		t.Fatalf("expected the typed reason %q in the stop, got: %s", stopNoTaskCheckpoint, out)
 	}
 }
 
