@@ -81,8 +81,12 @@ func TestInstalledPrincipleMirrorIsNotExpectedOfTheInstallingDomain(t *testing.T
 		t.Fatal(err)
 	}
 	// And an installed mirror, which declares itself generated.
+	// The installed mirror declares its entries under "invariants:", which IS a
+	// governed schema. Using a non-governed top-level key here would send the
+	// id down the pre-existing !governed branch and the test would pass against
+	// the unfixed code, proving nothing.
 	mirror := "# Meta-Principles.\n#\n# " + packcustody.GeneratedMarker + "\n" +
-		"meta_principles:\n  - id: meta.projected_from_the_pack\n    title: authored upstream, installed here\n"
+		"invariants:\n  - id: meta.projected_from_the_pack\n    title: authored upstream, installed here\n"
 	if err := os.WriteFile(filepath.Join(corpus, "meta_principles.yaml"), []byte(mirror), 0o644); err != nil {
 		t.Fatal(err)
 	}
