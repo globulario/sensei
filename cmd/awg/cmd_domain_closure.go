@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture/packcustody"
 	"github.com/globulario/sensei/golang/extractor"
 )
 
@@ -143,7 +144,22 @@ func expectedIdentities(root string) (map[string]string, []string, error) {
 			return rerr
 		}
 		top, ids := topLevelKeyAndIDs(data)
+		// A file that declares itself a generated projection of the principle
+		// pack is not authored by the repository holding it. Custody already
+		// refuses to publish it under this domain, so counting its identities
+		// as ones this domain must project makes a CORRECT publication fail
+		// closure: every project that installs the pack reports its whole
+		// mirror missing. Observed live on sensei-code — 138 of 161 identities
+		// "absent", which is exactly the pack's principle count.
+		//
+		// The authoring domain is unaffected: it authors principles in its own
+		// corpus and generates the template from them, so it holds no mirror to
+		// exclude.
 		seg, governed := classIRISegment[top]
+		if governed && packcustody.DeclaresManagedMirror(data) {
+			excluded = append(excluded, ids...)
+			return nil
+		}
 		if !governed {
 			for _, id := range ids {
 				excluded = append(excluded, id)

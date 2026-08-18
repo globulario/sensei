@@ -150,6 +150,17 @@ func Derive(root string, content []byte) Verdict {
 	}
 }
 
+// DeclaresManagedMirror reports whether the content announces itself as a
+// generated projection of the pack.
+//
+// Exported because closure asks the same question for a different purpose: a
+// file that declares itself a projection is not authored by the repository
+// holding it, so that repository's domain must not be expected to publish its
+// identities. Two definitions of "is this a managed mirror?" would be two
+// things to keep in agreement, and their disagreement is precisely how a
+// correct publication fails closure.
+func DeclaresManagedMirror(content []byte) bool { return declaresManagedMirror(content) }
+
 // declaresManagedMirror reports whether the content announces itself as a
 // generated projection. Only the leading comment block is inspected: the marker
 // is a header, and a document that merely quotes the sentence somewhere in a
