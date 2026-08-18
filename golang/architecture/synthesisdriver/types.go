@@ -33,6 +33,26 @@ const (
 	DispositionStepLimitReached       Disposition = "step-limit-reached"
 )
 
+// Dispositions is the CLOSED vocabulary, in stable order.
+//
+// It exists so a consumer can range over every disposition instead of
+// re-listing them by hand. A hand-written list is the shape that let
+// interpretation-advisory go unmapped in `sensei synthesis-run`: the exit-code
+// test enumerated five of the six, so it passed while a real governed outcome
+// fell through to "internal defect". A test that ranges over this function
+// fails the moment a disposition is added without a consumer being updated,
+// which is what the closed vocabulary was supposed to guarantee.
+func Dispositions() []Disposition {
+	return []Disposition{
+		DispositionCandidateReady,
+		DispositionTerminalFailure,
+		DispositionProviderStopped,
+		DispositionInterpretationAdvisory,
+		DispositionRunnerStopped,
+		DispositionStepLimitReached,
+	}
+}
+
 // ProviderPolicy is the exact O2 execution budget for one operation.
 type ProviderPolicy struct {
 	DeadlineAt          string

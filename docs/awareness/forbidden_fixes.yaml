@@ -689,3 +689,9 @@ forbidden_fixes:
     related_invariants:
       - meta.single_derivation_path_must_reach_its_consumer
     reason: Relaxing evalmutant's CommittedAt check to a non-empty test. Git accepts an offset-less value like 2026-01-01T00:00:00 and reads it in the machine's local timezone, so the same mutant and the same string produce different revisions on a laptop and in CI. Both runs succeed and only the hashes disagree, which makes an unreproducible evaluation suite look healthy.
+  - id: forbidden_fix.enumerate_a_closed_vocabulary_by_hand_in_the_test_that_guard
+    title: Enumerate a closed vocabulary by hand in the test that guards its completeness
+    summary: 'Listing dispositions, stop reasons or any closed vocabulary inline in the test that checks every member is handled. The list is maintained by the same person who forgot to maintain the switch, so it passes exactly when it should fail: synthesis-run''s exit-code test enumerated five of six dispositions and stayed green while interpretation-advisory reported as an internal defect. Range over the vocabulary''s own accessor instead.'
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    reason: 'Listing dispositions, stop reasons or any closed vocabulary inline in the test that checks every member is handled. The list is maintained by the same person who forgot to maintain the switch, so it passes exactly when it should fail: synthesis-run''s exit-code test enumerated five of six dispositions and stayed green while interpretation-advisory reported as an internal defect. Range over the vocabulary''s own accessor instead.'

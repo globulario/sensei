@@ -2851,3 +2851,16 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.scripts.smokeplan
+    name: smokeplan
+    kind: service
+    assertion: inferred
+    source_files:
+      - scripts/smokeplan/main.go
+    depends_on:
+      - component.golang.architecture.agentcommand
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred

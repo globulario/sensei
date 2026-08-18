@@ -14340,6 +14340,24 @@ test_symbols:
     symbol: TestValidateProbeRejectsUnsafeAutomaticExecution
     package: probe
     language: go
+  - id: golang/architecture/probe/nil_context_test.go:TestCommandBearingProbeLoadsWithoutAValidationContext
+    file: golang/architecture/probe/nil_context_test.go
+    symbol: TestCommandBearingProbeLoadsWithoutAValidationContext
+    package: probe
+    language: go
+    doc: "THE #198 regression. A command-bearing probe must remain loadable when no\nvalidation context is available.\n\nConvergence generates such a probe from the graph, persists it, and then\nevery ordinary load path passes nil -- AdvanceTask and convergence have no\ngraph to pass. Treating nil as a failed match made the probe permanently\nunloadable: the task bricked, and `sensei advance-task`, the remediation the\nerror itself recommended, refused the same probe."
+  - id: golang/architecture/probe/nil_context_test.go:TestCommandIsStillRefusedWhenAContextDisagrees
+    file: golang/architecture/probe/nil_context_test.go
+    symbol: TestCommandIsStillRefusedWhenAContextDisagrees
+    package: probe
+    language: go
+    doc: "The guard must still fire wherever it CAN be evaluated: a context carrying a\ngraph that disagrees is a real violation, and relaxing the nil case must not\nhave relaxed this one."
+  - id: golang/architecture/probe/nil_context_test.go:TestCommandWithNoSourceRefIsStillRefusedWithoutAContext
+    file: golang/architecture/probe/nil_context_test.go
+    symbol: TestCommandWithNoSourceRefIsStillRefusedWithoutAContext
+    package: probe
+    language: go
+    doc: "Absence must not become permission. A command claiming NO source is\nmalformed regardless of what is available to check it against."
   - id: golang/architecture/probe/result_test.go:TestRecordProbeResultHashesArtifactAndUpdatesEvidenceState
     file: golang/architecture/probe/result_test.go
     symbol: TestRecordProbeResultHashesArtifactAndUpdatesEvidenceState

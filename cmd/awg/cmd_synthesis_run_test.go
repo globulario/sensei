@@ -400,14 +400,12 @@ func TestAgentCommandConfig_RejectsRelativeCommand(t *testing.T) {
 
 func TestExitCodeForDisposition_EveryDispositionHasADistinctCode(t *testing.T) {
 	seen := map[int]synthesisdriver.Disposition{}
-	dispositions := []synthesisdriver.Disposition{
-		synthesisdriver.DispositionCandidateReady,
-		synthesisdriver.DispositionTerminalFailure,
-		synthesisdriver.DispositionProviderStopped,
-		synthesisdriver.DispositionRunnerStopped,
-		synthesisdriver.DispositionStepLimitReached,
-	}
-	for _, d := range dispositions {
+	// Ranged over the CLOSED vocabulary, never a hand-written list. This test
+	// previously enumerated five of the six dispositions, so it passed while
+	// interpretation-advisory fell through to exitInternalDefect -- reporting a
+	// real governed outcome as a bug in this tool. A list maintained by hand
+	// cannot catch the case where someone forgot to maintain it.
+	for _, d := range synthesisdriver.Dispositions() {
 		code := exitCodeForDisposition(d)
 		if other, ok := seen[code]; ok {
 			t.Fatalf("dispositions %q and %q both map to exit code %d -- automation cannot distinguish them", other, d, code)
