@@ -1577,3 +1577,14 @@ failure_modes:
       - cmd/awg/build_closure_roots_test.go:TestClosureRootsAcceptTheInputSpellingProvenanceRecords
     evidence:
       - 'buildClosureReport accepted the absolute input root plus a relative form computed only for inputs INSIDE the working directory. A cross-repo build spells its corpus ''../other/docs/awareness'' and provenance records that spelling, so no certified root matched and the repository''s own identities read as authored elsewhere. Observed live: 21 of sensei-code''s own identities called foreign, dropping to 0 when the identical build was given an absolute --input.'
+  - id: failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped
+    title: Distinct pre-run degraded worlds collapsed into one untyped exit code
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_run.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - cmd/awg/synthesis_run_stop_test.go:TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode
+    evidence:
+      - 'sensei synthesis-run returned exitResolutionFailure with free-text stderr for every refusal before the governed driver started: no task checkpoint, unanswered primary blocker, unusable workspace/graph identity, closure digest unavailable, interpretation unavailable, cognitive provider unavailable, generation provider unavailable. Issue #149 requires these worlds be distinguishable and forbids collapsing them; each calls for a different operator repair, so a caller had to parse prose to know what to do. One flag-validation path was also miscategorised as a resolution failure rather than an invalid invocation.'

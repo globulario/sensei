@@ -677,3 +677,9 @@ forbidden_fixes:
     related_invariants:
       - meta.single_derivation_path_must_reach_its_consumer
     reason: Extending --reconcile-legacy to resolve mirror-only ids by deleting them. The flag attests that local text carried no intent worth keeping; an id upstream has never seen is the one case where that cannot be true, because the pack has nothing to restore it from and the deletion is permanent. Those entries must be relocated to a project-owned identity first; the refusal stays unconditional.
+  - id: forbidden_fix.reuse_the_generic_resolution_exit_code_for_a_newly_typed_deg
+    title: Reuse the generic resolution exit code for a newly typed degraded world
+    summary: 'Adding a degraded world to synthesis-run''s vocabulary while pointing it at exitResolutionFailure, or at another world''s code. The exit code IS the contract that lets a caller act without parsing prose; two worlds sharing a code restores the collapse issue #149 forbids. A reason with no code of its own must fail as an internal defect instead.'
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    reason: 'Adding a degraded world to synthesis-run''s vocabulary while pointing it at exitResolutionFailure, or at another world''s code. The exit code IS the contract that lets a caller act without parsing prose; two worlds sharing a code restores the collapse issue #149 forbids. A reason with no code of its own must fail as an internal defect instead.'
