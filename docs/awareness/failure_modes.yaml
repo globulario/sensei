@@ -1544,3 +1544,14 @@ failure_modes:
       - investigator.InputDigests requires five exact digests — graph authority, current claims, closure state, existing questions, review history. The only population site was cmd/awg/cmd_investigate.go reading five fs.String flags that each defaulted to empty, and investigator.IsSHA256 is a pure regex, so any 64 hex characters satisfied the check, including the digest of nothing.
       - The binding meant to make composition exactly reproducible therefore rested on operator-typed strings. Two runs could report the same binding while describing different graphs, and nothing in the receipt could distinguish them.
     contract: Each input digest architecture composition binds to must be produced by a named owner from a governed document, and the binding must record which owner produced it. Shape validation is not provenance validation.
+  - id: failure.operator_authorization_unreachable_behind_an_earlier_gate_re
+    title: Operator authorization unreachable behind an earlier gate refusing the same ambiguity
+    protects:
+      files:
+        - cmd/awg/cmd_principle_pack.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror
+    evidence:
+      - 'sensei principle-pack refresh consulted --reconcile-legacy only at the missing-baseline gate; a drifted legacy mirror hit the conflict gate first and returned 1, so the flag was unreachable for exactly the population it existed to serve. packcustody.Derive then refused the mirror permanently while its own error text recommended that flag. Observed on globulario/services: 4 locally-changed ids plus a differing preamble, no invocation could reconcile it.'

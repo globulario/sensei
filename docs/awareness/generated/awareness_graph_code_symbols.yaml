@@ -3281,6 +3281,12 @@ test_symbols:
     symbol: TestPackRefresh_AdditiveUpstreamEntryApplies
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_AlreadyCurrentWithoutRecordCanRecordProvenance
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_AlreadyCurrentWithoutRecordCanRecordProvenance
+    package: main
+    language: go
+    doc: "Matching bytes with no record is a dead end: custody refuses it, and every\nother path declines to act because there is nothing to change. An operator\nwho reconciled by hand lands there permanently, so there must be an exit that\nrecords provenance without pretending to have changed anything."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_ApplyReplayRefusesWhenMirrorChangedSinceInitialRead
@@ -3353,6 +3359,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent is the integration\ncase Codex's review named directly: on a project's FIRST adoption,\n\".sensei/principle-pack/adoptions\" does not exist yet. A real --apply run\nmust sync its parent (\".sensei/principle-pack\") so the new \"adoptions\"\nentry itself is durable, not just the receipt written inside it."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    package: main
+    language: go
+    doc: "A verified baseline proves what the project started from. It does not prove\nan operator accepted a whole-file overwrite that changes no entry, so a\nformatting-only refresh is reachable only via --reconcile-legacy -- and the\nreceipt must credit the flag that permitted it rather than the baseline that\nwould have refused it. The authorization field is the only place a later\nreader can learn an operator was involved at all."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FreshStateDirCreationSyncsRoot
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_FreshStateDirCreationSyncsRoot
@@ -3444,6 +3456,24 @@ test_symbols:
     symbol: TestPackRefresh_ReconcileLegacyAuthorizesAndIsRecorded
     package: main
     language: go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror
+    package: main
+    language: go
+    doc: "THE issue #178 test. A legacy mirror that has drifted must be reconcilable.\n\nBefore this, --reconcile-legacy was consulted only at the missing-baseline\ngate, which a drifted mirror never reached: the conflict gate returned first.\nSo the flag was unreachable for exactly the population it exists to serve,\nand custody -- which settles only on a record -- refused the file forever\nwhile its own error message recommended that flag."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconcileLegacyStillRefusesToDeleteProjectAuthoredEntries
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ReconcileLegacyStillRefusesToDeleteProjectAuthoredEntries
+    package: main
+    language: go
+    doc: "The asymmetry that keeps reconciliation safe. --reconcile-legacy attests that\nlocal text carried no intent worth keeping; an id upstream has never seen is\nthe one case where that cannot be true, because the pack has nothing to\nrestore it from. Applying would destroy it permanently, so the refusal holds\neven for an authorized operator."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconciledMirrorIsNoLongerRefusedByCustody
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_ReconciledMirrorIsNoLongerRefusedByCustody
+    package: main
+    language: go
+    doc: "The point of reconciling: custody must SETTLE. A mirror that is still Refused\nafter a successful refresh has gained nothing, since custody derives from a\nrecord and never from matching content."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_RecoveredReceiptResyncFailureRefusesAndLeavesMirrorAlone

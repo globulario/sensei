@@ -20,6 +20,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/globulario/sensei/golang/architecture/packcustody"
 )
 
 // installedMirror builds a project whose mirror is the embedded pack minus the
@@ -1738,4 +1740,233 @@ func receiptFilesIn(t *testing.T, root string) []string {
 	t.Helper()
 	m, _ := filepath.Glob(filepath.Join(adoptionsDirPath(root), "*.yaml"))
 	return m
+}
+
+// ─── legacy reconciliation of a DRIFTED mirror (issue #178) ─────────────
+
+// readOneRecord decodes the single adoption record a run is expected to write.
+func readOneRecord(t *testing.T, root string) principlePackRecord {
+	t.Helper()
+	recs := receiptFilesIn(t, root)
+	if len(recs) != 1 {
+		t.Fatalf("expected exactly 1 adoption record, got %d", len(recs))
+	}
+	raw, err := os.ReadFile(recs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r principlePackRecord
+	if err := yaml.Unmarshal(raw, &r); err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+// driftedLegacyMirror is the services shape issue #178 describes: a mirror with
+// no baseline record (it predates them), missing entries the pack has since
+// gained, AND carrying a local edit to a shared entry.
+func driftedLegacyMirror(t *testing.T, omit string) (root, mirrorPath string) {
+	t.Helper()
+	root, mirrorPath = installedMirrorNoBaseline(t, omit)
+	text := string(readMirror(t, mirrorPath))
+	edited := strings.Replace(text, "    severity: critical\n", "    severity: low\n", 1)
+	if edited == text {
+		t.Fatal("fixture did not change the mirror; the drift it models is absent")
+	}
+	if err := os.WriteFile(mirrorPath, []byte(edited), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return root, mirrorPath
+}
+
+// THE issue #178 test. A legacy mirror that has drifted must be reconcilable.
+//
+// Before this, --reconcile-legacy was consulted only at the missing-baseline
+// gate, which a drifted mirror never reached: the conflict gate returned first.
+// So the flag was unreachable for exactly the population it exists to serve,
+// and custody -- which settles only on a record -- refused the file forever
+// while its own error message recommended that flag.
+func TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := driftedLegacyMirror(t, id)
+
+	// Unauthorized, it must still refuse: an unreviewed local edit is
+	// indistinguishable from an upstream change.
+	before := readMirror(t, mirrorPath)
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("a drifted mirror was refreshed with no operator authorization")
+	}
+	if string(readMirror(t, mirrorPath)) != string(before) {
+		t.Fatal("the refused run modified the mirror")
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("an authorized operator could not reconcile a drifted legacy mirror, rc=%d", rc)
+	}
+
+	// The mirror is now the canonical pack.
+	packBytes, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(readMirror(t, mirrorPath)) != string(packBytes) {
+		t.Fatal("the reconciled mirror is not byte-identical to the pack")
+	}
+
+	// And the record must NAME what it overwrote. A receipt that reported only
+	// the adoption would describe a clean carry-forward, hiding that an
+	// operator's authorization was spent discarding local text.
+	r := readOneRecord(t, root)
+	if r.Authorization != "reconcile_legacy" {
+		t.Fatalf("authorization = %q, want reconcile_legacy", r.Authorization)
+	}
+	if len(r.Change.ChangedIDs) == 0 {
+		t.Error("the record does not name the overwritten entry; it reads as a clean adoption")
+	}
+	var adopted bool
+	for _, got := range r.Change.AddedIDs {
+		if got == id {
+			adopted = true
+		}
+	}
+	if !adopted {
+		t.Errorf("the record does not list %s as adopted", id)
+	}
+}
+
+// The point of reconciling: custody must SETTLE. A mirror that is still Refused
+// after a successful refresh has gained nothing, since custody derives from a
+// record and never from matching content.
+func TestPackRefresh_ReconciledMirrorIsNoLongerRefusedByCustody(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := driftedLegacyMirror(t, id)
+
+	if v := packcustody.Derive(root, readMirror(t, mirrorPath)); v.Custody != packcustody.Refused {
+		t.Fatalf("precondition: a drifted legacy mirror should be Refused, got %v", v.Custody)
+	}
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("reconcile failed, rc=%d", rc)
+	}
+	v := packcustody.Derive(root, readMirror(t, mirrorPath))
+	if v.Custody != packcustody.SharedProjection {
+		t.Fatalf("custody = %v after reconciliation, want SharedProjection (%s)", v.Custody, v.Reason)
+	}
+}
+
+// The asymmetry that keeps reconciliation safe. --reconcile-legacy attests that
+// local text carried no intent worth keeping; an id upstream has never seen is
+// the one case where that cannot be true, because the pack has nothing to
+// restore it from. Applying would destroy it permanently, so the refusal holds
+// even for an authorized operator.
+func TestPackRefresh_ReconcileLegacyStillRefusesToDeleteProjectAuthoredEntries(t *testing.T) {
+	id := anAddableID(t)
+	root, mirrorPath := installedMirrorNoBaseline(t, id)
+
+	text := string(readMirror(t, mirrorPath))
+	text += "  - id: project.local_only_principle\n    title: authored here, not upstream\n    severity: high\n"
+	if err := os.WriteFile(mirrorPath, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	before := readMirror(t, mirrorPath)
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc == 0 {
+		t.Fatal("an authorized run deleted a project-authored entry the pack cannot restore")
+	}
+	if string(readMirror(t, mirrorPath)) != string(before) {
+		t.Fatal("the refused run modified the mirror")
+	}
+	if n := len(receiptFilesIn(t, root)); n != 0 {
+		t.Fatalf("the refused run wrote %d record(s)", n)
+	}
+}
+
+// Matching bytes with no record is a dead end: custody refuses it, and every
+// other path declines to act because there is nothing to change. An operator
+// who reconciled by hand lands there permanently, so there must be an exit that
+// records provenance without pretending to have changed anything.
+func TestPackRefresh_AlreadyCurrentWithoutRecordCanRecordProvenance(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	packBytes, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(mirrorPath, packBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if v := packcustody.Derive(root, packBytes); v.Custody != packcustody.Refused {
+		t.Fatalf("precondition: matching bytes with no record must still be Refused, got %v", v.Custody)
+	}
+
+	// Plan mode stays read-only.
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("plan rc=%d", rc)
+	}
+	if n := len(receiptFilesIn(t, root)); n != 0 {
+		t.Fatalf("plan mode wrote %d record(s)", n)
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("could not record provenance for already-current content, rc=%d", rc)
+	}
+	if string(readMirror(t, mirrorPath)) != string(packBytes) {
+		t.Fatal("recording provenance modified the mirror")
+	}
+
+	// The record must not claim a change it did not make.
+	r := readOneRecord(t, root)
+	if r.Target.PreviousDigest != r.Target.ResultingDigest {
+		t.Error("the record claims the mirror moved between two different digests")
+	}
+	if len(r.Change.AddedIDs) != 0 || len(r.Change.ChangedIDs) != 0 || len(r.Change.RemovedIDs) != 0 {
+		t.Errorf("the record names id changes that never happened: %+v", r.Change)
+	}
+	if v := packcustody.Derive(root, packBytes); v.Custody != packcustody.SharedProjection {
+		t.Fatalf("custody = %v after recording provenance, want SharedProjection", v.Custody)
+	}
+}
+
+// A verified baseline proves what the project started from. It does not prove
+// an operator accepted a whole-file overwrite that changes no entry, so a
+// formatting-only refresh is reachable only via --reconcile-legacy -- and the
+// receipt must credit the flag that permitted it rather than the baseline that
+// would have refused it. The authorization field is the only place a later
+// reader can learn an operator was involved at all.
+func TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	packBytes, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same entries, same preamble, different bytes.
+	drifted := append(append([]byte{}, packBytes...), '\n')
+	if err := os.WriteFile(mirrorPath, drifted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeInstallRecord(root, drifted); err != nil {
+		t.Fatal(err)
+	}
+
+	// Unauthorized, a baseline alone must not carry it.
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("a formatting-only overwrite was applied on the baseline alone")
+	}
+	if n := len(receiptFilesIn(t, root)); n != 0 {
+		t.Fatalf("the refused run wrote %d record(s)", n)
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("an authorized formatting-only refresh was refused, rc=%d", rc)
+	}
+	r := readOneRecord(t, root)
+	if r.Authorization != "reconcile_legacy" {
+		t.Fatalf("authorization = %q; the baseline would have refused this write, so crediting it hides the operator", r.Authorization)
+	}
 }

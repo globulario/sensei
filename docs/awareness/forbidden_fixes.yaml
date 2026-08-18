@@ -671,3 +671,9 @@ forbidden_fixes:
     related_invariants:
       - meta.authority_must_express_uncertainty
     reason: 'Adding a sentinel like ErrNoTaskSession is a MIGRATION, not an addition: every caller detecting the previous condition (os.IsNotExist, a string match, a specific errno) silently stops detecting it, and the compiler says nothing. Before returning a new typed error, enumerate the call sites of the function that returns it and update each one; keep the old check alongside the sentinel where absence can still arrive by the old route from paths the caller does not own. Equally forbidden: concluding the migration is complete from a green local suite whose exit status came from a pipeline (go test | grep | head reports grep''s status, and head can truncate the --- FAIL lines out of view).'
+  - id: forbidden_fix.let_reconcile_legacy_overwrite_entries_that_exist_only_in_th
+    title: Let reconcile-legacy overwrite entries that exist only in the mirror
+    summary: Extending --reconcile-legacy to resolve mirror-only ids by deleting them. The flag attests that local text carried no intent worth keeping; an id upstream has never seen is the one case where that cannot be true, because the pack has nothing to restore it from and the deletion is permanent. Those entries must be relocated to a project-owned identity first; the refusal stays unconditional.
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    reason: Extending --reconcile-legacy to resolve mirror-only ids by deleting them. The flag attests that local text carried no intent worth keeping; an id upstream has never seen is the one case where that cannot be true, because the pack has nothing to restore it from and the deletion is permanent. Those entries must be relocated to a project-owned identity first; the refusal stays unconditional.

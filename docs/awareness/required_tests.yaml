@@ -1596,3 +1596,13 @@ required_tests:
         - failure.architecture_composition_s_input_digests_were_validated_for
       files:
         - golang/architecture/compositionbinding/binding.go
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror
+    title: A drifted legacy mirror is reconcilable by an authorized operator
+    protects:
+      failure_modes:
+        - failure.operator_authorization_unreachable_behind_an_earlier_gate_re
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    title: A receipt credits the authorization that permitted the write, not one that would have refused it
+    protects:
+      failure_modes:
+        - failure.operator_authorization_unreachable_behind_an_earlier_gate_re
