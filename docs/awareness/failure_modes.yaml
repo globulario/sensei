@@ -1494,3 +1494,15 @@ failure_modes:
       - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
     evidence:
       - Replacing a raw ENOENT with a typed ErrNoTaskSession made senseireport's os.IsNotExist absence check stop matching, so 'no active task' became a hard error and 8 tests failed. The new sentinel was correct; the change was incomplete because nothing about adding an error announces which existing callers stop recognizing it.
+  - id: failure.governed_append_assumed_one_of_yaml_s_two_block_sequence_sty
+    title: Governed append assumed one of YAML's two block-sequence styles and refused every proposal against the other
+    severity: high
+    protects:
+      files:
+        - golang/architecture/governedmutation/apply.go
+    required_tests:
+      - golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendMatchesEitherBlockSequenceStyle
+    evidence:
+      - 'sensei propose refused every proposal against globulario/services (11,640-line invariants.yaml, 277 entries) with ''appending under "invariants" would produce a document that does not parse (yaml: did not find expected key)''. renderItem always emits 2-space-indented items; that corpus writes items at column 0, so the composed item landed as a key inside the previous entry.'
+      - 'Content-independent: the reported line did not move when the payload shrank to one word, and the same shape failed identically for failure_modes.yaml. It never reproduced on sensei''s own corpus, which happens to use the indented style.'
+    contract: A governed append must match the block-sequence indentation the target corpus already uses; both of YAML's styles are legal and the corpus, not the renderer, decides.

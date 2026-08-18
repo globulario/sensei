@@ -11600,6 +11600,35 @@ test_symbols:
     symbol: TestValidateReportRejectsGraphDigestSubstitution
     package: governedimpact
     language: go
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendItemIndentDefaultsWhenFileIsAbsent
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestAppendItemIndentDefaultsWhenFileIsAbsent
+    package: governedmutation
+    language: go
+    doc: "A missing file has no style to match, so the rendered default stands — the\nscaffolding path must keep working."
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendItemIndentReadsTheFirstItem
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestAppendItemIndentReadsTheFirstItem
+    package: governedmutation
+    language: go
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendMatchesEitherBlockSequenceStyle
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestAppendMatchesEitherBlockSequenceStyle
+    package: governedmutation
+    language: go
+    doc: "A round-trip per style: propose one entry into a realistic corpus and assert\nthe result parses and holds exactly one more entry than before."
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestReindentItemPreservesRelativeNesting
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestReindentItemPreservesRelativeNesting
+    package: governedmutation
+    language: go
+    doc: "Reindenting must preserve the relative nesting renderItem produced, or a\nnested mapping would silently change which key it belongs to."
+  - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestUnmatchedIndentationIsRefusedRatherThanWritten
+    file: golang/architecture/governedmutation/apply_indent_append_test.go
+    symbol: TestUnmatchedIndentationIsRefusedRatherThanWritten
+    package: governedmutation
+    language: go
+    doc: "Without matching the corpus, the compose is refused — which is what users\nsaw. Pinned so a regression reproduces the original symptom rather than\nsilently writing something that merely happens to parse."
   - id: golang/architecture/governedmutation/apply_scaffold_append_test.go:TestAppendBootstrapsMissingFileAndMissingKey
     file: golang/architecture/governedmutation/apply_scaffold_append_test.go
     symbol: TestAppendBootstrapsMissingFileAndMissingKey
