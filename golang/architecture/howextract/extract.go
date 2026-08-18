@@ -54,6 +54,18 @@ func ExtractContext(ctx context.Context, root string, opts Options) (investigati
 	if err := opts.Budget.Validate(); err != nil {
 		return investigation.Document{}, err
 	}
+	// The wall-clock ceiling binds the WHOLE extraction, not just the package
+	// load. It previously derived a deadline inside the semantic extractor and
+	// discarded it on return, so the AST walk, source-manifest hashing, and
+	// evidence capture all ran unbounded afterwards -- and a caller
+	// cancellation after the load was ignored entirely. A limit documented as
+	// a wall-clock ceiling that stops applying partway through is worse than
+	// no limit: it is a ceiling the receipt claims was enforced.
+	if deadline, bounded := opts.Budget.Deadline(time.Now()); bounded {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
+	}
 	opts.Budget = opts.Budget.Normalize()
 	return extractAll(ctx, root, opts)
 }

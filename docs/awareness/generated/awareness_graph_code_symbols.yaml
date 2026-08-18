@@ -11278,17 +11278,24 @@ test_symbols:
     package: extractbudget
     language: go
     doc: "A cut must always produce a limitation. A bounded run that reported no\nlimitation would be indistinguishable from a complete one."
-  - id: golang/architecture/extractbudget/budget_test.go:TestExceededNamesEveryReachedDimension
-    file: golang/architecture/extractbudget/budget_test.go
-    symbol: TestExceededNamesEveryReachedDimension
-    package: extractbudget
-    language: go
   - id: golang/architecture/extractbudget/budget_test.go:TestExcludeBeatsInclude
     file: golang/architecture/extractbudget/budget_test.go
     symbol: TestExcludeBeatsInclude
     package: extractbudget
     language: go
     doc: "Exclude wins over include: the narrower, negative statement is the one a\ncaller is more likely to have meant literally."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExhaustedDimensionsAreClosedAndDeduplicated
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExhaustedDimensionsAreClosedAndDeduplicated
+    package: extractbudget
+    language: go
+    doc: "A cut site cannot invent a dimension the reader has no rule for, and\nduplicates from two stages collapse."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExhaustionComesFromActualCutsNotFromComparingNumbers
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExhaustionComesFromActualCutsNotFromComparingNumbers
+    package: extractbudget
+    language: go
+    doc: "Exhaustion must come from the stage that cut, never from comparing\nconsumption against a bound. The comparison was wrong in BOTH directions,\nand both directions matter:\n\n  - three 100-byte files under a 250-byte ceiling keep 200 and cut the third,\n    yet 200 >= 250 is false, so a genuinely partial run reported \"completed\";\n  - a repository totalling exactly 250 bytes reported \"budget_exhausted\"\n    while nothing was skipped.\n\nThe first is the failure this whole contract exists to prevent: partial\nevidence presented as complete."
   - id: golang/architecture/extractbudget/budget_test.go:TestNormalizeMakesEquivalentBudgetsIdentical
     file: golang/architecture/extractbudget/budget_test.go
     symbol: TestNormalizeMakesEquivalentBudgetsIdentical
@@ -12118,6 +12125,18 @@ test_symbols:
     package: howextract
     language: go
     doc: "A budget that cannot be honoured as written is refused before any work,\nrather than repaired into a plausible one that searches somewhere else."
+  - id: golang/architecture/howextract/budget_test.go:TestValidateRejectsAFabricatedEnforcementClaim
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestValidateRejectsAFabricatedEnforcementClaim
+    package: howextract
+    language: go
+    doc: "An externally supplied artifact must not be able to certify an enforcement\nthat could not have happened: claiming a limit was exhausted while that\nlimit is unset, or naming a dimension outside the closed vocabulary."
+  - id: golang/architecture/howextract/budget_test.go:TestWallClockDeadlineReachesTheWholeExtraction
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestWallClockDeadlineReachesTheWholeExtraction
+    package: howextract
+    language: go
+    doc: "The wall clock must bound the WHOLE extraction, not only the package load.\nIt previously derived a deadline inside the semantic extractor and discarded\nit on return, so the AST walk, manifest hashing, and evidence capture ran\nunbounded afterwards — a ceiling the receipt claimed was enforced and that\nstopped applying partway through."
   - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
     file: golang/architecture/howextract/howextract_test.go
     symbol: TestAllCaptureFailuresAreUnavailable

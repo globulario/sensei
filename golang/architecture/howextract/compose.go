@@ -196,6 +196,9 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	consumption.Packages = semanticRes.Packages
 	outcome.Cancelled = outcome.Cancelled || semanticRes.Cancelled
 	outcome.WallClockExhausted = outcome.WallClockExhausted || semanticRes.WallClockExhausted
+	// The dimensions that actually cut, as reported by the stage that cut.
+	outcome.Truncated = append(outcome.Truncated, semanticRes.Selection.Truncated...)
+	outcome.Truncated = append(outcome.Truncated, semanticRes.Truncated...)
 	limitations = append(limitations, semanticRes.Selection.Limitations("go_semantic_extractor")...)
 	// A scope that names nothing produced a "completed" run over zero
 	// observations, which reads as evidence of absence. It is a degraded run:
@@ -256,9 +259,14 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	// budgets.
 	//
 	// What this does NOT do is bound that extractor's COST: it still walks the
-	// whole repository and its work is then discarded. The scope is honest
-	// about what was observed; wall clock is currently the only limit that
-	// bounds what the AST pass spends, and that is stated rather than implied.
+	// whole repository and its work is then discarded.
+	//
+	// Nor does the wall clock bound it. factextract.Extract takes no context,
+	// so it cannot observe the deadline and can overrun it; the ceiling is
+	// enforced at the stages that DO honour a context (the semantic package
+	// load) and checked between stages, not inside this one. Saying "wall
+	// clock bounds the AST pass" would be the comfortable version and is not
+	// true.
 	if len(opts.Budget.IncludePaths) > 0 || len(opts.Budget.ExcludePaths) > 0 {
 		kept := facts[:0]
 		dropped := 0
@@ -298,6 +306,7 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 			Blocking: false,
 		})
 		normalizedFacts = normalizedFacts[:opts.Budget.MaxObservations]
+		outcome.Truncated = append(outcome.Truncated, extractbudget.DimensionObservations)
 	}
 	consumption.Observations = len(normalizedFacts)
 
@@ -391,8 +400,9 @@ func composeReceiptsAndCoverage(
 	// receipts' own stable order, and coverage is derived from the surviving
 	// set, so a bounded run's coverage describes the evidence it actually
 	// kept rather than evidence it discarded.
-	dedupReceipts, droppedByProvider, evidenceLimitations := boundEvidence(dedupReceipts, opts.Budget)
+	dedupReceipts, droppedByProvider, evidenceCut, evidenceLimitations := boundEvidence(dedupReceipts, opts.Budget)
 	limitations = append(limitations, evidenceLimitations...)
+	outcome.Truncated = append(outcome.Truncated, evidenceCut...)
 
 	// 1. Plan Digest
 	plan := investigation.Plan{
@@ -688,9 +698,9 @@ func deduplicateReceipts(receipts []investigation.EvidenceReceipt) ([]investigat
 // deterministically and at whole-receipt granularity. A half-captured receipt
 // is not weaker evidence, it is evidence of something that was never observed:
 // its content digest would no longer describe the source range it names.
-func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudget.Budget) ([]investigation.EvidenceReceipt, map[string]int, []architecture.Limitation) {
+func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudget.Budget) ([]investigation.EvidenceReceipt, map[string]int, []string, []architecture.Limitation) {
 	if budget.MaxEvidenceReceipts <= 0 && budget.MaxCapturedContentBytes <= 0 {
-		return receipts, nil, nil
+		return receipts, nil, nil, nil
 	}
 	kept := make([]investigation.EvidenceReceipt, 0, len(receipts))
 	var bytes int64
@@ -699,9 +709,9 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 		size := int64(len(rec.CapturedContent))
 		switch {
 		case budget.MaxEvidenceReceipts > 0 && len(kept) >= budget.MaxEvidenceReceipts:
-			reason = "max_evidence_receipts"
+			reason = extractbudget.DimensionEvidenceReceipts
 		case budget.MaxCapturedContentBytes > 0 && bytes+size > budget.MaxCapturedContentBytes:
-			reason = "max_captured_content_bytes"
+			reason = extractbudget.DimensionCapturedContentBytes
 		}
 		if reason != "" {
 			// Which providers lost evidence is not bookkeeping. Without it,
@@ -714,7 +724,7 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 			for _, lost := range receipts[i:] {
 				dropped[lost.Provider.ID]++
 			}
-			return kept, dropped, []architecture.Limitation{{
+			return kept, dropped, []string{reason}, []architecture.Limitation{{
 				Source: "how_extraction_budget", Scope: "repository",
 				Reason: fmt.Sprintf("extraction budget reached (%s): %d of %d evidence receipt(s) were kept; the rest were discarded, beginning at %s",
 					reason, len(kept), len(receipts), receipts[i].ID),
@@ -724,5 +734,5 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 		kept = append(kept, rec)
 		bytes += size
 	}
-	return kept, nil, nil
+	return kept, nil, nil, nil
 }

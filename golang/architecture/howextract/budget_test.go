@@ -352,3 +352,73 @@ func TestBudgetDroppedEvidenceIsNotReportedAsNoResult(t *testing.T) {
 		t.Errorf("validate: %v", err)
 	}
 }
+
+// The wall clock must bound the WHOLE extraction, not only the package load.
+// It previously derived a deadline inside the semantic extractor and discarded
+// it on return, so the AST walk, manifest hashing, and evidence capture ran
+// unbounded afterwards — a ceiling the receipt claimed was enforced and that
+// stopped applying partway through.
+func TestWallClockDeadlineReachesTheWholeExtraction(t *testing.T) {
+	root := deterministicFixture(t)
+	opts := defaultOpts()
+	opts.Budget = extractbudget.Budget{MaxWallClock: time.Nanosecond}
+
+	doc, err := Extract(root, opts)
+	if err != nil {
+		t.Fatalf("an expired wall clock must still produce a truthful document: %v", err)
+	}
+	rb := doc.Receipt.ResourceBudget
+	if rb == nil {
+		t.Fatal("no budget receipt")
+	}
+	if rb.Status != extractbudget.StatusBudgetExhausted {
+		t.Fatalf("status = %q, want budget_exhausted", rb.Status)
+	}
+	var named bool
+	for _, d := range rb.ExhaustedDimensions {
+		if d == extractbudget.DimensionWallClock {
+			named = true
+		}
+	}
+	if !named {
+		t.Errorf("exhausted dimensions = %v, want max_wall_clock", rb.ExhaustedDimensions)
+	}
+}
+
+// An externally supplied artifact must not be able to certify an enforcement
+// that could not have happened: claiming a limit was exhausted while that
+// limit is unset, or naming a dimension outside the closed vocabulary.
+func TestValidateRejectsAFabricatedEnforcementClaim(t *testing.T) {
+	root := deterministicFixture(t)
+	opts := defaultOpts()
+	opts.Budget = extractbudget.Budget{MaxFiles: 1}
+	doc, err := Extract(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := investigation.Validate(doc); err != nil {
+		t.Fatalf("the honest document does not validate: %v", err)
+	}
+
+	for name, mutate := range map[string]func(*extractbudget.Receipt){
+		"limit not set": func(r *extractbudget.Receipt) {
+			r.Budget.MaxFiles = 0
+			r.Budget.MaxObservations = 0
+			r.ExhaustedDimensions = []string{extractbudget.DimensionFiles}
+		},
+		"dimension outside the vocabulary": func(r *extractbudget.Receipt) {
+			r.ExhaustedDimensions = []string{"max_vibes"}
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			tampered := doc
+			rb := *doc.Receipt.ResourceBudget
+			mutate(&rb)
+			rb.Status = extractbudget.StatusBudgetExhausted
+			tampered.Receipt.ResourceBudget = &rb
+			if err := investigation.Validate(tampered); err == nil {
+				t.Fatal("a fabricated enforcement claim was certified")
+			}
+		})
+	}
+}

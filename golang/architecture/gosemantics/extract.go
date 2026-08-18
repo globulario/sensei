@@ -71,6 +71,10 @@ type Result struct {
 	// collapsed into "it stopped early".
 	Cancelled          bool
 	WallClockExhausted bool
+	// Truncated names the budget dimensions this extractor actually cut, so
+	// the disposition is reported by the stage that declined the work rather
+	// than inferred from a comparison downstream.
+	Truncated []string
 }
 
 type extractor struct {
@@ -109,6 +113,9 @@ func Extract(root string) (result Result, err error) {
 //   - MaxWallClock is therefore the ONLY limit that bounds the load, through
 //     the context packages.Load honours. A repository whose type-check does
 //     not finish in the time available is bounded by this and nothing else.
+//     The deadline is normally applied by the CALLER (howextract), so the
+//     ceiling covers the whole extraction rather than this stage alone; this
+//     function derives its own only when it was called without one.
 //   - MaxPackages can only bind AFTER the load, since the count is not known
 //     until then. It bounds the analysis, not the load.
 //
@@ -140,9 +147,18 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 		}
 		selectedFiles[filepath.ToSlash(rel)] = true
 	}
+	// A caller that already applied this budget's wall clock (howextract does,
+	// so the ceiling covers the whole extraction rather than only this stage)
+	// passes a context that is already deadline-bound. Deriving a second
+	// deadline from the same budget would be harmless but redundant; what
+	// matters is that a DeadlineExceeded arriving from either source is still
+	// attributed to the budget rather than to the caller.
 	parent := ctx
 	budgetDeadline := false
-	if deadline, bounded := budget.Deadline(time.Now()); bounded {
+	if _, hasDeadline := ctx.Deadline(); hasDeadline {
+		budgetDeadline = budget.MaxWallClock > 0
+	}
+	if deadline, bounded := budget.Deadline(time.Now()); bounded && !budgetDeadline {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithDeadline(ctx, deadline)
 		defer cancel()
@@ -151,17 +167,28 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 	// stopped attributes a context error to whoever actually caused it. The
 	// parent is asked first: if the caller had already stopped, the budget's
 	// own deadline is incidental and must not take the blame.
+	// Attribution order matters, and it changed when the wall clock moved up to
+	// howextract so it could cover the whole extraction: the deadline now
+	// usually arrives on the INHERITED context, so a parent-error check first
+	// would blame the caller for every budget expiry.
+	//
+	// A deadline is attributed to the budget whenever the budget set one; an
+	// explicit cancellation is always the caller's. The residual ambiguity --
+	// a caller-imposed deadline firing while a budget wall clock is also set --
+	// resolves to the budget, which is the actionable reading: the operator
+	// asked for a ceiling and hit one.
 	stopped := func() (cancelled, wallClock bool, reason string) {
-		if err := ctx.Err(); err == nil {
+		err := ctx.Err()
+		if err == nil {
 			return false, false, ""
+		}
+		if budgetDeadline && errors.Is(err, context.DeadlineExceeded) {
+			return false, true, "semantic package load stopped at the max_wall_clock bound"
 		}
 		if parent.Err() != nil {
 			return true, false, "semantic package load stopped by the caller: " + parent.Err().Error()
 		}
-		if budgetDeadline && errors.Is(ctx.Err(), context.DeadlineExceeded) {
-			return false, true, "semantic package load stopped at the max_wall_clock bound"
-		}
-		return true, false, "semantic package load stopped: " + ctx.Err().Error()
+		return true, false, "semantic package load stopped: " + err.Error()
 	}
 	fset := token.NewFileSet()
 	goCache := filepath.Join(os.TempDir(), "sensei-go-build-cache")
@@ -195,6 +222,7 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 	}
 	loadedPackageCount := len(loaded)
 	var packageLimitations []Limitation
+	var truncated []string
 	if budget.MaxPackages > 0 && len(loaded) > budget.MaxPackages {
 		sort.Slice(loaded, func(i, j int) bool { return loaded[i].PkgPath < loaded[j].PkgPath })
 		packageLimitations = append(packageLimitations, Limitation{
@@ -203,6 +231,7 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 				budget.MaxPackages, loadedPackageCount, loaded[budget.MaxPackages].PkgPath),
 		})
 		loaded = loaded[:budget.MaxPackages]
+		truncated = append(truncated, extractbudget.DimensionPackages)
 	}
 	e := &extractor{root: root, selectedFiles: selectedFiles, fset: fset, packages: loaded}
 	e.limitations = append(e.limitations, packageLimitations...)
@@ -224,6 +253,7 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 				budget.MaxObservations, len(e.observations)),
 		})
 		e.observations = e.observations[:budget.MaxObservations]
+		truncated = append(truncated, extractbudget.DimensionObservations)
 	}
 	e.limitations = normalizeLimitations(e.limitations)
 	return Result{
@@ -231,6 +261,7 @@ func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budge
 		Limitations:  e.limitations,
 		Selection:    selection,
 		Packages:     len(loaded),
+		Truncated:    truncated,
 	}, nil
 }
 

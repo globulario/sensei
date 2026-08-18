@@ -71,10 +71,10 @@ func Select(candidates []Candidate, b Budget) Selection {
 	truncated := map[string]bool{}
 	for i, c := range inScope {
 		if b.MaxFiles > 0 && len(sel.Files) >= b.MaxFiles {
-			truncated["max_files"] = true
+			truncated[DimensionFiles] = true
 		}
 		if b.MaxSourceBytes > 0 && sel.Consumption.SourceBytes+c.Size > b.MaxSourceBytes {
-			truncated["max_source_bytes"] = true
+			truncated[DimensionSourceBytes] = true
 		}
 		// Break rather than skip. Skipping a file that overflows the byte
 		// ceiling and taking a later, smaller one would make the selection
@@ -172,11 +172,19 @@ func ComposeReceipt(b Budget, c Consumption, outcome RunOutcome) Receipt {
 		IncludePaths:  b.IncludePaths,
 		ExcludePaths:  b.ExcludePaths,
 	}
-	hit := b.Exceeded(c)
+	// Exhaustion is what the cutting stages REPORTED, never what a comparison
+	// infers. Inferring it from consumption was wrong in both directions:
+	// three 100-byte files under a 250-byte ceiling keep 200 bytes and cut the
+	// third, yet 200 >= 250 is false, so a genuinely partial run reported
+	// "completed" -- the exact failure this contract exists to prevent. A
+	// repository totalling exactly 250 bytes reported "budget_exhausted" while
+	// nothing was skipped. Only the stage that declined to do work knows that
+	// it declined.
+	hit := append([]string{}, outcome.Truncated...)
 	if outcome.WallClockExhausted {
-		hit = append([]string{"max_wall_clock"}, hit...)
-		sort.Strings(hit)
+		hit = append(hit, DimensionWallClock)
 	}
+	hit = normalizeDimensions(hit)
 	switch {
 	case outcome.UnavailableReason != "":
 		r.Status = StatusUnavailable
@@ -211,6 +219,11 @@ type RunOutcome struct {
 	WallClockExhausted bool
 	UnavailableReason  string
 	Degraded           bool
+	// Truncated names the dimensions that ACTUALLY cut work, appended by the
+	// stage that did the cutting. It is the only source of exhaustion: a
+	// dimension absent here did not stop anything, however close consumption
+	// came to its bound.
+	Truncated []string
 }
 
 // Deadline returns the wall-clock deadline this budget implies from start, and
@@ -220,4 +233,21 @@ func (b Budget) Deadline(start time.Time) (time.Time, bool) {
 		return time.Time{}, false
 	}
 	return start.Add(b.MaxWallClock), true
+}
+
+// normalizeDimensions sorts, de-duplicates, and drops anything outside the
+// closed vocabulary, so a receipt cannot name a dimension a reader has no rule
+// for even if a future cut site passes one.
+func normalizeDimensions(in []string) []string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(in))
+	for _, d := range in {
+		if !IsValidDimension(d) || seen[d] {
+			continue
+		}
+		seen[d] = true
+		out = append(out, d)
+	}
+	sort.Strings(out)
+	return out
 }

@@ -206,25 +206,54 @@ type Consumption struct {
 	CapturedContentBytes int64 `json:"captured_content_bytes" yaml:"captured_content_bytes"`
 }
 
-// Exceeded returns the names of every dimension in which consumption reached
-// or passed its bound, in stable order. It is the single place that decides
-// "the budget stopped this", so a caller cannot reach that conclusion by
-// eyeballing two numbers and getting the comparison backwards.
-func (b Budget) Exceeded(c Consumption) []string {
-	var hit []string
-	add := func(name string, limit, used int64) {
-		if limit > 0 && used >= limit {
-			hit = append(hit, name)
-		}
+// Dimension names. Closed so a cut site cannot invent one a reader has no rule
+// for, and so a receipt's exhausted_dimensions can be validated rather than
+// trusted.
+const (
+	DimensionWallClock            = "max_wall_clock"
+	DimensionFiles                = "max_files"
+	DimensionSourceBytes          = "max_source_bytes"
+	DimensionPackages             = "max_packages"
+	DimensionObservations         = "max_observations"
+	DimensionEvidenceReceipts     = "max_evidence_receipts"
+	DimensionCapturedContentBytes = "max_captured_content_bytes"
+)
+
+// IsValidDimension reports whether name is one of the closed set above.
+func IsValidDimension(name string) bool {
+	switch name {
+	case DimensionWallClock, DimensionFiles, DimensionSourceBytes, DimensionPackages,
+		DimensionObservations, DimensionEvidenceReceipts, DimensionCapturedContentBytes:
+		return true
+	default:
+		return false
 	}
-	add("max_files", int64(b.MaxFiles), int64(c.Files))
-	add("max_source_bytes", b.MaxSourceBytes, c.SourceBytes)
-	add("max_packages", int64(b.MaxPackages), int64(c.Packages))
-	add("max_observations", int64(b.MaxObservations), int64(c.Observations))
-	add("max_evidence_receipts", int64(b.MaxEvidenceReceipts), int64(c.EvidenceReceipts))
-	add("max_captured_content_bytes", b.MaxCapturedContentBytes, c.CapturedContentBytes)
-	sort.Strings(hit)
-	return hit
+}
+
+// Limit returns the configured bound for a dimension, and whether it is set.
+// A receipt naming a dimension whose bound is unset is claiming an enforcement
+// that could not have happened.
+func (b Budget) Limit(dimension string) (int64, bool) {
+	var v int64
+	switch dimension {
+	case DimensionWallClock:
+		v = int64(b.MaxWallClock)
+	case DimensionFiles:
+		v = int64(b.MaxFiles)
+	case DimensionSourceBytes:
+		v = b.MaxSourceBytes
+	case DimensionPackages:
+		v = int64(b.MaxPackages)
+	case DimensionObservations:
+		v = int64(b.MaxObservations)
+	case DimensionEvidenceReceipts:
+		v = int64(b.MaxEvidenceReceipts)
+	case DimensionCapturedContentBytes:
+		v = b.MaxCapturedContentBytes
+	default:
+		return 0, false
+	}
+	return v, v > 0
 }
 
 func normalizeScopes(in []string) []string {

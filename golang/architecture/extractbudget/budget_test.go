@@ -173,14 +173,48 @@ func TestEveryCutProducesALimitationNamingTheGap(t *testing.T) {
 	}
 }
 
-func TestExceededNamesEveryReachedDimension(t *testing.T) {
-	b := Budget{MaxFiles: 2, MaxObservations: 5, MaxPackages: 10}
-	got := b.Exceeded(Consumption{Files: 2, Observations: 9, Packages: 3})
-	if len(got) != 2 || got[0] != "max_files" || got[1] != "max_observations" {
-		t.Fatalf("exceeded = %v, want [max_files max_observations]", got)
+// Exhaustion must come from the stage that cut, never from comparing
+// consumption against a bound. The comparison was wrong in BOTH directions,
+// and both directions matter:
+//
+//   - three 100-byte files under a 250-byte ceiling keep 200 and cut the third,
+//     yet 200 >= 250 is false, so a genuinely partial run reported "completed";
+//   - a repository totalling exactly 250 bytes reported "budget_exhausted"
+//     while nothing was skipped.
+//
+// The first is the failure this whole contract exists to prevent: partial
+// evidence presented as complete.
+func TestExhaustionComesFromActualCutsNotFromComparingNumbers(t *testing.T) {
+	b := Budget{MaxSourceBytes: 250}
+
+	cut := Select([]Candidate{sized("a.go", 100), sized("b.go", 100), sized("c.go", 100)}, b)
+	if len(cut.Truncated) == 0 {
+		t.Fatal("selection did not report the cut it made")
 	}
-	if hit := (Budget{}).Exceeded(Consumption{Files: 1 << 20}); len(hit) != 0 {
-		t.Errorf("an unbounded budget reported exhaustion: %v", hit)
+	partial := ComposeReceipt(b, cut.Consumption, RunOutcome{Truncated: cut.Truncated})
+	if partial.Status != StatusBudgetExhausted {
+		t.Fatalf("a run that cut a file reported %q; consumption was %d against a bound of 250",
+			partial.Status, cut.Consumption.SourceBytes)
+	}
+
+	// Exactly at the bound, nothing cut: not exhausted.
+	whole := Select([]Candidate{sized("a.go", 125), sized("b.go", 125)}, b)
+	if len(whole.Truncated) != 0 {
+		t.Fatalf("selection reported a cut it did not make: %v", whole.Truncated)
+	}
+	complete := ComposeReceipt(b, whole.Consumption, RunOutcome{Truncated: whole.Truncated})
+	if complete.Status != StatusCompleted {
+		t.Fatalf("a run that skipped nothing reported %q at exactly the bound", complete.Status)
+	}
+}
+
+// A cut site cannot invent a dimension the reader has no rule for, and
+// duplicates from two stages collapse.
+func TestExhaustedDimensionsAreClosedAndDeduplicated(t *testing.T) {
+	r := ComposeReceipt(Budget{MaxFiles: 1}, Consumption{},
+		RunOutcome{Truncated: []string{"max_files", "max_files", "not_a_dimension"}})
+	if len(r.ExhaustedDimensions) != 1 || r.ExhaustedDimensions[0] != DimensionFiles {
+		t.Fatalf("exhausted = %v, want exactly [%s]", r.ExhaustedDimensions, DimensionFiles)
 	}
 }
 
@@ -191,17 +225,18 @@ func TestStatusPrecedence(t *testing.T) {
 	b := Budget{MaxFiles: 1}
 	full := Consumption{Files: 1}
 
-	if r := ComposeReceipt(b, full, RunOutcome{}); r.Status != StatusBudgetExhausted {
+	exhausted := RunOutcome{Truncated: []string{DimensionFiles}}
+	if r := ComposeReceipt(b, full, exhausted); r.Status != StatusBudgetExhausted {
 		t.Errorf("status = %q, want budget_exhausted", r.Status)
 	} else if len(r.ExhaustedDimensions) != 1 {
 		t.Errorf("budget_exhausted receipt does not name the limit: %+v", r)
 	}
-	if r := ComposeReceipt(b, full, RunOutcome{Cancelled: true}); r.Status != StatusCancelled {
+	if r := ComposeReceipt(b, full, RunOutcome{Cancelled: true, Truncated: []string{DimensionFiles}}); r.Status != StatusCancelled {
 		t.Errorf("cancellation was reported as %q; a limit must not be blamed for the caller's own stop", r.Status)
 	} else if len(r.ExhaustedDimensions) != 0 {
 		t.Errorf("a cancelled run named budget dimensions: %v", r.ExhaustedDimensions)
 	}
-	if r := ComposeReceipt(b, full, RunOutcome{Cancelled: true, UnavailableReason: "go toolchain absent"}); r.Status != StatusUnavailable {
+	if r := ComposeReceipt(b, full, RunOutcome{Cancelled: true, Truncated: []string{DimensionFiles}, UnavailableReason: "go toolchain absent"}); r.Status != StatusUnavailable {
 		t.Errorf("status = %q, want unavailable to outrank everything", r.Status)
 	}
 	if r := ComposeReceipt(b, Consumption{}, RunOutcome{Degraded: true}); r.Status != StatusPartial {

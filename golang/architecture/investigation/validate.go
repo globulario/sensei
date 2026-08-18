@@ -715,6 +715,22 @@ func Validate(doc Document) error {
 		if rb.Status == extractbudget.StatusBudgetExhausted && len(rb.ExhaustedDimensions) == 0 {
 			errs = append(errs, "receipt resource_budget reports budget_exhausted without naming which limit was reached")
 		}
+		// An externally supplied artifact can claim any string as an exhausted
+		// dimension. Without these two checks, a receipt asserting
+		// `budget_exhausted` on `max_files` while `MaxFiles == 0` validates
+		// once its digest is recomputed -- letting `investigate validate`
+		// certify an enforcement that could not have happened. A dimension
+		// outside the closed vocabulary has no rule a reader could apply, and
+		// one whose bound is unset names a limit that was never in force.
+		for _, d := range rb.ExhaustedDimensions {
+			if !extractbudget.IsValidDimension(d) {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget names unknown exhausted dimension %q", d))
+				continue
+			}
+			if _, set := rb.Budget.Limit(d); !set {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget reports %q exhausted, but that limit is not set in the budget it records", d))
+			}
+		}
 	}
 	if receipt.NondeterminismDeclaration == "" {
 		errs = append(errs, "receipt nondeterminism_declaration is required")
