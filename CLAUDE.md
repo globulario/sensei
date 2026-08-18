@@ -84,6 +84,12 @@ sensei propose --kind required_test --id "path_test.go:TestReloadFresh" \
 # A repair that must never be applied again:
 sensei propose --kind forbidden_fix --title "Cache the reload path" \
   --related-invariant <inv.id> --description "caused the stale-serve failure"
+
+# A repair that worked and HELD (queued for review, never auto-promoted):
+sensei propose --kind applied_repair --title "Parse-check the composed document" \
+  --related-failure <fm.id> --required-test path_test.go:TestComposedParses \
+  --source-file golang/x/apply.go --description "what the repair did" \
+  --survival-evidence "no recurrence across N runs touching this region"
 ```
 
 Every entry must answer the contract-first questions: what contract was

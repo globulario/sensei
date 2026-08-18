@@ -50,6 +50,7 @@ func (s *server) Propose(_ context.Context, req *awarenesspb.ProposeRequest) (*a
 		Contract:          req.GetContract(),
 		ProposedContract:  req.GetProposedContract(),
 		RevisionRequest:   req.GetRevisionRequest(),
+		SurvivalEvidence:  req.GetSurvivalEvidence(),
 	}
 	propose.Normalize(&pr)
 	if errs := propose.Validate(pr); len(errs) > 0 {

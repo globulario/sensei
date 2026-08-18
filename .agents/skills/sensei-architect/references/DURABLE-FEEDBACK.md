@@ -82,6 +82,18 @@ Forbidden fix:
 - describe why it appears tempting and why it violates the contract
 - link the invariant or failure mode it protects
 
+Repair that worked:
+
+- propose `applied_repair` — the positive counterpart to `forbidden_fix`
+- link the `failure_mode` it repaired, the `required_test` that proves it, and
+  the source files it is bound to; a repair with no failure is an anecdote, with
+  no test is unproven, and with no files is not reproducible
+- give `survival_evidence`: what shows the repair HELD, not that it was applied.
+  Reviewer acceptance is NOT the signal — accepted-and-wrong repairs carry
+  provenance that makes them read as vetted. The admissible signal is survival:
+  the failure did not recur across subsequent runs touching the same region
+- it lands in the candidate review queue, never in a governed source file
+
 Required test:
 
 - propose `required_test`

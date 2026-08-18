@@ -76,3 +76,49 @@ func TestPropose_AcceptsAndWritesCandidate(t *testing.T) {
 		t.Errorf("candidate missing awaiting_review marker:\n%s", body)
 	}
 }
+
+// The applied_repair kind is only reachable over the wire if the transport
+// carries survival_evidence. A required field that the RPC silently drops would
+// make every remote applied_repair proposal fail validation for a reason the
+// caller did supply — so prove both halves: the field survives the hop, and its
+// absence is refused rather than quietly accepted.
+func TestPropose_AppliedRepairCarriesSurvivalEvidenceOverTheWire(t *testing.T) {
+	dir := t.TempDir()
+	s := newTestServer(nopStore{})
+	s.awarenessDir = dir
+
+	req := &awarenesspb.ProposeRequest{
+		Kind:             "applied_repair",
+		Title:            "Verify the composed document parses before the rename",
+		Description:      "Added a parse check before the atomic rename.",
+		RelatedFailures:  []string{"failure.governed_append_corrupted_a_scaffolded_marker"},
+		RequiredTests:    []string{"golang/architecture/governedmutation/apply_test.go:TestFirstAppendStaysValid"},
+		SourceFiles:      []string{"golang/architecture/governedmutation/apply.go"},
+		SurvivalEvidence: []string{"the guard caught a bug in its own change"},
+	}
+	resp, err := s.Propose(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus() != awarenesspb.ProposeStatus_PROPOSE_STATUS_ACCEPTED {
+		t.Fatalf("status = %v, want ACCEPTED (errors: %v)", resp.GetStatus(), resp.GetValidationErrors())
+	}
+	body, rerr := os.ReadFile(filepath.Join(dir, filepath.FromSlash(resp.GetCandidatePath())))
+	if rerr != nil {
+		t.Fatalf("candidate not written: %v", rerr)
+	}
+	for _, want := range []string{"survival_evidence", "the guard caught a bug in its own change"} {
+		if !strings.Contains(string(body), want) {
+			t.Fatalf("candidate is missing %q:\n%s", want, body)
+		}
+	}
+
+	req.SurvivalEvidence = nil
+	resp, err = s.Propose(context.Background(), req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.GetStatus() != awarenesspb.ProposeStatus_PROPOSE_STATUS_REJECTED {
+		t.Fatalf("an applied_repair with no survival evidence was accepted")
+	}
+}
