@@ -198,6 +198,7 @@ components:
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
       - cmd/awg/synthesis_run_identity.go
+      - cmd/awg/synthesis_task_drift.go
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.admission

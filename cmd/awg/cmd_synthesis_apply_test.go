@@ -25,6 +25,12 @@ type applyFixture struct {
 	decisionPath string
 	scope        admission.ChangeScope
 	identity     string
+	// targetDir is a DEDICATED worktree, separate from the repository that
+	// holds the task. That separation is the command's actual contract, and
+	// keeping it in the fixture matters: when the two were the same directory,
+	// dirtying the "target" also perturbed the task state, so a dirty-target
+	// test could pass by tripping the drift check instead.
+	targetDir string
 }
 
 func newApplyFixture(t *testing.T) applyFixture {
@@ -45,7 +51,10 @@ func newApplyFixture(t *testing.T) applyFixture {
 	path := filepath.Join(t.TempDir(), "decision.yaml")
 	writeCanonicalDecision(t, path, decision)
 
-	return applyFixture{admitFixture: f, decisionPath: path, scope: composed.DerivedScope, identity: identity}
+	return applyFixture{
+		admitFixture: f, decisionPath: path, scope: composed.DerivedScope, identity: identity,
+		targetDir: newTargetWorktree(t, f.repoDir, f.baseRevision),
+	}
 }
 
 func applyDecisionFixture(t *testing.T, f admitFixture, scope admission.ChangeScope, identity, outcome string) admission.Decision {
@@ -94,13 +103,30 @@ func writeCanonicalDecision(t *testing.T, path string, decision admission.Decisi
 	}
 }
 
+// newTargetWorktree clones the fixture repository and detaches it at the
+// admitted base revision: a clean, dedicated worktree pinned to the right
+// commit, which is exactly what synthesis-apply requires and what a real
+// operator would prepare.
+func newTargetWorktree(t *testing.T, source, baseRevision string) string {
+	t.Helper()
+	target := filepath.Join(t.TempDir(), "target")
+	if out, err := exec.Command("git", "clone", "-q", source, target).CombinedOutput(); err != nil {
+		t.Fatalf("clone target worktree: %v\n%s", err, out)
+	}
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		target = resolved
+	}
+	gitIn(t, target, "checkout", "-q", "--detach", baseRevision)
+	return target
+}
+
 func (f applyFixture) apply(t *testing.T, extra ...string) int {
 	t.Helper()
 	args := append([]string{
 		"--repo", f.repoDir,
 		"--lineage", f.lineagePath,
 		"--decision", f.decisionPath,
-		"--target", f.repoDir,
+		"--target", f.targetDir,
 	}, extra...)
 	return runSynthesisApply(args)
 }
@@ -122,29 +148,29 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 // nothing else happens.
 func TestSynthesisApplyMaterializesTheAdmittedCandidate(t *testing.T) {
 	f := newApplyFixture(t)
-	before := strings.TrimSpace(gitIn(t, f.repoDir, "rev-parse", "HEAD"))
+	before := strings.TrimSpace(gitIn(t, f.targetDir, "rev-parse", "HEAD"))
 
 	if code := f.apply(t); code != exitCandidateApplied {
 		t.Fatalf("exit = %d, want %d", code, exitCandidateApplied)
 	}
 
-	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != "new\n" {
 		t.Fatalf("a.txt = %q, want the admitted content %q", got, "new\n")
 	}
-	if untouched, rerr := os.ReadFile(filepath.Join(f.repoDir, "b.txt")); rerr != nil || string(untouched) != "unchanged\n" {
+	if untouched, rerr := os.ReadFile(filepath.Join(f.targetDir, "b.txt")); rerr != nil || string(untouched) != "unchanged\n" {
 		t.Errorf("a file outside the admitted scope was modified: %q %v", untouched, rerr)
 	}
 
 	// Hard law 7: nothing is committed, and the change is present as working
 	// tree modification for a human to review.
-	if after := strings.TrimSpace(gitIn(t, f.repoDir, "rev-parse", "HEAD")); after != before {
+	if after := strings.TrimSpace(gitIn(t, f.targetDir, "rev-parse", "HEAD")); after != before {
 		t.Errorf("HEAD moved from %s to %s; this command must never commit", before, after)
 	}
-	status := gitIn(t, f.repoDir, "status", "--porcelain")
+	status := gitIn(t, f.targetDir, "status", "--porcelain")
 	if !strings.Contains(status, "a.txt") {
 		t.Errorf("the applied change is not visible in the worktree: %q", status)
 	}
@@ -190,7 +216,7 @@ func TestSynthesisApplyRefusesAnUnadmittedDecision(t *testing.T) {
 	if code := f.apply(t); code != exitAdmissionNotAdmitting {
 		t.Fatalf("exit = %d, want %d", code, exitAdmissionNotAdmitting)
 	}
-	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,13 +240,13 @@ func TestSynthesisApplyRefusesADecisionForAnotherComposition(t *testing.T) {
 // Hard law 5: the target must be clean and pinned to the admitted base.
 func TestSynthesisApplyRefusesADirtyTarget(t *testing.T) {
 	f := newApplyFixture(t)
-	if err := os.WriteFile(filepath.Join(f.repoDir, "b.txt"), []byte("dirty\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(f.targetDir, "b.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if code := f.apply(t); code != exitTargetRefused {
 		t.Fatalf("exit = %d, want %d", code, exitTargetRefused)
 	}
-	got, _ := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	got, _ := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
 	if string(got) != "old\n" {
 		t.Fatalf("a refused target was modified anyway: a.txt = %q", got)
 	}
@@ -228,11 +254,11 @@ func TestSynthesisApplyRefusesADirtyTarget(t *testing.T) {
 
 func TestSynthesisApplyRefusesATargetOnTheWrongBase(t *testing.T) {
 	f := newApplyFixture(t)
-	if err := os.WriteFile(filepath.Join(f.repoDir, "b.txt"), []byte("moved on\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(f.targetDir, "b.txt"), []byte("moved on\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	gitIn(t, f.repoDir, "add", "-A")
-	gitIn(t, f.repoDir, "commit", "-q", "-m", "moved past the admitted base")
+	gitIn(t, f.targetDir, "add", "-A")
+	gitIn(t, f.targetDir, "commit", "-q", "-m", "moved past the admitted base")
 
 	if code := f.apply(t); code != exitTargetRefused {
 		t.Fatalf("exit = %d, want %d -- a target past the admitted base must be refused", code, exitTargetRefused)
@@ -315,7 +341,7 @@ func TestSynthesisApplyRefusesAdmittedWithoutMutationCapability(t *testing.T) {
 	if code := f.apply(t); code != exitAdmissionNotAdmitting {
 		t.Fatalf("exit = %d, want %d", code, exitAdmissionNotAdmitting)
 	}
-	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -333,7 +359,7 @@ func TestSynthesisApplyRefusalClassesAreDistinct(t *testing.T) {
 		applyDecisionFixture(t, refusedByAdmission.admitFixture, refusedByAdmission.scope, refusedByAdmission.identity, admission.DecisionRefused))
 
 	refusedByTarget := newApplyFixture(t)
-	if err := os.WriteFile(filepath.Join(refusedByTarget.repoDir, "b.txt"), []byte("dirty\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(refusedByTarget.targetDir, "b.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -367,12 +393,12 @@ func TestSynthesisApplyRefusesAPreviouslyConsumedCandidate(t *testing.T) {
 
 	// Reset the worktree so the dirty-target refusal cannot be what stops the
 	// second run. Consumption has to be refused on its own.
-	gitIn(t, f.repoDir, "checkout", "--", ".")
+	gitIn(t, f.targetDir, "checkout", "--", ".")
 
 	if code := f.apply(t); code != exitAlreadyConsumed {
 		t.Fatalf("exit = %d, want %d -- a consumed candidate must be refused on its own, not incidentally", code, exitAlreadyConsumed)
 	}
-	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -395,11 +421,91 @@ func TestRemovingTheReceiptPermitsADeliberateReapply(t *testing.T) {
 	if code := f.apply(t); code != exitCandidateApplied {
 		t.Fatalf("first apply exited %d", code)
 	}
-	gitIn(t, f.repoDir, "checkout", "--", ".")
+	gitIn(t, f.targetDir, "checkout", "--", ".")
 	if err := os.Remove(filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".o5b-receipt.json")); err != nil {
 		t.Fatal(err)
 	}
 	if code := f.apply(t); code != exitCandidateApplied {
 		t.Fatalf("exit = %d, want %d after the consumption record was deliberately removed", code, exitCandidateApplied)
+	}
+}
+
+// Hard law 10 (#149): a resumed run refuses task and closure drift. These are
+// the half no digest inside the bundle can reveal — the bundle's internal
+// chain still verifies perfectly, which is exactly why the check has to come
+// from outside it.
+func rewriteLineageTaskBinding(t *testing.T, lineagePath string, mutate func(*synthesisRunTaskBinding)) {
+	t.Helper()
+	data, err := os.ReadFile(lineagePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var lineage synthesisRunLineage
+	if err := json.Unmarshal(data, &lineage); err != nil {
+		t.Fatal(err)
+	}
+	mutate(&lineage.TaskBinding)
+	out, err := json.MarshalIndent(lineage, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(lineagePath, out, 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSynthesisApplyRefusesTaskDrift(t *testing.T) {
+	f := newApplyFixture(t)
+	rewriteLineageTaskBinding(t, f.lineagePath, func(b *synthesisRunTaskBinding) {
+		b.TaskID = "task.implementation.somethingelse"
+	})
+	if code := f.apply(t); code != exitResolutionFailure {
+		t.Fatalf("exit = %d, want %d -- a candidate from another task must be refused", code, exitResolutionFailure)
+	}
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "old\n" {
+		t.Fatalf("a candidate from another task was applied: a.txt = %q", got)
+	}
+}
+
+func TestSynthesisApplyRefusesControlAndClosureDrift(t *testing.T) {
+	for name, mutate := range map[string]func(*synthesisRunTaskBinding){
+		"control state moved": func(b *synthesisRunTaskBinding) {
+			b.TaskControlStateDigestSHA256 = strings.Repeat("a", 64)
+		},
+		"closure state moved": func(b *synthesisRunTaskBinding) {
+			b.ClosureReportDigestSHA256 = strings.Repeat("b", 64)
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newApplyFixture(t)
+			rewriteLineageTaskBinding(t, f.lineagePath, mutate)
+			if code := f.apply(t); code != exitResolutionFailure {
+				t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)
+			}
+			got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if string(got) != "old\n" {
+				t.Fatalf("a drifted candidate was applied: a.txt = %q", got)
+			}
+		})
+	}
+}
+
+// A bundle with no task binding at all is refused rather than accepted with
+// the check silently skipped. Accepting it would make "no drift detected" a
+// statement the command never actually checked.
+func TestSynthesisApplyRefusesABundleWithNoTaskBinding(t *testing.T) {
+	f := newApplyFixture(t)
+	rewriteLineageTaskBinding(t, f.lineagePath, func(b *synthesisRunTaskBinding) {
+		*b = synthesisRunTaskBinding{}
+	})
+	if code := f.apply(t); code != exitResolutionFailure {
+		t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)
 	}
 }

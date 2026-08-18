@@ -671,15 +671,13 @@ type synthesisRunTaskBinding struct {
 
 // v2 adds TaskBinding.
 //
-// It is captured now and consumed later, deliberately in that order: a
-// candidate sealed without a task binding can NEVER be drift-checked
+// A candidate sealed without a task binding can never be drift-checked
 // afterwards, because the governance state it was generated under is not
-// recoverable from anything else in the bundle. Capture is the half that
-// cannot be added retroactively, so it lands first.
+// recoverable from anything else in the bundle.
 //
-// The gate that consumes it -- synthesis-admit and synthesis-apply refusing a
-// bundle whose task control or closure state has moved -- is NOT yet built.
-// See #149 hard law 10.
+// It is consumed by verifyTaskBindingUnchanged (synthesis_task_drift.go),
+// which synthesis-admit and synthesis-apply both call before doing anything:
+// #149 hard law 10, for the resumption that actually exists.
 const synthesisRunLineageSchemaVersion = "sensei.synthesis-run.lineage.v2"
 
 // persistAdmissionLineage writes the complete O5 input chain to

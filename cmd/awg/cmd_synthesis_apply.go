@@ -57,6 +57,7 @@ func runSynthesisApply(args []string) int {
 	lineagePath := fs.String("lineage", "", "path to the <candidate-digest>.lineage.json written by 'sensei synthesis-run' (required)")
 	decisionPath := fs.String("decision", "", "admission decision YAML produced by 'sensei admit-change --output' (required)")
 	targetRoot := fs.String("target", "", "dedicated, clean Git worktree checked out at the admitted base revision (required)")
+	taskFlag := fs.String("task", "", "task directory the candidate was generated under (default: the active task); used to refuse task and closure drift")
 	verificationPath := fs.String("verification", "", "optional admission verification YAML to record against the applied result")
 	format := fs.String("format", "text", "output format: text | json")
 
@@ -169,7 +170,17 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 3: refuse a candidate that has already been applied ---
+	// --- step 3: refuse a bundle whose task or closure state has moved ---
+	//
+	// Hard law 10 (#149). A candidate generated under one closure state and
+	// applied under another is not the same proposal, and every digest in the
+	// bundle would still verify.
+	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	// --- step 4: refuse a candidate that has already been applied ---
 	//
 	// Issue #149's proof matrix names "previously-consumed application
 	// refusal", and without this there is nothing to enforce it. A second run
@@ -190,7 +201,7 @@ Flags:
 		return exitAlreadyConsumed
 	}
 
-	// --- step 4: bind the decision to the composed request ---
+	// --- step 5: bind the decision to the composed request ---
 	//
 	// This is the join that makes application authorized rather than merely
 	// requested, and it is done through the O5A owner rather than by comparing
@@ -220,7 +231,7 @@ Flags:
 		return exitAdmissionNotAdmitting
 	}
 
-	// --- step 5: the base manifest, re-read from git at the candidate's own
+	// --- step 6: the base manifest, re-read from git at the candidate's own
 	// base revision. Same reasoning as synthesis-admit: what a candidate
 	// changes relative to the repository is a question only the repository can
 	// answer, and candidateapply's rollback is bound to these exact bytes. ---
@@ -236,7 +247,7 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 6: apply, through O5B ---
+	// --- step 7: apply, through O5B ---
 	applyReq, applyReceipt, err := candidateapply.Apply(ctx, candidateapply.ApplyInput{
 		AdmissionRequest:  o5aRequest,
 		AdmissionReceipt:  o5aReceipt,
@@ -268,7 +279,7 @@ Flags:
 		RequestDigestSHA256:           applyReceipt.RequestDigestSHA256,
 	}
 
-	// --- step 7: an optional, already-produced verification ---
+	// --- step 8: an optional, already-produced verification ---
 	//
 	// This command does not verify; it RECORDS a verification the admission
 	// owner produced. Generating and judging its own verification would make

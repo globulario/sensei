@@ -343,12 +343,26 @@ at the admitted base, wrong artifact, any operation outside modify — are
 surfaced with distinct exit codes rather than collapsed. It never commits,
 pushes, opens a pull request, approves, merges, or promotes knowledge.
 
+Hard law 10's drift refusal is enforced for the resumption that exists.
+`synthesisdriver.Run` drives one synchronous session, so there is no
+mid-session resume; what genuinely resumes is synthesis-admit and
+synthesis-apply picking up a persisted bundle later. The lineage bundle (v2)
+records the task id, task control-state digest, and closure-report digest, and
+both commands refuse a bundle whose task, control state, or closure state has
+moved — alongside the base-revision drift they already refused. A bundle with
+no task binding is refused rather than accepted with the check skipped, since
+accepting it would make "no drift detected" a statement nobody checked.
+
+Task and closure drift are the half no digest *inside* the bundle can reveal:
+its internal chain still verifies perfectly, which is precisely why the check
+has to come from outside it.
+
 What remains open is *proof*, not surface. The completion proof matrix has not
 been run end to end on a real repository: no real `admit-change` evaluation of
-a derived request, no admission-refusal-after-accept scenario, no tampering or
-previously-consumed-artifact case, no retry/replan exhaustion, and no
-deterministic-replay run. Resume with workspace/graph/task/closure/base-revision
-drift refusal is also still unbuilt.
+a derived request, no admission-refusal-after-accept scenario, no tampering
+case, no retry/replan exhaustion, and no deterministic-replay run. Workspace
+and graph identity drift are also not re-verified at resume, because
+recomputing workspace identity requires a live Metadata RPC.
 
 Closing this contract for real still requires, in order: (a) run the
 completion proof matrix above end-to-end through real admission, apply, and

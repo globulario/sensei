@@ -46,6 +46,8 @@ type admitFixture struct {
 	baseRevision string
 	baseManifest []runnercomposition.CandidateManifestEntry
 	artifact     runnercomposition.CandidateArtifact
+	taskDir      string
+	taskBinding  synthesisRunTaskBinding
 }
 
 // newAdmitFixture creates a git repository with one commit, extracts its real
@@ -72,6 +74,11 @@ func newAdmitFixture(t *testing.T, mutate func(base []runnercomposition.Candidat
 	}
 	writeFixtureFile(t, filepath.Join(repoDir, "a.txt"), "old\n")
 	writeFixtureFile(t, filepath.Join(repoDir, "b.txt"), "unchanged\n")
+	// The task session lives under .sensei/, which must stay OUT of the git
+	// tree: synthesis-apply refuses a target whose worktree is not clean, and
+	// an untracked task directory would make every apply fixture fail for a
+	// reason that has nothing to do with what is being tested.
+	writeFixtureFile(t, filepath.Join(repoDir, ".gitignore"), ".sensei/\n")
 	gitFixture(t, repoDir, "init", "-q")
 	gitFixture(t, repoDir, "config", "user.email", "fixture@example.invalid")
 	gitFixture(t, repoDir, "config", "user.name", "fixture")
@@ -209,8 +216,17 @@ func newAdmitFixture(t *testing.T, mutate func(base []runnercomposition.Candidat
 		t.Fatalf("seal candidate: %v", err)
 	}
 
+	// The task binds to the repository's ACTUAL head, which is not always the
+	// candidate's base revision -- withRecordedBaseFromEarlierCommit
+	// deliberately moves them apart. Passing the base here would make the
+	// claim document's binding disagree with the revision Prepare resolves,
+	// and the fixture would fail for a reason unrelated to what it tests.
+	taskDir, taskBinding := prepareFixtureTask(t, repoDir, artifact.RepositoryDomain,
+		strings.TrimSpace(gitFixture(t, repoDir, "rev-parse", "HEAD")))
+
 	lineage := synthesisRunLineage{
 		SchemaVersion:                 synthesisRunLineageSchemaVersion,
+		TaskBinding:                   taskBinding,
 		CandidateArtifactDigestSHA256: artifactDigest,
 		CandidateArtifactPath:         filepath.Join(storeDir, artifactDigest+".json"),
 		SynthesisReceipt:              o1,
@@ -271,6 +287,8 @@ func newAdmitFixture(t *testing.T, mutate func(base []runnercomposition.Candidat
 		baseRevision: baseRevision,
 		baseManifest: baseManifest,
 		artifact:     artifact,
+		taskDir:      taskDir,
+		taskBinding:  taskBinding,
 	}
 }
 
@@ -574,4 +592,36 @@ func fixtureHex(t *testing.T, seed string) string {
 func fixtureContentDigest(content []byte) string {
 	sum := sha256.Sum256(content)
 	return hex.EncodeToString(sum[:])
+}
+
+// The same drift refusal guards composition, not only application: admitting a
+// candidate whose task has moved would produce an admission request bound to a
+// closure state that is no longer current.
+func TestSynthesisAdmitRefusesTaskAndClosureDrift(t *testing.T) {
+	for name, mutate := range map[string]func(*synthesisRunTaskBinding){
+		"another task":        func(b *synthesisRunTaskBinding) { b.TaskID = "task.implementation.elsewhere" },
+		"control state moved": func(b *synthesisRunTaskBinding) { b.TaskControlStateDigestSHA256 = strings.Repeat("a", 64) },
+		"closure state moved": func(b *synthesisRunTaskBinding) { b.ClosureReportDigestSHA256 = strings.Repeat("b", 64) },
+		"no binding at all":   func(b *synthesisRunTaskBinding) { *b = synthesisRunTaskBinding{} },
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newAdmitFixture(t, modifyOne)
+			rewriteLineageTaskBinding(t, f.lineagePath, mutate)
+			if code := f.run(); code != exitResolutionFailure {
+				t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)
+			}
+			if _, err := os.Stat(filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".admission-request.yaml")); !os.IsNotExist(err) {
+				t.Error("a drifted candidate produced an admission request anyway")
+			}
+		})
+	}
+}
+
+// And an unmoved task must still compose, or the check above would pass by
+// refusing everything.
+func TestSynthesisAdmitAcceptsAnUnmovedTask(t *testing.T) {
+	f := newAdmitFixture(t, modifyOne)
+	if code := f.run(); code != exitAdmissionRequestComposed {
+		t.Fatalf("exit = %d, want %d -- an unmoved task must not be reported as drift", code, exitAdmissionRequestComposed)
+	}
 }
