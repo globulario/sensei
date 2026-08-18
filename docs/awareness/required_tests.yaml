@@ -1561,7 +1561,6 @@ required_tests:
     protects:
       invariants:
         - invariant.a_task_audit_reports_malformed_sessions_and_never_repairs_th
-<<<<<<< HEAD
   - id: golang/architecture/governedmutation/apply_indent_append_test.go:TestAppendMatchesEitherBlockSequenceStyle
     title: A governed append matches the corpus's own block-sequence indentation, in either legal style
     protects:
@@ -1576,7 +1575,6 @@ required_tests:
         - failure.a_governed_append_reported_success_while_writing_the_record
       files:
         - golang/architecture/governedmutation/apply.go
-=======
   - id: golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
     title: A bound include/exclude scope reaches every extractor, and the receipt records it
     protects:
@@ -1584,4 +1582,3 @@ required_tests:
         - failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
       files:
         - golang/architecture/howextract/compose.go
->>>>>>> origin/main

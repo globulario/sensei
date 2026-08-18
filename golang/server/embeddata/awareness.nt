@@ -1353,14 +1353,12 @@
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/controlstate.unknown_class_remains_visible_and_unknown> .
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
 <https://globular.io/awareness#failureMode/controlstate.unsupported_class_hidden_or_marked_closed> <https://globular.io/awareness#severity> "high" .
-<<<<<<< HEAD
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <http://www.w3.org/2000/01/rdf-schema#label> "A governed append reported success while writing the record into a nested sequence instead of the governed one" .
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fgovernedmutation%2Fapply.go> .
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fgovernedmutation%2Fapply_indent_append_test.go:TestAppendNeverLandsInANestedSequence> .
 <https://globular.io/awareness#failureMode/failure.a_governed_append_reported_success_while_writing_the_record> <https://globular.io/awareness#severity> "critical" .
-=======
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <http://www.w3.org/2000/01/rdf-schema#label> "A resource budget bound one extractor and not the other, so a scoped run described files it had excluded" .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
@@ -1368,7 +1366,6 @@
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fhowextract%2Fcompose.go> .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fhowextract%2Fbudget_test.go:TestScopesNarrowTheSearchAndAreRecorded> .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <https://globular.io/awareness#severity> "high" .
->>>>>>> origin/main
 <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <http://www.w3.org/2000/01/rdf-schema#label> "Briefing session marker bound only to file path, not domain" .
 <https://globular.io/awareness#failureMode/failure.briefing_session_marker_bound_only_to_file_path_not_domain> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
@@ -8093,18 +8090,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<<<<<<< HEAD
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 95de023c3345" .
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <https://globular.io/awareness#seedDigestSha256> "95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac" .
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <https://globular.io/awareness#seedTripleCount> "8079" .
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
-=======
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 e7ac7ea15744" .
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <https://globular.io/awareness#seedDigestSha256> "e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd" .
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <https://globular.io/awareness#seedTripleCount> "8070" .
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
->>>>>>> origin/main
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 5d9576af0f43" .
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <https://globular.io/awareness#seedDigestSha256> "5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda" .
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <https://globular.io/awareness#seedTripleCount> "8098" .
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-5d9576af0f4340222e0c8db3c452276b3bd229f0590cf7d544194efcf5ba5cda> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
