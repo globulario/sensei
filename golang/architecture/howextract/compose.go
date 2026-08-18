@@ -162,10 +162,10 @@ func CalculateTargetDigest(target CoverageTargetV1) (string, error) {
 	return sha256Hex(string(data)), nil
 }
 
-// runMetrics carries what only the run itself can know: when it started, what
-// it measured, and whether the caller stopped it. It is a struct rather than
-// three more positional arguments so a future measurement cannot be silently
-// dropped by a caller that forgot to thread it.
+// runMetrics carries what only the run itself can know: what it measured, and
+// how it ended. It is a struct rather than more positional arguments so a
+// future measurement cannot be silently dropped by a caller that forgot to
+// thread it.
 type runMetrics struct {
 	consumption extractbudget.Consumption
 	outcome     extractbudget.RunOutcome
