@@ -4339,6 +4339,12 @@ test_symbols:
     symbol: TestSuggest_SkipsAlreadyAuthoritative
     package: main
     language: go
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitAcceptsAnUnmovedTask
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitAcceptsAnUnmovedTask
+    package: main
+    language: go
+    doc: "And an unmoved task must still compose, or the check above would pass by\nrefusing everything."
   - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
     file: cmd/awg/cmd_synthesis_admit_test.go
     symbol: TestSynthesisAdmitComposesTheAdmissionRequestForAModifiedFile
@@ -4399,12 +4405,147 @@ test_symbols:
     package: main
     language: go
     doc: "Hard law 10: the base binding is refused on drift rather than silently\nre-derived against whatever the checkout happens to hold now. Without this,\na candidate built against one tree would produce a scope describing a\ndifferent one, and every downstream digest would still verify."
+  - id: cmd/awg/cmd_synthesis_admit_test.go:TestSynthesisAdmitRefusesTaskAndClosureDrift
+    file: cmd/awg/cmd_synthesis_admit_test.go
+    symbol: TestSynthesisAdmitRefusesTaskAndClosureDrift
+    package: main
+    language: go
+    doc: "The same drift refusal guards composition, not only application: admitting a\ncandidate whose task has moved would produce an admission request bound to a\nclosure state that is no longer current."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestARefusedApplyReleasesItsClaim
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestARefusedApplyReleasesItsClaim
+    package: main
+    language: go
+    doc: "A refusal that never mutated the target must release its claim, or one\nrefused run would permanently block every later attempt."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestRemovingTheReceiptPermitsADeliberateReapply
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestRemovingTheReceiptPermitsADeliberateReapply
+    package: main
+    language: go
+    doc: "Removing the receipt is the deliberate human act that permits a re-apply.\nIf it were not, the refusal above would be a dead end rather than a gate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyClaimsConsumptionAtomically
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyClaimsConsumptionAtomically
+    package: main
+    language: go
+    doc: "Two concurrent applies of one candidate must not both proceed. The stat\ncheck is a courtesy that produces a good message; the O_EXCL claim is the\ngate, because both processes pass a stat before either writes a receipt."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyInvocationErrorsAreDeterministic
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyInvocationErrorsAreDeterministic
+    package: main
+    language: go
+    doc: "Missing flags are reported in a fixed order, so the same wrong invocation\nalways produces the same message."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyJSONReport
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyJSONReport
+    package: main
+    language: go
+    doc: "The report renders as JSON for callers that script this step."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyMaterializesTheAdmittedCandidate
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyMaterializesTheAdmittedCandidate
+    package: main
+    language: go
+    doc: "The whole point of the command: the admitted bytes reach the worktree, and\nnothing else happens."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyPersistsItsReceipt
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyPersistsItsReceipt
+    package: main
+    language: go
+    doc: "The receipt has to survive the process, or the application is unauditable."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusalClassesAreDistinct
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusalClassesAreDistinct
+    package: main
+    language: go
+    doc: "The three refusal classes must stay distinguishable, because they call for\ndifferent actions: go back to admission, fix the worktree, or investigate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesABindingFromAnotherSession
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesABindingFromAnotherSession
+    package: main
+    language: go
+    doc: "A binding lifted from a different run must not authorize this candidate."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesABundleWithNoTaskBinding
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesABundleWithNoTaskBinding
+    package: main
+    language: go
+    doc: "A bundle with no task binding at all is refused rather than accepted with\nthe check silently skipped. Accepting it would make \"no drift detected\" a\nstatement the command never actually checked."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesADecisionForAnotherComposition
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesADecisionForAnotherComposition
+    package: main
+    language: go
+    doc: "A decision bound to a different composition must not authorize this\ncandidate, even though every field looks well-formed."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesADirtyTarget
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesADirtyTarget
+    package: main
+    language: go
+    doc: "Hard law 5: the target must be clean and pinned to the admitted base."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAPreviouslyConsumedCandidate
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAPreviouslyConsumedCandidate
+    package: main
+    language: go
+    doc: "The proof matrix's \"previously-consumed application refusal\". Without it, a\nsecond run against a reset worktree applies the same candidate again and\noverwrites the first receipt -- making two applications indistinguishable\nfrom one, which is exactly the property an audit of a governed mutation\nexists to provide."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesATargetOnTheWrongBase
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesATargetOnTheWrongBase
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAdmittedWithoutMutationCapability
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAdmittedWithoutMutationCapability
+    package: main
+    language: go
+    doc: "A decision can be \"admitted\" overall while refusing mutation specifically.\nApplying on the strength of the headline verdict alone would ignore the\nnarrower statement that was the reason for recording it separately."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesAnUnadmittedDecision
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesAnUnadmittedDecision
+    package: main
+    language: go
+    doc: "A decision that does not admit mutation must stop the command before it\ntouches the worktree, and must be distinguishable from a bad target."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesControlAndClosureDrift
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesControlAndClosureDrift
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesTaskDrift
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesTaskDrift
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyRefusesTheSourceCheckoutAsTarget
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyRefusesTheSourceCheckoutAsTarget
+    package: main
+    language: go
+    doc: "The dedicated-worktree requirement is this command's own; candidateapply\nnever receives the source path and so cannot enforce it. `--repo . --target .`\npasses every check it makes and mutates the checkout the task and base\nmanifest are read from."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyReportsAFailedVerification
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyReportsAFailedVerification
+    package: main
+    language: go
+    doc: "A verification that says the applied result left the admitted scope must not\nbe reported as a successful application."
+  - id: cmd/awg/cmd_synthesis_apply_test.go:TestSynthesisApplyWithoutAComposedRequestSaysWhatToRun
+    file: cmd/awg/cmd_synthesis_apply_test.go
+    symbol: TestSynthesisApplyWithoutAComposedRequestSaysWhatToRun
+    package: main
+    language: go
+    doc: "Skipping synthesis-admit leaves nothing to apply, and the message has to say\nwhich command to run rather than reporting a bare missing file."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     package: main
     language: go
     doc: "TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle is the\nreal regression test for a live review finding: a candidate-ready run's\nfull SynthesisReceipt/RunnerReceipt/EvaluationReceipt documents (not\nmerely their digests) must be durably persisted somewhere\nadmissioncomposition.ComposeInput can actually be constructed from --\nthey previously existed only in-memory and vanished when the process\nexited."
+  - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CapturesTheTaskBinding
+    file: cmd/awg/cmd_synthesis_run_lineage_test.go
+    symbol: TestPersistAdmissionLineage_CapturesTheTaskBinding
+    package: main
+    language: go
+    doc: "The task binding must actually reach the bundle. It is the one thing that\ncannot be reconstructed later: a candidate sealed without it can never be\ndrift-checked, because the governance state it was generated under is not\nrecoverable from anything else the bundle holds."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_MissingSynthesisReceiptErrors
