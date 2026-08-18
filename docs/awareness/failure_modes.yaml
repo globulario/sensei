@@ -1494,3 +1494,16 @@ failure_modes:
       - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
     evidence:
       - Replacing a raw ENOENT with a typed ErrNoTaskSession made senseireport's os.IsNotExist absence check stop matching, so 'no active task' became a hard error and 8 tests failed. The new sentinel was correct; the change was incomplete because nothing about adding an error announces which existing callers stop recognizing it.
+  - id: failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
+    title: A resource budget bound one extractor and not the other, so a scoped run described files it had excluded
+    severity: high
+    protects:
+      files:
+        - golang/architecture/howextract/compose.go
+        - golang/architecture/extractbudget/budget.go
+    required_tests:
+      - golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    evidence:
+      - 'TestScopesNarrowTheSearchAndAreRecorded failed: with --exclude impl, the AST/invariant extractor (which has its own repository walk and no file-set parameter) still produced state observations from impl/impl.go, while the receipt recorded the exclude scope as being in force.'
+      - 'Found by a test, not by review: the semantic extractor honoured the scope, so reading the budget wiring looked complete.'
+    contract: An extraction budget's include/exclude scopes must bind every extractor whose output reaches the document, not only the extractor that consumes the file set.
