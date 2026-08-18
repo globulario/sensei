@@ -4,6 +4,7 @@ package investigation
 
 import (
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 )
 
 type RunReceipt struct {
@@ -21,5 +22,18 @@ type RunReceipt struct {
 	OutputCandidateIDsAndDigests map[string]string                 `json:"output_candidate_ids_and_digests,omitempty" yaml:"output_candidate_ids_and_digests,omitempty"`
 	TimestampSource              string                            `json:"timestamp_source" yaml:"timestamp_source"`
 	ResourceLimits               map[string]string                 `json:"resource_limits,omitempty" yaml:"resource_limits,omitempty"`
-	NondeterminismDeclaration    string                            `json:"nondeterminism_declaration,omitempty" yaml:"nondeterminism_declaration,omitempty"`
+	// ResourceBudget is the ENFORCED half of the two resource fields, and the
+	// distinction is the whole point. ResourceLimits above is caller-supplied
+	// strings that nothing reads; this is the contract the extractor actually
+	// bound itself to, the consumption it measured, and the disposition that
+	// follows.
+	//
+	// An extractor that produces a document should always fill it in. An
+	// all-zero Budget inside it is the honest way to say "no limit was bound",
+	// and it keeps the disposition (completed / partial / budget_exhausted /
+	// unavailable / cancelled) available on every run rather than only on
+	// budgeted ones. The pointer remains optional so documents written before
+	// this field existed still parse.
+	ResourceBudget            *extractbudget.Receipt `json:"resource_budget,omitempty" yaml:"resource_budget,omitempty"`
+	NondeterminismDeclaration string                 `json:"nondeterminism_declaration,omitempty" yaml:"nondeterminism_declaration,omitempty"`
 }

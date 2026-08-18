@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/architecture/factextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigationsurface"
@@ -88,7 +89,21 @@ func runInvestigateHow(args []string) int {
 	format := fs.String("format", "json", "json or yaml")
 	summary := fs.Bool("summary", false, "print a compact human summary instead of the full artifact")
 	var limits repeatedString
-	fs.Var(&limits, "resource-limit", "resource limit key=value (repeatable)")
+	fs.Var(&limits, "resource-limit", "DECLARED-ONLY resource limit key=value, recorded in the receipt and enforced by nothing (repeatable); use the --max-* / --include / --exclude flags for limits that bind")
+	// Every flag below is consumed mechanically by the extractor. Omitting one
+	// leaves that dimension unbounded, visibly: a run with no budget carries
+	// no budget receipt, which is a different document from one that was
+	// bounded and cut nothing.
+	maxDuration := fs.Duration("max-duration", 0, "wall-clock ceiling; the only limit that bounds the semantic package load itself")
+	maxFiles := fs.Int("max-files", 0, "maximum source files that may produce observations (bounds attribution and capture, not the package load)")
+	maxSourceBytes := fs.Int64("max-source-bytes", 0, "maximum total source bytes that may produce observations")
+	maxPackages := fs.Int("max-packages", 0, "maximum loaded packages to analyse (bounds analysis, not the load; use --max-duration to bound the load)")
+	maxObservations := fs.Int("max-observations", 0, "maximum observations to keep")
+	maxEvidence := fs.Int("max-evidence-receipts", 0, "maximum evidence receipts to keep")
+	maxCaptured := fs.Int64("max-captured-content-bytes", 0, "maximum captured evidence content bytes to keep")
+	var includePaths, excludePaths repeatedString
+	fs.Var(&includePaths, "include", "repo-relative path scope to search (repeatable; default: the whole repository)")
+	fs.Var(&excludePaths, "exclude", "repo-relative path scope to skip (repeatable; wins over --include)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -100,10 +115,33 @@ func runInvestigateHow(args []string) int {
 	if err != nil {
 		return cliSurfaceError("investigate how", err)
 	}
+	budget := extractbudget.Budget{
+		MaxWallClock:            *maxDuration,
+		MaxFiles:                *maxFiles,
+		MaxSourceBytes:          *maxSourceBytes,
+		MaxPackages:             *maxPackages,
+		MaxObservations:         *maxObservations,
+		MaxEvidenceReceipts:     *maxEvidence,
+		MaxCapturedContentBytes: *maxCaptured,
+		IncludePaths:            includePaths,
+		ExcludePaths:            excludePaths,
+	}
 	binding := resolveSurfaceBinding(abs, *domain, *revision, *revisionStatus, *tree, *graph, *graphStatus)
-	doc, err := investigationsurface.RunHow(investigationsurface.HowRequest{Root: abs, CapturedAt: *captured, Repository: binding, ResourceLimits: parseKeyValues(limits)})
+	doc, err := investigationsurface.RunHowContext(context.Background(), investigationsurface.HowRequest{
+		Root: abs, CapturedAt: *captured, Repository: binding,
+		ResourceLimits: parseKeyValues(limits), Budget: budget,
+	})
 	if err != nil {
 		return cliSurfaceError("investigate how", err)
+	}
+	// A bounded run that produced a partial result must say so on the way out,
+	// not only inside an artifact the caller may never open. A quiet exit 0 is
+	// how a partial extraction gets read as a complete one.
+	if rb := doc.Receipt.ResourceBudget; rb != nil && rb.Status != extractbudget.StatusCompleted {
+		fmt.Fprintf(os.Stderr, "sensei investigate how: extraction status %s -- %s\n", rb.Status, rb.Detail)
+		for _, d := range rb.ExhaustedDimensions {
+			fmt.Fprintf(os.Stderr, "  reached: %s\n", d)
+		}
 	}
 	if *summary {
 		return printDocumentSummary(doc)

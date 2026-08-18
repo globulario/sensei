@@ -1,0 +1,14 @@
+applied_repair:
+  - id: feedback.bind_extraction_scopes_at_the_composed_fact_level_where_ever
+    kind: applied_repair
+    title: Bind extraction scopes at the composed-fact level, where every extractor's output passes through
+    description: Filtered the composed fact set by budget.InScope before normalization, instead of teaching each extractor about budgets. The AST extractor has no file-set parameter, so per-extractor wiring would have needed a new parameter on every current AND future extractor; the composed-fact set is the one place all of their output passes through, so an extractor that knows nothing about budgets cannot reintroduce the leak. The discarded observations are disclosed as an explicit limitation rather than silently dropped.
+    related_failure_modes:
+      - failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
+    required_tests:
+      - golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    source_files:
+      - golang/architecture/howextract/compose.go
+    survival_evidence:
+      - 'The repair is structural, not per-site: it holds for extractors that do not exist yet, because the filter sits on the single path their output must take rather than on each producer.'
+      - The same test that found the leak now fails if any extractor's output escapes the scope, so a regression is caught by the test that caused the repair rather than by a new one nobody would think to write.
