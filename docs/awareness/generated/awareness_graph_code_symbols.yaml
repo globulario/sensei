@@ -10882,6 +10882,42 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/evalharness/baseline_test.go:TestArmCoversEveryMutantAndTheControl
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestArmCoversEveryMutantAndTheControl
+    package: evalharness
+    language: go
+    doc: "The arm must run over every mutant plus the clean control, and the control\nmust go through the identical path. An arm whose numbers on a clean tree are\nindistinguishable from its numbers on a mutated one has said something\nimportant, and only running both can reveal it."
+  - id: golang/architecture/evalharness/baseline_test.go:TestArmNeverClaimsToHaveNamedADefect
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestArmNeverClaimsToHaveNamedADefect
+    package: evalharness
+    language: go
+    doc: "The honesty requirement. Deterministic extraction produces observations, not\nverdicts, so this arm must never report having named a defect — and the\nreport must say so in its own limitations rather than leaving a reader to\ninfer it from a missing field."
+  - id: golang/architecture/evalharness/baseline_test.go:TestArmReportsWhichDefectSitesItRecoveredEvidenceFor
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestArmReportsWhichDefectSitesItRecoveredEvidenceFor
+    package: evalharness
+    language: go
+    doc: "Site coverage is the real measurement: did the arm recover evidence anchored\nto the files the defect lives in? That is a precondition for detection, and\nreporting it separately keeps a later composition arm from inheriting credit\nfor evidence this layer supplied."
+  - id: golang/architecture/evalharness/baseline_test.go:TestMutantsAreDistinguishableFromTheControl
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestMutantsAreDistinguishableFromTheControl
+    package: evalharness
+    language: go
+    doc: "A mutated tree must not produce a document identical to the control's. If it\ndid, this arm could not distinguish the trees at all, and every downstream\nnumber derived from it would be describing the same input twice."
+  - id: golang/architecture/evalharness/baseline_test.go:TestReportIsReproducible
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestReportIsReproducible
+    package: evalharness
+    language: go
+    doc: "Reproducibility is a completion criterion of the evaluation, so the report\nmust be identical across runs given identical inputs."
+  - id: golang/architecture/evalharness/baseline_test.go:TestRequiredInputsAreEnforced
+    file: golang/architecture/evalharness/baseline_test.go
+    symbol: TestRequiredInputsAreEnforced
+    package: evalharness
+    language: go
+    doc: "Required inputs are required. A harness that defaulted them would produce a\nreport bound to whatever checkout it happened to run inside."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
