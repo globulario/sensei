@@ -93,19 +93,28 @@ func Extract(root string) (result Result, err error) {
 //
 // The zero Budget is exactly Extract's behaviour, so this is the same code
 // path in both cases rather than a bounded variant that could drift from the
-// unbounded one. Two limits bind at different moments, and the difference is
-// not cosmetic:
+// unbounded one.
 //
-//   - MaxFiles / MaxSourceBytes / the include-exclude scopes bind BEFORE the
-//     type-checker runs, by narrowing what it is asked to look at;
-//   - MaxWallClock binds the package load itself, through the context
-//     packages.Load honours -- which is the limit that matters, because the
-//     load is where a full-repository extraction spends the time it does not
-//     have;
+// What each limit actually bounds differs, and saying so precisely matters
+// more than making the contract sound uniform:
+//
+//   - MaxFiles / MaxSourceBytes / the include-exclude scopes bound the
+//     ATTRIBUTION set -- which files may produce observations -- and therefore
+//     everything downstream of it: observations, evidence receipts, and the
+//     source capture I/O that dominates a large run's output. They do NOT
+//     narrow the package load, which is still "./..." over the whole module,
+//     because an observation about one file needs type information that can
+//     come from any file in the module. Loading less would produce cheaper
+//     and wronger types.
+//   - MaxWallClock is therefore the ONLY limit that bounds the load, through
+//     the context packages.Load honours. A repository whose type-check does
+//     not finish in the time available is bounded by this and nothing else.
 //   - MaxPackages can only bind AFTER the load, since the count is not known
-//     until then. It bounds the analysis, not the load, and this is stated
-//     rather than papered over: a budget that needs the load itself bounded
-//     must say so in wall clock.
+//     until then. It bounds the analysis, not the load.
+//
+// Stating this rather than papering over it is the point of the checkpoint: a
+// contract that claimed all seven limits bound the same stage would be a more
+// comfortable and less true description of what a bounded run costs.
 func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budget) (result Result, err error) {
 	if ctx == nil {
 		ctx = context.Background()

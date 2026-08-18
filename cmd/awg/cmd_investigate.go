@@ -94,9 +94,9 @@ func runInvestigateHow(args []string) int {
 	// leaves that dimension unbounded, visibly: a run with no budget carries
 	// no budget receipt, which is a different document from one that was
 	// bounded and cut nothing.
-	maxDuration := fs.Duration("max-duration", 0, "wall-clock ceiling for extraction; bounds the semantic package load itself")
-	maxFiles := fs.Int("max-files", 0, "maximum source files to search")
-	maxSourceBytes := fs.Int64("max-source-bytes", 0, "maximum total source bytes to search")
+	maxDuration := fs.Duration("max-duration", 0, "wall-clock ceiling; the only limit that bounds the semantic package load itself")
+	maxFiles := fs.Int("max-files", 0, "maximum source files that may produce observations (bounds attribution and capture, not the package load)")
+	maxSourceBytes := fs.Int64("max-source-bytes", 0, "maximum total source bytes that may produce observations")
 	maxPackages := fs.Int("max-packages", 0, "maximum loaded packages to analyse (bounds analysis, not the load; use --max-duration to bound the load)")
 	maxObservations := fs.Int("max-observations", 0, "maximum observations to keep")
 	maxEvidence := fs.Int("max-evidence-receipts", 0, "maximum evidence receipts to keep")

@@ -14,7 +14,13 @@
 //
 //  1. A limit is only a limit if something refuses to exceed it. Every field
 //     below is consumed mechanically by the extraction path, and the
-//     Consumption a run reports is measured, never echoed.
+//     Consumption a run reports is measured, never echoed. What each limit
+//     bounds is stated precisely rather than uniformly -- see
+//     gosemantics.ExtractBounded: the file/byte/scope limits bound which files
+//     may produce observations and everything downstream of that, while only
+//     MaxWallClock bounds the package load. A contract that claimed all seven
+//     bound the same stage would be a more comfortable and less true
+//     description of what a bounded run costs.
 //
 //  2. A partial result is valid evidence, and must never be mistaken for a
 //     complete one. Truncation is deterministic, recorded in the receipt as an

@@ -186,9 +186,10 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		return investigation.Document{}, fmt.Errorf("resolve repository identity: domain is unavailable")
 	}
 
-	// 1. Run Semantic Extractor -- the only stage the budget can bound before
-	// the work happens, because it is the stage that decides how much source
-	// the type-checker is handed.
+	// 1. Run Semantic Extractor. Its budget bounds which files may produce
+	// observations, and the wall clock bounds the package load; it does not
+	// narrow the load itself (see gosemantics.ExtractBounded for why loading
+	// less would produce cheaper and wronger types).
 	semanticRes, semanticErr := gosemantics.ExtractBounded(ctx, root, opts.Budget)
 	consumption.Files = semanticRes.Selection.Consumption.Files
 	consumption.SourceBytes = semanticRes.Selection.Consumption.SourceBytes
