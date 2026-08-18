@@ -23,6 +23,8 @@ var allStopReasons = []resolutionStopReason{
 	stopInterpretationUnavailable,
 	stopCognitiveProviderUnavailable,
 	stopGenerationProviderUnavailable,
+	stopInterpretationObjectiveMismatch,
+	stopProofObligationsOutstanding,
 }
 
 // THE requirement issue #149 states: the degraded worlds may not be collapsed.
@@ -187,5 +189,60 @@ func TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop(t *testing.T) {
 	// someone hard-coded the string -- the opposite of what is wanted.
 	if !strings.Contains(block, "stopGraphIdentityUnusable") {
 		t.Errorf("the identity block never routes through %s", stopGraphIdentityUnusable)
+	}
+}
+
+// The remaining generic returns must be INFRASTRUCTURE only -- resolving a
+// path, digesting a session, creating a directory. Those are not worlds issue
+// #149 enumerates, and inventing vocabulary for them would make the closed set
+// describe things the issue never asked to distinguish.
+//
+// This is the counterweight to the typing work: it pins that the unclassified
+// code is still reachable and still means "untyped", so a future world cannot
+// be quietly parked there. If a NAMED world regresses onto it, the routing
+// tests above fail; if infrastructure grows, this list is edited deliberately.
+func TestRemainingGenericReturnsAreInfrastructureOnly(t *testing.T) {
+	src, err := os.ReadFile("cmd_synthesis_run.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(src), "\n")
+
+	// Phrases that legitimately precede a generic return.
+	infrastructure := []string{
+		"resolve --repo",
+		"digest session",
+		"construct session state",
+		"create candidate store dir",
+		"create evidence store dir",
+		"construct candidate store",
+		"construct evidence sink",
+		"construct candidate materializer",
+		"resolve --gate-policy",
+		"resolve running sensei binary",
+		"resolveAgentWorkdirs",
+		"%v\\n\", err)", // bare pass-through of a wrapped error
+	}
+	for i, l := range lines {
+		if !strings.Contains(l, "return exitResolutionFailure") {
+			continue
+		}
+		// Look back a few lines for the message that explains this return.
+		lo := i - 4
+		if lo < 0 {
+			lo = 0
+		}
+		window := strings.Join(lines[lo:i], "\n")
+		var recognized bool
+		for _, phrase := range infrastructure {
+			if strings.Contains(window, phrase) {
+				recognized = true
+				break
+			}
+		}
+		if !recognized {
+			t.Errorf("line %d returns the generic resolution code from an unrecognized site; if this is a world issue #149 names it must be typed, and if it is new infrastructure this test's list must be extended deliberately:\n%s",
+				i+1, window)
+		}
 	}
 }
