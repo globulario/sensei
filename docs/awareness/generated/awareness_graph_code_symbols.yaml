@@ -21291,6 +21291,41 @@ test_symbols:
     package: awarenesspb_test
     language: go
     doc: "The navigation-descriptor request is EMPTY: registry-derived, no filesystem/repository input."
+  - id: golang/propose/applied_repair_test.go:TestAppliedRepairIsAdvertisedAsAKind
+    file: golang/propose/applied_repair_test.go
+    symbol: TestAppliedRepairIsAdvertisedAsAKind
+    package: propose
+    language: go
+    doc: "The kind must be advertised, or agents cannot discover it."
+  - id: golang/propose/applied_repair_test.go:TestAppliedRepairSatisfiesContractFirstViaRelatedFailure
+    file: golang/propose/applied_repair_test.go
+    symbol: TestAppliedRepairSatisfiesContractFirstViaRelatedFailure
+    package: propose
+    language: go
+    doc: "It rides the same contract-first rule as every other kind: related_failure\nsatisfies the general requirement, so the two rules do not contradict."
+  - id: golang/propose/applied_repair_test.go:TestCompleteAppliedRepairIsAccepted
+    file: golang/propose/applied_repair_test.go
+    symbol: TestCompleteAppliedRepairIsAccepted
+    package: propose
+    language: go
+  - id: golang/propose/applied_repair_test.go:TestEachAppliedRepairRequirementIsEnforced
+    file: golang/propose/applied_repair_test.go
+    symbol: TestEachAppliedRepairRequirementIsEnforced
+    package: propose
+    language: go
+    doc: "Each requirement exists to keep the record from degrading into a changelog\nentry. Dropping any one must be refused, with a reason that says why."
+  - id: golang/propose/applied_repair_test.go:TestEvidenceDoesNotSatisfySurvivalEvidence
+    file: golang/propose/applied_repair_test.go
+    symbol: TestEvidenceDoesNotSatisfySurvivalEvidence
+    package: propose
+    language: go
+    doc: "survival_evidence is a DISTINCT field from evidence. \"we applied this\" and \"it\nheld\" are different claims, and only the second makes the record advice rather\nthan a changelog entry — so evidence must not satisfy the survival requirement."
+  - id: golang/propose/applied_repair_test.go:TestSurvivalEvidenceReachesTheCandidate
+    file: golang/propose/applied_repair_test.go
+    symbol: TestSurvivalEvidenceReachesTheCandidate
+    package: propose
+    language: go
+    doc: "The survival evidence must survive normalization into the candidate document —\na required field that is silently dropped on the way to disk would make the\nrequirement theatre."
   - id: golang/propose/propose_test.go:TestDeriveID
     file: golang/propose/propose_test.go
     symbol: TestDeriveID
@@ -23521,6 +23556,12 @@ test_symbols:
     symbol: TestPropose_AcceptsAndWritesCandidate
     package: main
     language: go
+  - id: golang/server/propose_test.go:TestPropose_AppliedRepairCarriesSurvivalEvidenceOverTheWire
+    file: golang/server/propose_test.go
+    symbol: TestPropose_AppliedRepairCarriesSurvivalEvidenceOverTheWire
+    package: main
+    language: go
+    doc: "The applied_repair kind is only reachable over the wire if the transport\ncarries survival_evidence. A required field that the RPC silently drops would\nmake every remote applied_repair proposal fail validation for a reason the\ncaller did supply — so prove both halves: the field survives the hop, and its\nabsence is refused rather than quietly accepted."
   - id: golang/server/propose_test.go:TestPropose_RejectsInvalidWithoutWriting
     file: golang/server/propose_test.go
     symbol: TestPropose_RejectsInvalidWithoutWriting
