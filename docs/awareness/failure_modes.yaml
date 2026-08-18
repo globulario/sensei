@@ -1531,3 +1531,16 @@ failure_modes:
       - 'TestScopesNarrowTheSearchAndAreRecorded failed: with --exclude impl, the AST/invariant extractor (which has its own repository walk and no file-set parameter) still produced state observations from impl/impl.go, while the receipt recorded the exclude scope as being in force.'
       - 'Found by a test, not by review: the semantic extractor honoured the scope, so reading the budget wiring looked complete.'
     contract: An extraction budget's include/exclude scopes must bind every extractor whose output reaches the document, not only the extractor that consumes the file set.
+  - id: failure.architecture_composition_s_input_digests_were_validated_for
+    title: Architecture composition's input digests were validated for shape and never for origin
+    severity: high
+    protects:
+      files:
+        - golang/architecture/investigator/model.go
+        - cmd/awg/cmd_investigate.go
+    required_tests:
+      - golang/architecture/compositionbinding/binding_test.go:TestResolveProducesEveryDimensionWithANamedOwner
+    evidence:
+      - investigator.InputDigests requires five exact digests — graph authority, current claims, closure state, existing questions, review history. The only population site was cmd/awg/cmd_investigate.go reading five fs.String flags that each defaulted to empty, and investigator.IsSHA256 is a pure regex, so any 64 hex characters satisfied the check, including the digest of nothing.
+      - The binding meant to make composition exactly reproducible therefore rested on operator-typed strings. Two runs could report the same binding while describing different graphs, and nothing in the receipt could distinguish them.
+    contract: Each input digest architecture composition binds to must be produced by a named owner from a governed document, and the binding must record which owner produced it. Shape validation is not provenance validation.

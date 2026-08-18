@@ -218,6 +218,7 @@ components:
       - component.golang.architecture.closureprotocol
       - component.golang.architecture.cognitivecommand
       - component.golang.architecture.completion
+      - component.golang.architecture.compositionbinding
       - component.golang.architecture.convergence
       - component.golang.architecture.dashboardprojection
       - component.golang.architecture.evaluatorcomposition
@@ -954,6 +955,21 @@ components:
       - component.golang.architecture.identity
       - component.golang.architecture.ledger
       - component.golang.architecture.questionresolution
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.compositionbinding
+    name: compositionbinding
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/compositionbinding/binding.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.closureprotocol
+      - component.golang.architecture.tasksession
     uml:
       kind: Component
       stereotype: module

@@ -827,6 +827,61 @@ func currentControlPaths(taskDir string) (controlPaths, string, error) {
 	}, ptr.DigestSHA256, nil
 }
 
+// GenerationDocuments are the governed documents of ONE task control
+// generation, read through a SINGLE generation resolution.
+//
+// The single resolution is the whole point. `sensei advance-task` publishes a
+// new generation as two separate, non-atomic writes (control/latest.yaml, then
+// control/latest-generation.yaml), so a caller that loads claims, dialogue and
+// closure through independent calls can observe the pointer move in between and
+// bind a set of documents that never coexisted as one real generation.
+//
+// GraphNTPath is the path rather than the bytes: the graph snapshot is large,
+// and a caller that only needs its digest should not be forced to hold it.
+type GenerationDocuments struct {
+	Generation  string
+	Session     Session
+	Control     taskcontrol.TaskControlState
+	Closure     closure.Report
+	Claims      architecture.ClaimDocument
+	Dialogue    architecture.DialogueDocument
+	GraphNTPath string
+}
+
+// ResolveGenerationDocuments loads a task generation's governed documents
+// atomically with respect to generation publication.
+//
+// It exists so consumers outside this package can obtain a mutually consistent
+// document set without reaching into controlPaths, which is deliberately
+// unexported because it is the thing that must not be resolved twice.
+func ResolveGenerationDocuments(repoRoot, taskDir string) (GenerationDocuments, error) {
+	session, err := LoadSession(filepath.Join(taskDir, "session.yaml"))
+	if err != nil {
+		return GenerationDocuments{}, fmt.Errorf("load task session: %w", err)
+	}
+	paths, generation, err := currentControlPaths(taskDir)
+	if err != nil {
+		return GenerationDocuments{}, fmt.Errorf("resolve the current control generation: %w", err)
+	}
+	claims, err := architecture.LoadClaimDocument(paths.Claims)
+	if err != nil {
+		return GenerationDocuments{}, fmt.Errorf("load maintained claims: %w", err)
+	}
+	dialogue, err := architecture.LoadDialogueDocument(paths.Dialogue)
+	if err != nil {
+		return GenerationDocuments{}, fmt.Errorf("load dialogue: %w", err)
+	}
+	control, closureReport, _, err := ResolveControlAndClosure(repoRoot, taskDir, false)
+	if err != nil {
+		return GenerationDocuments{}, fmt.Errorf("resolve control and closure: %w", err)
+	}
+	return GenerationDocuments{
+		Generation: generation, Session: session, Control: control,
+		Closure: closureReport, Claims: claims, Dialogue: dialogue,
+		GraphNTPath: filepath.Join(taskDir, "source", "graph.nt"),
+	}, nil
+}
+
 // ResolveCurrentAdmissionRequestPath returns the admission request document
 // that describes the task's CURRENT generation -- the same generation-scoped
 // resolution projectControlStatusAndClosure uses for the decision, never the

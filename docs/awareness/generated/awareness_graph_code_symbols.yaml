@@ -9723,6 +9723,54 @@ test_symbols:
     symbol: TestValidateRepositoryTaskBinding
     package: completion
     language: go
+  - id: golang/architecture/compositionbinding/binding_test.go:TestDigestsTrackTheDocumentsTheyDescribe
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestDigestsTrackTheDocumentsTheyDescribe
+    package: compositionbinding
+    language: go
+    doc: "Different content must produce a different digest, or the binding would be a\nconstant that happens to look like proof."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestDimensionsAreDistinct
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestDimensionsAreDistinct
+    package: compositionbinding
+    language: go
+    doc: "The five digests must not be interchangeable: a caller that swapped two\nwould otherwise produce a binding that still validated."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestResolveIsDeterministic
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestResolveIsDeterministic
+    package: compositionbinding
+    language: go
+    doc: "Two resolutions of an unchanged generation must be identical, or the binding\ncould not make composition reproducible — which is its only purpose."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestResolveProducesEveryDimensionWithANamedOwner
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestResolveProducesEveryDimensionWithANamedOwner
+    package: compositionbinding
+    language: go
+    doc: "The core of checkpoint C: every digest comes from a governed document, and\nthe binding says which one."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestResolveRefusesAMissingTask
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestResolveRefusesAMissingTask
+    package: compositionbinding
+    language: go
+    doc: "Fail closed on a missing task rather than emitting a well-formed binding\nnobody can trace."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestReviewHistoryResolvesFromArchitectAnswers
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestReviewHistoryResolvesFromArchitectAnswers
+    package: compositionbinding
+    language: go
+    doc: "Review history HAS an owner. An earlier reading of this gap concluded it did\nnot, which is why this is asserted explicitly rather than left implied: an\nArchitectAnswer records who answered, when, and under what governance\nstatus, and that is the review record this system keeps."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestValidateRefusesABlankGeneration
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestValidateRefusesABlankGeneration
+    package: compositionbinding
+    language: go
+    doc: "A blank generation must not validate: it is the shape that conflates \"the\ntask has not advanced\" with \"the generation could not be resolved\"."
+  - id: golang/architecture/compositionbinding/binding_test.go:TestValidateRefusesIncompleteOrUntraceableBindings
+    file: golang/architecture/compositionbinding/binding_test.go
+    symbol: TestValidateRefusesIncompleteOrUntraceableBindings
+    package: compositionbinding
+    language: go
+    doc: "A partial or forged binding must not validate."
   - id: golang/architecture/controlstate/acceptance_repair_test.go:TestAccept_AttentionFailClosed
     file: golang/architecture/controlstate/acceptance_repair_test.go
     symbol: TestAccept_AttentionFailClosed
