@@ -16,6 +16,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/architecture/factextract"
+	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigationsurface"
 	"github.com/globulario/sensei/golang/architecture/investigator"
@@ -104,6 +105,8 @@ func runInvestigateHow(args []string) int {
 	var includePaths, excludePaths repeatedString
 	fs.Var(&includePaths, "include", "repo-relative path scope to search (repeatable; default: the whole repository)")
 	fs.Var(&excludePaths, "exclude", "repo-relative path scope to skip (repeatable; wins over --include)")
+	diffBase := fs.String("diff-base", "", "incremental extraction: full 40-hex base commit id; describes only what changed between --diff-base and --diff-head")
+	diffHead := fs.String("diff-head", "", "incremental extraction: full 40-hex head commit id")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -126,10 +129,21 @@ func runInvestigateHow(args []string) int {
 		IncludePaths:            includePaths,
 		ExcludePaths:            excludePaths,
 	}
+	var diff *howextract.DiffBinding
+	switch {
+	case strings.TrimSpace(*diffBase) != "" && strings.TrimSpace(*diffHead) != "":
+		diff = &howextract.DiffBinding{BaseRevision: strings.TrimSpace(*diffBase), HeadRevision: strings.TrimSpace(*diffHead)}
+	case strings.TrimSpace(*diffBase) != "" || strings.TrimSpace(*diffHead) != "":
+		// Half a diff binding is not a smaller diff, it is an unanswerable
+		// question. Defaulting the missing side to HEAD would make the same
+		// command mean different things on different days.
+		fmt.Fprintln(os.Stderr, "sensei investigate how: --diff-base and --diff-head must be given together")
+		return 2
+	}
 	binding := resolveSurfaceBinding(abs, *domain, *revision, *revisionStatus, *tree, *graph, *graphStatus)
 	doc, err := investigationsurface.RunHowContext(context.Background(), investigationsurface.HowRequest{
 		Root: abs, CapturedAt: *captured, Repository: binding,
-		ResourceLimits: parseKeyValues(limits), Budget: budget,
+		ResourceLimits: parseKeyValues(limits), Budget: budget, Diff: diff,
 	})
 	if err != nil {
 		return cliSurfaceError("investigate how", err)
@@ -137,6 +151,10 @@ func runInvestigateHow(args []string) int {
 	// A bounded run that produced a partial result must say so on the way out,
 	// not only inside an artifact the caller may never open. A quiet exit 0 is
 	// how a partial extraction gets read as a complete one.
+	if ds := doc.Receipt.DiffScope; ds != nil {
+		fmt.Fprintf(os.Stderr, "sensei investigate how: incremental extraction %s..%s -- %d changed path(s), %d searched; the rest of the repository was NOT searched\n",
+			ds.BaseRevision[:12], ds.HeadRevision[:12], len(ds.ChangedPaths), len(ds.SearchedPaths))
+	}
 	if rb := doc.Receipt.ResourceBudget; rb != nil && rb.Status != extractbudget.StatusCompleted {
 		fmt.Fprintf(os.Stderr, "sensei investigate how: extraction status %s -- %s\n", rb.Status, rb.Detail)
 		for _, d := range rb.ExhaustedDimensions {

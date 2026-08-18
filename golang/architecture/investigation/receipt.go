@@ -34,6 +34,22 @@ type RunReceipt struct {
 	// unavailable / cancelled) available on every run rather than only on
 	// budgeted ones. The pointer remains optional so documents written before
 	// this field existed still parse.
-	ResourceBudget            *extractbudget.Receipt `json:"resource_budget,omitempty" yaml:"resource_budget,omitempty"`
-	NondeterminismDeclaration string                 `json:"nondeterminism_declaration,omitempty" yaml:"nondeterminism_declaration,omitempty"`
+	ResourceBudget *extractbudget.Receipt `json:"resource_budget,omitempty" yaml:"resource_budget,omitempty"`
+	// DiffScope is present only on an incremental run. Its presence is the
+	// document's own statement that it describes a change rather than a
+	// repository -- a consumer that reads observations without checking it
+	// would take a pull-request-sized extraction for a whole-repository one.
+	DiffScope                 *DiffScope `json:"diff_scope,omitempty" yaml:"diff_scope,omitempty"`
+	NondeterminismDeclaration string     `json:"nondeterminism_declaration,omitempty" yaml:"nondeterminism_declaration,omitempty"`
+}
+
+// DiffScope records an incremental extraction's exact binding. It lives here
+// rather than in howextract so a consumer can read it without importing the
+// extractor.
+type DiffScope struct {
+	BaseRevision               string   `json:"base_revision" yaml:"base_revision"`
+	HeadRevision               string   `json:"head_revision" yaml:"head_revision"`
+	ChangedPaths               []string `json:"changed_paths" yaml:"changed_paths"`
+	SearchedPaths              []string `json:"searched_paths" yaml:"searched_paths"`
+	WholeRepositoryNotSearched bool     `json:"whole_repository_not_searched" yaml:"whole_repository_not_searched"`
 }

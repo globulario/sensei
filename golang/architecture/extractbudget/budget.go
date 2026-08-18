@@ -99,13 +99,41 @@ type Budget struct {
 	MaxCapturedContentBytes int64         `json:"max_captured_content_bytes,omitempty" yaml:"max_captured_content_bytes,omitempty"`
 	IncludePaths            []string      `json:"include_paths,omitempty" yaml:"include_paths,omitempty"`
 	ExcludePaths            []string      `json:"exclude_paths,omitempty" yaml:"exclude_paths,omitempty"`
+
+	// ExactFiles, when NON-NIL, is an allowlist of exact repo-relative paths
+	// that may produce observations. It is how an incremental, diff-scoped run
+	// says "describe these files and no others", which prefix scopes cannot
+	// express: a changed-file set is an arbitrary list, not a subtree.
+	//
+	// nil and empty mean different things, and the difference is load-bearing.
+	// nil is "no allowlist"; an EMPTY non-nil slice is an allowlist that admits
+	// nothing. Treating them alike let a diff whose changed paths were all
+	// deleted or excluded fall back to admitting the whole repository, while
+	// the receipt truthfully reported zero searched paths -- a
+	// whole-repository result wearing an incremental document's receipt.
+	//
+	// Deliberately NOT omitempty: the JSON round trip has to preserve the
+	// distinction (nil -> null, empty -> []), or a receipt read back from disk
+	// would lose exactly the fact that mattered.
+	//
+	// It NARROWS; it never widens. A path on this list that the include or
+	// exclude scopes reject stays rejected, so a diff cannot be used to reach
+	// into a directory an operator excluded.
+	ExactFiles []string `json:"exact_files" yaml:"exact_files"`
 }
 
 // Bounded reports whether this budget constrains anything at all.
 func (b Budget) Bounded() bool {
 	return b.MaxWallClock > 0 || b.MaxFiles > 0 || b.MaxSourceBytes > 0 ||
 		b.MaxPackages > 0 || b.MaxObservations > 0 || b.MaxEvidenceReceipts > 0 ||
-		b.MaxCapturedContentBytes > 0 || len(b.IncludePaths) > 0 || len(b.ExcludePaths) > 0
+		b.MaxCapturedContentBytes > 0 || b.ScopesActive()
+}
+
+// ScopesActive reports whether any path scope constrains this run. An empty
+// non-nil ExactFiles counts: it admits nothing, which is the most constraining
+// scope there is.
+func (b Budget) ScopesActive() bool {
+	return len(b.IncludePaths) > 0 || len(b.ExcludePaths) > 0 || b.ExactFiles != nil
 }
 
 // Normalize trims, de-duplicates, and sorts the scopes so two callers that
@@ -114,6 +142,14 @@ func (b Budget) Bounded() bool {
 func (b Budget) Normalize() Budget {
 	b.IncludePaths = normalizeScopes(b.IncludePaths)
 	b.ExcludePaths = normalizeScopes(b.ExcludePaths)
+	// normalizeScopes must not resurrect a nil slice as empty: that would
+	// silently convert "no allowlist" into "admit nothing", or the reverse.
+	if b.ExactFiles != nil {
+		b.ExactFiles = normalizeScopes(b.ExactFiles)
+		if b.ExactFiles == nil {
+			b.ExactFiles = []string{}
+		}
+	}
 	if b.MaxWallClock < 0 {
 		b.MaxWallClock = 0
 	}
@@ -143,7 +179,7 @@ func (b Budget) Validate() error {
 	for _, raw := range [...]struct {
 		kind  string
 		paths []string
-	}{{"include", b.IncludePaths}, {"exclude", b.ExcludePaths}} {
+	}{{"include", b.IncludePaths}, {"exclude", b.ExcludePaths}, {"exact file", b.ExactFiles}} {
 		for _, p := range raw.paths {
 			p = strings.TrimSpace(strings.ReplaceAll(p, "\\", "/"))
 			if strings.HasPrefix(p, "/") || p == ".." || strings.HasPrefix(p, "../") || strings.Contains(p, "/../") || strings.HasSuffix(p, "/..") {
@@ -174,6 +210,13 @@ func (b Budget) Validate() error {
 func (b Budget) InScope(relSlash string) bool {
 	relSlash = strings.TrimPrefix(path.Clean(relSlash), "./")
 	if excludedBy(relSlash, b.ExcludePaths) {
+		return false
+	}
+	// ExactFiles narrows and never widens, so it is checked alongside the
+	// include scopes rather than instead of them. A diff-scoped run inside a
+	// repository whose operator excluded a directory must not use the diff as
+	// a way back into it.
+	if b.ExactFiles != nil && !exactlyListed(relSlash, b.ExactFiles) {
 		return false
 	}
 	if len(b.IncludePaths) == 0 {
@@ -278,6 +321,18 @@ func normalizeScopes(in []string) []string {
 func excludedBy(relSlash string, excludes []string) bool {
 	for _, ex := range excludes {
 		if underPrefix(relSlash, ex) {
+			return true
+		}
+	}
+	return false
+}
+
+// exactlyListed is equality, not prefix matching. An allowlist of changed
+// files means those files; treating an entry as a prefix would silently admit
+// a directory that happens to share a changed file's name.
+func exactlyListed(relSlash string, files []string) bool {
+	for _, f := range files {
+		if relSlash == f {
 			return true
 		}
 	}

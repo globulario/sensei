@@ -25,6 +25,9 @@ type HowRequest struct {
 	ResourceLimits map[string]string
 	// Budget is the enforced contract. Zero value = unbounded.
 	Budget extractbudget.Budget
+	// Diff, when set, asks for an incremental extraction bound to an exact
+	// base/head revision pair.
+	Diff *howextract.DiffBinding
 }
 
 type WhyRequest struct {
@@ -68,6 +71,7 @@ func RunHowContext(ctx context.Context, request HowRequest) (investigation.Docum
 		Repository:     request.Repository,
 		ResourceLimits: request.ResourceLimits,
 		Budget:         request.Budget,
+		Diff:           request.Diff,
 	})
 }
 
