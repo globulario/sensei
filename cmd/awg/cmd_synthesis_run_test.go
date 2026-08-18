@@ -527,22 +527,30 @@ func TestBuildSynthesisRunReport_NonCandidateReadyLeavesCandidatePathEmpty(t *te
 	}
 }
 
-// TestHelp_DoesNotClaimAdmitChangeConsumesLineage is the direct
-// regression test for a live review finding: the "--help" text (separate
-// from nextStep's candidate-ready text, fixed in an earlier round) still
-// told the operator to run admit-change/verify-admission "to review and
-// apply" a sealed candidate, the same misleading implication that neither
-// command currently consumes the lineage bundle.
-func TestHelp_DoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
+// These two started life as regressions against overclaiming: the help text
+// and nextStep both told the operator to run admit-change "to review and
+// apply" a sealed candidate, when nothing consumed the lineage bundle at all.
+// `sensei synthesis-admit` now does, so the honest statement changed -- but
+// the hazard did not. admit-change STILL does not read the bundle; it decides
+// the request synthesis-admit derives from it. Naming the wrong command as the
+// reader would send an operator to a tool that cannot take the input, so both
+// surfaces must name synthesis-admit AND keep admit-change a separate step.
+func TestHelp_NamesSynthesisAdmitAsTheLineageReader(t *testing.T) {
 	out, _ := captureSynthesisRunStderr(t, []string{"--help"})
-	if !contains(out, "does not currently consume") && !contains(out, "not-yet-built") {
-		t.Fatalf("--help should honestly say admit-change/verify-admission do not yet consume the lineage bundle, got: %s", out)
-	}
+	assertLineageReaderNamedCorrectly(t, "--help", out)
 }
 
-func TestNextStep_CandidateReadyDoesNotClaimAdmitChangeConsumesLineage(t *testing.T) {
+func TestNextStep_CandidateReadyNamesSynthesisAdmitAsTheLineageReader(t *testing.T) {
 	s := nextStep(synthesisdriver.DispositionCandidateReady, strPtr("cand0000000000000000000000000000000000000000000000000000000000"))
-	if !contains(s, "does not currently consume") && !contains(s, "not-yet-built") {
-		t.Fatalf("nextStep(candidate-ready) should honestly say admit-change/verify-admission do not yet consume the lineage bundle, got: %s", s)
+	assertLineageReaderNamedCorrectly(t, "nextStep(candidate-ready)", s)
+}
+
+func assertLineageReaderNamedCorrectly(t *testing.T, surface, text string) {
+	t.Helper()
+	if !contains(text, "synthesis-admit") {
+		t.Fatalf("%s does not name the command that actually reads the lineage bundle, got: %s", surface, text)
+	}
+	if !contains(text, "separate") {
+		t.Fatalf("%s does not keep admit-change a separate, deliberate step, got: %s", surface, text)
 	}
 }

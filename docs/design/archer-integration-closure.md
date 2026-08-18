@@ -228,6 +228,21 @@ by inspection):
    applies, commits, pushes, or merges — `sensei admit-change` /
    `sensei verify-admission` remain the only, separate acceptance path.
 
+   The bundle that command persists now has a reader:
+   `cmd/awg/cmd_synthesis_admit.go` (`sensei synthesis-admit`) is O5A's CLI
+   entry point. It reads the lineage bundle, re-reads the base tree from git
+   at the candidate's own base revision, and calls
+   `admissioncomposition.ComposeRequest` to DERIVE the concrete
+   `admission.Request` — replacing the step where an operator was told to
+   author that request by hand, which is where a digest typo or an
+   optimistically-worded scope would have entered a chain that is otherwise
+   digest-bound end to end. It decides nothing: the derived request is input
+   to `sensei admit-change`, which remains separate. Its three terminal
+   states stay distinct (request composed / unsupported operation refused
+   with a receipt / candidate changes nothing), and a candidate whose
+   recorded base is not the tree it was generated against is refused rather
+   than re-derived against whatever the checkout currently holds.
+
 2. **The driver requires a repository Sensei has already onboarded —
    still open.**
    Constructing a legal, non-placeholder `synthesis.SessionState` needs a real
@@ -309,6 +324,15 @@ refusal, apply digest mismatch, verification scope violation, retry/replan
 exhaustion, deterministic replay, and the rest) have been demonstrated. Gap 2
 (the pre-onboarded-repository precondition) also remains an implicit
 precondition rather than an explicit, authored contract.
+
+`sensei synthesis-admit` narrows the first of those two remaining steps
+without completing it. The composition half of the submission path now
+exists and is covered by its own tests, including base-revision drift — but
+*composed* is not *decided*: no real `admit-change` evaluation of a derived
+request, and no O5B application, has been run end to end. `candidateapply`
+(O5B) still has no CLI surface at all, so the apply and post-application
+verification scenarios in the proof matrix remain unreachable from the
+command line.
 
 Closing this contract for real still requires, in order: (a) run the
 completion proof matrix above end-to-end through real admission, apply, and

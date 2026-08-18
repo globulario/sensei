@@ -82,12 +82,10 @@ disposition.
 
 This command NEVER admits, applies, commits, pushes, or merges anything.
 A sealed candidate is only ever a proposal on disk. It persists an
-admission lineage bundle alongside the candidate; no CLI command reads
-that bundle yet -- 'sensei admit-change' / 'sensei verify-admission' take
-their own separate inputs and do not currently consume it. Wiring the
-lineage bundle into an O5 admission command is a distinct, not-yet-built
-step. Until then, review the bundle directly before authoring an
-admission request by hand.
+admission lineage bundle alongside the candidate; 'sensei synthesis-admit'
+reads that bundle and derives the O5 admission request from it, and
+'sensei admit-change' then decides that request. Both remain separate,
+deliberate steps.
 
 Requires a repository with served graph authority and an already-prepared
 task (run 'sensei prepare-change' first) -- this command creates neither.
@@ -630,7 +628,9 @@ Flags:
 // honestly computed fresh from git at admission time than frozen here) --
 // persisting them would overstep this command's own stated boundary
 // (stops at candidate-ready, never constructs or presumes admission
-// inputs).
+// inputs). `sensei synthesis-admit` (cmd_synthesis_admit.go) supplies both
+// at the moment it composes, resolving the template from the task's
+// current generation and re-reading the base tree from git.
 type synthesisRunLineage struct {
 	SchemaVersion                 string                                 `json:"schema_version"`
 	CandidateArtifactDigestSHA256 string                                 `json:"candidate_artifact_digest_sha256"`
@@ -1072,7 +1072,7 @@ func nextStep(d synthesisdriver.Disposition, candidateArtifactDigestSHA256 *stri
 	}
 	switch d {
 	case synthesisdriver.DispositionCandidateReady:
-		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is durably persisted at the path named above. No CLI command reads it yet: `sensei admit-change` and `sensei verify-admission` take their own separate inputs (a convergence bundle/request, or a task directory) and do not currently consume this bundle or call admissioncomposition.ComposeInput -- wiring this lineage bundle into an O5 admission command is a distinct, not-yet-built step. Until then, review the bundle directly before authoring an admission request by hand."
+		return "Candidate sealed. Nothing has been applied. The admission lineage bundle (synthesis/runner/evaluation receipts) needed to construct admissioncomposition.ComposeInput is durably persisted at the path named above. Run `sensei synthesis-admit --lineage <path>` to derive the O5 admission request from it -- that command reads this bundle, re-reads the base tree from git, and derives the mutation scope from the sealed manifests. It decides nothing: `sensei admit-change` evaluates the request it produces, and remains a separate, deliberate step."
 	case synthesisdriver.DispositionTerminalFailure:
 		return fmt.Sprintf("O1 reached a governed terminal failure. %s Inspect the receipt detail and the task's control state before authoring a new interpretation or task.", candidateClause)
 	case synthesisdriver.DispositionProviderStopped:
