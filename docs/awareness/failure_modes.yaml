@@ -1672,3 +1672,13 @@ failure_modes:
       - invariant.synthesis.session_resumption_rejects_all_bound_identity_drift
     evidence:
       - with the graph server stopped, sensei synthesis-run refuses (exit 12, graph-identity-unusable) but sensei synthesis-admit composed an admission request from the persisted lineage bundle anyway; measured by scripts/synthesis-run-smoke.sh with the refusing run as its control
+  - id: failure.a_post_application_verification_can_never_be_attached_to_the
+    title: A post-application verification can never be attached to the application it describes
+    description: 'synthesis-apply --verification records an already-produced admission verification against the applied result. A verification OF the applied result can only be produced after the application, and by then the candidate is consumed, so attaching it is refused. The two requirements exclude each other and the only way through is deleting the receipt and re-applying, which the command itself warns makes two applications indistinguishable from one. Issue #149''s proof matrix row ''verification failure after materialization'' therefore remains fixture-only, not because it was untested but because the path is unreachable.'
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_apply.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    evidence:
+      - in scripts/synthesis-run-smoke.sh the applied worktree verifies scope_compliant via sensei verify-admission, but sensei synthesis-apply --verification then exits 6 (previously consumed), because the only command that attaches a verification is the one that performs the application
