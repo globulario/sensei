@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	RunReceiptSchemaFilename = "synthesisdriver-receipt-v1.schema.json"
-	CheckpointSchemaFilename = "synthesisdriver-checkpoint-v1.schema.json"
+	RunReceiptSchemaFilename       = "synthesisdriver-receipt-v1.schema.json"
+	CheckpointSchemaFilename       = "synthesisdriver-checkpoint-v1.schema.json"
+	ResumeAssessmentSchemaFilename = "synthesisdriver-resume-assessment-v1.schema.json"
 )
 
 //go:embed schemas/*.json
@@ -28,6 +29,10 @@ var (
 	checkpointSchemaOnce sync.Once
 	checkpointSchema     *jsonschema.Schema
 	checkpointSchemaErr  error
+
+	resumeAssessmentSchemaOnce sync.Once
+	resumeAssessmentSchema     *jsonschema.Schema
+	resumeAssessmentSchemaErr  error
 )
 
 // compileEmbeddedSchema compiles one embedded schema under its own declared
@@ -73,6 +78,20 @@ func ValidateRunReceiptSchema(receipt RunReceipt) error {
 		return err
 	}
 	return validateInstance(runReceiptSchema, NormalizeRunReceipt(receipt))
+}
+
+func compileResumeAssessmentSchema() error {
+	resumeAssessmentSchemaOnce.Do(func() {
+		resumeAssessmentSchema, resumeAssessmentSchemaErr = compileEmbeddedSchema(ResumeAssessmentSchemaFilename)
+	})
+	return resumeAssessmentSchemaErr
+}
+
+func ValidateResumeAssessmentSchema(assessment ResumeAssessment) error {
+	if err := compileResumeAssessmentSchema(); err != nil {
+		return err
+	}
+	return validateInstance(resumeAssessmentSchema, NormalizeResumeAssessment(assessment))
 }
 
 func ValidateCheckpointSchema(checkpoint Checkpoint) error {

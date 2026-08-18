@@ -49,12 +49,15 @@ func checkpointFixture(t *testing.T, phase synthesis.Phase) Checkpoint {
 		ObservedAt:                    "2026-08-02T00:00:05Z",
 	}
 
-	// Every phase past created must carry the interpretation O1 accepted, so
-	// the fixture supplies a real one whose digest matches the state.
+	// Every phase past created must carry the interpretation O1 accepted, and
+	// the closure receipt that promoted it — crossing created -> planning is
+	// exactly the transition that requires a governing receipt, so a
+	// checkpoint past that boundary without one is not a faithful fixture.
 	if phase != synthesis.PhaseCreated {
 		interpretation := interpretationFixture(t, session.SessionDigestSHA256)
 		checkpoint.Interpretation = &interpretation
 		checkpoint.SessionState.InterpretationDigestSHA256 = interpretation.InterpretationDigestSHA256
+		checkpoint.Trace.InterpretationClosureReceiptDigestsSHA256 = []string{strings.Repeat("1", 64)}
 	}
 	if phase == synthesis.PhaseAttempting {
 		plan := planFixture(t, checkpoint.Interpretation.InterpretationDigestSHA256)
