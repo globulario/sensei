@@ -1582,3 +1582,10 @@ required_tests:
         - failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
       files:
         - golang/architecture/howextract/compose.go
+  - id: golang/architecture/compositionbinding/binding_test.go:TestResolveProducesEveryDimensionWithANamedOwner
+    title: Every composition input digest is resolved from a governed document and names its producer
+    protects:
+      failure_modes:
+        - failure.architecture_composition_s_input_digests_were_validated_for
+      files:
+        - golang/architecture/compositionbinding/binding.go
