@@ -362,13 +362,24 @@ func runPrinciplePackRefresh(args []string) int {
 		fmt.Fprintf(os.Stderr, "  the adoption record will list exactly what was overwritten.\n")
 		return 1
 	}
-	if len(diff.UpstreamOnly) == 0 && !diverged && !*reconcile {
+	// Every entry agrees and so does the preamble, yet the bytes differ: the
+	// pack was reformatted, not rewritten. A baseline cannot authorize this on
+	// its own -- it proves what the project started from, not that an operator
+	// accepted a whole-file overwrite yielding no entry change -- so it stays
+	// refused unless authorized.
+	formattingOnly := len(diff.UpstreamOnly) == 0 && !diverged
+	if formattingOnly && !*reconcile {
 		fmt.Fprintf(os.Stderr, "\ndisposition: conflict — entries match but bytes differ (formatting drift); refusing\n")
 		return 1
 	}
 
+	// The record must name what ACTUALLY permitted the write. formattingOnly is
+	// in this condition because that path is reachable only via --reconcile-legacy:
+	// crediting it to the baseline would attribute the overwrite to evidence
+	// that, on its own, refuses it -- and the receipt is the only place a later
+	// reader can learn an operator was involved at all.
 	authorization := "verified_baseline"
-	if !baseline || diverged {
+	if !baseline || diverged || formattingOnly {
 		if !*reconcile {
 			fmt.Fprintf(os.Stderr, "\ndisposition: needs_reconciliation — refusing to apply without a baseline.\n")
 			fmt.Fprintf(os.Stderr, "  %d id(s) are present upstream and absent locally, but with no install or\n", len(diff.UpstreamOnly))

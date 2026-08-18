@@ -1601,3 +1601,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.operator_authorization_unreachable_behind_an_earlier_gate_re
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    title: A receipt credits the authorization that permitted the write, not one that would have refused it
+    protects:
+      failure_modes:
+        - failure.operator_authorization_unreachable_behind_an_earlier_gate_re

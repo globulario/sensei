@@ -1928,3 +1928,45 @@ func TestPackRefresh_AlreadyCurrentWithoutRecordCanRecordProvenance(t *testing.T
 		t.Fatalf("custody = %v after recording provenance, want SharedProjection", v.Custody)
 	}
 }
+
+// A verified baseline proves what the project started from. It does not prove
+// an operator accepted a whole-file overwrite that changes no entry, so a
+// formatting-only refresh is reachable only via --reconcile-legacy -- and the
+// receipt must credit the flag that permitted it rather than the baseline that
+// would have refused it. The authorization field is the only place a later
+// reader can learn an operator was involved at all.
+func TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline(t *testing.T) {
+	root := t.TempDir()
+	mirrorPath := filepath.Join(root, mirrorRelPath)
+	if err := os.MkdirAll(filepath.Dir(mirrorPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	packBytes, err := templates.ReadFile(packTemplatePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Same entries, same preamble, different bytes.
+	drifted := append(append([]byte{}, packBytes...), '\n')
+	if err := os.WriteFile(mirrorPath, drifted, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeInstallRecord(root, drifted); err != nil {
+		t.Fatal(err)
+	}
+
+	// Unauthorized, a baseline alone must not carry it.
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply"}); rc == 0 {
+		t.Fatal("a formatting-only overwrite was applied on the baseline alone")
+	}
+	if n := len(receiptFilesIn(t, root)); n != 0 {
+		t.Fatalf("the refused run wrote %d record(s)", n)
+	}
+
+	if rc := runPrinciplePackRefresh([]string{"--repo", root, "--apply", "--reconcile-legacy"}); rc != 0 {
+		t.Fatalf("an authorized formatting-only refresh was refused, rc=%d", rc)
+	}
+	r := readOneRecord(t, root)
+	if r.Authorization != "reconcile_legacy" {
+		t.Fatalf("authorization = %q; the baseline would have refused this write, so crediting it hides the operator", r.Authorization)
+	}
+}

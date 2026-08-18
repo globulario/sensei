@@ -3359,6 +3359,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestPackRefresh_FirstAdoptionSyncsNewAdoptionsDirParent is the integration\ncase Codex's review named directly: on a project's FIRST adoption,\n\".sensei/principle-pack/adoptions\" does not exist yet. A real --apply run\nmust sync its parent (\".sensei/principle-pack\") so the new \"adoptions\"\nentry itself is durable, not just the receipt written inside it."
+  - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    file: cmd/awg/cmd_principle_pack_test.go
+    symbol: TestPackRefresh_FormattingOnlyRefreshIsCreditedToTheOperatorNotTheBaseline
+    package: main
+    language: go
+    doc: "A verified baseline proves what the project started from. It does not prove\nan operator accepted a whole-file overwrite that changes no entry, so a\nformatting-only refresh is reachable only via --reconcile-legacy -- and the\nreceipt must credit the flag that permitted it rather than the baseline that\nwould have refused it. The authorization field is the only place a later\nreader can learn an operator was involved at all."
   - id: cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_FreshStateDirCreationSyncsRoot
     file: cmd/awg/cmd_principle_pack_test.go
     symbol: TestPackRefresh_FreshStateDirCreationSyncsRoot
