@@ -3049,6 +3049,23 @@ test_symbols:
     symbol: TestMachineAdoptedContractCategoryUsesContractLevel
     package: main
     language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowFileCeilingBindsThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowFileCeilingBindsThroughTheCLI
+    package: main
+    language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowRefusesAnUnhonourableScope
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowRefusesAnUnhonourableScope
+    package: main
+    language: go
+    doc: "A budget that cannot be honoured as written is refused before any work,\nrather than normalized into one that searches somewhere else."
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowScopeFlagsBindThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowScopeFlagsBindThroughTheCLI
+    package: main
+    language: go
+    doc: "A scope narrows what the document describes, and is recorded so a later\nreader can tell a deliberately narrow search from an exhausted one."
   - id: cmd/awg/cmd_lifecycle_test.go:TestTallyCoverageTiers_DeclarationIsClassifiedNotUnclassified
     file: cmd/awg/cmd_lifecycle_test.go
     symbol: TestTallyCoverageTiers_DeclarationIsClassifiedNotUnclassified
@@ -11368,6 +11385,117 @@ test_symbols:
     symbol: TestValidate
     package: evidencereceipt
     language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestAnEmptyRepositoryIsNotAMisWrittenScope
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestAnEmptyRepositoryIsNotAMisWrittenScope
+    package: extractbudget
+    language: go
+    doc: "An unscoped run over an empty candidate set is a different fact -- there was\nnothing to search, not a scope that named nothing -- and must not be flagged\nas a mis-written scope."
+  - id: golang/architecture/extractbudget/budget_test.go:TestBudgetRefusesEscapingScopes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestBudgetRefusesEscapingScopes
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestBudgetThatExcludesEverythingItIncludesIsRefused
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestBudgetThatExcludesEverythingItIncludesIsRefused
+    package: extractbudget
+    language: go
+    doc: "A budget whose excludes swallow every include would produce an empty,\n\"completed\" extraction of a repository nobody searched. That reads as\nevidence of absence, and it is not."
+  - id: golang/architecture/extractbudget/budget_test.go:TestByteCeilingCutsAtAWholeFile
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestByteCeilingCutsAtAWholeFile
+    package: extractbudget
+    language: go
+    doc: "The byte ceiling cuts at a whole file. Half a file is not weaker evidence,\nit is evidence about source positions that do not mean what they say."
+  - id: golang/architecture/extractbudget/budget_test.go:TestDeadlineOnlyBindsWhenWallClockIsSet
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestDeadlineOnlyBindsWhenWallClockIsSet
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestEveryCutProducesALimitationNamingTheGap
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestEveryCutProducesALimitationNamingTheGap
+    package: extractbudget
+    language: go
+    doc: "A cut must always produce a limitation. A bounded run that reported no\nlimitation would be indistinguishable from a complete one."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExcludeBeatsInclude
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExcludeBeatsInclude
+    package: extractbudget
+    language: go
+    doc: "Exclude wins over include: the narrower, negative statement is the one a\ncaller is more likely to have meant literally."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExhaustedDimensionsAreClosedAndDeduplicated
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExhaustedDimensionsAreClosedAndDeduplicated
+    package: extractbudget
+    language: go
+    doc: "A cut site cannot invent a dimension the reader has no rule for, and\nduplicates from two stages collapse."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExhaustionComesFromActualCutsNotFromComparingNumbers
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExhaustionComesFromActualCutsNotFromComparingNumbers
+    package: extractbudget
+    language: go
+    doc: "Exhaustion must come from the stage that cut, never from comparing\nconsumption against a bound. The comparison was wrong in BOTH directions,\nand both directions matter:\n\n  - three 100-byte files under a 250-byte ceiling keep 200 and cut the third,\n    yet 200 >= 250 is false, so a genuinely partial run reported \"completed\";\n  - a repository totalling exactly 250 bytes reported \"budget_exhausted\"\n    while nothing was skipped.\n\nThe first is the failure this whole contract exists to prevent: partial\nevidence presented as complete."
+  - id: golang/architecture/extractbudget/budget_test.go:TestNormalizeMakesEquivalentBudgetsIdentical
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestNormalizeMakesEquivalentBudgetsIdentical
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestReceiptIsDeterministic
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestReceiptIsDeterministic
+    package: extractbudget
+    language: go
+    doc: "Two identical runs must produce byte-identical receipts, which is why no\nmeasured duration lives in Consumption."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesApplyBeforeCeilings
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesApplyBeforeCeilings
+    package: extractbudget
+    language: go
+    doc: "Scopes are applied BEFORE ceilings. A caller who narrowed the search to one\ndirectory should get all of it, not a file ceiling already spent on files\nthe scope had ruled out."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesMatchSegmentsNotStringPrefixes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesMatchSegmentsNotStringPrefixes
+    package: extractbudget
+    language: go
+    doc: "Exclusion matches path segments, never raw string prefixes. \"internal\" must\nnot swallow \"internal_docs/\" -- an operator excluding one directory would\nsilently lose an unrelated one, and the receipt would truthfully report a\ncomplete search of a scope that was not what they wrote."
+  - id: golang/architecture/extractbudget/budget_test.go:TestScopesThatMatchNothingAreFlaggedRatherThanReportedComplete
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestScopesThatMatchNothingAreFlaggedRatherThanReportedComplete
+    package: extractbudget
+    language: go
+    doc: "A scope that names nothing must not produce a \"completed\" run over zero\nobservations. That reads as evidence that the repository contains nothing of\ninterest, when the real fact is that someone wrote a scope matching no file."
+  - id: golang/architecture/extractbudget/budget_test.go:TestStatusPrecedence
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestStatusPrecedence
+    package: extractbudget
+    language: go
+    doc: "Status precedence is load-bearing. A cancelled run may never have reached a\nlimit, and reporting budget_exhausted would send the operator to widen a\nlimit that was not the constraint."
+  - id: golang/architecture/extractbudget/budget_test.go:TestStatusVocabularyIsClosed
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestStatusVocabularyIsClosed
+    package: extractbudget
+    language: go
+    doc: "Only the enumerated dispositions exist; a caller must not be able to invent\na status the reader has no rule for."
+  - id: golang/architecture/extractbudget/budget_test.go:TestTruncationIsDeterministicAndNamesWhatWasNotSearched
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestTruncationIsDeterministicAndNamesWhatWasNotSearched
+    package: extractbudget
+    language: go
+    doc: "The cut has to be deterministic and it has to be REPORTABLE. Selection is\nsorted, so naming the first unsearched path is a complete statement of what\nwas skipped -- without a receipt that grows with the repository."
+  - id: golang/architecture/extractbudget/budget_test.go:TestWallClockExhaustionIsADistinctOutcomeFromCancellation
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestWallClockExhaustionIsADistinctOutcomeFromCancellation
+    package: extractbudget
+    language: go
+    doc: "The wall clock is the one limit that cannot be reported by comparing a\nmeasured number against a bound: elapsed time is nondeterministic, and a\nreceipt carrying it would never be equal twice. It is reported as an outcome\ninstead -- and it must stay distinguishable from the caller stopping the\nrun, since the two prescribe opposite responses."
+  - id: golang/architecture/extractbudget/budget_test.go:TestZeroBudgetIsUnbounded
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestZeroBudgetIsUnbounded
+    package: extractbudget
+    language: go
+    doc: "The zero budget must be exactly \"no limits\", because it is what every\nexisting caller passes implicitly. A zero value that quietly meant \"bound\neverything to zero\" would turn adoption into a repository-wide outage."
   - id: golang/architecture/fact_test.go:TestCanonicalFactDoesNotContainWallClockTime
     file: golang/architecture/fact_test.go
     symbol: TestCanonicalFactDoesNotContainWallClockTime
@@ -12072,6 +12200,96 @@ test_symbols:
     symbol: TestVerifyDigestResolved
     package: graphsnapshot
     language: go
+  - id: golang/architecture/howextract/budget_test.go:TestBoundedAndUnboundedAgreeWhenNothingIsCut
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestBoundedAndUnboundedAgreeWhenNothingIsCut
+    package: howextract
+    language: go
+    doc: "Adopting the contract must not change what an unbounded extraction produces.\nIf it did, every existing receipt's digest would move for reasons unrelated\nto the repository it describes."
+  - id: golang/architecture/howextract/budget_test.go:TestBudgetDroppedEvidenceIsNotReportedAsNoResult
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestBudgetDroppedEvidenceIsNotReportedAsNoResult
+    package: howextract
+    language: go
+    doc: "A provider whose evidence the budget discarded must NOT be reported as\n\"searched, no result\". That sentence, in a governed document, says the\nprovider looked and found nothing — when it found something the budget threw\naway. Coverage has to carry the difference or the document lies about the\nrepository rather than about itself."
+  - id: golang/architecture/howextract/budget_test.go:TestCancellationIsNotReportedAsBudgetExhaustion
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestCancellationIsNotReportedAsBudgetExhaustion
+    package: howextract
+    language: go
+    doc: "A cancelled run is reported as cancelled -- never as a zero-observation\nsuccess, and never blamed on a budget limit it may not have reached.\nWidening a limit that was not the constraint is the wrong response, and a\nreceipt that suggested it would cause exactly that."
+  - id: golang/architecture/howextract/budget_test.go:TestEnforcedBudgetSatisfiesTheResourceStatementRequirement
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestEnforcedBudgetSatisfiesTheResourceStatementRequirement
+    package: howextract
+    language: go
+    doc: "A receipt must carry SOME resource statement, and an enforced budget is a\nstrictly stronger one than a declared string map. Before this, the only way\npast the validator was the declared map -- which is why a surface that\nbounded nothing injected the literal {\"surface\": \"bounded\"} to satisfy it."
+  - id: golang/architecture/howextract/budget_test.go:TestEvidenceCeilingCutsReceiptsRatherThanCountingThem
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestEvidenceCeilingCutsReceiptsRatherThanCountingThem
+    package: howextract
+    language: go
+    doc: "An evidence ceiling has to CUT receipts, not merely count them. A receipt\nreporting budget_exhausted over a set nothing trimmed would be the same lie\nas the string map, wearing a typed struct."
+  - id: golang/architecture/howextract/budget_test.go:TestFileCeilingActuallyReducesTheSearchedSet
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestFileCeilingActuallyReducesTheSearchedSet
+    package: howextract
+    language: go
+    doc: "The load-bearing assertion for this checkpoint: a limit that is reached must\nactually reduce the work, be reported as the reason, and say what was left\nunsearched. Recording the limit and extracting everything anyway is the\ndefect the issue names."
+  - id: golang/architecture/howextract/budget_test.go:TestModuleMetadataDoesNotConsumeTheFileCeiling
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestModuleMetadataDoesNotConsumeTheFileCeiling
+    package: howextract
+    language: go
+    doc: "go.mod and go.sum are semantic inputs that can never carry a source position,\nso they must not consume the attribution ceilings. Before this, a repository\nwhose first sorted path was go.mod spent `--max-files 1` on it and returned\nno observations at all while appearing to allow one source file."
+  - id: golang/architecture/howextract/budget_test.go:TestObservationCeilingBinds
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestObservationCeilingBinds
+    package: howextract
+    language: go
+    doc: "An observation ceiling binds on the normalized set and is reported."
+  - id: golang/architecture/howextract/budget_test.go:TestScopeMatchingNothingIsPartialNotComplete
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestScopeMatchingNothingIsPartialNotComplete
+    package: howextract
+    language: go
+    doc: "End-to-end: a scope naming a directory that does not exist must not yield a\nclean \"completed\" document with no observations."
+  - id: golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestScopesNarrowTheSearchAndAreRecorded
+    package: howextract
+    language: go
+    doc: "Scopes narrow the search and are recorded, because a run over a deliberately\nnarrowed repository and a run that ran out of budget produce the same\nobservations for entirely different reasons."
+  - id: golang/architecture/howextract/budget_test.go:TestUnboundedRunSaysSoRatherThanClaimingBoundedness
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestUnboundedRunSaysSoRatherThanClaimingBoundedness
+    package: howextract
+    language: go
+    doc: "The distinction this whole checkpoint rests on: a caller-declared limit that\nnothing reads must not be mistaken for one that binds. An unbounded run says\nso with an all-zero Budget -- which is a plainer statement than an absent\nfield, and keeps the disposition available on every run -- while still\nrecording what it measured."
+  - id: golang/architecture/howextract/budget_test.go:TestUnhonourableBudgetIsRefusedBeforeExtraction
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestUnhonourableBudgetIsRefusedBeforeExtraction
+    package: howextract
+    language: go
+    doc: "A budget that cannot be honoured as written is refused before any work,\nrather than repaired into a plausible one that searches somewhere else."
+  - id: golang/architecture/howextract/budget_test.go:TestValidateRejectsAFabricatedEnforcementClaim
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestValidateRejectsAFabricatedEnforcementClaim
+    package: howextract
+    language: go
+    doc: "An externally supplied artifact must not be able to certify an enforcement\nthat could not have happened: claiming a limit was exhausted while that\nlimit is unset, or naming a dimension outside the closed vocabulary."
+  - id: golang/architecture/howextract/budget_test.go:TestValidateRejectsConsumptionThatContradictsTheDocument
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestValidateRejectsConsumptionThatContradictsTheDocument
+    package: howextract
+    language: go
+    doc: "Validation must check the NUMBERS, not just the dimension names. Checking\nnames alone left an artifact free to carry 100 observations while claiming a\nceiling of 1 and a consumption of 0 — certifying a budget the document\nvisibly violates."
+  - id: golang/architecture/howextract/budget_test.go:TestWallClockDeadlineReachesTheWholeExtraction
+    file: golang/architecture/howextract/budget_test.go
+    symbol: TestWallClockDeadlineReachesTheWholeExtraction
+    package: howextract
+    language: go
+    doc: "The wall clock must bound the WHOLE extraction, not only the package load.\nIt previously derived a deadline inside the semantic extractor and discarded\nit on return, so the AST walk, manifest hashing, and evidence capture ran\nunbounded afterwards — a ceiling the receipt claimed was enforced and that\nstopped applying partway through."
   - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
     file: golang/architecture/howextract/howextract_test.go
     symbol: TestAllCaptureFailuresAreUnavailable

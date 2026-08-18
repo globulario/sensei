@@ -6,6 +6,8 @@ package gosemantics
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"go/ast"
 	"go/token"
@@ -15,7 +17,9 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
 	"golang.org/x/tools/go/packages"
 	"golang.org/x/tools/go/ssa"
@@ -52,6 +56,25 @@ type Limitation struct {
 type Result struct {
 	Observations []Observation
 	Limitations  []Limitation
+	// Selection records which files the budget admitted and, more
+	// importantly, which it did not. A caller that reports observations
+	// without it is reporting a bounded search as an exhaustive one.
+	Selection extractbudget.Selection
+	// Packages is the number of loaded packages actually analysed, after any
+	// budget truncation.
+	Packages int
+	// Cancelled is true when the CALLER's context ended the run.
+	// WallClockExhausted is true when this run's own MaxWallClock did. Both
+	// arrive as the same context error and mean opposite things to whoever
+	// reads the receipt -- one says widen the limit, the other says the limit
+	// was never the constraint -- so they are reported separately rather than
+	// collapsed into "it stopped early".
+	Cancelled          bool
+	WallClockExhausted bool
+	// Truncated names the budget dimensions this extractor actually cut, so
+	// the disposition is reported by the stage that declined the work rather
+	// than inferred from a comparison downstream.
+	Truncated []string
 }
 
 type extractor struct {
@@ -67,21 +90,105 @@ type extractor struct {
 // Extract loads repository packages, builds type and SSA information, and
 // returns only observations whose source and target resolve inside root.
 func Extract(root string) (result Result, err error) {
+	return ExtractBounded(context.Background(), root, extractbudget.Budget{})
+}
+
+// ExtractBounded is Extract with a resource contract that actually binds.
+//
+// The zero Budget is exactly Extract's behaviour, so this is the same code
+// path in both cases rather than a bounded variant that could drift from the
+// unbounded one.
+//
+// What each limit actually bounds differs, and saying so precisely matters
+// more than making the contract sound uniform:
+//
+//   - MaxFiles / MaxSourceBytes / the include-exclude scopes bound the
+//     ATTRIBUTION set -- which files may produce observations -- and therefore
+//     everything downstream of it: observations, evidence receipts, and the
+//     source capture I/O that dominates a large run's output. They do NOT
+//     narrow the package load, which is still "./..." over the whole module,
+//     because an observation about one file needs type information that can
+//     come from any file in the module. Loading less would produce cheaper
+//     and wronger types.
+//   - MaxWallClock is therefore the ONLY limit that bounds the load, through
+//     the context packages.Load honours. A repository whose type-check does
+//     not finish in the time available is bounded by this and nothing else.
+//     The deadline is normally applied by the CALLER (howextract), so the
+//     ceiling covers the whole extraction rather than this stage alone; this
+//     function derives its own only when it was called without one.
+//   - MaxPackages can only bind AFTER the load, since the count is not known
+//     until then. It bounds the analysis, not the load.
+//
+// Stating this rather than papering over it is the point of the checkpoint: a
+// contract that claimed all seven limits bound the same stage would be a more
+// comfortable and less true description of what a bounded run costs.
+func ExtractBounded(ctx context.Context, root string, budget extractbudget.Budget) (result Result, err error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	budget = budget.Normalize()
+	if err := budget.Validate(); err != nil {
+		return Result{}, err
+	}
 	root, err = filepath.Abs(root)
 	if err != nil {
 		return Result{}, err
 	}
-	selected, err := SearchedFiles(root)
+	candidates, err := searchedCandidates(root)
 	if err != nil {
 		return Result{}, err
 	}
-	selectedFiles := make(map[string]bool, len(selected))
-	for _, path := range selected {
+	selection := extractbudget.Select(candidates, budget)
+	selectedFiles := make(map[string]bool, len(selection.Files))
+	for _, path := range selection.Files {
 		rel, relErr := filepath.Rel(root, path)
 		if relErr != nil {
 			return Result{}, fmt.Errorf("relativize selected source file %s: %w", path, relErr)
 		}
 		selectedFiles[filepath.ToSlash(rel)] = true
+	}
+	// A caller that already applied this budget's wall clock (howextract does,
+	// so the ceiling covers the whole extraction rather than only this stage)
+	// passes a context that is already deadline-bound. Deriving a second
+	// deadline from the same budget would be harmless but redundant; what
+	// matters is that a DeadlineExceeded arriving from either source is still
+	// attributed to the budget rather than to the caller.
+	parent := ctx
+	budgetDeadline := false
+	if _, hasDeadline := ctx.Deadline(); hasDeadline {
+		budgetDeadline = budget.MaxWallClock > 0
+	}
+	if deadline, bounded := budget.Deadline(time.Now()); bounded && !budgetDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, deadline)
+		defer cancel()
+		budgetDeadline = true
+	}
+	// stopped attributes a context error to whoever actually caused it. The
+	// parent is asked first: if the caller had already stopped, the budget's
+	// own deadline is incidental and must not take the blame.
+	// Attribution order matters, and it changed when the wall clock moved up to
+	// howextract so it could cover the whole extraction: the deadline now
+	// usually arrives on the INHERITED context, so a parent-error check first
+	// would blame the caller for every budget expiry.
+	//
+	// A deadline is attributed to the budget whenever the budget set one; an
+	// explicit cancellation is always the caller's. The residual ambiguity --
+	// a caller-imposed deadline firing while a budget wall clock is also set --
+	// resolves to the budget, which is the actionable reading: the operator
+	// asked for a ceiling and hit one.
+	stopped := func() (cancelled, wallClock bool, reason string) {
+		err := ctx.Err()
+		if err == nil {
+			return false, false, ""
+		}
+		if budgetDeadline && errors.Is(err, context.DeadlineExceeded) {
+			return false, true, "semantic package load stopped at the max_wall_clock bound"
+		}
+		if parent.Err() != nil {
+			return true, false, "semantic package load stopped by the caller: " + parent.Err().Error()
+		}
+		return true, false, "semantic package load stopped: " + err.Error()
 	}
 	fset := token.NewFileSet()
 	goCache := filepath.Join(os.TempDir(), "sensei-go-build-cache")
@@ -93,13 +200,41 @@ func Extract(root string) (result Result, err error) {
 			packages.NeedDeps | packages.NeedTypes | packages.NeedTypesInfo | packages.NeedTypesSizes |
 			packages.NeedSyntax | packages.NeedModule,
 		Dir: root, Fset: fset, Tests: true,
-		Env: replaceEnvironmentValue(os.Environ(), "GOCACHE", goCache),
+		Env:     replaceEnvironmentValue(os.Environ(), "GOCACHE", goCache),
+		Context: ctx,
 	}
 	loaded, loadErr := packages.Load(cfg, "./...")
 	if loadErr != nil {
+		// A deadline or cancellation reaching packages.Load is a governed
+		// stop, not an extraction defect: report it as one so the caller can
+		// tell "we ran out of time" from "this repository does not type-check".
+		if cancelled, wallClock, reason := stopped(); cancelled || wallClock {
+			return Result{Selection: selection, Cancelled: cancelled, WallClockExhausted: wallClock,
+				Limitations: []Limitation{{Scope: "repository", Reason: reason}},
+			}, nil
+		}
 		return Result{}, loadErr
 	}
+	if cancelled, wallClock, reason := stopped(); cancelled || wallClock {
+		return Result{Selection: selection, Cancelled: cancelled, WallClockExhausted: wallClock,
+			Limitations: []Limitation{{Scope: "repository", Reason: reason}},
+		}, nil
+	}
+	loadedPackageCount := len(loaded)
+	var packageLimitations []Limitation
+	var truncated []string
+	if budget.MaxPackages > 0 && len(loaded) > budget.MaxPackages {
+		sort.Slice(loaded, func(i, j int) bool { return loaded[i].PkgPath < loaded[j].PkgPath })
+		packageLimitations = append(packageLimitations, Limitation{
+			Scope: "repository",
+			Reason: fmt.Sprintf("extraction budget reached (max_packages): %d of %d loaded package(s) were analysed; the rest were not, beginning at %s",
+				budget.MaxPackages, loadedPackageCount, loaded[budget.MaxPackages].PkgPath),
+		})
+		loaded = loaded[:budget.MaxPackages]
+		truncated = append(truncated, extractbudget.DimensionPackages)
+	}
 	e := &extractor{root: root, selectedFiles: selectedFiles, fset: fset, packages: loaded}
+	e.limitations = append(e.limitations, packageLimitations...)
 	e.rootComponent, _ = importgraph.DetectGoRootComponent(root)
 	for _, pkg := range loaded {
 		for _, pkgErr := range pkg.Errors {
@@ -111,8 +246,55 @@ func Extract(root string) (result Result, err error) {
 	e.extractSSACalls()
 	e.extractDataShapes()
 	e.observations = normalizeObservations(e.observations)
+	if budget.MaxObservations > 0 && len(e.observations) > budget.MaxObservations {
+		e.limitations = append(e.limitations, Limitation{
+			Scope: "repository",
+			Reason: fmt.Sprintf("extraction budget reached (max_observations): %d of %d observation(s) were kept",
+				budget.MaxObservations, len(e.observations)),
+		})
+		e.observations = e.observations[:budget.MaxObservations]
+		truncated = append(truncated, extractbudget.DimensionObservations)
+	}
 	e.limitations = normalizeLimitations(e.limitations)
-	return Result{Observations: e.observations, Limitations: e.limitations}, nil
+	return Result{
+		Observations: e.observations,
+		Limitations:  e.limitations,
+		Selection:    selection,
+		Packages:     len(loaded),
+		Truncated:    truncated,
+	}, nil
+}
+
+// searchedCandidates enumerates every file whose source positions may produce
+// HOW observations, with the sizes the byte ceiling is measured against.
+func searchedCandidates(root string) ([]extractbudget.Candidate, error) {
+	selected, err := SearchedFiles(root)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]extractbudget.Candidate, 0, len(selected))
+	for _, abs := range selected {
+		// SearchedFiles also returns go.mod/go.sum, which are semantic INPUTS
+		// and can never carry a source position an observation is attributed
+		// to. Letting them consume the file and byte ceilings spends the
+		// budget on files that cannot produce anything: in a repository with a
+		// root go.mod and z.go, `--max-files 1` selected go.mod (paths sort
+		// first), rejected every position in z.go, and returned no semantic
+		// observations while appearing to allow one source file.
+		if filepath.Ext(abs) != ".go" {
+			continue
+		}
+		rel, relErr := filepath.Rel(root, abs)
+		if relErr != nil {
+			return nil, fmt.Errorf("relativize selected source file %s: %w", abs, relErr)
+		}
+		var size int64
+		if info, statErr := os.Stat(abs); statErr == nil {
+			size = info.Size()
+		}
+		out = append(out, extractbudget.Candidate{RelPath: filepath.ToSlash(rel), AbsPath: abs, Size: size})
+	}
+	return out, nil
 }
 
 func replaceEnvironmentValue(environment []string, key, value string) []string {

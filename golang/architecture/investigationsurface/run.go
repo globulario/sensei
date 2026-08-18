@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigator"
@@ -16,10 +17,14 @@ import (
 )
 
 type HowRequest struct {
-	Root           string
-	CapturedAt     string
-	Repository     architecture.ClaimDocumentBinding
+	Root       string
+	CapturedAt string
+	Repository architecture.ClaimDocumentBinding
+	// ResourceLimits is the legacy caller-declared string map. It enforces
+	// nothing and never did.
 	ResourceLimits map[string]string
+	// Budget is the enforced contract. Zero value = unbounded.
+	Budget extractbudget.Budget
 }
 
 type WhyRequest struct {
@@ -43,13 +48,27 @@ type ArchitectureRequest struct {
 }
 
 func RunHow(request HowRequest) (investigation.Document, error) {
+	return RunHowContext(context.Background(), request)
+}
+
+// RunHowContext runs HOW extraction under a caller-owned context so a
+// wall-clock budget and an external cancellation reach the type-checker.
+//
+// The default ResourceLimits entry this surface used to inject was the literal
+// string {"surface": "bounded"} -- a claim of boundedness stamped into every
+// receipt by a surface that bounded nothing. It is gone: an unbounded run now
+// says so by carrying no budget receipt at all, and a bounded one proves it
+// with measured consumption.
+func RunHowContext(ctx context.Context, request HowRequest) (investigation.Document, error) {
 	if strings.TrimSpace(request.Root) == "" {
 		return investigation.Document{}, errors.New("repository root is required")
 	}
-	if len(request.ResourceLimits) == 0 {
-		request.ResourceLimits = map[string]string{"surface": "bounded"}
-	}
-	return howextract.Extract(request.Root, howextract.Options{CapturedAt: request.CapturedAt, Repository: request.Repository, ResourceLimits: request.ResourceLimits})
+	return howextract.ExtractContext(ctx, request.Root, howextract.Options{
+		CapturedAt:     request.CapturedAt,
+		Repository:     request.Repository,
+		ResourceLimits: request.ResourceLimits,
+		Budget:         request.Budget,
+	})
 }
 
 func RunWhy(ctx context.Context, request WhyRequest) (investigation.Document, error) {
