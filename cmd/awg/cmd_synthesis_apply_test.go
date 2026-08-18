@@ -348,3 +348,58 @@ func TestSynthesisApplyRefusalClassesAreDistinct(t *testing.T) {
 		t.Fatalf("refusal classes collapsed: %+v", codes)
 	}
 }
+
+// The proof matrix's "previously-consumed application refusal". Without it, a
+// second run against a reset worktree applies the same candidate again and
+// overwrites the first receipt -- making two applications indistinguishable
+// from one, which is exactly the property an audit of a governed mutation
+// exists to provide.
+func TestSynthesisApplyRefusesAPreviouslyConsumedCandidate(t *testing.T) {
+	f := newApplyFixture(t)
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("first apply exited %d", code)
+	}
+	receiptPath := filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".o5b-receipt.json")
+	firstReceipt, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Reset the worktree so the dirty-target refusal cannot be what stops the
+	// second run. Consumption has to be refused on its own.
+	gitIn(t, f.repoDir, "checkout", "--", ".")
+
+	if code := f.apply(t); code != exitAlreadyConsumed {
+		t.Fatalf("exit = %d, want %d -- a consumed candidate must be refused on its own, not incidentally", code, exitAlreadyConsumed)
+	}
+	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "old\n" {
+		t.Fatalf("a consumed candidate was applied a second time: a.txt = %q", got)
+	}
+	after, err := os.ReadFile(receiptPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(after) != string(firstReceipt) {
+		t.Error("the first application's receipt was overwritten by the refused second run")
+	}
+}
+
+// Removing the receipt is the deliberate human act that permits a re-apply.
+// If it were not, the refusal above would be a dead end rather than a gate.
+func TestRemovingTheReceiptPermitsADeliberateReapply(t *testing.T) {
+	f := newApplyFixture(t)
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("first apply exited %d", code)
+	}
+	gitIn(t, f.repoDir, "checkout", "--", ".")
+	if err := os.Remove(filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".o5b-receipt.json")); err != nil {
+		t.Fatal(err)
+	}
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("exit = %d, want %d after the consumption record was deliberately removed", code, exitCandidateApplied)
+	}
+}

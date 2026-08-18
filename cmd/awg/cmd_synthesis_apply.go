@@ -46,6 +46,7 @@ const (
 	exitAdmissionNotAdmitting = 3
 	exitTargetRefused         = 4
 	exitVerificationFailed    = 5
+	exitAlreadyConsumed       = 6
 )
 
 func runSynthesisApply(args []string) int {
@@ -92,6 +93,7 @@ Outcomes:
   3  the decision does not authorize mutation of this candidate
   4  the target worktree was refused (dirty, wrong base, or not a worktree)
   5  the recorded verification did not pass
+  6  this candidate was already applied; its receipt is the consumption record
 
 Flags:
 `)
@@ -167,7 +169,28 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 3: bind the decision to the composed request ---
+	// --- step 3: refuse a candidate that has already been applied ---
+	//
+	// Issue #149's proof matrix names "previously-consumed application
+	// refusal", and without this there is nothing to enforce it. A second run
+	// against a reset worktree would apply the same candidate again and
+	// PutAuxiliaryFile would overwrite the first receipt -- erasing the
+	// evidence that the first application ever happened. Two applications
+	// would then be indistinguishable from one, which is precisely the
+	// property an audit of a governed mutation exists to provide.
+	//
+	// The receipt IS the consumption record, so removing it is the explicit
+	// human act that permits a re-apply. That is deliberately a decision
+	// somebody has to make, not a flag.
+	consumedPath := filepath.Join(storeDir, lineage.CandidateArtifactDigestSHA256+".o5b-receipt.json")
+	if prior, perr := os.Stat(consumedPath); perr == nil && prior.Mode().IsRegular() {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: this candidate was already applied; its receipt is at %s\n", consumedPath)
+		fmt.Fprintln(os.Stderr, "  applying it again would overwrite that receipt, making two applications look like one.")
+		fmt.Fprintln(os.Stderr, "  if a re-apply is genuinely intended, remove the receipt first -- deliberately.")
+		return exitAlreadyConsumed
+	}
+
+	// --- step 4: bind the decision to the composed request ---
 	//
 	// This is the join that makes application authorized rather than merely
 	// requested, and it is done through the O5A owner rather than by comparing
@@ -197,7 +220,7 @@ Flags:
 		return exitAdmissionNotAdmitting
 	}
 
-	// --- step 4: the base manifest, re-read from git at the candidate's own
+	// --- step 5: the base manifest, re-read from git at the candidate's own
 	// base revision. Same reasoning as synthesis-admit: what a candidate
 	// changes relative to the repository is a question only the repository can
 	// answer, and candidateapply's rollback is bound to these exact bytes. ---
@@ -213,7 +236,7 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 5: apply, through O5B ---
+	// --- step 6: apply, through O5B ---
 	applyReq, applyReceipt, err := candidateapply.Apply(ctx, candidateapply.ApplyInput{
 		AdmissionRequest:  o5aRequest,
 		AdmissionReceipt:  o5aReceipt,
@@ -245,7 +268,7 @@ Flags:
 		RequestDigestSHA256:           applyReceipt.RequestDigestSHA256,
 	}
 
-	// --- step 6: an optional, already-produced verification ---
+	// --- step 7: an optional, already-produced verification ---
 	//
 	// This command does not verify; it RECORDS a verification the admission
 	// owner produced. Generating and judging its own verification would make
