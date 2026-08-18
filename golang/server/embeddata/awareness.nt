@@ -1396,6 +1396,11 @@
 <https://globular.io/awareness#failureMode/failure.contract_scope_underconstrained_allows_repair_drift> <http://www.w3.org/2000/01/rdf-schema#label> "Contract scope underconstrained allows repair drift" .
 <https://globular.io/awareness#failureMode/failure.contract_scope_underconstrained_allows_repair_drift> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
 <https://globular.io/awareness#failureMode/failure.contract_scope_underconstrained_allows_repair_drift> <https://globular.io/awareness#severity> "warning" .
+<https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> <http://www.w3.org/2000/01/rdf-schema#label> "Convergence generates a control probe that the same run and its remediation both refuse" .
+<https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> .
+<https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fprobe%2Fmodel.go> .
 <https://globular.io/awareness#failureMode/failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan> <http://www.w3.org/2000/01/rdf-schema#label> "Cross-repo build reported its own corpus as foreign provenance" .
 <https://globular.io/awareness#failureMode/failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> .
@@ -6481,6 +6486,9 @@
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fpackcustody%2Fcustody.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fpackcustody%2Fcustody.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.installed_shared_knowledge_acquires_repository_authorship_fr> .
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fpackcustody%2Fcustody.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.installed_shared_knowledge_acquires_repository_authorship_fr> .
+<https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fprobe%2Fmodel.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fprobe%2Fmodel.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> .
+<https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fprobe%2Fmodel.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.convergence_generates_a_control_probe_that_the_same_run_and> .
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fproofdischarge%2Fcompatibility.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fproofdischarge%2Fcompatibility.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/closure.runtime_evidence_not_applicable_only_without_governed_runtime_mandate> .
 <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fproofdischarge%2Fcoverage.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
@@ -8221,9 +8229,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 f15ad575407a" .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedDigestSha256> "f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526" .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedTripleCount> "8229" .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 8850a7a45eb7" .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <https://globular.io/awareness#seedDigestSha256> "8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156" .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <https://globular.io/awareness#seedTripleCount> "8237" .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-8850a7a45eb720f7ed76525bb33dc1a62b8847c7178efe219f82593bc19a6156> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

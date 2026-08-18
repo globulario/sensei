@@ -1608,3 +1608,12 @@ failure_modes:
       - meta.single_derivation_path_must_reach_its_consumer
     evidence:
       - 'sourceFile IRIs are keyed by repo-relative path with no domain scope, so every registered domain''s README.md and docs/awareness/invariants.yaml resolve to the same subject. Observed live with sensei and sensei-code sharing one store: sensei-code emitted ''<sourceFile/README.md> <implements> <decision/decision.sensei_code...>'', so sensei''s graph asserts its own README implements a sensei-code decision. The proof-set symptom (the other domain''s slice digest moves and its closure proof cannot be carried forward, costing a rebuild to converge) is downstream of that identity collapse, not a defect in SliceDigest, which already excludes foreign repo tags.'
+  - id: failure.convergence_generates_a_control_probe_that_the_same_run_and
+    title: Convergence generates a control probe that the same run and its remediation both refuse
+    protects:
+      files:
+        - golang/architecture/probe/model.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    evidence:
+      - 'prepare-change synthesizes a control probe during convergence and then refuses it (''probe command must be copied exactly from a sourced Evidence node''), and advance-task -- the remediation its own error text recommends -- fails on that same probe when loading control probes. synthesis-run then stops at closure-digest-unavailable before reaching the governed driver. Deterministic across runs and across --mode modify and --mode inspect. The generator/validator round-trip is correct in isolation on the same graph: all three evidence commands resolve via CommandMatches, so the probe is not malformed at generation. probe/model.go:326 fails closed when ctx is nil, which makes a re-validation lacking graph context indistinguishable from a genuinely unsourced command.'
