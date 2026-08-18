@@ -318,6 +318,16 @@ func buildClosureReport(domain string, inputDirs []string, markerPath string, ma
 			!strings.HasPrefix(rel, "..") && rel != "." {
 			roots = append(roots, rel)
 		}
+		// Provenance records the input path AS GIVEN, and the relative form
+		// above is produced only for inputs INSIDE the working directory. Every
+		// CROSS-REPO build spells its corpus as "../other/docs/awareness", which
+		// therefore matched no root at all -- so the repository's own corpus read
+		// as foreign provenance and closure failed on a correct publication.
+		// Observed live: 21 of sensei-code's own identities called foreign,
+		// dropping to 0 when the same build was given an absolute --input.
+		if given := filepath.Clean(d); given != abs && given != "." {
+			roots = append(roots, given)
+		}
 	}
 	if len(roots) == 0 {
 		return nil

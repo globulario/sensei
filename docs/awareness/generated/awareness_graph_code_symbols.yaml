@@ -1029,6 +1029,18 @@ test_symbols:
     symbol: TestGeneratedOutputOwner
     package: main
     language: go
+  - id: cmd/awg/build_closure_roots_test.go:TestClosureRootsAcceptTheInputSpellingProvenanceRecords
+    file: cmd/awg/build_closure_roots_test.go
+    symbol: TestClosureRootsAcceptTheInputSpellingProvenanceRecords
+    package: main
+    language: go
+    doc: "A cross-repo build spells its corpus relative to the working directory\n(\"--input ../other/docs/awareness\"), and the published slice records\nprovenance in exactly that spelling. Closure accepted only the absolute form\nplus a relative form computed for inputs INSIDE the working directory, so a\ncorpus outside it matched no certified root at all — and the repository's own\nidentities were reported as authored elsewhere.\n\nThat fails closure on a CORRECT publication, which is the worst shape for\nthis check: the report names real-looking foreign provenance, so the operator\ngoes looking for a contaminated corpus that does not exist. Observed live\nwhile running issue #176's regression matrix — 21 of sensei-code's own\nidentities called foreign, dropping to 0 when the identical build was given\nan absolute --input."
+  - id: cmd/awg/build_closure_roots_test.go:TestInstalledPrincipleMirrorIsNotExpectedOfTheInstallingDomain
+    file: cmd/awg/build_closure_roots_test.go
+    symbol: TestInstalledPrincipleMirrorIsNotExpectedOfTheInstallingDomain
+    package: main
+    language: go
+    doc: "A project that correctly installs the principle pack holds a mirror it does\nnot author. Custody refuses to publish that mirror under the project's own\ndomain, so closure must not expect the project to project its identities —\notherwise the correct state is unprovable and every such repository reports\nits whole mirror missing.\n\nObserved live while running issue #176's regression matrix: sensei-code\nreported 23/161 projected with 138 missing, which is exactly the pack's\nprinciple count, and could never become authoritative."
   - id: cmd/awg/build_transaction_test.go:TestEvaluateBuildTransactionFreshness_Current
     file: cmd/awg/build_transaction_test.go
     symbol: TestEvaluateBuildTransactionFreshness_Current

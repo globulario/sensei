@@ -1606,3 +1606,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.operator_authorization_unreachable_behind_an_earlier_gate_re
+  - id: cmd/awg/build_closure_roots_test.go:TestInstalledPrincipleMirrorIsNotExpectedOfTheInstallingDomain
+    title: An installed pack mirror is not required of the installing domain
+    protects:
+      failure_modes:
+        - failure.closure_required_identities_from_an_installed_pack_mirror_th
+  - id: cmd/awg/build_closure_roots_test.go:TestClosureRootsAcceptTheInputSpellingProvenanceRecords
+    title: A cross-repo build's own corpus is not foreign provenance
+    protects:
+      failure_modes:
+        - failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan

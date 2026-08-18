@@ -1555,3 +1555,25 @@ failure_modes:
       - cmd/awg/cmd_principle_pack_test.go:TestPackRefresh_ReconcileLegacyResolvesDriftedLegacyMirror
     evidence:
       - 'sensei principle-pack refresh consulted --reconcile-legacy only at the missing-baseline gate; a drifted legacy mirror hit the conflict gate first and returned 1, so the flag was unreachable for exactly the population it existed to serve. packcustody.Derive then refused the mirror permanently while its own error text recommended that flag. Observed on globulario/services: 4 locally-changed ids plus a differing preamble, no invocation could reconcile it.'
+  - id: failure.closure_required_identities_from_an_installed_pack_mirror_th
+    title: Closure required identities from an installed pack mirror the domain cannot publish
+    protects:
+      files:
+        - cmd/awg/cmd_domain_closure.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - cmd/awg/build_closure_roots_test.go:TestInstalledPrincipleMirrorIsNotExpectedOfTheInstallingDomain
+    evidence:
+      - 'expectedIdentities counted every governed id under the corpus root, including the installed principle mirror. Custody correctly refuses to publish that mirror under the installing domain, so closure reported the whole mirror missing and the correct state was unprovable. Observed live on sensei-code during issue #176''s regression matrix: 23/161 projected, 138 missing — exactly the pack''s principle count — and the domain could never become authoritative.'
+  - id: failure.cross_repo_build_reported_its_own_corpus_as_foreign_provenan
+    title: Cross-repo build reported its own corpus as foreign provenance
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - cmd/awg/build_closure_roots_test.go:TestClosureRootsAcceptTheInputSpellingProvenanceRecords
+    evidence:
+      - 'buildClosureReport accepted the absolute input root plus a relative form computed only for inputs INSIDE the working directory. A cross-repo build spells its corpus ''../other/docs/awareness'' and provenance records that spelling, so no certified root matched and the repository''s own identities read as authored elsewhere. Observed live: 21 of sensei-code''s own identities called foreign, dropping to 0 when the identical build was given an absolute --input.'
