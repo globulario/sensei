@@ -1631,3 +1631,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped
+  - id: golang/architecture/probe/nil_context_test.go:TestCommandBearingProbeLoadsWithoutAValidationContext
+    title: A command-bearing probe loads without a validation context
+    protects:
+      failure_modes:
+        - failure.a_nil_validation_context_was_reported_as_a_probe_sourcing_vi
+  - id: cmd/awg/cmd_synthesis_run_test.go:TestExitCodeForDisposition_EveryDispositionHasADistinctCode
+    title: Every disposition in the closed vocabulary has its own exit code
+    protects:
+      failure_modes:
+        - failure.a_governed_disposition_with_no_exit_code_case_was_reported_t

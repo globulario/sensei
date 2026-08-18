@@ -816,6 +816,13 @@ const (
 	exitGovernedRunnerStop   = 5
 	exitStepLimitReached     = 6
 	exitInternalDefect       = 7
+	// An interpretation that stayed ADVISORY is a governed outcome, not a
+	// defect in this command. It had no case in either switch below, so it
+	// fell through to exitInternalDefect and told the operator to report a bug
+	// -- for the ordinary situation of a closure receipt whose authority is not
+	// governing. See #149: no governed state may be collapsed, least of all
+	// into "this tool is broken".
+	exitInterpretationAdvisory = 8
 )
 
 func exitCodeForDisposition(d synthesisdriver.Disposition) int {
@@ -830,6 +837,8 @@ func exitCodeForDisposition(d synthesisdriver.Disposition) int {
 		return exitGovernedRunnerStop
 	case synthesisdriver.DispositionStepLimitReached:
 		return exitStepLimitReached
+	case synthesisdriver.DispositionInterpretationAdvisory:
+		return exitInterpretationAdvisory
 	default:
 		// synthesisdriver.Disposition is a closed vocabulary; reaching here
 		// means a new disposition was added there without a matching case
@@ -1164,6 +1173,8 @@ func nextStep(d synthesisdriver.Disposition, candidateArtifactDigestSHA256 *stri
 		return fmt.Sprintf("O3 generation stopped on this attempt. %s Inspect the receipt detail; this may be a vendor CLI or workspace problem, not a content rejection.", candidateClause)
 	case synthesisdriver.DispositionStepLimitReached:
 		return fmt.Sprintf("The step limit was reached before reaching a terminal disposition. %s Re-run with a higher --max-steps only after understanding why this many steps were needed.", candidateClause)
+	case synthesisdriver.DispositionInterpretationAdvisory:
+		return fmt.Sprintf("The interpretation remained ADVISORY: its closure receipt did not carry governing authority, so O1 stopped in the created phase and never became the authority a synthesis run may act on. %s Read the blockers named in the receipt detail and resolve them -- this is a governance outcome about the interpretation, not a provider or tooling failure.", candidateClause)
 	default:
 		return "Unrecognized disposition. Treat this as an internal defect, not a governed outcome."
 	}
