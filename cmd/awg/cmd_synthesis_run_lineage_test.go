@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/evaluatorcomposition"
@@ -40,7 +41,7 @@ func TestPersistAdmissionLineage_NonCandidateReadyReturnsEmpty(t *testing.T) {
 		synthesisdriver.DispositionStepLimitReached,
 	} {
 		result := synthesisdriver.Result{Receipt: synthesisdriver.RunReceipt{Disposition: d}}
-		path, err := persistAdmissionLineage(context.Background(), result, store, dir)
+		path, err := persistAdmissionLineage(context.Background(), result, store, dir, testTaskBinding())
 		if err != nil {
 			t.Fatalf("disposition %q: unexpected error: %v", d, err)
 		}
@@ -98,7 +99,7 @@ func TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle(t *testing.T
 	}
 
 	store, storeDir := newTestCandidateStore(t)
-	path, err := persistAdmissionLineage(context.Background(), result, store, storeDir)
+	path, err := persistAdmissionLineage(context.Background(), result, store, storeDir, testTaskBinding())
 	if err != nil {
 		t.Fatalf("persistAdmissionLineage: %v", err)
 	}
@@ -150,7 +151,7 @@ func TestPersistAdmissionLineage_MissingSynthesisReceiptErrors(t *testing.T) {
 		},
 	}
 	store, dir := newTestCandidateStore(t)
-	if _, err := persistAdmissionLineage(context.Background(), result, store, dir); err == nil {
+	if _, err := persistAdmissionLineage(context.Background(), result, store, dir, testTaskBinding()); err == nil {
 		t.Fatal("expected an error when SessionState.Receipt is nil")
 	}
 }
@@ -172,7 +173,81 @@ func TestPersistAdmissionLineage_NoMatchingRunnerReceiptErrors(t *testing.T) {
 		// No matching GenerationHandoffs entry.
 	}
 	store, dir := newTestCandidateStore(t)
-	if _, err := persistAdmissionLineage(context.Background(), result, store, dir); err == nil {
+	if _, err := persistAdmissionLineage(context.Background(), result, store, dir, testTaskBinding()); err == nil {
 		t.Fatal("expected an error when no runner receipt matches the candidate digest")
+	}
+}
+
+// testTaskBinding is a complete task binding: the lineage bundle refuses an
+// empty one, because a bundle that cannot support the drift check must not be
+// silently accepted as if it had passed it.
+func testTaskBinding() synthesisRunTaskBinding {
+	return synthesisRunTaskBinding{
+		TaskID:                       "task.lineage.test",
+		TaskControlStateDigestSHA256: strings.Repeat("c", 64),
+		ClosureReportDigestSHA256:    strings.Repeat("d", 64),
+	}
+}
+
+// The task binding must actually reach the bundle. It is the one thing that
+// cannot be reconstructed later: a candidate sealed without it can never be
+// drift-checked, because the governance state it was generated under is not
+// recoverable from anything else the bundle holds.
+func TestPersistAdmissionLineage_CapturesTheTaskBinding(t *testing.T) {
+	const candidateDigest = "cand0000000000000000000000000000000000000000000000000000000000"
+	result := synthesisdriver.Result{
+		Receipt: synthesisdriver.RunReceipt{
+			Disposition:                   synthesisdriver.DispositionCandidateReady,
+			CandidateArtifactDigestSHA256: strPtr(candidateDigest),
+		},
+		SessionState: synthesis.SessionState{
+			Receipt: &synthesis.Receipt{SchemaVersion: synthesis.ReceiptSchemaVersion, ReceiptID: "receipt.test"},
+		},
+		Trace: synthesisdriver.Trace{
+			GenerationHandoffs: []runnercomposition.VerifiedGenerationHandoff{
+				{RunnerReceipt: runnercomposition.RunnerReceipt{
+					SchemaVersion:                 "sensei.runnercomposition.runnerreceipt.v1",
+					ReceiptID:                     "runnerreceipt.test",
+					Disposition:                   runnercomposition.DispositionVerified,
+					CandidateArtifactDigestSHA256: strPtr(candidateDigest),
+					RunnerReceiptDigestSHA256:     "runner-digest",
+				}},
+			},
+			EvaluationResults: []evaluatorcomposition.Result{
+				{Receipt: &evaluatorcomposition.EvaluationReceipt{
+					SchemaVersion:                 "sensei.evaluatorcomposition.evaluationreceipt.v1",
+					ReceiptID:                     "evaluationreceipt.test",
+					CandidateArtifactDigestSHA256: candidateDigest,
+					Disposition:                   evaluatorcomposition.DispositionEvaluated,
+					ReceiptDigestSHA256:           "evaluation-digest",
+				}},
+			},
+		},
+	}
+	store, dir := newTestCandidateStore(t)
+	path, err := persistAdmissionLineage(context.Background(), result, store, dir, testTaskBinding())
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got synthesisRunLineage
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatal(err)
+	}
+	want := testTaskBinding()
+	if got.TaskBinding != want {
+		t.Fatalf("task binding = %+v, want %+v", got.TaskBinding, want)
+	}
+	// And it must be readable back by the consumer's own loader, since that is
+	// the path a later drift check will take.
+	reloaded, err := loadSynthesisRunLineage(path)
+	if err != nil {
+		t.Fatalf("the consumer cannot load the bundle it will have to check: %v", err)
+	}
+	if reloaded.TaskBinding.TaskID != want.TaskID {
+		t.Fatalf("task id did not survive the round trip: %q", reloaded.TaskBinding.TaskID)
 	}
 }
