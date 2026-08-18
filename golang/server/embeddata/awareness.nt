@@ -1518,6 +1518,11 @@
 <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_rebuild.go> .
 <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/cmd%2Fawg%2Fhelpers_test.go:TestFilteredServicesGeneratedDir_ExcludesAwarenessGraphArtifacts> .
 <https://globular.io/awareness#failureMode/failure.rebuild.authoredin_records_per_run_temp_path> <https://globular.io/awareness#severity> "high" .
+<https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> <http://www.w3.org/2000/01/rdf-schema#label> "Repo-relative sourceFile identities collapse different repositories files into one node" .
+<https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/meta.single_derivation_path_must_reach_its_consumer> .
+<https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fgraphgeneration%2Fgraphgeneration.go> .
 <https://globular.io/awareness#failureMode/failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check> <http://www.w3.org/2000/01/rdf-schema#label> "--repo sends a foreign import to the wrong place: it is a checkout PATH on bootstrap/cold-bootstrap/intent-mine but a DOMAIN on build" .
 <https://globular.io/awareness#failureMode/failure.repo_sends_a_foreign_import_to_the_wrong_place_it_is_a_check> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
@@ -6755,7 +6760,9 @@
 <https://globular.io/awareness#sourceFile/golang%2Fextractor%2Fyaml_import_test.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/golang%2Fextractor%2Fyaml_import_test.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fextractor%2Fyaml_import_test.go:TestImportFixture_KnownTriplesPresent> .
 <https://globular.io/awareness#sourceFile/golang%2Fgraphgeneration%2Fgraphgeneration.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/golang%2Fgraphgeneration%2Fgraphgeneration.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> .
 <https://globular.io/awareness#sourceFile/golang%2Fgraphgeneration%2Fgraphgeneration.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#forbiddenFix/forbidden_fix.relax_closure_or_marker_verification_so_cross_domain_preflig> .
+<https://globular.io/awareness#sourceFile/golang%2Fgraphgeneration%2Fgraphgeneration.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.repo_relative_sourcefile_identities_collapse_different_repos> .
 <https://globular.io/awareness#sourceFile/golang%2Fpb%2Fawareness_graph.pb.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/golang%2Fpb%2Fawareness_graph.pb.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#component/component.golang.pb> .
 <https://globular.io/awareness#sourceFile/golang%2Fpb%2Fawareness_graph_grpc.pb.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
@@ -8214,9 +8221,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 c7c6a20a934d" .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <https://globular.io/awareness#seedDigestSha256> "c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c" .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <https://globular.io/awareness#seedTripleCount> "8222" .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-c7c6a20a934db2a0a2485723ef428a15c9fd34f8b3d2ab84330233c6812a959c> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 f15ad575407a" .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedDigestSha256> "f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526" .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedTripleCount> "8229" .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-f15ad575407a1ade9c74d45502ce4455ac2d55e27ba12f5f99fd3cded56b5526> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .

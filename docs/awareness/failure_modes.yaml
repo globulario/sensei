@@ -1599,3 +1599,12 @@ failure_modes:
       - golang/architecture/evalmutant/repo_test.go:TestDefectCommitCarriesTheMutantsOwnMessage
     evidence:
       - evalmutant.Mutant carries a CommitMessage documented as present 'so history-based evidence is uniform across the suite', but Materialize only wrote files and never created a repository. The misleading-commit-message witness says so outright ('the message lives outside the tree, so the witness reads the change the message describes'), meaning the suite measured whether an evaluator noticed a rename rather than whether it caught a message describing work the diff does not contain. It also left every history-reading arm unrunnable over the suite, since WHY investigation requires an explicit commit range.
+  - id: failure.repo_relative_sourcefile_identities_collapse_different_repos
+    title: Repo-relative sourceFile identities collapse different repositories files into one node
+    protects:
+      files:
+        - golang/graphgeneration/graphgeneration.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    evidence:
+      - 'sourceFile IRIs are keyed by repo-relative path with no domain scope, so every registered domain''s README.md and docs/awareness/invariants.yaml resolve to the same subject. Observed live with sensei and sensei-code sharing one store: sensei-code emitted ''<sourceFile/README.md> <implements> <decision/decision.sensei_code...>'', so sensei''s graph asserts its own README implements a sensei-code decision. The proof-set symptom (the other domain''s slice digest moves and its closure proof cannot be carried forward, costing a rebuild to converge) is downstream of that identity collapse, not a defect in SliceDigest, which already excludes foreign repo tags.'
