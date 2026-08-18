@@ -65,6 +65,7 @@
 //	sensei task-briefing                    Show bounded file context for an active task
 //	sensei synthesis-run                    Drive one O1-O4 governed synthesis session to candidate-ready
 //	sensei synthesis-admit                  Compose the O5 admission request for a sealed candidate
+//	sensei synthesis-apply                  Apply an admitted sealed candidate to a dedicated worktree
 //	sensei proof-plan                       Show required proof before a repair can be promoted
 //	sensei repair-plan                      Build an authoritative governed repair plan
 //	sensei seed-status                      Check generated/committed/live seed authority alignment
@@ -307,6 +308,8 @@ func dispatch(cmd string, args []string) int {
 		return runSynthesisRun(args)
 	case "synthesis-admit":
 		return runSynthesisAdmit(args)
+	case "synthesis-apply":
+		return runSynthesisApply(args)
 	case "task-ledger":
 		return runTaskLedger(args)
 	case "proof-plan":
@@ -485,6 +488,7 @@ Repair and evaluation helpers:
   task-briefing  Show bounded file context for an active task
   synthesis-run  Drive one O1-O4 governed synthesis session to candidate-ready
   synthesis-admit Compose the O5 admission request for a sealed candidate
+  synthesis-apply Apply an admitted sealed candidate to a dedicated worktree
   task-ledger    Verify, import, and rebuild append-only task ledgers
   extract-authority Extract candidate authority surfaces from Go code
   extract-proof-obligations Generate proof obligations from authority surfaces

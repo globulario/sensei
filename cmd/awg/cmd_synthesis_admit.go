@@ -137,14 +137,23 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 2: resolve the admission request template ---
+	// --- step 2: refuse a bundle whose task or closure state has moved ---
+	//
+	// Hard law 10 (#149). Base-revision drift is caught in step 3; this is the
+	// half no digest inside the bundle can reveal.
+	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding, artifact.SessionDigestSHA256); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-admit: %v\n", err)
+		return exitResolutionFailure
+	}
+
+	// --- step 3: resolve the admission request template ---
 	template, templateSource, err := resolveAdmissionTemplate(absRepo, *templatePath, *taskFlag)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-admit: %v\n", err)
 		return exitResolutionFailure
 	}
 
-	// --- step 3: read the base manifest from git, at the candidate's own
+	// --- step 4: read the base manifest from git, at the candidate's own
 	// base revision ---
 	//
 	// Computed fresh rather than carried in the bundle, deliberately: the
@@ -166,7 +175,7 @@ Flags:
 		return exitResolutionFailure
 	}
 
-	// --- step 4: compose, through the O5A owner ---
+	// --- step 5: compose, through the O5A owner ---
 	request, concrete, err := admissioncomposition.ComposeRequest(admissioncomposition.ComposeInput{
 		SynthesisReceipt:  lineage.SynthesisReceipt,
 		RunnerReceipt:     lineage.RunnerReceipt,
@@ -201,7 +210,7 @@ Flags:
 		ModifiedFiles:                 scopePaths(request),
 	}
 
-	// --- step 5: the three terminal states, kept distinct ---
+	// --- step 6: the three terminal states, kept distinct ---
 	//
 	// "Refused because admission has no vocabulary for this operation" and
 	// "there is nothing here to admit" are different facts about a candidate,
