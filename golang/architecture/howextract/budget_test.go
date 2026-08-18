@@ -297,3 +297,58 @@ func TestScopeMatchingNothingIsPartialNotComplete(t *testing.T) {
 		t.Errorf("the document does not say the scope matched nothing: %+v", doc.Limitations)
 	}
 }
+
+// A provider whose evidence the budget discarded must NOT be reported as
+// "searched, no result". That sentence, in a governed document, says the
+// provider looked and found nothing — when it found something the budget threw
+// away. Coverage has to carry the difference or the document lies about the
+// repository rather than about itself.
+func TestBudgetDroppedEvidenceIsNotReportedAsNoResult(t *testing.T) {
+	root := deterministicFixture(t)
+	full, err := Extract(root, defaultOpts())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	discovering := map[string]bool{}
+	for _, rec := range full.RawEvidence {
+		discovering[rec.Provider.ID] = true
+	}
+	if len(discovering) < 2 {
+		t.Skip("fixture exercises too few providers for this to be meaningful")
+	}
+
+	opts := defaultOpts()
+	opts.Budget = extractbudget.Budget{MaxEvidenceReceipts: 1}
+	doc, err := Extract(root, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	surviving := map[string]bool{}
+	for _, rec := range doc.RawEvidence {
+		surviving[rec.Provider.ID] = true
+	}
+	var checked int
+	for _, cov := range doc.Coverage {
+		if !discovering[cov.ProviderID] || surviving[cov.ProviderID] {
+			continue
+		}
+		checked++
+		if cov.Status == investigation.CoverageNoResult {
+			t.Errorf("provider %q found evidence the budget discarded, but coverage says searched_no_result", cov.ProviderID)
+		}
+		if cov.Status != investigation.CoverageSkipped {
+			t.Errorf("provider %q coverage = %q, want skipped_with_reason", cov.ProviderID, cov.Status)
+		}
+		if !strings.Contains(cov.Reason, "discarded by the extraction budget") {
+			t.Errorf("provider %q gives no reason for the skip: %q", cov.ProviderID, cov.Reason)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no provider lost all its evidence; the assertion never ran")
+	}
+	if err := investigation.Validate(doc); err != nil {
+		t.Errorf("validate: %v", err)
+	}
+}

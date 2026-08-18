@@ -391,7 +391,7 @@ func composeReceiptsAndCoverage(
 	// receipts' own stable order, and coverage is derived from the surviving
 	// set, so a bounded run's coverage describes the evidence it actually
 	// kept rather than evidence it discarded.
-	dedupReceipts, evidenceLimitations := boundEvidence(dedupReceipts, opts.Budget)
+	dedupReceipts, droppedByProvider, evidenceLimitations := boundEvidence(dedupReceipts, opts.Budget)
 	limitations = append(limitations, evidenceLimitations...)
 
 	// 1. Plan Digest
@@ -478,6 +478,13 @@ func composeReceiptsAndCoverage(
 			if discoveredByProvider[inv.ProviderID] > 0 && len(matchingReceiptIDs) == 0 && captureFailuresByProvider[inv.ProviderID] > 0 {
 				status = investigation.CoverageUnavailable
 				reason = "all discovered evidence failed capture"
+			} else if droppedByProvider[inv.ProviderID] > 0 && len(matchingReceiptIDs) == 0 {
+				// It searched and it found; the budget discarded the result.
+				// Reporting searched_no_result here would state, in the
+				// document, that this provider looked and found nothing.
+				status = investigation.CoverageSkipped
+				reason = fmt.Sprintf("all %d discovered evidence receipt(s) were discarded by the extraction budget; this provider found results that are not in this document",
+					droppedByProvider[inv.ProviderID])
 			} else if len(matchingReceiptIDs) == 0 {
 				status = investigation.CoverageNoResult
 			} else {
@@ -681,9 +688,9 @@ func deduplicateReceipts(receipts []investigation.EvidenceReceipt) ([]investigat
 // deterministically and at whole-receipt granularity. A half-captured receipt
 // is not weaker evidence, it is evidence of something that was never observed:
 // its content digest would no longer describe the source range it names.
-func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudget.Budget) ([]investigation.EvidenceReceipt, []architecture.Limitation) {
+func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudget.Budget) ([]investigation.EvidenceReceipt, map[string]int, []architecture.Limitation) {
 	if budget.MaxEvidenceReceipts <= 0 && budget.MaxCapturedContentBytes <= 0 {
-		return receipts, nil
+		return receipts, nil, nil
 	}
 	kept := make([]investigation.EvidenceReceipt, 0, len(receipts))
 	var bytes int64
@@ -697,7 +704,17 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 			reason = "max_captured_content_bytes"
 		}
 		if reason != "" {
-			return kept, []architecture.Limitation{{
+			// Which providers lost evidence is not bookkeeping. Without it,
+			// a provider whose receipts were all discarded would be reported
+			// as "searched, no result" -- the document would say the provider
+			// looked and found nothing, when it found something the budget
+			// threw away. That is the exact class of untruth this contract
+			// exists to remove, so the count travels to the coverage entry.
+			dropped := map[string]int{}
+			for _, lost := range receipts[i:] {
+				dropped[lost.Provider.ID]++
+			}
+			return kept, dropped, []architecture.Limitation{{
 				Source: "how_extraction_budget", Scope: "repository",
 				Reason: fmt.Sprintf("extraction budget reached (%s): %d of %d evidence receipt(s) were kept; the rest were discarded, beginning at %s",
 					reason, len(kept), len(receipts), receipts[i].ID),
@@ -707,5 +724,5 @@ func boundEvidence(receipts []investigation.EvidenceReceipt, budget extractbudge
 		kept = append(kept, rec)
 		bytes += size
 	}
-	return kept, nil
+	return kept, nil, nil
 }
