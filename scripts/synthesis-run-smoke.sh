@@ -618,6 +618,40 @@ AGENT
           fail "apply -> exit $code"; sed -n '1,8p' "$WORK/apply.log" | sed 's/^/       /'
         fi
 
+        # POST-APPLICATION VERIFICATION, on the tree the application actually
+        # produced. Run here, before the revert below, because it judges the
+        # applied result and there is nothing to judge once it is reverted.
+        VERIFICATION="$WORK/verification.yaml"
+        set +e
+        (cd "$TREE" && "$WORK/sensei" verify-admission --decision "$DECISION" \
+          --bundle "$TASK_DIR/convergence" --repo "$APPLY_TREE" \
+          --output "$VERIFICATION" --format json >"$WORK/verify.json" 2>"$WORK/verify.err")
+        vcode=$?
+        set -e
+        VSTATUS="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["architecture_admission_verification"]["status"])' "$WORK/verify.json" 2>/dev/null || true)"
+        case "$VSTATUS" in
+          scope_compliant) pass "the applied result verifies as scope compliant" ;;
+          "") fail "verify-admission produced no status (exit $vcode)"; sed -n '1,4p' "$WORK/verify.err" | sed 's/^/       /' ;;
+          *)  fail "the applied result verified as '$VSTATUS'" ;;
+        esac
+
+        # And now the part worth measuring rather than assuming. A verification
+        # can only be ATTACHED to an application by synthesis-apply --verification
+        # -- but it can only be PRODUCED from an application that already
+        # happened, and that application is already consumed. So the two
+        # requirements exclude each other: the attach path is unreachable for a
+        # verification of the applied result, unless someone deletes the receipt
+        # and re-applies, which is exactly what makes two applications look like
+        # one.
+        code="$(apply_to "$APPLY_TREE" --verification "$VERIFICATION")"
+        if [ "$code" = 6 ]; then
+          echo "  GAP  a post-application verification cannot be attached: producing it"
+          echo "       needs the application, attaching it needs the application not to"
+          echo "       have happened (refused as consumed, exit 6)"
+        else
+          pass "a post-application verification was attached (exit $code)"
+        fi
+
         # Hard law 6, the half nothing enforced until PR #149's apply work: a
         # second application of a consumed candidate must be refused, not
         # silently redone over a reset worktree.

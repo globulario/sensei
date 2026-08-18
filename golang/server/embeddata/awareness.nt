@@ -1382,6 +1382,11 @@
 <https://globular.io/awareness#failureMode/failure.a_nil_validation_context_was_reported_as_a_probe_sourcing_vi> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
 <https://globular.io/awareness#failureMode/failure.a_nil_validation_context_was_reported_as_a_probe_sourcing_vi> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Farchitecture%2Fprobe%2Fmodel.go> .
 <https://globular.io/awareness#failureMode/failure.a_nil_validation_context_was_reported_as_a_probe_sourcing_vi> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fprobe%2Fnil_context_test.go:TestCommandBearingProbeLoadsWithoutAValidationContext> .
+<https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
+<https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> <http://www.w3.org/2000/01/rdf-schema#label> "A post-application verification can never be attached to the application it describes" .
+<https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.synthesis.declared_digest_must_equal_computed_content_digest> .
+<https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
+<https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_apply.go> .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <http://www.w3.org/2000/01/rdf-schema#label> "A resource budget bound one extractor and not the other, so a scoped run described files it had excluded" .
 <https://globular.io/awareness#failureMode/failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a> <https://globular.io/awareness#authoredIn> "docs/awareness/failure_modes.yaml" .
@@ -6077,6 +6082,9 @@
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_admit.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_admit.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.a_candidate_s_graph_identity_is_never_revalidated_after_the> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_admit.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.a_candidate_s_graph_identity_is_never_revalidated_after_the> .
+<https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_apply.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_apply.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> .
+<https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_apply.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/failure.a_post_application_verification_can_never_be_attached_to_the> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_run.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_run.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.a_governed_disposition_with_no_exit_code_case_was_reported_t> .
 <https://globular.io/awareness#sourceFile/cmd%2Fawg%2Fcmd_synthesis_run.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.distinct_pre_run_degraded_worlds_collapsed_into_one_untyped> .
@@ -8296,9 +8304,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 af14c7263e45" .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <https://globular.io/awareness#seedDigestSha256> "af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e" .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <https://globular.io/awareness#seedTripleCount> "8304" .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-af14c7263e4502efc765fc045a22e681b4a52b221ca344d85343a3b6f88f447e> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 6edb72fd83d6" .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <https://globular.io/awareness#seedDigestSha256> "6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe" .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <https://globular.io/awareness#seedTripleCount> "8312" .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-6edb72fd83d6a9b2d8df8a28766718dd6ace1a9b5b59d0dc0b261050d34d69fe> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
