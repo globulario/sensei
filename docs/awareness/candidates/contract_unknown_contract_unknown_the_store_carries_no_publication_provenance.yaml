@@ -1,0 +1,12 @@
+contract_unknown:
+  - id: contract_unknown.the_store_carries_no_publication_provenance_so_the_one_autho
+    kind: contract_unknown
+    title: The store carries no publication provenance, so the one-author invariant cannot be enforced at build time
+    description: '#178''s acceptance asks for a mechanical regression over every stable subject — authoritative authoring domains(S) <= 1 — with authorship derived from publication provenance rather than aw:repo, because aw:repo is writable graph content and a bad corpus could declare itself the author. That regression exists (graphbuild/custody_authorship_test.go) and is well built, including a counter-test proving it fails when custody derivation is off. But it operates on freshly COMPILED slices, where the compiling domain is known in-process. The published store has no equivalent: aw:authoredIn records which source DOCUMENT emitted a subject, not which domain''s build published it, and no publishedBy/publicationDomain predicate exists anywhere in the vocabulary. So sensei build cannot refuse a publication that would create a second authoritative author, because at that point the only per-subject domain attribution available is the one the acceptance criterion rules out.'
+    proposed_contract: 'Publication must record its own provenance: when a domain''s build publishes a slice, each subject it authoritatively authors carries a publisher-emitted attribution distinct from the corpus-authored aw:repo. Only then can a build refuse to create a second authoritative author for an existing identity, rather than detecting the collision after the fact.'
+    source_files:
+      - golang/graphgeneration/graphgeneration.go
+      - golang/rdf/vocab.go
+    evidence:
+      - golang/rdf/vocab.go declares PropRepo and no publication-provenance predicate; grep for publishedBy/publicationDomain across golang/ returns nothing.
+      - golang/server/embeddata/awareness.nt carries 848 aw:authoredIn triples and no publication-domain predicate; graphgeneration.taggedSubjects derives per-domain membership from aw:repo, the writable attribution.
