@@ -10882,6 +10882,59 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestBaselineIsCoherent
+    package: evalmutant
+    language: go
+    doc: "The baseline must compile-shape as a coherent tree: the suite's value depends\non the control being ordinary, not subtly broken in ways that could be\nmistaken for a defect."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestEachMutantCarriesExactlyOneDefect
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestEachMutantCarriesExactlyOneDefect
+    package: evalmutant
+    language: go
+    doc: "A defect must not leak into its neighbours. If building one mutant also\nintroduced another's defect, a detection could be credited to the wrong\nclass and the per-class scores would be meaningless."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestEveryDefectIsPresentInItsMutantAndAbsentFromTheBaseline
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestEveryDefectIsPresentInItsMutantAndAbsentFromTheBaseline
+    package: evalmutant
+    language: go
+    doc: "THE test for a mutant suite. Every defect must be present in its own mutant\nand absent from the clean baseline.\n\nWithout both halves the suite is decorative: a mutant that does not contain\nits defect means an evaluator \"misses\" nothing, and a baseline that already\ncontains one means an evaluator \"detects\" something nobody introduced. Either\nway the resulting score describes the instrument rather than the subject —\nand nothing in a careful report would reveal it."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestEveryMutantDiffersFromTheBaseline
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestEveryMutantDiffersFromTheBaseline
+    package: evalmutant
+    language: go
+    doc: "Every mutant must differ from the baseline. A mutator that changed nothing\nwould produce a tree any evaluator passes for free."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestEveryMutantStatesWhatIsWrong
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestEveryMutantStatesWhatIsWrong
+    package: evalmutant
+    language: go
+    doc: "The reference statement is what a grader compares a detection against, so it\nhas to say what is wrong in terms a human can judge — not merely name the\ndefect class back."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestMaterializeRefusesANonEmptyDirectory
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestMaterializeRefusesANonEmptyDirectory
+    package: evalmutant
+    language: go
+    doc: "Materialize must refuse a dirty directory: a mutant blended with unrelated\ncontent is no longer the bounded defect it claims to be."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestMutantsAreDeterministic
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestMutantsAreDeterministic
+    package: evalmutant
+    language: go
+    doc: "Bytes must be stable, or a suite committed today measures something else in\nsix months and the comparison silently stops meaning anything."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestSuiteCoversTheEnumeratedDefectClasses
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestSuiteCoversTheEnumeratedDefectClasses
+    package: evalmutant
+    language: go
+    doc: "The suite must cover exactly the classes issue #131 enumerates — no more, so\nit measures what was asked for, and no fewer, so a gap is not mistaken for a\nclean result."
+  - id: golang/architecture/evalmutant/mutant_test.go:TestUnknownDefectIsRefused
+    file: golang/architecture/evalmutant/mutant_test.go
+    symbol: TestUnknownDefectIsRefused
+    package: evalmutant
+    language: go
   - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
     file: golang/architecture/evaluatorcomposition/adapters_test.go
     symbol: TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority

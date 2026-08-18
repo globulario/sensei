@@ -1582,6 +1582,13 @@ required_tests:
         - failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
       files:
         - golang/architecture/howextract/compose.go
+  - id: golang/architecture/evalmutant/mutant_test.go:TestEveryDefectIsPresentInItsMutantAndAbsentFromTheBaseline
+    title: Every mutant contains its defect and the baseline contains none
+    protects:
+      invariants:
+        - invariant.a_mutant_must_demonstrate_its_own_defect_before_it_can_measu
+      files:
+        - golang/architecture/evalmutant/defects.go
   - id: golang/architecture/compositionbinding/binding_test.go:TestResolveProducesEveryDimensionWithANamedOwner
     title: Every composition input digest is resolved from a governed document and names its producer
     protects:

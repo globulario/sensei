@@ -2127,3 +2127,15 @@ invariants:
     required_tests:
       - golang/architecture/tasksession/audit_test.go:TestAuditClassifiesATaskDirectoryWithNoSession
     contract: 'sensei task-audit inventories every task directory read-only: a malformed or unreadable session is classified and PRESERVED, never deleted, cleared, superseded, or reconstructed. Reconstructing a session would manufacture a record of work nobody did. The exit code reports whether the audit ran, not what it found, so a repository with malformed tasks is not indistinguishable from a broken tool. An absent tasks directory is reported as absent rather than as an error.'
+  - id: invariant.a_mutant_must_demonstrate_its_own_defect_before_it_can_measu
+    title: A mutant must demonstrate its own defect before it can measure a detector
+    severity: high
+    status: active
+    description: The failure mode of a mutant suite is not a mutant that is too hard to detect; it is a mutant that does not contain its defect at all. The evaluator then 'misses' nothing, or 'detects' something nobody introduced, and the resulting score is meaningless in a way no amount of careful reporting reveals. Each witness therefore re-reads the materialized tree rather than trusting the builder that produced it, because a witness built on the builder's intention confirms the intention and not the content — and those diverge exactly when a build bug is what needs catching. The suite additionally asserts that no mutant carries a second defect, so a detection cannot be credited to the wrong class.
+    protects:
+      files:
+        - golang/architecture/evalmutant/mutant.go
+        - golang/architecture/evalmutant/defects.go
+    required_tests:
+      - golang/architecture/evalmutant/mutant_test.go:TestEveryDefectIsPresentInItsMutantAndAbsentFromTheBaseline
+    contract: Every evaluation mutant carries an independent witness that confirms the defect is present in the mutant and absent from the clean baseline. A mutant that cannot demonstrate its own defect measures the instrument, not the subject.

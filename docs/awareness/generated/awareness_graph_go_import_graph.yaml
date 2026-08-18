@@ -1069,6 +1069,18 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.evalmutant
+    name: evalmutant
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/evalmutant/defects.go
+      - golang/architecture/evalmutant/mutant.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.evaluatorcomposition
     name: evaluatorcomposition
     kind: module
