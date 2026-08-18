@@ -1,0 +1,13 @@
+contract_unknown:
+  - id: contract_unknown.architecture_composition_s_five_input_digests_have_no_produc
+    kind: contract_unknown
+    title: Architecture composition's five input digests have no producer; only shape is validated
+    description: 'investigator.InputDigests requires five exact digests — graph authority, current maintained claims, closure state, existing questions, review history. A repository-wide search finds NO producer for any of the five. The only population site is cmd/awg/cmd_investigate.go, which reads five raw string flags (--graph-digest, --claims-digest, --closure-digest, --questions-digest, --review-digest), each defaulting to empty. Every other reference is a consumer or a test fixture supplying a literal such as digest("review"). Compose does fail closed on malformed input, but IsSHA256 is a pure shape regex: any 64 hex characters are accepted, including the digest of nothing. So the binding that is supposed to make composition exactly reproducible currently rests on operator-typed strings whose shape is checked and whose origin is not.'
+    proposed_contract: Each of composition's five input digests must be produced by a named owner from governed state, and the binding must record which owner produced each one. A digest whose owner cannot produce it is recorded as a typed unavailability with a reason, never as a well-formed value that happens to parse. Shape validation is not provenance validation.
+    source_files:
+      - golang/architecture/investigator/model.go
+      - cmd/awg/cmd_investigate.go
+    evidence:
+      - grep for CurrentClaimsDigest/ExistingQuestionsDigest/ClosureStateDigest/ReviewHistoryDigest across the repository returns only investigator's own consumer fields, normalize/receipt plumbing, test fixtures, and the single CLI call site.
+      - golang/architecture/investigator/validate.go:19 — IsSHA256 is sha256Regex.MatchString, shape only.
+      - cmd/awg/cmd_investigate.go:167-171 — all five digests are fs.String flags defaulting to "".
