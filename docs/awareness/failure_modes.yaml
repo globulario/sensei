@@ -1494,6 +1494,7 @@ failure_modes:
       - golang/architecture/tasksession/no_task_session_test.go:TestMissingTasksDirectoryIsTypedAbsenceNotAnError
     evidence:
       - Replacing a raw ENOENT with a typed ErrNoTaskSession made senseireport's os.IsNotExist absence check stop matching, so 'no active task' became a hard error and 8 tests failed. The new sentinel was correct; the change was incomplete because nothing about adding an error announces which existing callers stop recognizing it.
+<<<<<<< HEAD
   - id: failure.governed_append_assumed_one_of_yaml_s_two_block_sequence_sty
     title: Governed append assumed one of YAML's two block-sequence styles and refused every proposal against the other
     severity: high
@@ -1518,3 +1519,18 @@ failure_modes:
       - YAML allows a bare '-' indicator with the item's content on the following lines. The indentation detector required '- ', skipped such an item, and continued scanning -- matching the first NESTED sequence below it, typically protects.files six columns in. The record was reindented into that nested list.
       - 'verifyAppendResult only checks that the top-level key is still a list, so the composed document parsed and the append reported SUCCESS. This is a distinct and more dangerous class than the sibling parse-refusal scar: a caller with a success exit has no reason to look again, and the record is absent from the governed sequence with nothing reporting it.'
     contract: A governed append must place the record in the sequence under the named top-level key. Verifying that the key still holds a list is not the same check, and a record that parses in the wrong list is worse than one that does not parse at all.
+=======
+  - id: failure.a_resource_budget_bound_one_extractor_and_not_the_other_so_a
+    title: A resource budget bound one extractor and not the other, so a scoped run described files it had excluded
+    severity: high
+    protects:
+      files:
+        - golang/architecture/howextract/compose.go
+        - golang/architecture/extractbudget/budget.go
+    required_tests:
+      - golang/architecture/howextract/budget_test.go:TestScopesNarrowTheSearchAndAreRecorded
+    evidence:
+      - 'TestScopesNarrowTheSearchAndAreRecorded failed: with --exclude impl, the AST/invariant extractor (which has its own repository walk and no file-set parameter) still produced state observations from impl/impl.go, while the receipt recorded the exclude scope as being in force.'
+      - 'Found by a test, not by review: the semantic extractor honoured the scope, so reading the budget wiring looked complete.'
+    contract: An extraction budget's include/exclude scopes must bind every extractor whose output reaches the document, not only the extractor that consumes the file set.
+>>>>>>> origin/main

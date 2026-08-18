@@ -1,6 +1,14 @@
 format	v1
+<<<<<<< HEAD
 seed	digest_sha256	95de023c334597a15cc4704ea7c9bb5343f518001f7b6834bdd483c9a2bf10ac
 seed	triple_count	8079
 repo	awareness-graph	8121ec82f3f962831c1b656cb475276e168932f5
 repo	services	standalone
 tool	yaml2nt	ea848b9ee66c613315e8f57a14b882e98ee1c6fb0a36bcf07ece533c43f8eca6
+=======
+seed	digest_sha256	e7ac7ea157449702794e4f354c758cb20d27fb4c30346b80f39d3024d67c9fdd
+seed	triple_count	8070
+repo	awareness-graph	e0f6aa1807db2d54c9248f5bd7493db884d34c9c
+repo	services	standalone
+tool	yaml2nt	a40ce26a2ea314842928f66a40e8c791a379f004dfe3155a029ee4b9ed5c67ed
+>>>>>>> origin/main

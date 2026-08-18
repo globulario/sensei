@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 )
 
 var sha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)
@@ -689,8 +690,72 @@ func Validate(doc Document) error {
 			errs = append(errs, fmt.Sprintf("receipt timestamp_source must be RFC3339 formatted, got %q", receipt.TimestampSource))
 		}
 	}
-	if len(receipt.ResourceLimits) == 0 {
-		errs = append(errs, "receipt resource_limits are required")
+	// A receipt must carry SOME resource statement. Historically the only one
+	// available was the declared string map, so it was mandatory -- which is
+	// why a surface that bounded nothing injected the literal
+	// {"surface": "bounded"} to get past this check. An enforced budget is a
+	// strictly stronger statement than a declared one, so it satisfies the
+	// same requirement without anyone having to fabricate a claim.
+	if len(receipt.ResourceLimits) == 0 && receipt.ResourceBudget == nil {
+		errs = append(errs, "receipt must carry resource_limits or an enforced resource_budget")
+	}
+	if rb := receipt.ResourceBudget; rb != nil {
+		if !extractbudget.IsValidStatus(rb.Status) {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget status %q is not a recognized disposition", rb.Status))
+		}
+		if rb.SchemaVersion != extractbudget.ReceiptSchemaVersion {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget schema_version %q is not %q", rb.SchemaVersion, extractbudget.ReceiptSchemaVersion))
+		}
+		// budget_exhausted is the only status that may name limits as the
+		// cause. Any other status naming them would blame a bound for a stop
+		// it did not cause.
+		if rb.Status != extractbudget.StatusBudgetExhausted && len(rb.ExhaustedDimensions) > 0 {
+			errs = append(errs, fmt.Sprintf("receipt resource_budget status %q must not name exhausted dimensions %v", rb.Status, rb.ExhaustedDimensions))
+		}
+		if rb.Status == extractbudget.StatusBudgetExhausted && len(rb.ExhaustedDimensions) == 0 {
+			errs = append(errs, "receipt resource_budget reports budget_exhausted without naming which limit was reached")
+		}
+		// An externally supplied artifact can claim any string as an exhausted
+		// dimension. Without these two checks, a receipt asserting
+		// `budget_exhausted` on `max_files` while `MaxFiles == 0` validates
+		// once its digest is recomputed -- letting `investigate validate`
+		// certify an enforcement that could not have happened. A dimension
+		// outside the closed vocabulary has no rule a reader could apply, and
+		// one whose bound is unset names a limit that was never in force.
+		for _, d := range rb.ExhaustedDimensions {
+			if !extractbudget.IsValidDimension(d) {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget names unknown exhausted dimension %q", d))
+				continue
+			}
+			if _, set := rb.Budget.Limit(d); !set {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget reports %q exhausted, but that limit is not set in the budget it records", d))
+			}
+		}
+		// Consumption must agree with the DOCUMENT and stay within the budget
+		// it records. Validating only the dimension names left the numbers
+		// unchecked, so an artifact carrying 100 observations could claim
+		// max_observations 1, consumption 0, and status completed, and still
+		// certify once its digest was recomputed -- `investigate validate`
+		// vouching for a budget the artifact visibly violates.
+		//
+		// Counted against the document rather than trusted, because the
+		// document is the thing a reader will act on.
+		for _, c := range []struct {
+			dimension string
+			recorded  int
+			actual    int
+			what      string
+		}{
+			{extractbudget.DimensionObservations, rb.Consumption.Observations, len(doc.Observations), "observations"},
+			{extractbudget.DimensionEvidenceReceipts, rb.Consumption.EvidenceReceipts, len(doc.RawEvidence), "evidence receipts"},
+		} {
+			if c.recorded != c.actual {
+				errs = append(errs, fmt.Sprintf("receipt resource_budget records %d %s but the document contains %d", c.recorded, c.what, c.actual))
+			}
+			if limit, set := rb.Budget.Limit(c.dimension); set && int64(c.actual) > limit {
+				errs = append(errs, fmt.Sprintf("the document contains %d %s, exceeding the %s of %d the receipt records", c.actual, c.what, c.dimension, limit))
+			}
+		}
 	}
 	if receipt.NondeterminismDeclaration == "" {
 		errs = append(errs, "receipt nondeterminism_declaration is required")

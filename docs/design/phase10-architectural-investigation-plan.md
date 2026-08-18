@@ -389,8 +389,19 @@ Every investigation run must record:
 - output document digest;
 - output candidate IDs and digests;
 - timestamp source;
-- resource limits;
+- resource limits (declared-only; recorded verbatim, enforced by nothing);
+- the enforced resource budget: the limits the extractor bound itself to, the
+  consumption it measured, the include/exclude scopes in force, and the
+  disposition that follows (completed, partial, budget-exhausted, unavailable,
+  cancelled). Every run carries one; an all-zero budget inside it is how an
+  unbounded run says so;
 - nondeterminism declaration.
+
+The two resource fields are deliberately distinct. Declared limits are a claim;
+the enforced budget is a measurement. Elapsed wall clock is not recorded in the
+consumption, because these receipts are compared by digest and a measured
+duration is never equal twice -- whether the wall clock bound the run is
+reported as a disposition instead, kept distinct from the caller cancelling it.
 
 A later run may supersede a previous result. It may not rewrite the previous receipt.
 
