@@ -69,6 +69,11 @@ type SiteResult struct {
 	NamedTheDefect bool `json:"named_the_defect" yaml:"named_the_defect"`
 
 	DocumentDigest string `json:"document_digest_sha256" yaml:"document_digest_sha256"`
+
+	// observedRoot is where this site was materialized. Unexported so it never
+	// reaches a report: a filesystem path is not a finding, and recording one
+	// would make two runs of the same suite differ.
+	observedRoot string
 }
 
 // SiteCovered reports whether this arm produced evidence about any file the

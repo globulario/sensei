@@ -1608,3 +1608,14 @@ failure_modes:
       - meta.single_derivation_path_must_reach_its_consumer
     evidence:
       - 'sourceFile IRIs are keyed by repo-relative path with no domain scope, so every registered domain''s README.md and docs/awareness/invariants.yaml resolve to the same subject. Observed live with sensei and sensei-code sharing one store: sensei-code emitted ''<sourceFile/README.md> <implements> <decision/decision.sensei_code...>'', so sensei''s graph asserts its own README implements a sensei-code decision. The proof-set symptom (the other domain''s slice digest moves and its closure proof cannot be carried forward, costing a rebuild to converge) is downstream of that identity collapse, not a defect in SliceDigest, which already excludes foreign repo tags.'
+  - id: failure.composition_cannot_be_evaluated_on_a_repository_with_no_grap
+    title: Composition cannot be evaluated on a repository with no graph, and zero candidates hides why
+    protects:
+      files:
+        - golang/architecture/evalharness/composition.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - golang/architecture/evalharness/composition_test.go:TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
+    evidence:
+      - 'investigator.Compose mandates five explicit SHA256 input digests (graph, current claims, closure state, existing questions, review history) with no unavailable status, and the composed document''s receipt graph digest is validated against its binding''s repository graph digest. A synthetic mutant has no graph, so supplying digests without a binding is refused and making them agree would declare a resolved graph digest for a repository that has none. #131 section 5''s model-disabled composition arm therefore cannot run over the mutant suite until each mutant is published into a real graph. Observed as candidates 0/9 while HOW produced 27-38 observations per mutant, a count that reads as composition found nothing unless the arm states that composition never ran.'

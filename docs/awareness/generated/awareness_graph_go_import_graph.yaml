@@ -1076,11 +1076,15 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/evalharness/baseline.go
+      - golang/architecture/evalharness/composition.go
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.evalmutant
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
+      - component.golang.architecture.investigationsurface
+      - component.golang.architecture.investigator
+      - component.golang.architecture.whyinvestigation
     uml:
       kind: Component
       stereotype: module
