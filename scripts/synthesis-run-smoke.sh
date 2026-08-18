@@ -181,8 +181,16 @@ CFG
   # world that merely "fails" proves nothing here.
   log "degraded worlds"
 
+  # An interpretation must DISCLOSE the closure report's required surface, or
+  # its closure receipt stays advisory and the run stops at step 1 with
+  # blockers=[completeness:incomplete] -- never reaching the provider the worlds
+  # below are about. completenessForReferences derives the required set from the
+  # task's own closure report and compares it against source_references, so an
+  # empty list can never be complete when the task has any file scope.
   INTERP="$WORK/interpretation.json"
-  cat >"$INTERP" <<'JSON'
+  SCOPE_FILE="docs/awareness/invariants.yaml"
+  SCOPE_DIGEST="$(sha256sum "$TREE/$SCOPE_FILE" | cut -d' ' -f1)"
+  cat >"$INTERP" <<JSON
 {
   "objective": "smoke: exercise synthesis-run degraded worlds",
   "applicable_intent": [],
@@ -194,7 +202,9 @@ CFG
   "required_proof_obligations": [],
   "assumptions": [],
   "unresolved_questions": [],
-  "source_references": [],
+  "source_references": [
+    {"reference": "$SCOPE_FILE", "source_digest_sha256": "$SCOPE_DIGEST"}
+  ],
   "limitations": []
 }
 JSON
@@ -204,6 +214,7 @@ JSON
     (cd "$TREE" && "$WORK/sensei" synthesis-run \
       --repo "$TREE" --task "$TASK_DIR" --addr "localhost:$GRPC_PORT" \
       --interpretation "$INTERP" --agent codex --agent-command "$cmd" \
+      --force-unconverged \
       "$@" >"$WORK/run.log" 2>&1); echo $?
   }
 
