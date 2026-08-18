@@ -146,3 +146,46 @@ func TestSynthesisRun_NoTaskCheckpointExitsItsOwnCode(t *testing.T) {
 			got, want, exitResolutionFailure)
 	}
 }
+
+// The COMMON shape of the graph world, and the one the first version of this
+// change missed: identity composition SUCCEEDS but returns a non-complete
+// state — a stale or non-authoritative graph, an unresolved revision, thin
+// coverage. Typing only composition's error return left that ordinary case on
+// the generic resolution code, so "the graph is not authoritative" was still
+// indistinguishable from "there is no task checkpoint".
+//
+// Asserted structurally: every return in the identity block must route through
+// the typed stop. A behavioural test would need a live Metadata RPC, and the
+// defect here is precisely a return statement that was left behind.
+func TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop(t *testing.T) {
+	src, err := os.ReadFile("cmd_synthesis_run.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(src)
+
+	const start = "--- step 4: compose workspace identity"
+	i := strings.Index(text, start)
+	if i < 0 {
+		t.Fatalf("could not locate the identity block; this test is anchored to %q", start)
+	}
+	const end = "--- step 5"
+	j := strings.Index(text[i:], end)
+	if j < 0 {
+		// Fall back to a bounded window rather than scanning the whole file,
+		// so a renamed step marker fails loudly instead of silently widening.
+		t.Fatalf("could not locate the end of the identity block (%q)", end)
+	}
+	block := text[i : i+j]
+
+	if strings.Contains(block, "return exitResolutionFailure") {
+		t.Errorf("an identity failure still returns the generic resolution code; every one must carry %s so a caller can tell a stale graph from a missing task:\n%s",
+			stopGraphIdentityUnusable, block)
+	}
+	// Matched on the identifier, not the reason's string value: the code
+	// names the constant, and asserting on the literal would pass only if
+	// someone hard-coded the string -- the opposite of what is wanted.
+	if !strings.Contains(block, "stopGraphIdentityUnusable") {
+		t.Errorf("the identity block never routes through %s", stopGraphIdentityUnusable)
+	}
+}

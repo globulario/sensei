@@ -203,24 +203,34 @@ Flags:
 				fmt.Fprintf(os.Stderr, "  - %s: %s\n", l.Scope, l.Reason)
 			}
 		} else {
-			fmt.Fprintf(os.Stderr, "sensei synthesis-run: workspace identity is %s, not complete:\n", identity.CompositionState)
+			// The COMMON shape of this world: composition succeeded and
+			// returned a non-complete state -- a stale or non-authoritative
+			// graph, an unresolved revision, thin coverage. Typing only the
+			// error return above would have left the ordinary "the graph is
+			// not authoritative" case on the generic code, which is the exact
+			// state issue #149 forbids collapsing.
+			var limits []string
 			for _, l := range identity.Limitations {
-				fmt.Fprintf(os.Stderr, "  - %s: %s\n", l.Scope, l.Reason)
+				limits = append(limits, fmt.Sprintf("%s: %s", l.Scope, l.Reason))
 			}
+			suggestion := "rebuild or reload the graph so workspace identity composes completely"
 			if identityPartialOnlyForThinCoverage(identity) {
-				fmt.Fprintln(os.Stderr, "sensei synthesis-run: pass --force-thin-coverage to proceed anyway (e.g. a freshly-onboarded benchmark checkout)")
+				suggestion = "pass --force-thin-coverage to proceed anyway (e.g. a freshly-onboarded benchmark checkout)"
 			}
-			return exitResolutionFailure
+			return resolutionStop(*format, stopGraphIdentityUnusable,
+				fmt.Sprintf("workspace identity is %s, not complete: %s",
+					identity.CompositionState, strings.Join(limits, "; ")),
+				suggestion)
 		}
 	}
 	identityDigest, err := workspacecontract.IdentityDigest(identity)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei synthesis-run: digest workspace identity: %v\n", err)
-		return exitResolutionFailure
+		return resolutionStop(*format, stopGraphIdentityUnusable,
+			fmt.Sprintf("digest workspace identity: %v", err), "")
 	}
 	if identity.Binding.Revision == nil {
-		fmt.Fprintln(os.Stderr, "sensei synthesis-run: composed identity is complete but carries no revision")
-		return exitResolutionFailure
+		return resolutionStop(*format, stopGraphIdentityUnusable,
+			"composed identity is complete but carries no revision", "")
 	}
 	baseRevision := *identity.Binding.Revision
 
