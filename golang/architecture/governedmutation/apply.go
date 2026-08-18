@@ -160,6 +160,26 @@ func plan(req Request) (planned, error) {
 	}
 	path := filepath.Join(root, filepath.FromSlash(relPath))
 
+	// Match the indentation the file's existing sequence already uses.
+	//
+	// renderItem always emits 2-space-indented items, and both of YAML's block
+	// sequence styles are legal:
+	//
+	//     invariants:            invariants:
+	//       - id: a              - id: a
+	//         title: ...           title: ...
+	//
+	// A corpus written in the second style got a 2-space item appended after a
+	// 2-space mapping key, which YAML reads as a key inside the previous entry
+	// and rejects -- "did not find expected key". The append path assumed one
+	// style because every corpus it had been tried against used that one.
+	//
+	// Computed HERE rather than inside atomicAppend so the dry-run preview is
+	// the exact text that will be written. A preview that shows a different
+	// indentation than the write would be its own small lie, in a command
+	// whose entire purpose is that the diff is reviewable before it lands.
+	itemText = reindentItem(itemText, appendItemIndent(path, topKey))
+
 	pl := planned{
 		kind: p.Kind, id: id, relPath: relPath, topKey: topKey, path: path,
 		isCandidate: isCandidate, item: item, itemText: itemText, mutationDigest: mutationDigest,
@@ -349,4 +369,76 @@ func writeFileAtomic(path string, data []byte) error {
 // proposal. found is false when the file or record is absent.
 func RecordBodyDigest(root, relPath, topKey, id string) (digest string, found bool, err error) {
 	return existingEntryDigest(filepath.Join(root, filepath.FromSlash(relPath)), topKey, id)
+}
+
+// seqItemLine matches a block-sequence item line and captures its indentation.
+//
+// The indicator may stand alone: YAML allows `-` on its own line with the
+// item's content on the following lines. Requiring `- ` skipped such an item
+// and let the scan fall through to whatever came next -- which, in a governed
+// entry, is a NESTED sequence like protects.files. The record was then
+// reindented into that nested list, and verifyAppendResult only checks that
+// the top-level key is still a list, so the append could report success while
+// the record was not in the governed sequence at all.
+var seqItemLine = regexp.MustCompile(`^([ \t]*)-([ \t].*)?$`)
+
+// appendItemIndent reports the indentation of the first block-sequence item
+// under topKey in the file at path, defaulting to renderItem's own two spaces
+// when the file is absent, the key is absent, or the sequence is still empty.
+//
+// The FIRST item decides, not a survey: YAML requires every item in one
+// sequence to share an indentation, so a file that disagrees with itself is
+// already invalid and verifyAppendResult will say so with the parser's own
+// words rather than this function guessing which style was intended.
+func appendItemIndent(path, topKey string) string {
+	const rendered = "  "
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return rendered
+	}
+	lines := strings.Split(string(data), "\n")
+	inKey := false
+	for _, ln := range lines {
+		if !inKey {
+			if topKeyLine(topKey).MatchString(ln) {
+				inKey = true
+			}
+			continue
+		}
+		trimmed := strings.TrimSpace(ln)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+		// The FIRST meaningful line after the key decides, and nothing after
+		// it does. Continuing the scan is what let a nested sequence be
+		// mistaken for the outer one: the item this function must match is the
+		// sequence's own first item, which by definition is the first thing
+		// under the key. If that line is not a sequence item, this key does not
+		// hold a block sequence whose style could be matched, and the rendered
+		// default stands -- verifyAppendResult then reports the real problem in
+		// the parser's own words rather than this function guessing.
+		if m := seqItemLine.FindStringSubmatch(ln); m != nil {
+			return m[1]
+		}
+		return rendered
+	}
+	return rendered
+}
+
+// reindentItem shifts a rendered item to the target indentation, preserving the
+// relative nesting renderItem produced.
+func reindentItem(itemText, indent string) string {
+	const rendered = "  "
+	if indent == rendered {
+		return itemText
+	}
+	var b strings.Builder
+	for _, ln := range strings.Split(strings.TrimRight(itemText, "\n"), "\n") {
+		if strings.TrimSpace(ln) == "" {
+			b.WriteString("\n")
+			continue
+		}
+		b.WriteString(indent + strings.TrimPrefix(ln, rendered) + "\n")
+	}
+	return b.String()
 }
