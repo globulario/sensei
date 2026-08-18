@@ -34,9 +34,22 @@ import (
 // admit a stale proposal while producing a receipt that looks current, which is
 // worse than having no check at all: it would launder the staleness through the
 // governance surface rather than merely failing to catch it.
-func verifyTaskBindingUnchanged(absRepo, taskFlag string, binding synthesisRunTaskBinding) error {
+func verifyTaskBindingUnchanged(absRepo, taskFlag string, binding synthesisRunTaskBinding, artifactSessionDigest string) error {
 	if strings.TrimSpace(binding.TaskID) == "" {
 		return fmt.Errorf("this lineage bundle records no task binding, so task and closure drift cannot be checked; re-run 'sensei synthesis-run' to produce a bundle that can be")
+	}
+	// Tie the binding to the one document the store verifies independently.
+	//
+	// The bundle is a plain auxiliary file; anyone who can write it can rewrite
+	// the three drift fields to the task's current values and walk past this
+	// check while the candidate's own digest chain still validates. This does
+	// not make the bundle tamper-proof -- nothing signs it -- but it refuses a
+	// binding lifted from a different run, and a candidate swapped underneath
+	// a binding. The residual exposure is real and is recorded on #149 rather
+	// than papered over.
+	if binding.SessionDigestSHA256 != artifactSessionDigest {
+		return fmt.Errorf("lineage/candidate session mismatch: the task binding records session %s but the sealed candidate is from session %s -- this bundle and this candidate are not from the same run",
+			short(binding.SessionDigestSHA256), short(artifactSessionDigest))
 	}
 
 	taskDir, err := resolveTaskDirForBundle(absRepo, taskFlag)

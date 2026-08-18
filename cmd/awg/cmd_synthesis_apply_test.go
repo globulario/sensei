@@ -273,9 +273,11 @@ func TestSynthesisApplyWithoutAComposedRequestSaysWhatToRun(t *testing.T) {
 	writeCanonicalDecision(t, decision,
 		applyDecisionFixture(t, f, admission.ChangeScope{Files: []admission.FileOperation{{Path: "a.txt", Operation: admission.OperationModify}}}, fixtureHex(t, "identity"), admission.DecisionAdmitted))
 
+	// A real dedicated worktree: using the source checkout is now refused in
+	// its own right, which would mask the outcome this test is about.
 	code := runSynthesisApply([]string{
 		"--repo", f.repoDir, "--lineage", f.lineagePath,
-		"--decision", decision, "--target", f.repoDir,
+		"--decision", decision, "--target", newTargetWorktree(t, f.repoDir, f.baseRevision),
 	})
 	if code != exitResolutionFailure {
 		t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)
@@ -504,6 +506,86 @@ func TestSynthesisApplyRefusesABundleWithNoTaskBinding(t *testing.T) {
 	f := newApplyFixture(t)
 	rewriteLineageTaskBinding(t, f.lineagePath, func(b *synthesisRunTaskBinding) {
 		*b = synthesisRunTaskBinding{}
+	})
+	if code := f.apply(t); code != exitResolutionFailure {
+		t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)
+	}
+}
+
+// The dedicated-worktree requirement is this command's own; candidateapply
+// never receives the source path and so cannot enforce it. `--repo . --target .`
+// passes every check it makes and mutates the checkout the task and base
+// manifest are read from.
+func TestSynthesisApplyRefusesTheSourceCheckoutAsTarget(t *testing.T) {
+	f := newApplyFixture(t)
+	code := runSynthesisApply([]string{
+		"--repo", f.repoDir, "--lineage", f.lineagePath,
+		"--decision", f.decisionPath, "--target", f.repoDir,
+	})
+	if code != exitTargetRefused {
+		t.Fatalf("exit = %d, want %d", code, exitTargetRefused)
+	}
+	got, err := os.ReadFile(filepath.Join(f.repoDir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "old\n" {
+		t.Fatalf("the source checkout was modified: a.txt = %q", got)
+	}
+}
+
+// Two concurrent applies of one candidate must not both proceed. The stat
+// check is a courtesy that produces a good message; the O_EXCL claim is the
+// gate, because both processes pass a stat before either writes a receipt.
+func TestSynthesisApplyClaimsConsumptionAtomically(t *testing.T) {
+	f := newApplyFixture(t)
+
+	// Simulate the competitor having claimed first.
+	claimPath := filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".o5b-claim")
+	if err := os.WriteFile(claimPath, nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if code := f.apply(t); code != exitAlreadyConsumed {
+		t.Fatalf("exit = %d, want %d -- a held claim must stop a second apply", code, exitAlreadyConsumed)
+	}
+	got, err := os.ReadFile(filepath.Join(f.targetDir, "a.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "old\n" {
+		t.Fatalf("a claimed candidate was applied anyway: a.txt = %q", got)
+	}
+
+	// Releasing the claim lets it proceed, so the gate is the claim and not an
+	// accident of some other refusal.
+	if err := os.Remove(claimPath); err != nil {
+		t.Fatal(err)
+	}
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("exit = %d, want %d once the claim is released", code, exitCandidateApplied)
+	}
+}
+
+// A refusal that never mutated the target must release its claim, or one
+// refused run would permanently block every later attempt.
+func TestARefusedApplyReleasesItsClaim(t *testing.T) {
+	f := newApplyFixture(t)
+	writeCanonicalDecision(t, f.decisionPath,
+		applyDecisionFixture(t, f.admitFixture, f.scope, f.identity, admission.DecisionRefused))
+	if code := f.apply(t); code != exitAdmissionNotAdmitting {
+		t.Fatalf("exit = %d", code)
+	}
+	claimPath := filepath.Join(f.storeDir, f.artifact.CandidateArtifactDigestSHA256+".o5b-claim")
+	if _, err := os.Stat(claimPath); !os.IsNotExist(err) {
+		t.Fatal("a refusal that mutated nothing left its claim behind")
+	}
+}
+
+// A binding lifted from a different run must not authorize this candidate.
+func TestSynthesisApplyRefusesABindingFromAnotherSession(t *testing.T) {
+	f := newApplyFixture(t)
+	rewriteLineageTaskBinding(t, f.lineagePath, func(b *synthesisRunTaskBinding) {
+		b.SessionDigestSHA256 = strings.Repeat("f", 64)
 	})
 	if code := f.apply(t); code != exitResolutionFailure {
 		t.Fatalf("exit = %d, want %d", code, exitResolutionFailure)

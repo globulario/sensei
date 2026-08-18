@@ -32,7 +32,7 @@ import (
 // the drift check never reads a claim. It reads the control-state and closure
 // digests the task derives, and those are derived by the real machinery from
 // whatever the task was prepared with.
-func prepareFixtureTask(t *testing.T, root, domain string, revision string) (string, synthesisRunTaskBinding) {
+func prepareFixtureTask(t *testing.T, root, domain, revision, sessionDigest string) (string, synthesisRunTaskBinding) {
 	t.Helper()
 
 	graphBytes := []byte("<https://example.com/subject> <https://example.com/predicate> <https://example.com/object> .\n")
@@ -105,13 +105,13 @@ func prepareFixtureTask(t *testing.T, root, domain string, revision string) (str
 		taskDir = filepath.Join(root, taskDir)
 	}
 
-	return taskDir, fixtureTaskBinding(t, root, taskDir)
+	return taskDir, fixtureTaskBinding(t, root, taskDir, sessionDigest)
 }
 
 // fixtureTaskBinding reads the task's CURRENT control and closure digests the
 // same way synthesis-run does, so a bundle built from it is bound to the state
 // that actually exists rather than to values the test asserted.
-func fixtureTaskBinding(t *testing.T, root, taskDir string) synthesisRunTaskBinding {
+func fixtureTaskBinding(t *testing.T, root, taskDir, sessionDigest string) synthesisRunTaskBinding {
 	t.Helper()
 	session, err := tasksession.LoadSession(filepath.Join(taskDir, "session.yaml"))
 	if err != nil {
@@ -129,5 +129,8 @@ func fixtureTaskBinding(t *testing.T, root, taskDir string) synthesisRunTaskBind
 		TaskID:                       session.TaskID,
 		TaskControlStateDigestSHA256: taskcontrol.StateDigest(control),
 		ClosureReportDigestSHA256:    closureDigest,
+		// Ties the binding to the sealed candidate; a bundle whose session does
+		// not match the artifact the store hands back is refused.
+		SessionDigestSHA256: sessionDigest,
 	}
 }

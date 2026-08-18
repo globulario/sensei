@@ -141,7 +141,7 @@ Flags:
 	//
 	// Hard law 10 (#149). Base-revision drift is caught in step 3; this is the
 	// half no digest inside the bundle can reveal.
-	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding); err != nil {
+	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding, artifact.SessionDigestSHA256); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-admit: %v\n", err)
 		return exitResolutionFailure
 	}

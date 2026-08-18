@@ -222,7 +222,7 @@ func newAdmitFixture(t *testing.T, mutate func(base []runnercomposition.Candidat
 	// claim document's binding disagree with the revision Prepare resolves,
 	// and the fixture would fail for a reason unrelated to what it tests.
 	taskDir, taskBinding := prepareFixtureTask(t, repoDir, artifact.RepositoryDomain,
-		strings.TrimSpace(gitFixture(t, repoDir, "rev-parse", "HEAD")))
+		strings.TrimSpace(gitFixture(t, repoDir, "rev-parse", "HEAD")), artifact.SessionDigestSHA256)
 
 	lineage := synthesisRunLineage{
 		SchemaVersion:                 synthesisRunLineageSchemaVersion,

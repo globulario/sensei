@@ -584,6 +584,7 @@ Flags:
 		synthesisRunTaskBinding{
 			TaskID:                       taskSession.TaskID,
 			TaskControlStateDigestSHA256: taskcontrol.StateDigest(control),
+			SessionDigestSHA256:          sessionDigest,
 			// Reuses the SAME closureDigest step 5 already computed and the
 			// run itself was bound to -- recomputing it here could bind the
 			// receipt to a different value than the session actually used.
@@ -667,6 +668,22 @@ type synthesisRunTaskBinding struct {
 	TaskID                       string `json:"task_id"`
 	TaskControlStateDigestSHA256 string `json:"task_control_state_digest_sha256"`
 	ClosureReportDigestSHA256    string `json:"closure_report_digest_sha256"`
+	// SessionDigestSHA256 ties this binding to the SEALED candidate.
+	//
+	// The lineage bundle is a plain auxiliary file: anyone who can write it can
+	// rewrite these fields to the task's current values and walk past the drift
+	// refusal while the candidate's own digest chain still validates. This
+	// field does not make the bundle tamper-proof -- nothing here can, because
+	// nothing signs it -- but it removes the cheapest attack: the binding must
+	// now at least agree with the one document the store verifies
+	// independently, so a binding lifted from another run, or a candidate
+	// swapped underneath one, is refused.
+	//
+	// Closing it properly means recording the task binding INSIDE the sealed
+	// CandidateArtifact at O3 time, where the store's digest covers it. That is
+	// a runnercomposition schema change and is not attempted here; the residual
+	// exposure is stated rather than implied.
+	SessionDigestSHA256 string `json:"session_digest_sha256"`
 }
 
 // v2 adds TaskBinding.

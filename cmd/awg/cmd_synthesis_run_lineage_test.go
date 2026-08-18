@@ -186,6 +186,7 @@ func testTaskBinding() synthesisRunTaskBinding {
 		TaskID:                       "task.lineage.test",
 		TaskControlStateDigestSHA256: strings.Repeat("c", 64),
 		ClosureReportDigestSHA256:    strings.Repeat("d", 64),
+		SessionDigestSHA256:          strings.Repeat("e", 64),
 	}
 }
 

@@ -47,6 +47,7 @@ const (
 	exitTargetRefused         = 4
 	exitVerificationFailed    = 5
 	exitAlreadyConsumed       = 6
+	exitAppliedWithoutReceipt = 7
 )
 
 func runSynthesisApply(args []string) int {
@@ -95,6 +96,8 @@ Outcomes:
   4  the target worktree was refused (dirty, wrong base, or not a worktree)
   5  the recorded verification did not pass
   6  this candidate was already applied; its receipt is the consumption record
+  7  the candidate WAS applied but its receipt could not be persisted; the
+     worktree is modified and unaudited — reconcile before doing anything else
 
 Flags:
 `)
@@ -129,6 +132,26 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: resolve --repo: %v\n", err)
 		return exitResolutionFailure
 	}
+	absTarget, err := filepath.Abs(*targetRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: resolve --target: %v\n", err)
+		return exitResolutionFailure
+	}
+	// A DEDICATED worktree means one that is not the checkout the task and the
+	// base manifest come from. candidateapply enforces clean-and-at-base, but
+	// it never receives the source path, so it cannot enforce this command's
+	// documented separation: `--repo . --target .` passes every check it makes
+	// and mutates the source checkout directly. Symlinks are resolved first so
+	// two spellings of one directory cannot slip past the comparison.
+	if same, serr := sameDirectory(absRepo, absTarget); serr != nil {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: compare --repo and --target: %v\n", serr)
+		return exitResolutionFailure
+	} else if same {
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: --target must be a dedicated worktree, not the source checkout (%s)\n", absRepo)
+		fmt.Fprintln(os.Stderr, "  applying into the source would mutate the checkout the task and base manifest are read from.")
+		return exitTargetRefused
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
 
@@ -175,7 +198,7 @@ Flags:
 	// Hard law 10 (#149). A candidate generated under one closure state and
 	// applied under another is not the same proposal, and every digest in the
 	// bundle would still verify.
-	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding); err != nil {
+	if err := verifyTaskBindingUnchanged(absRepo, *taskFlag, lineage.TaskBinding, artifact.SessionDigestSHA256); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: %v\n", err)
 		return exitResolutionFailure
 	}
@@ -200,6 +223,40 @@ Flags:
 		fmt.Fprintln(os.Stderr, "  if a re-apply is genuinely intended, remove the receipt first -- deliberately.")
 		return exitAlreadyConsumed
 	}
+	// Claim consumption ATOMICALLY, before mutating anything.
+	//
+	// The Stat above is a courtesy that produces a good message; it is not the
+	// gate. Two processes starting concurrently for the same candidate and
+	// different clean targets both pass a stat check, both apply, and the
+	// replace-capable auxiliary write lets the second overwrite the first
+	// receipt -- recreating exactly the two-applications-looking-like-one
+	// condition this gate exists to prevent. O_CREATE|O_EXCL makes the claim a
+	// single indivisible operation, so precisely one process proceeds.
+	claimPath := filepath.Join(storeDir, lineage.CandidateArtifactDigestSHA256+".o5b-claim")
+	claim, cerr := os.OpenFile(claimPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o644)
+	if cerr != nil {
+		if os.IsExist(cerr) {
+			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: another application of this candidate holds the claim at %s\n", claimPath)
+			fmt.Fprintln(os.Stderr, "  if no other process is running, that claim is from an interrupted apply: inspect the target worktree,")
+			fmt.Fprintln(os.Stderr, "  then remove the claim deliberately once you know whether the candidate was applied.")
+			return exitAlreadyConsumed
+		}
+		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: claim consumption: %v\n", cerr)
+		return exitResolutionFailure
+	}
+	_ = claim.Close()
+	// Released on every path that did NOT mutate the target. Once the apply
+	// succeeds the receipt becomes the durable record and the claim is removed
+	// with it; an interrupted run deliberately leaves the claim behind, because
+	// a stale claim is a question a human should answer, not one this command
+	// should answer by guessing.
+	claimReleased := false
+	releaseClaim := func() {
+		if !claimReleased {
+			_ = os.Remove(claimPath)
+			claimReleased = true
+		}
+	}
 
 	// --- step 5: bind the decision to the composed request ---
 	//
@@ -211,6 +268,7 @@ Flags:
 	// directories open -- would otherwise make by accident.
 	o5aReceipt, err := admissioncomposition.ComposeDecisionReceipt(o5aRequest, concrete, decision, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
+		releaseClaim()
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: this decision does not authorize this candidate: %v\n", err)
 		return exitAdmissionNotAdmitting
 	}
@@ -227,6 +285,7 @@ Flags:
 	// matching the library's error text, which would silently reclassify if
 	// that wording ever changed.
 	if reason := admissionDoesNotAuthorize(decision); reason != "" {
+		releaseClaim()
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: %s\n  nothing was applied; this is admission's answer, not a defect to retry\n", reason)
 		return exitAdmissionNotAdmitting
 	}
@@ -237,11 +296,13 @@ Flags:
 	// answer, and candidateapply's rollback is bound to these exact bytes. ---
 	_, baseManifest, baseDigest, cleanup, err := runnercomposition.ExtractSnapshot(ctx, absRepo, artifact.BaseRevision)
 	if err != nil {
+		releaseClaim()
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: read base revision %s from %s: %v\n", artifact.BaseRevision, absRepo, err)
 		return exitResolutionFailure
 	}
 	defer func() { _ = cleanup() }()
 	if baseDigest != artifact.InputCandidateDigestSHA256 {
+		releaseClaim()
 		fmt.Fprintf(os.Stderr, "sensei synthesis-apply: base-revision drift: %s in %s digests to %s, but the candidate was generated against %s\n",
 			artifact.BaseRevision, absRepo, baseDigest, artifact.InputCandidateDigestSHA256)
 		return exitResolutionFailure
@@ -254,9 +315,13 @@ Flags:
 		Decision:          decision,
 		CandidateArtifact: artifact,
 		BaseManifest:      baseManifest,
-		TargetRoot:        *targetRoot,
+		TargetRoot:        absTarget,
 	}, time.Now().UTC().Format(time.RFC3339))
 	if err != nil {
+		// candidateapply rolls the worktree back from the immutable base
+		// manifest on every mid-apply failure, so nothing was consumed and the
+		// claim is released.
+		releaseClaim()
 		// candidateapply's own refusals are already specific; the only value
 		// added here is telling the caller which KIND of problem it is, so a
 		// script does not have to match on message text.
@@ -273,7 +338,7 @@ Flags:
 		Detail:                        applyReceipt.Detail,
 		CandidateArtifactDigestSHA256: applyReceipt.CandidateArtifactDigestSHA256,
 		BaseRevision:                  applyReq.BaseRevision,
-		TargetRoot:                    *targetRoot,
+		TargetRoot:                    absTarget,
 		AppliedPaths:                  applyReceipt.AppliedPaths,
 		PatchDigestSHA256:             applyReceipt.PatchDigestSHA256,
 		RequestDigestSHA256:           applyReceipt.RequestDigestSHA256,
@@ -289,14 +354,14 @@ Flags:
 		verification, verr := admission.LoadVerification(*verificationPath)
 		if verr != nil {
 			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: applied, but the verification could not be read: %v\n", verr)
-			persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report)
+			_ = persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report)
 			printSynthesisApplyReport(report, *format)
 			return exitVerificationFailed
 		}
 		attached, aerr := candidateapply.AttachVerification(applyReceipt, decision, verification, time.Now().UTC().Format(time.RFC3339))
 		if aerr != nil {
 			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: applied, but the verification is not bound to this application: %v\n", aerr)
-			persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report)
+			_ = persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report)
 			printSynthesisApplyReport(report, *format)
 			return exitVerificationFailed
 		}
@@ -317,7 +382,16 @@ Flags:
 		}
 	}
 
-	persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report)
+	if !persistApplyDocuments(ctx, store, storeDir, lineage.CandidateArtifactDigestSHA256, applyReq, applyReceipt, &report) {
+		report.Detail = "the candidate was applied but its receipt could not be persisted; the target worktree is modified and unaudited"
+		printSynthesisApplyReport(report, *format)
+		fmt.Fprintln(os.Stderr, "sensei synthesis-apply: the consumption record is MISSING while the worktree is modified.")
+		fmt.Fprintf(os.Stderr, "  the claim at %s is deliberately left in place so a second apply cannot proceed silently.\n", claimPath)
+		return exitAppliedWithoutReceipt
+	}
+	// The receipt is now the durable consumption record, so the claim has done
+	// its job and is removed with it.
+	releaseClaim()
 	printSynthesisApplyReport(report, *format)
 	return exitCode
 }
@@ -360,26 +434,35 @@ func isTargetRefusal(err error) bool {
 	return false
 }
 
+// persistApplyDocuments writes the O5B request and receipt, and reports whether
+// the RECEIPT landed.
+//
+// The receipt is the consumption record, so failing to persist it is not a
+// cosmetic problem: the worktree is modified, and a later invocation finds no
+// receipt and will happily apply the same candidate again. Returning ordinary
+// success there would hand the caller a green exit for a mutation nothing
+// recorded, which is the precise condition the consumption gate exists to
+// prevent.
 func persistApplyDocuments(ctx context.Context, store runnercomposition.CandidateArtifactStore, storeDir, digest string,
-	req candidateapply.Request, receipt candidateapply.Receipt, report *synthesisApplyReport) {
-	write := func(suffix string, doc any) string {
+	req candidateapply.Request, receipt candidateapply.Receipt, report *synthesisApplyReport) (receiptPersisted bool) {
+	write := func(suffix string, doc any) (string, bool) {
 		data, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: marshal %s: %v\n", suffix, err)
-			return ""
+			return "", false
 		}
 		name := digest + suffix
 		if err := store.PutAuxiliaryFile(ctx, name, data); err != nil {
-			// The application already happened. Failing to write its receipt
-			// is reported loudly and never silently swallowed, but it does not
-			// un-apply anything, and pretending otherwise would be the lie.
-			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: WARNING: applied, but could not persist %s: %v\n", name, err)
-			return ""
+			// The application already happened; this does not un-apply
+			// anything, and pretending otherwise would be the lie.
+			fmt.Fprintf(os.Stderr, "sensei synthesis-apply: applied, but could not persist %s: %v\n", name, err)
+			return "", false
 		}
-		return filepath.Join(storeDir, name)
+		return filepath.Join(storeDir, name), true
 	}
-	report.RequestPath = write(".o5b-request.json", req)
-	report.ReceiptPath = write(".o5b-receipt.json", receipt)
+	report.RequestPath, _ = write(".o5b-request.json", req)
+	report.ReceiptPath, receiptPersisted = write(".o5b-receipt.json", receipt)
+	return receiptPersisted
 }
 
 func readJSONDocument(path string, out any) error {
@@ -440,4 +523,19 @@ func printSynthesisApplyReport(r synthesisApplyReport, format string) {
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintln(os.Stdout, "next: review the worktree. Nothing was committed, pushed, approved, or merged,")
 	fmt.Fprintln(os.Stdout, "      and this command will not do any of those.")
+}
+
+// sameDirectory reports whether two paths name the same directory after
+// symlink resolution, so two spellings of one worktree cannot pass a string
+// comparison.
+func sameDirectory(a, b string) (bool, error) {
+	ra, err := filepath.EvalSymlinks(a)
+	if err != nil {
+		return false, err
+	}
+	rb, err := filepath.EvalSymlinks(b)
+	if err != nil {
+		return false, err
+	}
+	return filepath.Clean(ra) == filepath.Clean(rb), nil
 }
