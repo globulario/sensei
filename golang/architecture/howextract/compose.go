@@ -170,6 +170,7 @@ func CalculateTargetDigest(target CoverageTargetV1) (string, error) {
 type runMetrics struct {
 	consumption extractbudget.Consumption
 	outcome     extractbudget.RunOutcome
+	diffScope   *investigation.DiffScope
 }
 
 func extractAll(ctx context.Context, root string, opts Options) (investigation.Document, error) {
@@ -185,6 +186,60 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	}
 	if repoDomain == "" {
 		return investigation.Document{}, fmt.Errorf("resolve repository identity: domain is unavailable")
+	}
+
+	// 0. Resolve the diff binding, if this is an incremental run.
+	//
+	// It narrows the ATTRIBUTION set only. The semantic inputs stay whole --
+	// a changed file's types can come from anywhere in the module, so an
+	// incremental extraction that also loaded incrementally would produce
+	// observations about types it could not see. That is exactly the
+	// checkpoint's "include semantic compiler inputs needed to interpret those
+	// paths", stated from the other side.
+	var diffScope *investigation.DiffScope
+	if opts.Diff != nil {
+		// The extractors read the ambient working tree, so the tree must BE
+		// the bound head before anything is derived from it.
+		if verr := verifyHeadIsCheckedOut(ctx, root, *opts.Diff); verr != nil {
+			return investigation.Document{}, verr
+		}
+		changed, derr := resolveChangedPaths(ctx, root, *opts.Diff)
+		if derr != nil {
+			return investigation.Document{}, derr
+		}
+		present := existingAtHead(root, changed)
+		searched := make([]string, 0, len(present))
+		for _, p := range present {
+			if opts.Budget.InScope(p) {
+				searched = append(searched, p)
+			}
+		}
+		// Assigned even when empty: a diff whose changed paths were all deleted
+		// or excluded must admit NOTHING, not fall back to the whole
+		// repository. `searched` is built with make(...,0,...) above so it is
+		// never nil here, which is what keeps the allowlist active.
+		opts.Budget.ExactFiles = searched
+		diffScope = &investigation.DiffScope{
+			BaseRevision:               opts.Diff.BaseRevision,
+			HeadRevision:               opts.Diff.HeadRevision,
+			ChangedPaths:               changed,
+			SearchedPaths:              searched,
+			WholeRepositoryNotSearched: true,
+		}
+		limitations = append(limitations, architecture.Limitation{
+			Source: "how_extraction_diff_scope", Scope: "repository",
+			Reason: fmt.Sprintf("incremental extraction bound to %s..%s: %d changed path(s), %d searched; the rest of the repository was NOT searched and this document does not describe it",
+				opts.Diff.BaseRevision[:12], opts.Diff.HeadRevision[:12], len(changed), len(searched)),
+			Blocking: false,
+		})
+		if len(changed) > len(searched) {
+			limitations = append(limitations, architecture.Limitation{
+				Source: "how_extraction_diff_scope", Scope: "repository",
+				Reason: fmt.Sprintf("%d changed path(s) produced no observations because they no longer exist at head or fall outside the bound scopes; a source position cannot be anchored in a file that is gone",
+					len(changed)-len(searched)),
+				Blocking: false,
+			})
+		}
 	}
 
 	// 1. Run Semantic Extractor. Its budget bounds which files may produce
@@ -268,7 +323,7 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	// load) and checked between stages, not inside this one. Saying "wall
 	// clock bounds the AST pass" would be the comfortable version and is not
 	// true.
-	if len(opts.Budget.IncludePaths) > 0 || len(opts.Budget.ExcludePaths) > 0 {
+	if opts.Budget.ScopesActive() {
 		kept := facts[:0]
 		dropped := 0
 		for _, f := range facts {
@@ -282,7 +337,7 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		if dropped > 0 {
 			limitations = append(limitations, architecture.Limitation{
 				Source: "how_extraction_budget", Scope: "repository",
-				Reason: fmt.Sprintf("%d observation(s) from files outside the bound include/exclude scopes were discarded; the repository outside those scopes is not described by this document",
+				Reason: fmt.Sprintf("%d observation(s) from files outside the bound scopes were discarded; the repository outside those scopes is not described by this document",
 					dropped),
 				Blocking: false,
 			})
@@ -333,7 +388,7 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	}
 
 	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations, semanticErr, astErr,
-		runMetrics{consumption: consumption, outcome: outcome})
+		runMetrics{consumption: consumption, outcome: outcome, diffScope: diffScope})
 }
 
 func composeReceiptsAndCoverage(
@@ -588,6 +643,8 @@ func composeReceiptsAndCoverage(
 		ResourceLimits:            opts.ResourceLimits,
 		NondeterminismDeclaration: NondeterminismDeclaration,
 	}
+
+	receipt.DiffScope = metrics.diffScope
 
 	// Every run carries a budget receipt, bounded or not.
 	//

@@ -223,6 +223,7 @@ components:
       - component.golang.architecture.governedmutation
       - component.golang.architecture.graphbuild
       - component.golang.architecture.graphsnapshot
+      - component.golang.architecture.howextract
       - component.golang.architecture.identity
       - component.golang.architecture.inference
       - component.golang.architecture.interpretationclosure
@@ -1247,6 +1248,7 @@ components:
       - golang/architecture/howextract/compose.go
       - golang/architecture/howextract/contracts.go
       - golang/architecture/howextract/datashapes.go
+      - golang/architecture/howextract/diffscope.go
       - golang/architecture/howextract/extract.go
       - golang/architecture/howextract/flow.go
       - golang/architecture/howextract/state.go

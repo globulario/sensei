@@ -345,3 +345,60 @@ func TestAnEmptyRepositoryIsNotAMisWrittenScope(t *testing.T) {
 		t.Fatal("an empty candidate set with no scopes was reported as a scope that matched nothing")
 	}
 }
+
+// ExactFiles is an allowlist a prefix scope cannot express: a changed-file set
+// is an arbitrary list, not a subtree.
+func TestExactFilesAdmitsOnlyTheListedPaths(t *testing.T) {
+	b := Budget{ExactFiles: []string{"alpha/a.go", "gamma/g.go"}}.Normalize()
+	for _, in := range []string{"alpha/a.go", "gamma/g.go"} {
+		if !b.InScope(in) {
+			t.Errorf("%q was not admitted", in)
+		}
+	}
+	for _, out := range []string{"alpha/b.go", "omega/o.go"} {
+		if b.InScope(out) {
+			t.Errorf("%q was admitted by an exact-file allowlist that does not list it", out)
+		}
+	}
+}
+
+// Equality, not prefix. Treating an entry as a prefix would silently admit a
+// directory that happens to share a changed file's name.
+func TestExactFilesMatchesExactlyNotByPrefix(t *testing.T) {
+	b := Budget{ExactFiles: []string{"alpha"}}.Normalize()
+	if b.InScope("alpha/a.go") {
+		t.Error("an exact-file entry was treated as a directory prefix")
+	}
+	if !b.InScope("alpha") {
+		t.Error("the exact entry did not match itself")
+	}
+}
+
+// ExactFiles narrows and never widens: a diff must not be usable as a way back
+// into a directory the operator excluded.
+func TestExactFilesCannotOverrideAnExcludeScope(t *testing.T) {
+	b := Budget{ExactFiles: []string{"vendor/v.go", "cmd/c.go"}, ExcludePaths: []string{"vendor"}}.Normalize()
+	if b.InScope("vendor/v.go") {
+		t.Fatal("an exact-file entry reached into an excluded subtree")
+	}
+	if !b.InScope("cmd/c.go") {
+		t.Error("an exact-file entry outside every exclude was rejected")
+	}
+}
+
+// It must also respect a narrower include scope, for the same reason.
+func TestExactFilesIntersectsWithIncludeScopes(t *testing.T) {
+	b := Budget{ExactFiles: []string{"cmd/c.go", "golang/g.go"}, IncludePaths: []string{"golang"}}.Normalize()
+	if b.InScope("cmd/c.go") {
+		t.Error("an exact-file entry outside the include scope was admitted")
+	}
+	if !b.InScope("golang/g.go") {
+		t.Error("an exact-file entry inside the include scope was rejected")
+	}
+}
+
+func TestExactFilesCountsAsBounded(t *testing.T) {
+	if !(Budget{ExactFiles: []string{"a.go"}}).Bounded() {
+		t.Fatal("an exact-file allowlist did not register as a bound budget")
+	}
+}

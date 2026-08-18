@@ -155,3 +155,92 @@ func TestInvestigateHowRefusesAnUnhonourableScope(t *testing.T) {
 		t.Error("a refused run still wrote an artifact")
 	}
 }
+
+// The incremental mode has to be reachable and honest from the CLI, since a
+// PR-time run is the whole point of checkpoint B.
+func investigateDiffRepo(t *testing.T) (root, base, head string) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+	root = t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	write := func(rel, body string) {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(root, rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(root, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git := func(args ...string) string {
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=fixture", "GIT_AUTHOR_EMAIL=fixture@example.invalid",
+			"GIT_COMMITTER_NAME=fixture", "GIT_COMMITTER_EMAIL=fixture@example.invalid",
+			"GIT_AUTHOR_DATE=2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE=2026-01-01T00:00:00Z")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(args, " "), err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	write("go.mod", "module example.com/clidiff\n\ngo 1.22\n")
+	write("alpha/alpha.go", "package alpha\n\n// Alpha is exported.\nfunc Alpha() int { return 1 }\n")
+	write("omega/omega.go", "package omega\n\n// Omega is exported.\nfunc Omega() int { return 2 }\n")
+	git("init", "-q")
+	git("remote", "add", "origin", "https://example.com/clidiff.git")
+	git("add", "-A")
+	git("commit", "-q", "-m", "base")
+	base = git("rev-parse", "HEAD")
+
+	write("alpha/alpha.go", "package alpha\n\n// Alpha is exported.\nfunc Alpha() int { return 11 }\n\n// Beta is new.\nfunc Beta() int { return 12 }\n")
+	git("add", "-A")
+	git("commit", "-q", "-m", "head")
+	head = git("rev-parse", "HEAD")
+	return root, base, head
+}
+
+func TestInvestigateHowDiffFlagsBindThroughTheCLI(t *testing.T) {
+	root, base, head := investigateDiffRepo(t)
+
+	doc := runInvestigateHowToFile(t, root, "--diff-base", base, "--diff-head", head)
+	ds := doc.Receipt.DiffScope
+	if ds == nil {
+		t.Fatal("the CLI produced no diff scope; the document is indistinguishable from a whole-repository one")
+	}
+	if ds.BaseRevision != base || ds.HeadRevision != head {
+		t.Errorf("diff scope bound to %s..%s, want %s..%s", ds.BaseRevision, ds.HeadRevision, base, head)
+	}
+	if !ds.WholeRepositoryNotSearched {
+		t.Error("whole_repository_not_searched is false")
+	}
+	for _, obs := range doc.Observations {
+		if strings.HasPrefix(obs.Evidence.SourceFile, "omega/") {
+			t.Fatalf("an unchanged file produced an observation: %s", obs.Evidence.SourceFile)
+		}
+	}
+	if err := investigation.Validate(doc); err != nil {
+		t.Errorf("validate: %v", err)
+	}
+}
+
+// Half a diff binding is not a smaller diff. Defaulting the missing side to
+// HEAD would make the same command mean different things on different days.
+func TestInvestigateHowRefusesHalfADiffBinding(t *testing.T) {
+	root, base, head := investigateDiffRepo(t)
+	for name, args := range map[string][]string{
+		"base only": {"--diff-base", base},
+		"head only": {"--diff-head", head},
+	} {
+		t.Run(name, func(t *testing.T) {
+			out := filepath.Join(t.TempDir(), "how.json")
+			full := append([]string{"--repo", root, "--captured-at", "2026-08-17T00:00:00Z", "--out", out}, args...)
+			if code := runInvestigateHow(full); code == 0 {
+				t.Fatal("half a diff binding was accepted")
+			}
+		})
+	}
+}

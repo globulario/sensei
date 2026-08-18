@@ -3049,6 +3049,11 @@ test_symbols:
     symbol: TestMachineAdoptedContractCategoryUsesContractLevel
     package: main
     language: go
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowDiffFlagsBindThroughTheCLI
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowDiffFlagsBindThroughTheCLI
+    package: main
+    language: go
   - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowFileCeilingBindsThroughTheCLI
     file: cmd/awg/cmd_investigate_budget_test.go
     symbol: TestInvestigateHowFileCeilingBindsThroughTheCLI
@@ -3060,6 +3065,12 @@ test_symbols:
     package: main
     language: go
     doc: "A budget that cannot be honoured as written is refused before any work,\nrather than normalized into one that searches somewhere else."
+  - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowRefusesHalfADiffBinding
+    file: cmd/awg/cmd_investigate_budget_test.go
+    symbol: TestInvestigateHowRefusesHalfADiffBinding
+    package: main
+    language: go
+    doc: "Half a diff binding is not a smaller diff. Defaulting the missing side to\nHEAD would make the same command mean different things on different days."
   - id: cmd/awg/cmd_investigate_budget_test.go:TestInvestigateHowScopeFlagsBindThroughTheCLI
     file: cmd/awg/cmd_investigate_budget_test.go
     symbol: TestInvestigateHowScopeFlagsBindThroughTheCLI
@@ -11278,6 +11289,35 @@ test_symbols:
     package: extractbudget
     language: go
     doc: "A cut must always produce a limitation. A bounded run that reported no\nlimitation would be indistinguishable from a complete one."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesAdmitsOnlyTheListedPaths
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesAdmitsOnlyTheListedPaths
+    package: extractbudget
+    language: go
+    doc: "ExactFiles is an allowlist a prefix scope cannot express: a changed-file set\nis an arbitrary list, not a subtree."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesCannotOverrideAnExcludeScope
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesCannotOverrideAnExcludeScope
+    package: extractbudget
+    language: go
+    doc: "ExactFiles narrows and never widens: a diff must not be usable as a way back\ninto a directory the operator excluded."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesCountsAsBounded
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesCountsAsBounded
+    package: extractbudget
+    language: go
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesIntersectsWithIncludeScopes
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesIntersectsWithIncludeScopes
+    package: extractbudget
+    language: go
+    doc: "It must also respect a narrower include scope, for the same reason."
+  - id: golang/architecture/extractbudget/budget_test.go:TestExactFilesMatchesExactlyNotByPrefix
+    file: golang/architecture/extractbudget/budget_test.go
+    symbol: TestExactFilesMatchesExactlyNotByPrefix
+    package: extractbudget
+    language: go
+    doc: "Equality, not prefix. Treating an entry as a prefix would silently admit a\ndirectory that happens to share a changed file's name."
   - id: golang/architecture/extractbudget/budget_test.go:TestExcludeBeatsInclude
     file: golang/architecture/extractbudget/budget_test.go
     symbol: TestExcludeBeatsInclude
@@ -12149,6 +12189,70 @@ test_symbols:
     package: howextract
     language: go
     doc: "The wall clock must bound the WHOLE extraction, not only the package load.\nIt previously derived a deadline inside the semantic extractor and discarded\nit on return, so the AST walk, manifest hashing, and evidence capture ran\nunbounded afterwards — a ceiling the receipt claimed was enforced and that\nstopped applying partway through."
+  - id: golang/architecture/howextract/diffscope_test.go:TestAmbiguousRevisionsAreRefused
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestAmbiguousRevisionsAreRefused
+    package: howextract
+    language: go
+    doc: "An ambiguous revision makes the same command mean different things on\ndifferent days, so it is refused rather than resolved."
+  - id: golang/architecture/howextract/diffscope_test.go:TestDeletedPathsAreChangedButNotSearched
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestDeletedPathsAreChangedButNotSearched
+    package: howextract
+    language: go
+    doc: "A deleted file is a real change with no source position to anchor to. It\nmust appear as changed-but-not-searched rather than vanish, or the document\nwould silently understate what the change set contained."
+  - id: golang/architecture/howextract/diffscope_test.go:TestDiffCannotEscapeAnExcludeScope
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestDiffCannotEscapeAnExcludeScope
+    package: howextract
+    language: go
+    doc: "A diff cannot be used to reach into a directory the operator excluded.\nExactFiles narrows; it never widens."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIdenticalBaseAndHeadIsRefused
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIdenticalBaseAndHeadIsRefused
+    package: howextract
+    language: go
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalReceiptSaysTheRepositoryWasNotSearched
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalReceiptSaysTheRepositoryWasNotSearched
+    package: howextract
+    language: go
+    doc: "A consumer that reads only the observations must still be able to tell this\nis not a description of the repository."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunDescribesOnlyChangedFiles
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunDescribesOnlyChangedFiles
+    package: howextract
+    language: go
+    doc: "The core of checkpoint B: an incremental run describes what changed, and\nnothing else."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunPreservesWholeRepositorySnapshotIdentity
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunPreservesWholeRepositorySnapshotIdentity
+    package: howextract
+    language: go
+    doc: "The semantic snapshot must still cover the whole module. An incremental run\nthat also narrowed its compiler inputs would produce observations about\ntypes it could not see -- and its source-snapshot identity would no longer\nidentify the tree the observations were derived from."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunRefusesAHeadThatIsNotCheckedOut
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunRefusesAHeadThatIsNotCheckedOut
+    package: howextract
+    language: go
+    doc: "The extractors read the ambient tree, so a head that is not checked out --\nor a dirty tree -- would make the observations describe different content\nthan the receipt claims, with every digest still verifying against itself."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunWithNoSearchablePathsDescribesNothing
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunWithNoSearchablePathsDescribesNothing
+    package: howextract
+    language: go
+    doc: "A diff whose changed paths are all deleted or excluded must describe\nNOTHING. Falling back to the whole repository would produce a\nwhole-repository result wearing an incremental document's receipt, while the\nreceipt truthfully reported zero searched paths."
+  - id: golang/architecture/howextract/diffscope_test.go:TestIncrementalRunsAreDeterministic
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestIncrementalRunsAreDeterministic
+    package: howextract
+    language: go
+    doc: "Repeated identical runs must be byte-equivalent. The captured_at input is\nexplicit, so nothing here is allowed to vary."
+  - id: golang/architecture/howextract/diffscope_test.go:TestResolveChangedPathsIsSortedAndDeduplicated
+    file: golang/architecture/howextract/diffscope_test.go
+    symbol: TestResolveChangedPathsIsSortedAndDeduplicated
+    package: howextract
+    language: go
   - id: golang/architecture/howextract/howextract_test.go:TestAllCaptureFailuresAreUnavailable
     file: golang/architecture/howextract/howextract_test.go
     symbol: TestAllCaptureFailuresAreUnavailable
