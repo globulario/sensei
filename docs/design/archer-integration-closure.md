@@ -1,6 +1,9 @@
 # ARCHER Integration Closure
 
-Status: contract accepted; O5A/O5B/O6/O6C/O7 merged; **not yet closed** (see
+Status: contract accepted; O5A/O5B/O6/O6C/O7 merged; every owner reachable from
+a command line; the Final completion truth statement **demonstrated end to end
+on Sensei's own repository** (2026-08-18) — but the completion proof matrix is
+partially covered, so this contract is **not yet closed** (see
 [Current state vs. this contract](#current-state-vs-this-contract))
 
 ## Purpose
@@ -370,3 +373,69 @@ verification on at least one real repository (gap 1's CLI now makes this
 possible to attempt); (b) resolve the pre-onboarded-repository question
 above as an explicit, authored contract rather than an implicit
 precondition.
+
+### 2026-08-18: the loop ran end to end, and what the matrix still lacks
+
+`scripts/synthesis-run-smoke.sh` now drives the whole chain against a real
+Oxigraph store, a real graph server, a real task checkpoint and a real
+`sensei gate` evaluator, on Sensei's own repository:
+
+```
+synthesis-run   -> sealed candidate + lineage bundle
+synthesis-admit -> derived admission request               (O5A)
+admit-change    -> admitted / mutation=admitted            (a DERIVED request)
+synthesis-apply -> materialized into a dedicated worktree  (O5B)
+verify-admission-> scope_compliant, against that worktree
+```
+
+That is the Final completion truth statement, demonstrated: interpretation
+through evaluation, submission of only the accepted candidate to the existing
+admission owner, application of only the admitted artifact into a dedicated
+governed target, verification of the exact result through the existing
+verification owner, and a digest-bound receipt chain throughout — with no
+commit, push, PR, approval, merge, or promotion. Continuity is asserted on
+digests, not exit codes: run -> lineage -> composed request -> decision ->
+application receipt, keeping the four distinct digests distinct (O5A
+composition request, derived admission request identity, O5B apply request,
+candidate artifact).
+
+**Completion proof matrix, honestly scored.** Proven through the real CLI:
+happy path through admitted application and scope-compliant verification;
+base-revision drift; dirty-target refusal; evaluator unavailable; provider
+timeout; malformed provider output; provider absent; no commit/push/PR/merge or
+canonical knowledge mutation. Observed but not deliberately constructed:
+uncertifiable admission. Still fixture-only or unproven: accept-then-refusal,
+admitted-with-conditions acknowledgement binding, waiting, candidate tampering,
+wrong O1 lineage, unsupported-operation refusal, apply digest mismatch,
+verification scope *violation* (only compliance is proven), oversized provider
+output, process-group cleanup, retry-then-success, replan-then-success,
+retry/replan exhaustion, and deterministic replay.
+
+**Two gaps this contract did not anticipate, both measured rather than
+inferred.**
+
+1. *A post-application verification can never be attached to the application it
+   describes.* Producing a verification OF the applied result requires the
+   application; attaching it through `synthesis-apply --verification` requires
+   the application not to have happened, because the candidate is consumed by
+   then (exit 6). The only route through is deleting the receipt and
+   re-applying, which the command itself warns makes two applications
+   indistinguishable from one. The matrix row "verification scope violation"
+   is therefore unreachable rather than untested.
+
+2. *A candidate's graph identity is never revalidated downstream.* With the
+   graph server stopped, `synthesis-run` refuses (exit 12,
+   `graph-identity-unusable`) but `synthesis-admit` composes an admission
+   request from the persisted bundle anyway. This is the concrete shape of the
+   "workspace and graph identity are not re-verified at resume" note above,
+   with the refusing run as its control.
+
+Both are recorded as `failure_mode` entries carrying no `required_tests`
+citation, because nothing proves either fixed.
+
+Closing this contract for real therefore still requires (a) and (b) named
+earlier in this section, plus: (c) decide whether a verification of an applied result is attachable at
+all, or whether the receipt is deliberately closed at application; and (d)
+decide whether the downstream commands must revalidate graph identity, which
+would make offline admission impossible and is a governance question rather
+than a missing check.
