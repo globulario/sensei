@@ -1069,6 +1069,22 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.evalharness
+    name: evalharness
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/evalharness/baseline.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.evalmutant
+      - component.golang.architecture.howextract
+      - component.golang.architecture.investigation
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.evalmutant
     name: evalmutant
     kind: module

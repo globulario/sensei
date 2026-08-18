@@ -1,0 +1,11 @@
+contract_unknown:
+  - id: contract_unknown.deterministic_how_extraction_recovers_no_evidence_for_defect
+    kind: contract_unknown
+    title: Deterministic HOW extraction recovers no evidence for defects that live outside Go source
+    description: 'The Phase 10.8 baseline arm (deterministic extraction without composition) was run over the nine-class architectural mutant suite. It recovered evidence anchored to the defect site for 6 of 9 classes. The three misses are missing_evidence_provider, generated_file_contamination, and incomplete_proof_discharge — and they share one cause: every one of them lives in a documentation or evidence artifact rather than in Go source. howextract''s observation surface is the Go semantic and AST extractors, so a defect in docs/generated/inventory.md or evidence/*.txt produces no observation at all, and no amount of reasoning layered above can find what was never recovered. This is a measured floor, not a failure of the mutant suite: each of the three witnesses confirms its defect is present in the tree.'
+    proposed_contract: An evaluation arm must state which artifact kinds it can produce evidence about, and a defect class whose site lies outside those kinds must be reported as out-of-surface rather than as a detection miss. Confusing the two would credit a reasoning layer with a gap it never had the evidence to close, and would hide the need for a documentation/evidence provider behind a reasoning score.
+    source_files:
+      - golang/architecture/evalharness/baseline.go
+      - golang/architecture/howextract/compose.go
+    evidence:
+      - 'site coverage 6/9. Covered: authority_split (api/api.go), forbidden_dependency_direction (storage/storage.go), stale_documentation (service/service.go), implementation_repetition (three packages), misleading_commit_message (storage/storage.go), cross_domain_symbol_leakage (shipping/shipping.go). Not covered: missing_evidence_provider, generated_file_contamination, incomplete_proof_discharge.'
