@@ -1080,6 +1080,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.evalmutant
+      - component.golang.architecture.graphbuild
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
       - component.golang.architecture.investigationsurface

@@ -4,12 +4,17 @@ package evalharness
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalmutant"
+	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigationsurface"
@@ -94,6 +99,43 @@ func (r CompositionReport) CandidateRate() (produced, total int) {
 		}
 	}
 	return produced, total
+}
+
+// compileMutantGraph builds the mutant's own awareness corpus into N-Triples
+// and returns the graph plus its digest.
+//
+// This is what makes the composition arm runnable. Compose requires a real
+// graph digest that AGREES with the extraction's binding, and a bare tree has
+// neither -- so the arm previously stopped with "receipt graph digest does not
+// match binding". Compiling the mutant's corpus produces a graph it genuinely
+// has, and sha256 over those bytes is a digest it genuinely earned, so the
+// binding and the receipt can agree without anyone declaring a resolution that
+// did not happen.
+func compileMutantGraph(ctx context.Context, root, domain string) ([]byte, string, error) {
+	corpus := filepath.Join(root, "docs", "awareness")
+	if _, err := os.Stat(corpus); err != nil {
+		return nil, "", fmt.Errorf("mutant has no awareness corpus at docs/awareness: %w", err)
+	}
+	comp, err := graphbuild.Compile(ctx, graphbuild.CompileRequest{
+		Sources: []graphbuild.SourceRoot{{
+			FilesystemPath: corpus,
+			IdentityRoot:   root,
+			// The mutant lives in a fresh temp directory every run, so without
+			// stripping, the absolute path leaks into authoredIn literals and
+			// the graph digest changes between two runs of the SAME mutant --
+			// which then changes the HOW binding and breaks the reproducibility
+			// this evaluation requires. StripPathPrefixes exists for exactly
+			// this: identity is the repository-relative path, never where the
+			// tree happened to be staged.
+			StripPathPrefixes: []string{root},
+			RepositoryDomain:  domain,
+		}},
+	})
+	if err != nil {
+		return nil, "", fmt.Errorf("compile mutant corpus: %w", err)
+	}
+	sum := sha256.Sum256(comp.CanonicalNTriples)
+	return comp.CanonicalNTriples, hex.EncodeToString(sum[:]), nil
 }
 
 // emptyInputDigest is the digest of an explicitly EMPTY input.
@@ -194,6 +236,14 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 	res.observedRoot = root
 	res.NamedTheDefect = false
 
+	// Compile the mutant's OWN corpus, so the binding below carries a graph
+	// digest this repository actually earned rather than one asserted for it.
+	_, graphDigest, gerr := compileMutantGraph(context.Background(), root, opts.RepositoryDomain)
+	if gerr != nil {
+		res.WhyUnavailable = "graph: " + gerr.Error()
+		return res, nil
+	}
+
 	how, err := investigationsurface.RunHow(investigationsurface.HowRequest{
 		Root:       root,
 		CapturedAt: opts.CapturedAt,
@@ -201,7 +251,8 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 			RepositoryDomain:  opts.RepositoryDomain,
 			Revision:          headRev,
 			RevisionStatus:    "resolved",
-			GraphDigestStatus: "not_requested",
+			GraphDigestSHA256: graphDigest,
+			GraphDigestStatus: "resolved",
 		},
 	})
 	if err != nil {
@@ -257,7 +308,10 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 		Why:       why,
 		Grounding: investigationsurface.GroundingFromDocuments(how, why),
 		Digests: investigator.InputDigests{
-			GraphDigestSHA256:             emptyInputDigest(),
+			// The mutant's real graph, so the composed document's receipt and
+			// its binding agree. The remaining four are genuinely empty for a
+			// synthetic repository and say so.
+			GraphDigestSHA256:             graphDigest,
 			CurrentClaimsDigestSHA256:     emptyInputDigest(),
 			ClosureStateDigestSHA256:      emptyInputDigest(),
 			ExistingQuestionsDigestSHA256: emptyInputDigest(),

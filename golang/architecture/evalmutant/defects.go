@@ -104,6 +104,32 @@ func Ship(account string, weight int) int {
 }
 `,
 
+		// A governed awareness corpus, so a mutant is a SENSEI-ONBOARDED
+		// repository rather than a bare tree.
+		//
+		// Without one there is no graph to bind, and investigator.Compose
+		// requires a real graph digest that agrees with the extraction's
+		// binding -- so the model-disabled composition arm #131 section 5 asks
+		// for could not run at all. Every world this issue evaluates (worlds
+		// 1-3) examines a repository that HAS governed knowledge, so a mutant
+		// with none was never going to exercise the path they care about.
+		//
+		// Deliberately small: it states the one architectural rule the suite's
+		// dependency-direction defect violates, so the graph says something a
+		// composition arm could actually reason against, without turning the
+		// mutant into a second corpus to maintain.
+		"docs/awareness/invariants.yaml": `invariants:
+  - id: eval.storage_must_not_depend_on_service
+    title: storage must not import the service layer
+    severity: critical
+    description: >-
+      The documented dependency direction runs service -> storage. Storage is
+      the lower layer and must not import the layer above it.
+    protects:
+      files:
+        - storage/storage.go
+        - service/service.go
+`,
 		"docs/claims.md": `# Governed claims
 
 - claim.rate_limit_single_authority — rate limiting is decided only in
