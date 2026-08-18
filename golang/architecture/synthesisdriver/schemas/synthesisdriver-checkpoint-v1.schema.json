@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesisdriver-checkpoint-v1.json",
+  "title": "Sensei Bounded Synthesis Driver Checkpoint V1",
+  "description": "The durable O7 continuation boundary: the exact nonterminal O1 state, accepted interpretation/plan, accumulated evidence references, execution-boundary identities re-observed on resume, and immutable step accounting. Carries no admission, application, completion, or GitHub authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "checkpoint_id",
+    "generated_by",
+    "sequence",
+    "previous_checkpoint_digest_sha256",
+    "session_state",
+    "interpretation",
+    "plan",
+    "candidate_artifact_digest_sha256",
+    "trace",
+    "steps_consumed",
+    "max_steps",
+    "repository_domain",
+    "base_revision",
+    "workspace_identity_digest_sha256",
+    "graph_authority_digest_sha256",
+    "task_id",
+    "task_session_digest_sha256",
+    "task_control_state_digest_sha256",
+    "task_control_generation",
+    "closure_report_digest_sha256",
+    "run_started_at",
+    "observed_at",
+    "checkpoint_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesisdriver.checkpoint.v1" },
+    "checkpoint_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "const": "sensei-synthesis-driver" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "previous_checkpoint_digest_sha256": { "$ref": "#/$defs/optionalSha256" },
+    "session_state": { "$ref": "#/$defs/sessionState" },
+    "interpretation": { "type": ["object", "null"] },
+    "plan": { "type": ["object", "null"] },
+    "candidate_artifact_digest_sha256": { "$ref": "#/$defs/optionalSha256" },
+    "trace": { "$ref": "#/$defs/trace" },
+    "steps_consumed": { "type": "integer", "minimum": 0 },
+    "max_steps": { "type": "integer", "minimum": 1 },
+    "repository_domain": { "type": "string", "minLength": 1 },
+    "base_revision": { "type": "string", "minLength": 1 },
+    "workspace_identity_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "graph_authority_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "task_id": { "type": "string", "minLength": 1 },
+    "task_session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "task_control_state_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "task_control_generation": { "type": "integer", "minimum": 0 },
+    "closure_report_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "run_started_at": { "type": "string", "minLength": 1 },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "checkpoint_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "comment": "A first checkpoint has no predecessor; every later one names exactly which checkpoint it continues.",
+      "if": { "properties": { "sequence": { "const": 1 } }, "required": ["sequence"] },
+      "then": { "properties": { "previous_checkpoint_digest_sha256": { "type": "null" } } },
+      "else": { "properties": { "previous_checkpoint_digest_sha256": { "$ref": "#/$defs/sha256Hex" } } }
+    },
+    {
+      "comment": "Evaluating is not a durable boundary: O4 resolves it within one owner call, so serializing it would fake a durable handoff. Terminal phases are reloadable but start no new work, so they are not written as continuation checkpoints either.",
+      "properties": {
+        "session_state": {
+          "properties": {
+            "phase": { "enum": ["created", "planning", "planned", "attempting", "retry", "replan"] }
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "optionalSha256": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/sha256Hex" }]
+    },
+    "optionalDigestField": {
+      "oneOf": [{ "type": "string", "maxLength": 0 }, { "$ref": "#/$defs/sha256Hex" }]
+    },
+    "digestList": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sha256Hex" }
+    },
+    "trace": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "o2_receipt_digests_sha256",
+        "interpretation_closure_receipt_digests_sha256",
+        "runner_receipt_digests_sha256",
+        "evaluation_receipt_digests_sha256"
+      ],
+      "properties": {
+        "o2_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+        "interpretation_closure_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+        "runner_receipt_digests_sha256": { "$ref": "#/$defs/digestList" },
+        "evaluation_receipt_digests_sha256": { "$ref": "#/$defs/digestList" }
+      }
+    },
+    "sessionState": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "session",
+        "phase",
+        "interpretation_digest_sha256",
+        "plan_generation",
+        "attempt_number",
+        "expected_plan_generation",
+        "expected_attempt_number",
+        "latest_plan_digest_sha256",
+        "latest_attempt_digest_sha256",
+        "latest_evaluation_digest_sha256",
+        "remaining_retry_budget",
+        "remaining_replan_budget",
+        "receipt"
+      ],
+      "properties": {
+        "session": { "type": "object" },
+        "phase": {
+          "enum": [
+            "created",
+            "planning",
+            "planned",
+            "attempting",
+            "evaluating",
+            "retry",
+            "replan",
+            "succeeded",
+            "failed"
+          ]
+        },
+        "interpretation_digest_sha256": { "$ref": "#/$defs/optionalDigestField" },
+        "plan_generation": { "type": "integer", "minimum": 0 },
+        "attempt_number": { "type": "integer", "minimum": 0 },
+        "expected_plan_generation": { "type": "integer", "minimum": 0 },
+        "expected_attempt_number": { "type": "integer", "minimum": 0 },
+        "latest_plan_digest_sha256": { "$ref": "#/$defs/optionalDigestField" },
+        "latest_attempt_digest_sha256": { "$ref": "#/$defs/optionalDigestField" },
+        "latest_evaluation_digest_sha256": { "$ref": "#/$defs/optionalDigestField" },
+        "remaining_retry_budget": { "type": "integer", "minimum": 0 },
+        "remaining_replan_budget": { "type": "integer", "minimum": 0 },
+        "receipt": { "type": ["object", "null"] }
+      }
+    }
+  }
+}
