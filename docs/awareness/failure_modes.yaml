@@ -1639,3 +1639,14 @@ failure_modes:
       - meta.single_derivation_path_must_reach_its_consumer
     evidence:
       - 'prepare-change synthesizes a control probe during convergence and then refuses it (''probe command must be copied exactly from a sourced Evidence node''), and advance-task -- the remediation its own error text recommends -- fails on that same probe when loading control probes. synthesis-run then stops at closure-digest-unavailable before reaching the governed driver. Deterministic across runs and across --mode modify and --mode inspect. Found by the #149 CLI smoke on its first real end-to-end run.'
+  - id: failure.composition_cannot_be_evaluated_on_a_repository_with_no_grap
+    title: Composition cannot be evaluated on a repository with no graph, and zero candidates hides why
+    protects:
+      files:
+        - golang/architecture/evalharness/composition.go
+    related_invariants:
+      - meta.single_derivation_path_must_reach_its_consumer
+    required_tests:
+      - golang/architecture/evalharness/composition_test.go:TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
+    evidence:
+      - investigator.Compose mandates five explicit SHA256 input digests with no unavailable status, and the composed document's receipt graph digest is validated against its binding's repository graph digest. A synthetic mutant has no graph, so supplying digests without a binding is refused and making them agree would declare a resolved graph digest for a repository that has none. Observed as candidates 0/9 while HOW produced 27-38 observations per mutant, a count that reads as composition found nothing unless the arm states that composition never ran. Resolved by onboarding the mutants with their own awareness corpus so the digest is earned.

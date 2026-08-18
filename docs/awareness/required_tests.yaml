@@ -1641,3 +1641,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_governed_disposition_with_no_exit_code_case_was_reported_t
+  - id: golang/architecture/evalharness/composition_test.go:TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
+    title: A zero candidate count is distinguished from composition not running
+    protects:
+      failure_modes:
+        - failure.composition_cannot_be_evaluated_on_a_repository_with_no_grap

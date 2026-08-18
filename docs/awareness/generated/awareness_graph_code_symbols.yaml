@@ -11002,6 +11002,47 @@ test_symbols:
     package: evalharness
     language: go
     doc: "Required inputs are required. A harness that defaulted them would produce a\nreport bound to whatever checkout it happened to run inside."
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmCoversEveryMutantAndTheControl
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionArmCoversEveryMutantAndTheControl
+    package: evalharness
+    language: go
+    doc: "The arm must cover every mutant plus the clean control, and the control must\ngo through the identical path — an arm whose numbers on a clean tree are\nindistinguishable from its numbers on a mutated one has said something\nimportant, and only running both reveals it."
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmEnforcesRequiredInputs
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionArmEnforcesRequiredInputs
+    package: evalharness
+    language: go
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmIsComparableToTheDeterministicFloor
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionArmIsComparableToTheDeterministicFloor
+    package: evalharness
+    language: go
+    doc: "THE point of a second arm. Composition must be reported alongside the\ndeterministic floor, or its cost cannot be judged. This test does not require\ncomposition to WIN — a composition layer that recovers no more than\nextraction is a real and reportable finding, and #131 exists to measure that,\nnot to confirm a hope."
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmNeverClaimsToHaveNamedADefect
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionArmNeverClaimsToHaveNamedADefect
+    package: evalharness
+    language: go
+    doc: "The honesty requirement, same as the deterministic arm's. A candidate is\nadvisory; this arm has no mechanism to decide that a candidate matched the\nintended defect, so it must never claim it did."
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmTypesAnUnavailableWhyRatherThanReportingZero
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionArmTypesAnUnavailableWhyRatherThanReportingZero
+    package: evalharness
+    language: go
+    doc: "A WHY or composition that could not run must be TYPED, never left to be\ninferred from a zero candidate count. Otherwise an infrastructure failure\nreads as a negative result about the arm's capability."
+  - id: golang/architecture/evalharness/composition_test.go:TestCompositionReportIsReproducible
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestCompositionReportIsReproducible
+    package: evalharness
+    language: go
+    doc: "Reproducibility is a completion criterion of the evaluation."
+  - id: golang/architecture/evalharness/composition_test.go:TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestZeroCandidatesIsDistinguishedFromCompositionNotRunning
+    package: evalharness
+    language: go
+    doc: "The most dangerous number this arm can report is a zero candidate count,\nbecause it has two completely different meanings: composition ran and found\nnothing (a real result about capability), or composition never ran (a\nstructural limit that says nothing about capability).\n\nToday it is the second: a synthetic mutant has no graph to bind, so the\ncomposition step is refused. The report must say which, in its own\nlimitations, rather than leaving a reader to assume the flattering reading."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
