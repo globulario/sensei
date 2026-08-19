@@ -3,6 +3,7 @@
 package extractor_test
 
 import (
+	"github.com/globulario/sensei/internal/repofixture"
 	"testing"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -93,8 +94,8 @@ contracts:
 	}
 
 	subj := rdf.MintIRI(rdf.ClassContract, "contract.repo_fork_and_view_nontty_scriptability")
-	file := rdf.MintIRI(rdf.ClassSourceFile, "command/repo.go")
-	testFile := rdf.MintIRI(rdf.ClassSourceFile, "command/repo_test.go")
+	file := rdf.MintSourceFileIRI(repofixture.DefaultDomain, "command/repo.go")
+	testFile := rdf.MintSourceFileIRI(repofixture.DefaultDomain, "command/repo_test.go")
 
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropType)+" "+rdf.IRI(rdf.ClassContract)+" .")
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropKind)+` "invariant"`)

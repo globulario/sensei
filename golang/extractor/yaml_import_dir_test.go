@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -33,7 +34,7 @@ func makeDir(t *testing.T, files map[string]string) string {
 
 func importDir(t *testing.T, dir string) (*extractor.ImportReport, string) {
 	t.Helper()
-	return importDirWithOpts(t, dir, extractor.ImportDirOptions{})
+	return importDirWithOpts(t, dir, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 }
 
 func importDirWithOpts(t *testing.T, dir string, opts extractor.ImportDirOptions) (*extractor.ImportReport, string) {
@@ -75,7 +76,7 @@ authority_rules:
 `,
 	})
 
-	report, out := importDirWithOpts(t, root, extractor.ImportDirOptions{SkipNestedGenerated: true})
+	report, out := importDirWithOpts(t, root, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain, SkipNestedGenerated: true})
 
 	// All 3 files must appear in the report — none silently hidden.
 	if len(report.Files) != 3 {
@@ -121,7 +122,7 @@ code_symbols:
 `,
 	})
 
-	report, out := importDirWithOpts(t, root, extractor.ImportDirOptions{SkipNestedGenerated: true})
+	report, out := importDirWithOpts(t, root, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain, SkipNestedGenerated: true})
 
 	if strings.Contains(out, "generated.symbol") {
 		t.Fatalf("nested generated/ content leaked into parent import output")

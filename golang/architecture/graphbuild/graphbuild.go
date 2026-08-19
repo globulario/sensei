@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/globulario/sensei/golang/rdf"
 	"os"
 
 	"github.com/globulario/sensei/golang/extractor"
@@ -69,6 +70,16 @@ type SourceRoot struct {
 
 	// SkipNestedGenerated skips nested generated/ directories during the walk.
 	SkipNestedGenerated bool
+
+	// RepositoryIdentity is the canonical repository identity every
+	// SourceFile subject compiled from this tree is scoped to (issue #197).
+	// Empty means "resolve it from the tree itself" -- Compile walks up
+	// from IdentityRoot for the nearest checkout that configures one, which
+	// is what makes a cross-repo source root attribute the other
+	// repository's files to the other repository. A tree whose repository
+	// identity cannot be resolved is refused, never compiled with unscoped
+	// SourceFile identities.
+	RepositoryIdentity string
 
 	// CustodyRoot is the project root whose governed provenance records decide
 	// which documents in this tree the repository may author. Empty disables the
@@ -202,6 +213,10 @@ func Compile(ctx context.Context, req CompileRequest) (Compilation, error) {
 		if !info.IsDir() {
 			return Compilation{}, fmt.Errorf("graphbuild: %s is not a directory", root.FilesystemPath)
 		}
+		repositoryIdentity, identityErr := resolveSourceRootRepositoryIdentity(root)
+		if identityErr != nil {
+			return Compilation{}, fmt.Errorf("graphbuild: %s: %w", root.FilesystemPath, identityErr)
+		}
 		emitter, rep, err := extractor.ImportAwarenessDirWithOpts(root.FilesystemPath, &raw, extractor.ImportDirOptions{
 			DefaultRepo:         root.RepositoryDomain,
 			DefaultDomain:       root.DefaultDomain,
@@ -209,6 +224,7 @@ func Compile(ctx context.Context, req CompileRequest) (Compilation, error) {
 			StripPathPrefixes:   root.StripPathPrefixes,
 			SkipNestedGenerated: root.SkipNestedGenerated,
 			CustodyRoot:         root.CustodyRoot,
+			RepositoryIdentity:  repositoryIdentity,
 		})
 		if err != nil {
 			return Compilation{}, fmt.Errorf("graphbuild: import %s: %w", root.FilesystemPath, err)
@@ -232,6 +248,13 @@ func Compile(ctx context.Context, req CompileRequest) (Compilation, error) {
 	canonical, unique, dup := canonicalGraph(raw.Bytes())
 	if errs := extractor.ValidateNTriples(bytes.NewReader(canonical)); len(errs) > 0 {
 		return Compilation{}, fmt.Errorf("graphbuild: compiled graph has %d N-Triples validation error(s): %s", len(errs), errs[0].Error())
+	}
+	// One identity generation per publication (issue #197). Every mint in
+	// this codebase is repository-scoped now, so a v1 identity can only
+	// reach here from an input compiled before the boundary -- exactly the
+	// case a reader could not disentangle.
+	if err := rdf.CheckSourceFileGeneration(canonical); err != nil {
+		return Compilation{}, fmt.Errorf("graphbuild: %w", err)
 	}
 	if nestedSkipped {
 		exclusions = append(append([]string{}, exclusions...), exclusionNestedGenerated)
@@ -284,6 +307,13 @@ func Stamp(ctx context.Context, req FinalizeRequest) (Artifact, error) {
 	merged.Write(req.Compilation.CanonicalNTriples)
 
 	deduped, _, dup := extractor.DedupNTriples(merged.Bytes())
+	// The compilation was already checked on its own; recheck the composed
+	// document, because a supplemental graph built before the identity
+	// boundary would otherwise carry unscoped SourceFile subjects into an
+	// otherwise repository-scoped publication (issue #197).
+	if err := rdf.CheckSourceFileGeneration(deduped); err != nil {
+		return Artifact{}, fmt.Errorf("graphbuild: %w", err)
+	}
 	finalNT, marker := seedmeta.AppendMarker(deduped)
 
 	byteSum := sha256.Sum256(finalNT)

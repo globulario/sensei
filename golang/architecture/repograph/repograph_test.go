@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -25,6 +26,7 @@ const testDomain = "github.com/globulario/sensei"
 func seedRepo(t *testing.T) (string, string) {
 	t.Helper()
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, testDomain)
 	if err := os.MkdirAll(filepath.Join(root, "docs", "awareness"), 0o755); err != nil {
 		t.Fatal(err)
 	}

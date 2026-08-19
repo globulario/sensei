@@ -133,6 +133,17 @@ Flags:
 	if detail := strings.TrimSpace(resp.GetGraphFreshnessDetail()); detail != "" {
 		fmt.Printf("  Freshness detail:    %s\n", detail)
 	}
+	// The composed verdict, printed beside freshness rather than instead of
+	// it. Reading freshness alone is what let a health check report green for
+	// a graph that could not govern (issue #176).
+	if authority := resp.GetAuthority(); authority != nil {
+		fmt.Printf("  Authority verdict:   %s\n", strings.ToLower(strings.TrimPrefix(authority.GetVerdict().String(), "AUTHORITY_VERDICT_")))
+		if !authority.GetAuthoritative() {
+			if detail := strings.TrimSpace(authority.GetGraphFreshnessDetail()); detail != "" {
+				fmt.Printf("  Authority detail:    %s\n", detail)
+			}
+		}
+	}
 	if domains := resp.GetAvailableDomains(); len(domains) > 0 {
 		fmt.Println()
 		fmt.Println("Selectable domains:")

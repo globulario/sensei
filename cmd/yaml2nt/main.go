@@ -115,6 +115,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 	fs.Var(&repoInputs, "input-repo", "DIR=REPO: import an awareness directory tagging its untagged nodes to REPO (e.g. github.com/globulario/services), so the graph is filterable per repo (repeatable)")
 	intent := fs.String("intent", "", "path to intent YAML directory (optional); nodes stay in the home domain")
 	intentRepo := fs.String("intent-repo", "", "REPO to tag the -intent directory's nodes to (e.g. github.com/globulario/services), so intents are filterable per repo")
+	repositoryIdentity := fs.String("repository-identity", "", "canonical repository identity every SourceFile subject is scoped to, e.g. github.com/globulario/sensei (default: resolved from the imported tree's own checkout)")
 	output := fs.String("output", "", "output file path; if empty, N-Triples go to stdout")
 	strict := fs.Bool("strict", false, "fail if any YAML file is not imported")
 	validateRefs := fs.Bool("validate-refs", false, "fail on dangling cite-without-define references for ForbiddenFix and Test anchors")
@@ -166,6 +167,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		emitter, report, err := extractor.ImportAwarenessDirWithOpts(inputDir, &buf, extractor.ImportDirOptions{
 			StripPathPrefixes:   pathPrefixes,
 			SkipNestedGenerated: true,
+			RepositoryIdentity:  *repositoryIdentity,
 		})
 		if err != nil {
 			fmt.Fprintf(stderr, "yaml2nt: import %s: %v\n", inputDir, err)

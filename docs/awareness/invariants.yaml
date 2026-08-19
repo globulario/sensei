@@ -2149,3 +2149,30 @@ invariants:
     required_tests:
       - golang/architecture/candidateapply/record_test.go:TestRecordRefusesBrokenLineage
     contract: A post-application verification may describe arbitrary later workspace state, but it may be bound to an O5B application only when it cryptographically and semantically describes the exact artifact that O5B applied. Workspace drift is evidence about the workspace, never retroactive evidence about the application.
+  - id: invariant.sensei.source_file_identity_is_repository_scoped
+    title: A SourceFile identity is a function of repository identity and repo-relative path
+    severity: critical
+    status: active
+    description: 'Two repositories'' README.md files must mint different subjects. The same repository and path must mint the same subject across checkouts, machines, and publication domains. The repository identity is the durable one Sensei''s repository/admission machinery establishes, never the selectable publication domain and never the checkout path: a file belongs to a repository, while a graph domain is a publication scope that may be aliased or rebound. aw:repo stays provenance and is never the identity discriminator. A tree whose repository identity cannot be resolved is refused rather than compiled with unscoped identities, and one publication never exposes both identity generations.'
+    protects:
+      files:
+        - golang/rdf/source_file_identity.go
+        - golang/architecture/graphbuild/source_root_identity.go
+    required_tests:
+      - golang/rdf/source_file_identity_test.go:TestTwoRepositoriesREADMEsMintDifferentSubjects
+      - golang/rdf/source_file_identity_test.go:TestSameRepositoryAndPathIsStableAcrossCheckouts
+      - golang/rdf/source_file_identity_test.go:TestAMixedGenerationPublicationIsRefused
+      - golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoDomainsShareNoSourceFileSubject
+    contract: SourceFileID = f(canonical_repository_identity, canonical_repo_relative_path); the publication domain and the checkout path never participate
+  - id: invariant.sensei.repository_local_identity_is_repository_scoped
+    title: A repository-local entity's identity includes its repository; portable knowledge keeps one identity
+    severity: high
+    status: active
+    description: 'Two repositories scaffolded from the same Sensei corpus hold their own activation rules, high-risk-file policy and guardrails. Under an unscoped identity those collapsed onto one subject, so publishing one repository moved another''s slice. The discriminator is what the identity denotes, never convenience: shipped generic knowledge keeps ONE identity because scoping it would fragment knowledge deliberately identical everywhere, and an unscoped guardrail identity therefore MEANS shared canonical knowledge while a scoped one means a repository''s own policy.'
+    protects:
+      files:
+        - golang/rdf/builder.go
+        - golang/extractor/yaml_import_phaseB.go
+    required_tests:
+      - golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    contract: 'Identity families are classified by what the identity denotes: repository-local entity -> scoped by canonical repository identity; portable/shared canonical knowledge -> one shared identity, custody from governed provenance'

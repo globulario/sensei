@@ -3,6 +3,7 @@
 package extractor_test
 
 import (
+	"github.com/globulario/sensei/internal/repofixture"
 	"strings"
 	"testing"
 
@@ -40,7 +41,7 @@ uml_profiles:
 	assertValidNT(t, out)
 
 	compIRI := strings.Trim(rdf.MintIRI(rdf.ClassComponent, "component.uml_demo"), "<>")
-	sfIRI := strings.Trim(rdf.MintIRI(rdf.ClassSourceFile, "proto/awareness_graph.proto"), "<>")
+	sfIRI := strings.Trim(rdf.MintSourceFileIRI(repofixture.DefaultDomain, "proto/awareness_graph.proto"), "<>")
 
 	// Inline uml on the component.
 	wantTriple(t, out, "<"+compIRI+"> <"+rdf.PropUmlKind+"> \"Component\"", "component umlKind")

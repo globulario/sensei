@@ -185,9 +185,9 @@ func (f failingStore) GraphFreshness(_ context.Context) seedmeta.Verification {
 type fakeStore struct {
 	describe        func(ctx context.Context, iri string) ([]store.Triple, error)
 	describeInbound func(ctx context.Context, iri string) ([]store.InboundTriple, error)
-	impactForFile   func(ctx context.Context, sourceFileIRI string) ([]store.ImpactFact, error)
+	impactForFile   func(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error)
 	classFacts      func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error)
-	codeSymbolFacts func(ctx context.Context, sourceFileIRI string) ([]store.ImpactFact, error)
+	codeSymbolFacts func(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error)
 	detectFacts     func(ctx context.Context) ([]store.ImpactFact, error)
 	countTriples    func(ctx context.Context) (int64, error)
 	countByClass    func(ctx context.Context, classIRI string) (int64, error)
@@ -581,8 +581,8 @@ func TestImpact_UnavailableWhenStoreErrors(t *testing.T) {
 func TestImpact_NoLinkedNodes_ReturnsEmptyDirectLists(t *testing.T) {
 	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, sourceFileIRI string) ([]store.ImpactFact, error) {
-			if sourceFileIRI != "https://globular.io/awareness#sourceFile/test%2Fexample.go" {
-				t.Fatalf("sourceFileIRI=%q unexpected", sourceFileIRI)
+			if sourceFileIRI != "test/example.go" {
+				t.Fatalf("file lookup key = %q, want the repo-relative path", sourceFileIRI)
 			}
 			return nil, nil
 		},
@@ -2116,4 +2116,16 @@ func TestProductionDefaultFailsClosedWithoutAClosureReport(t *testing.T) {
 	if !strings.Contains(auth.GetGraphFreshnessDetail(), string(closure.SemanticClosureUnproven)) {
 		t.Errorf("detail must name the semantic state; got %q", auth.GetGraphFreshnessDetail())
 	}
+}
+
+func (n nopStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (f failingStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (f fakeStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
 }

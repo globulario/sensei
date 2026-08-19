@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -86,7 +87,7 @@ invariants:
 func importGraph(t *testing.T, docsDir string) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if _, _, err := extractor.ImportAwarenessDir(docsDir, &buf); err != nil {
+	if _, _, err := extractor.ImportAwarenessDirWithOpts(docsDir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
 	return buf.String()

@@ -9,7 +9,6 @@ import (
 	"flag"
 	"fmt"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -636,13 +635,16 @@ func repoEvalGoSourceRoot(repoRoot string) (string, error) {
 	return "", fmt.Errorf("cannot find Go source root under %q", repoRoot)
 }
 
+// decodeSourceFilePath recovers the repo-relative path a SourceFile subject
+// denotes, for identities of either generation -- the repository-scoped one
+// and the unscoped one it replaced (issue #197). prefix is accepted for call
+// compatibility and no longer decides the split.
 func decodeSourceFilePath(subj, prefix string) string {
-	enc := strings.TrimPrefix(subj, prefix)
-	dec, err := url.PathUnescape(enc)
-	if err != nil {
-		return enc
+	path, ok := rdf.SourceFilePathFromIRI(subj)
+	if !ok {
+		return strings.TrimPrefix(subj, prefix)
 	}
-	return dec
+	return path
 }
 
 func firstLiteral(rest string) string {

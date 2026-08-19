@@ -71,7 +71,7 @@ func emitArchitectureClaim(e *rdf.Emitter, path string, binding architecture.Cla
 		e.Triple(subj, rdf.IRI(rdf.PropSupersededBy), rdf.MintIRI(rdf.ClassArchitectureClaim, c.SupersededBy))
 	}
 	for _, ref := range c.AboutNodes {
-		if iri, ok := claimReferenceIRI(ref); ok {
+		if iri, ok := claimReferenceIRI(e, ref); ok {
 			e.Triple(subj, rdf.IRI(rdf.PropAboutNode), iri)
 		}
 	}
@@ -111,7 +111,7 @@ func emitClaimAnchors(e *rdf.Emitter, subj string, files, symbols []string) {
 			continue
 		}
 		ensureNode(e, rdf.ClassSourceFile, f)
-		e.Triple(subj, rdf.IRI(rdf.PropAnchoredIn), rdf.MintIRI(rdf.ClassSourceFile, f))
+		e.Triple(subj, rdf.IRI(rdf.PropAnchoredIn), e.SourceFileIRI(f))
 	}
 	for _, s := range symbols {
 		if s = strings.TrimSpace(s); s == "" {
@@ -130,7 +130,7 @@ func evidenceRefIRI(ref string) string {
 	return rdf.MintIRI(rdf.ClassEvidence, ref)
 }
 
-func claimReferenceIRI(ref string) (string, bool) {
+func claimReferenceIRI(e *rdf.Emitter, ref string) (string, bool) {
 	class, id, ok := architecture.ParseClassQualifiedReference(ref)
 	if !ok {
 		return "", false
@@ -147,7 +147,7 @@ func claimReferenceIRI(ref string) (string, bool) {
 	case "symbol":
 		return rdf.MintIRI(rdf.ClassSymbol, id), true
 	case "source_file":
-		return rdf.MintIRI(rdf.ClassSourceFile, id), true
+		return e.SourceFileIRI(id), true
 	case "code_symbol":
 		return rdf.MintIRI(rdf.ClassCodeSymbol, id), true
 	case "forbidden_fix":

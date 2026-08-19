@@ -19,6 +19,7 @@ package main
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"sync"
 
@@ -178,10 +179,34 @@ func (s embeddedSeedStore) nodeFacts(node string) []store.ImpactFact {
 	return out
 }
 
-func (s embeddedSeedStore) ImpactForFile(_ context.Context, fileIRI string) ([]store.ImpactFact, error) {
+// sourceFileIRIsForPath resolves the repository-scoped SourceFile subjects
+// carrying repoRelativePath (issue #197). A caller holding only a path
+// cannot mint the subject, so the path literal in the graph is what it
+// matches on.
+func (s embeddedSeedStore) sourceFileIRIsForPath(repoRelativePath string) []string {
+	var out []string
+	for subject, triples := range s.g.bySubject {
+		for _, t := range triples {
+			if t.pred == rdf.PropRepoRelativePath && t.obj == repoRelativePath {
+				out = append(out, subject)
+				break
+			}
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func (s embeddedSeedStore) SourceFileIRIsForPath(_ context.Context, repoRelativePath string) ([]string, error) {
+	return s.sourceFileIRIsForPath(repoRelativePath), nil
+}
+
+func (s embeddedSeedStore) ImpactForFile(_ context.Context, repoRelativePath string) ([]store.ImpactFact, error) {
 	var out []store.ImpactFact
-	for _, node := range s.g.implements[fileIRI] {
-		out = append(out, s.nodeFacts(node)...)
+	for _, fileIRI := range s.sourceFileIRIsForPath(repoRelativePath) {
+		for _, node := range s.g.implements[fileIRI] {
+			out = append(out, s.nodeFacts(node)...)
+		}
 	}
 	return out, nil
 }

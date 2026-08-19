@@ -64,11 +64,24 @@ func newPreflightTestServer(
 	})
 }
 
-// fileIRI mirrors mintedIRI(ClassSourceFile, path) — used as the map key
-// for perFileFacts.
+// testRepositoryIdentity is the repository the server test fixtures'
+// SourceFile subjects belong to. SourceFile identities are
+// repository-scoped (issue #197), so a fixture IRI names one.
+const testRepositoryIdentity = "github.com/test/repo"
+
+// fileIRI is the repository-scoped SourceFile subject for path, for
+// fixtures that need an actual IRI (an aw:anchoredIn object, say).
+//
+// It is NOT the key impact lookups use: those are keyed by repo-relative
+// path, because the server holds no checkout and so cannot resolve the
+// repository identity a subject would need. See fileKey.
 func fileIRI(path string) string {
-	return mintTestIRI(rdf.ClassSourceFile, path)
+	return strings.Trim(rdf.MintSourceFileIRI(testRepositoryIdentity, path), "<>")
 }
+
+// fileKey is the lookup key ImpactForFile/CodeSymbolFacts receive: the
+// repo-relative path.
+func fileKey(path string) string { return path }
 
 // ────────────────────────────────────────────────────────────────────────
 // 1. Store unavailable → DEGRADED with UNKNOWN_IMPACT (adjustment #1)
@@ -224,7 +237,7 @@ func TestPreflight_FileWithSecurityInvariants_RiskClassSecurity(t *testing.T) {
 	file := "golang/rbac/rbac_server/permissions.go"
 	facts := invariantFacts("security.rbac.deny_overrides_allow", "RBAC deny overrides allow", "high")
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): facts,
+		fileKey(file): facts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "tweak the rbac matcher",
@@ -251,7 +264,7 @@ func TestPreflight_FileAnchoringArchitecture_SurfacesDirectArchitecture(t *testi
 	// Duplicate the component anchor to exercise dedupNodesByID.
 	facts = append(facts, anchorFacts(rdf.ClassComponent, "server.preflight", "Preflight handler", "info")...)
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): facts,
+		fileKey(file): facts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "edit the preflight handler",
@@ -278,7 +291,7 @@ func TestPreflight_FileWithConvergenceInvariants_RiskClassConvergence(t *testing
 	file := "golang/cluster_controller/reconciler.go"
 	facts := invariantFacts("convergence.installed_state_drift", "installed vs desired drift", "high")
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): facts,
+		fileKey(file): facts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "reconciler tweak",
@@ -297,7 +310,7 @@ func TestPreflight_FileWithDataLossKeyword_RiskClassDataLoss(t *testing.T) {
 	file := "golang/node_agent/node_agent_server/scylla_install.go"
 	facts := invariantFacts("scylla.format_json_rewrite", "blob missing after reformat", "high")
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): facts,
+		fileKey(file): facts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "scylla install tweak",
@@ -360,7 +373,7 @@ func TestPreflight_ConfidenceTieredByAnchorCount(t *testing.T) {
 		invariantFacts("benign.two", "two", "info")...),
 		invariantFacts("benign.three", "three", "info")...)
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): threeFacts,
+		fileKey(file): threeFacts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "tweak echo server",
@@ -373,7 +386,7 @@ func TestPreflight_ConfidenceTieredByAnchorCount(t *testing.T) {
 	// Single-anchor file → MEDIUM.
 	oneFile := "golang/echo/echo_server/single.go"
 	s = newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(oneFile): invariantFacts("benign.solo", "solo", "info"),
+		fileKey(oneFile): invariantFacts("benign.solo", "solo", "info"),
 	}, false)
 	resp, _ = s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Task:  "tweak echo server",
@@ -409,7 +422,7 @@ func TestPreflight_StandardModeHasMoreEntriesThanCompact(t *testing.T) {
 	}
 	build := func(mode awarenesspb.PreflightMode) *awarenesspb.PreflightResponse {
 		s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-			fileIRI(file): many,
+			fileKey(file): many,
 		}, false)
 		resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 			Files: []string{file},
@@ -556,7 +569,7 @@ func TestPreflight_HighRiskWithAnchorsDoesNotDegrade(t *testing.T) {
 	file := "golang/cluster_doctor/cluster_doctor_server/rules/heal_policy.go"
 	facts := invariantFacts("benign.documented", "documented invariant", "info")
 	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
-		fileIRI(file): facts,
+		fileKey(file): facts,
 	}, false)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		Files: []string{file},

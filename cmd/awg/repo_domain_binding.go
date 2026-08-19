@@ -16,6 +16,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/repodomain"
@@ -196,7 +197,63 @@ func establishRepositoryDomain(root, explicitFlag string) (establishmentResult, 
 		}
 		res.Written = true
 	}
+	// Also declare it in the COMMITTED corpus. .sensei/ is gitignored local
+	// runtime state, so an identity that lives only there is absent from
+	// every fresh clone — and SourceFile subjects are scoped to it (issue
+	// #197), so the same file would mint a different subject depending on
+	// where it was checked out. The declaration travels with the repository.
+	if res.Domain != "" {
+		if err := writeRepositoryDeclaration(root, res.Domain); err != nil {
+			return res, err
+		}
+	}
 	return res, nil
+}
+
+// writeRepositoryDeclaration writes the committed repository-identity
+// declaration at sensei-repository.yaml. An existing declaration is
+// never rewritten — the same "configured identity is preserved, not
+// silently overwritten" law establishRepositoryDomain applies to the local
+// config (contract §3.4). A declaration that disagrees with the domain just
+// established is reported rather than replaced, because which of the two is
+// right is not this function's call.
+func writeRepositoryDeclaration(root, domain string) error {
+	path := repodomain.DeclarationPath(root)
+	if existing, err := os.ReadFile(path); err == nil {
+		var cfg repoDomainConfig
+		if err := yaml.Unmarshal(existing, &cfg); err != nil {
+			return fmt.Errorf("declared repository identity at %s is malformed: %w", path, err)
+		}
+		declared := strings.TrimSpace(cfg.Repository.Domain)
+		if declared != "" && declared != domain {
+			return fmt.Errorf("declared repository identity at %s is %q, but %q was established; align them rather than having two answers", path, declared, domain)
+		}
+		if declared == domain {
+			return nil
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("read %s: %w", path, err)
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return err
+	}
+	content := `# Canonical repository identity.
+#
+# Declares WHICH REPOSITORY this corpus and its source files belong to. It is
+# the identity every SourceFile graph subject is scoped to, so that two
+# repositories' README.md files mint different subjects instead of collapsing
+# onto one.
+#
+# Committed on purpose: .sensei/config.yaml carries the same value for a local
+# checkout, but .sensei/ is gitignored runtime state, so a fresh clone would
+# carry no identity at all. Identity has to travel with the repository.
+#
+# Not the publication domain: ` + "`sensei build --repo <domain>`" + ` selects a
+# publication scope, which may be aliased or rebound; a file's repository does
+# not change when it is published somewhere else.
+repository:
+  domain: ` + domain + "\n"
+	return os.WriteFile(path, []byte(content), 0o644)
 }
 
 // writeRepositoryDomain sets repository.domain in root's .sensei/config.yaml,

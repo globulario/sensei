@@ -194,7 +194,7 @@ func TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph(t *testing.T)
 			return marker.TripleCount, nil
 		},
 		impactFn: func(_ context.Context, sourceFileIRI string) ([]store.ImpactFact, error) {
-			want := fileIRI("modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go")
+			want := "modules/caddyhttp/reverseproxy/forwardauth/caddyfile.go"
 			if sourceFileIRI != want {
 				t.Fatalf("ImpactForFile called with %q, want %q", sourceFileIRI, want)
 			}
@@ -219,4 +219,8 @@ func TestBriefing_RuntimeMarkerAllowsNonEmbeddedAuthoritativeGraph(t *testing.T)
 	if !strings.Contains(resp.GetProse(), "Caddy forwardauth invariant") {
 		t.Fatalf("briefing prose=%q, want invariant label", resp.GetProse())
 	}
+}
+
+func (r runtimeMarkerStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
 }

@@ -901,6 +901,18 @@ message MetadataResponse {
   // non-authoritative, explicit-query-only, and do not affect coverage,
   // readiness, freshness, risk, or governed-architecture verdicts.
   int64 evidence_probe_count = 66;
+
+  // The SAME composed authority verdict every graph-backed surface returns:
+  // freshness AND the closure proof bound to this publication AND the
+  // transaction certification — not freshness alone.
+  //
+  // Metadata used to report freshness only, and freshness alone reads
+  // "authoritative, CURRENT" for a store whose closure report vouches for a
+  // different publication. Monitoring reaches for the cheap surface, so a
+  // green health check could stand right up to the moment a governed run
+  // started and preflight refused (globulario/sensei#176). Both surfaces now
+  // answer from graphAuthorityFromSnapshot, so they cannot disagree.
+  GraphAuthority authority = 67;
 }
 
 // ─── Governance Graph Phase-1 schema ───────────────────────────────────────

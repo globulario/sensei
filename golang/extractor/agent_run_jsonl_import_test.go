@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"testing"
 
 	"github.com/globulario/sensei/golang/extractor"
@@ -17,7 +18,7 @@ const sampleAgentRunJSONL = `{"id":"run.example","agent_name":"claude","model_na
 func TestAgentRunJSONLImporter(t *testing.T) {
 	var buf bytes.Buffer
 	root := makeDir(t, map[string]string{"agent_runs/runs.jsonl": sampleAgentRunJSONL})
-	_, report, err := extractor.ImportAwarenessDir(root, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -38,7 +39,7 @@ func TestAgentRunJSONLImporter(t *testing.T) {
 func TestAgentScorecardLinksToOutcomeFeedback(t *testing.T) {
 	var buf bytes.Buffer
 	root := makeDir(t, map[string]string{"agent_runs/runs.jsonl": sampleAgentRunJSONL})
-	if _, _, err := extractor.ImportAwarenessDir(root, &buf); err != nil {
+	if _, _, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
 	out := buf.String()

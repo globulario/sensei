@@ -142,9 +142,9 @@ func importCodeSymbols(e *rdf.Emitter, path string) error {
 		// definedInFile edge: CodeSymbol → SourceFile
 		if sym.File != "" {
 			ensureNode(e, rdf.ClassSourceFile, sym.File)
-			e.Triple(subj, rdf.IRI(rdf.PropDefinedInFile), rdf.MintIRI(rdf.ClassSourceFile, sym.File))
+			e.Triple(subj, rdf.IRI(rdf.PropDefinedInFile), e.SourceFileIRI(sym.File))
 			if sym.Language != "" {
-				e.Triple(rdf.MintIRI(rdf.ClassSourceFile, sym.File), rdf.IRI(rdf.PropLanguage), rdf.Lit(sym.Language))
+				e.Triple(e.SourceFileIRI(sym.File), rdf.IRI(rdf.PropLanguage), rdf.Lit(sym.Language))
 			}
 		}
 
@@ -167,7 +167,7 @@ func importCodeSymbols(e *rdf.Emitter, path string) error {
 		}
 		if test.File != "" {
 			ensureNode(e, rdf.ClassSourceFile, test.File)
-			e.Triple(subj, rdf.IRI(rdf.PropDefinedInFile), rdf.MintIRI(rdf.ClassSourceFile, test.File))
+			e.Triple(subj, rdf.IRI(rdf.PropDefinedInFile), e.SourceFileIRI(test.File))
 		}
 		if test.Package != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropComment), rdf.Lit("package: "+test.Package))
@@ -253,7 +253,7 @@ func importCodeReferences(e *rdf.Emitter, path string) error {
 func emitCodeAnnotationEdges(e *rdf.Emitter, subj, file string, ann yamlCodeAnnotations) {
 	fileIRI := ""
 	if file != "" {
-		fileIRI = rdf.MintIRI(rdf.ClassSourceFile, file)
+		fileIRI = e.SourceFileIRI(file)
 	}
 
 	for _, id := range ann.Implements {

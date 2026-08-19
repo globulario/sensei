@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -89,7 +90,7 @@ func importDialogueFixture(t *testing.T, yamlText string) string {
 		t.Fatalf("write fixture: %v", err)
 	}
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -105,7 +106,7 @@ func TestArchitectureDialogueSchemaDetected(t *testing.T) {
 		t.Fatalf("write fixture: %v", err)
 	}
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -188,7 +189,7 @@ func TestArchitectureDialogueImporterRejectsMalformedDocument(t *testing.T) {
 		t.Fatalf("write fixture: %v", err)
 	}
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}

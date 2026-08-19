@@ -142,7 +142,7 @@ func importRepairPlan(e *rdf.Emitter, path string) error {
 		if f = strings.TrimSpace(f); f == "" {
 			continue
 		}
-		fileSubj := rdf.MintIRI(rdf.ClassSourceFile, f)
+		fileSubj := e.SourceFileIRI(f)
 		e.Typed(fileSubj, rdf.ClassSourceFile)
 		e.Triple(subj, rdf.IRI(rdf.PropExpressedBy), fileSubj)
 		e.Triple(fileSubj, rdf.IRI(rdf.PropImplements), subj)
@@ -161,7 +161,7 @@ func emitRefEdges(e *rdf.Emitter, subj, prop string, refs []string) {
 		if ref == "" {
 			continue
 		}
-		if iri, ok := knowledgeRefToIRI(ref); ok {
+		if iri, ok := knowledgeRefToIRI(e, ref); ok {
 			e.Triple(subj, rdf.IRI(prop), iri)
 		}
 	}
@@ -173,7 +173,7 @@ func emitRefOrBareEdges(e *rdf.Emitter, subj, prop, classIRI string, refs []stri
 		if ref == "" {
 			continue
 		}
-		if iri, ok := knowledgeRefToIRI(ref); ok {
+		if iri, ok := knowledgeRefToIRI(e, ref); ok {
 			e.Triple(subj, rdf.IRI(prop), iri)
 			continue
 		}

@@ -235,7 +235,7 @@ func emitContractFileAnchors(e *rdf.Emitter, subj string, files []string) {
 			e.Triple(subj, rdf.IRI(rdf.PropCoversPath), rdf.Lit(f))
 			continue
 		}
-		fileSubj := rdf.MintIRI(rdf.ClassSourceFile, f)
+		fileSubj := e.SourceFileIRI(f)
 		e.Typed(fileSubj, rdf.ClassSourceFile)
 		e.Triple(subj, rdf.IRI(rdf.PropExpressedBy), fileSubj)
 		e.Triple(fileSubj, rdf.IRI(rdf.PropImplements), subj)
@@ -285,7 +285,7 @@ func emitContractKnowledgeAnchors(e *rdf.Emitter, subj string, c frozenContract)
 		if ref == "" {
 			continue
 		}
-		iri, ok := knowledgeRefToIRI(ref)
+		iri, ok := knowledgeRefToIRI(e, ref)
 		if !ok {
 			continue
 		}

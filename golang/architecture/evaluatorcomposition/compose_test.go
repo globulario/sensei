@@ -27,9 +27,25 @@ func checkpoint5ReadyFixture(t *testing.T, configure func(*EvaluationPolicy)) (r
 		t.Fatal(err)
 	}
 	if checkpoint.SessionState.Phase != synthesis.PhaseEvaluating || checkpoint.Candidate == nil || checkpoint.Receipt != nil {
-		t.Fatalf("fixture did not produce a successful checkpoint-3 result: %+v", checkpoint)
+		// Name the terminal receipt's own disposition and detail. %+v
+		// prints Receipt as a bare pointer, so a failure here otherwise
+		// reports the phase it ended in and nothing about why -- which is
+		// exactly what it cost to diagnose the intermittent
+		// candidate-load-failure in issue #214.
+		t.Fatalf("fixture did not produce a successful checkpoint-3 result: phase=%q candidate=%v receipt=%s state=%+v",
+			checkpoint.SessionState.Phase, checkpoint.Candidate != nil, describeCheckpointReceipt(checkpoint.Receipt), checkpoint.SessionState)
 	}
 	return handoff, checkpoint, policy
+}
+
+// describeCheckpointReceipt renders the fields that say why a terminal
+// receipt exists at all, for fixture failures that would otherwise print a
+// bare pointer.
+func describeCheckpointReceipt(receipt *EvaluationReceipt) string {
+	if receipt == nil {
+		return "<nil>"
+	}
+	return fmt.Sprintf("{disposition=%q failure_detail=%q}", receipt.Disposition, receipt.FailureDetail)
 }
 
 func finishCheckpoint5Policy(t *testing.T, policy EvaluationPolicy) EvaluationPolicy {

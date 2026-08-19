@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"strings"
 	"testing"
 
@@ -17,7 +18,7 @@ func importSymbolsYAML(t *testing.T, filename, content string) string {
 	t.Helper()
 	root := makeDir(t, map[string]string{filename: content})
 	var buf bytes.Buffer
-	_, _, err := extractor.ImportAwarenessDir(root, &buf)
+	_, _, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}

@@ -477,6 +477,14 @@ aw:authoredIn a owl:DatatypeProperty ; rdfs:label "authored in" ;
 # Code-annotation provenance — used when a triple comes from @-annotations in source code,
 # not from a YAML file. Records the file, the symbol (if function-scoped), and the line.
 aw:atFile    a owl:DatatypeProperty ; rdfs:label "annotated in file" ; rdfs:range xsd:string .
+
+# aw:repoRelativePath is a SourceFile's own repo-relative path, as queryable
+# data. A SourceFile subject is scoped to the repository that owns it, so a
+# reader holding only a path cannot reconstruct the subject by minting from
+# the path — it matches on this literal instead. It is also the honest
+# modelling: the path is a property of the file, not something to decode back
+# out of its identity. Domain: aw:SourceFile.
+aw:repoRelativePath a owl:DatatypeProperty ; rdfs:label "repo-relative path" ; rdfs:range xsd:string .
 aw:atSymbol  a owl:DatatypeProperty ; rdfs:label "annotated on symbol" ; rdfs:range xsd:string .
 aw:atLine    a owl:DatatypeProperty ; rdfs:label "annotated at line" ; rdfs:range xsd:integer .
 

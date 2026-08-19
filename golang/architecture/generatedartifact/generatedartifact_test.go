@@ -4,6 +4,7 @@ package generatedartifact
 
 import (
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,6 +28,7 @@ const testInvariants = `invariants:
 func testContext(t *testing.T) (string, Context) {
 	t.Helper()
 	repo := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, repo, testDomain)
 	writeFile(t, filepath.Join(repo, "docs", "awareness", "invariants.yaml"), testInvariants)
 	writeFile(t, filepath.Join(repo, "src", "model.go"), "package src\n\nfunc Publish() {}\n")
 

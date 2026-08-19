@@ -1682,3 +1682,41 @@ failure_modes:
       - invariant.synthesis.declared_digest_must_equal_computed_content_digest
     evidence:
       - in scripts/synthesis-run-smoke.sh the applied worktree verifies scope_compliant via sensei verify-admission, but sensei synthesis-apply --verification then exits 6 (previously consumed), because the only command that attaches a verification is the one that performs the application
+  - id: failure.runnercomposition.sealed_entry_opened_through_collectible_dirfd
+    title: Sealed entry opened through a garbage-collectible directory descriptor
+    severity: high
+    description: The candidate artifact store read a bare descriptor number out of os.File.Fd() and handed it to openat(2). os.File closes its descriptor from a garbage-collection cleanup, and by the time openat ran nothing in any live frame referenced the store, so a collection landing in that window closed the descriptor mid-call and freed its number for reissue to an unrelated file. The entry was then resolved against a directory the store does not own.
+    protects:
+      files:
+        - golang/architecture/runnercomposition/store_openat_unix.go
+    required_tests:
+      - golang/architecture/runnercomposition/store_openat_unix_test.go:TestOpenSealedEntryRefusesADescriptorTheStoreNoLongerOwns
+    evidence:
+      - '64,000 Get calls over freshly constructed store values under forced GC failed 54 times; one error was ''openat <digest>.json: not a directory'', i.e. the reissued number had landed on a regular file'
+      - 'Surfaced as an intermittent CI failure in evaluatorcomposition (#214): a governed required-evaluator-unavailable terminal state produced by GC timing rather than by any evaluator observation'
+    contract: A descriptor used to resolve a sealed entry must be held through a reference the store still owns for the duration of the call
+  - id: failure.sensei.custody_decided_by_flag_while_config_named_another
+    title: Custody decided by a flag while the project config named another endpoint
+    severity: high
+    description: 'sensei build, sensei preflight and sensei governance activate decided where they read or wrote from a flag default while .sensei/config.yaml named a different value they never consulted. The failure is silent and self-consistent: the build reports success and the closure report says PROVEN, and only another domain''s lost proof reveals it.'
+    protects:
+      files:
+        - cmd/awg/endpoint_binding.go
+    required_tests:
+      - cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName
+    evidence:
+      - A throwaway domain was published into a shared services store because an edited store_url was believed to have redirected the build; seven aw:repo tags landed on subjects another domain owned, the global marker rotated, and that domain lost its proof
+    contract: A command must not act on an endpoint that disagrees with the project config the operator reads, unless the operator named it on the command line
+  - id: failure.sensei.cheap_health_surface_read_green_while_graph_could_not_govern
+    title: A cheap health surface read green while the graph could not govern
+    severity: high
+    description: Metadata reported freshness only while preflight checked freshness AND the closure proof AND the transaction certification. A store whose closure report vouched for a different publication therefore read 'authoritative, CURRENT' on the surface monitoring reaches for, and refused on the surface that governs. The repair is one evaluation answering two surfaces, never a second evaluation that agrees today.
+    protects:
+      files:
+        - golang/server/metadata.go
+    related_invariants:
+      - invariant.sensei.repository_local_identity_is_repository_scoped
+    required_tests:
+      - golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    evidence:
+      - 'Observed in issue #176: awareness_metadata reported authoritative/CURRENT for a publication awareness_preflight refused as non-authoritative'

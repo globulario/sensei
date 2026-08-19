@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -265,6 +266,7 @@ func TestBuildRepoCoverageReportTreatsAwarenessOnlyRepoAsNotApplicable(t *testin
 
 func TestGenerateNTWithOwnershipDoesNotApplyServicesFilterForGenericRepo(t *testing.T) {
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	generatedDir := filepath.Join(root, "docs", "awareness", "generated")
 	if err := os.MkdirAll(generatedDir, 0o755); err != nil {
 		t.Fatal(err)

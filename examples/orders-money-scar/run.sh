@@ -84,8 +84,12 @@ for i in $(seq 1 40); do grep -q "listening on" "${WORK}/serve.log" 2>/dev/null 
   [[ $i -eq 40 ]] && { cat "${WORK}/serve.log" >&2; fail "gRPC server did not start"; }; done
 
 echo "==> [3] awg build -strict"
+# This example's project has no git remote, so there is no canonical
+# repository identity to derive. SourceFile subjects are scoped to that
+# identity (globulario/sensei#197), so the example names it here.
 ( cd "${PROJ}" && "${AWG}" build -strict -all -input docs/awareness \
-    -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) || fail "build -strict failed"
+    -store-url "http://127.0.0.1:${OXI_PORT}/store?default" \
+    -repository-identity example.com/orders-money-scar ) || fail "build -strict failed"
 
 echo "==> [4] no Globular seed leak"
 LEAK=$( "${AWG}" resolve -addr "localhost:${GRPC_PORT}" \

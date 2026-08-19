@@ -91,7 +91,7 @@ func importUMLProfiles(e *rdf.Emitter, path string) error {
 		return fmt.Errorf("parse: %w", err)
 	}
 	for _, p := range f.UMLProfiles {
-		iri, ok := knowledgeRefToIRI(p.Node)
+		iri, ok := knowledgeRefToIRI(e, p.Node)
 		if !ok {
 			continue // unknown class prefix — skip rather than mint a bogus node
 		}

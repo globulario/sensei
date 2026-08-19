@@ -33,6 +33,15 @@ type Emitter struct {
 	DefaultDomain    string
 	DefaultSourceSet string
 
+	// RepositoryIdentity is the canonical repository identity every
+	// SourceFile this emitter mints is scoped to (issue #197). It is the
+	// durable identity of the repository the files belong to, NOT
+	// DefaultRepo -- DefaultRepo is the publication domain a build
+	// selects, and a publication scope may be aliased or rebound while a
+	// file's repository does not change. Resolved once, before any
+	// emission, and refused when unresolved: see SourceFileIRI.
+	RepositoryIdentity string
+
 	// typedSubjects/scopedSubjects support FinalizeDefaultScope: every node the
 	// emitter types is recorded; a node that emits its own aw:domain/aw:repo is
 	// marked scoped. At finalize, typed-but-unscoped nodes adopt DefaultRepo — so
@@ -41,6 +50,10 @@ type Emitter struct {
 	// leaking into the untagged home domain.
 	typedSubjects  map[string]bool
 	scopedSubjects map[string]bool
+
+	// sourceFilePaths records which SourceFile subjects already carry their
+	// repoRelativePath literal, so naming one file many times emits it once.
+	sourceFilePaths map[string]bool
 }
 
 // NewEmitter wraps w in a buffered writer. Caller must call Flush before
@@ -114,6 +127,67 @@ func (e *Emitter) FinalizeDefaultScope() {
 		e.Triple(subj, IRI(PropDomain), Lit(DomainRepo))
 		e.Triple(subj, IRI(PropRepo), Lit(e.DefaultRepo))
 	}
+}
+
+// SourceFileIRI mints the repository-scoped identity of one repo-relative
+// source file, scoped to this emitter's RepositoryIdentity. Every
+// SourceFile subject goes through here rather than MintIRI(ClassSourceFile,
+// path), which mints the ambiguous unscoped v1 identity issue #197
+// retired.
+//
+// RepositoryIdentity must already be set; callers that construct an
+// emitter refuse before emitting a single triple when it cannot be
+// resolved, so an unscoped identity is never minted as a fallback. If it
+// is somehow empty here, the resulting identity is deliberately not a
+// valid v1 identity either -- there is no shape this can degrade into
+// that another repository could collide with.
+func (e *Emitter) SourceFileIRI(repoRelativePath string) string {
+	iri := MintSourceFileIRI(e.RepositoryIdentity, repoRelativePath)
+	// Emit the path as queryable data the first time this file is named.
+	// A reader that knows only a path cannot mint the repository-scoped
+	// subject, so the path has to be IN the graph rather than encoded in
+	// an identity a reader is expected to reconstruct.
+	if e.sourceFilePaths == nil {
+		e.sourceFilePaths = map[string]bool{}
+	}
+	if !e.sourceFilePaths[iri] {
+		e.sourceFilePaths[iri] = true
+		e.Triple(iri, IRI(PropRepoRelativePath), Lit(repoRelativePath))
+	}
+	return iri
+}
+
+// GuardrailIRI mints the identity of a REPOSITORY-LOCAL guardrail, scoped
+// to this emitter's RepositoryIdentity.
+//
+// Issue #197's decision required a bounded audit of the guardrail family
+// rather than a bulk rewrite, by what each identity denotes. The audit
+// splits it:
+//
+//   - a repository's activation rules, its high-risk-file policy, and its
+//     operational guardrails are REPOSITORY-LOCAL entities. Every
+//     Sensei-onboarded repository scaffolds them from the same template and
+//     then edits its own, so two repositories' "activation_rule.auto_briefing"
+//     are two different policies -- exactly the collapse SourceFile had.
+//     They take a repository-scoped identity, and go through here;
+//   - shipped generic knowledge (docs/awareness/generic/learning_rules.yaml,
+//     "system-agnostic ... shipped as generic seed content") is
+//     PORTABLE/SHARED canonical knowledge. It keeps ONE shared identity and
+//     mints through MintIRI, because scoping it per repository would
+//     fragment knowledge that is deliberately the same everywhere, and its
+//     custody comes from governed provenance instead (see #178).
+//
+// The two shapes are legible rather than ambiguous: an unscoped guardrail
+// identity means shared canonical knowledge, a scoped one means a
+// repository's own policy.
+func (e *Emitter) GuardrailIRI(id string) string {
+	return IRI(guardrailClassPrefix() + EncodeIRIPath(e.RepositoryIdentity) + "/" + EncodeIRIPath(id))
+}
+
+// guardrailClassPrefix is ".../awareness#guardrail/".
+func guardrailClassPrefix() string {
+	hashIdx := strings.LastIndex(ClassGuardrail, "#")
+	return ClassGuardrail[:hashIdx+1] + lowerFirst(ClassGuardrail[hashIdx+1:]) + "/"
 }
 
 // IRI renders s as an IRI reference token (<s>). Caller is responsible

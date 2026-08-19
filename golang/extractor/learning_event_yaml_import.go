@@ -115,7 +115,7 @@ func importLearningEvent(e *rdf.Emitter, path string) error {
 		e.Triple(subj, rdf.IRI(rdf.PropUsedKnowledgeNode), contractIRI)
 	}
 	for _, ref := range ev.PromotedLessonCandidates {
-		if iri, ok := knowledgeRefToIRI(strings.TrimSpace(ref)); ok {
+		if iri, ok := knowledgeRefToIRI(e, strings.TrimSpace(ref)); ok {
 			e.Triple(subj, rdf.IRI(rdf.PropUsedKnowledgeNode), iri)
 		}
 	}

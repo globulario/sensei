@@ -55,6 +55,7 @@ func runBuild(args []string) int {
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for runtime transaction certification (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for runtime transaction certification (auto-detect)")
 	repo := fs.String("repo", "", "domain/repo to update IN PLACE, e.g. github.com/globulario/services — compiles this repo's slice, tags it to that domain, and replaces ONLY its triples in the store (non-destructive to other domains, shared nodes, and the home slice). Without --repo, a store load requires --all.")
+	repositoryIdentity := fs.String("repository-identity", "", "canonical repository identity every SourceFile subject is scoped to, e.g. github.com/globulario/sensei (default: resolved from the imported tree's own sensei-repository.yaml, or its .sensei/config.yaml)")
 	domain := fs.String("domain", "", "default domain kind for untagged nodes: repo|shared (inferred 'repo' when --repo is set)")
 	sourceSet := fs.String("source-set", "", "default source-set namespace for untagged nodes, e.g. pilot/cli")
 	domainRegistry := fs.String("domain-registry", "", "domain registry binding each domain to its source repository (default: ~/.sensei/domains.yaml)")
@@ -97,6 +98,21 @@ Flags:
 			inputDirs = []string{"docs/awareness"}
 		}
 	}
+	// ENDPOINT CUSTODY — before compiling, before touching the store.
+	//
+	// The store a load mutates is decided here, and the project config
+	// states one too. If they disagree and the operator did not name an
+	// endpoint on the command line, refuse rather than publish into a
+	// store the config does not name (issue #212). --output touches no
+	// store at all, so it is unaffected.
+	if *output == "" {
+		buildRoot, _ := resolveProjectRoot("")
+		if err := requireStoreURLAgreement(fs, buildRoot, *storeURL); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+			return 1
+		}
+	}
+
 	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
 	//
 	// Closure cannot catch a wrong-workspace publication once its certified
@@ -127,7 +143,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "  admission: %s (corpus roots: %s)\n", decision.Source, decision.CorpusRoots)
 	}
 
-	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
+	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1

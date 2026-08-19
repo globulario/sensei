@@ -5,6 +5,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"testing"
@@ -33,6 +34,7 @@ const migInvariants = `invariants:
 func migCorpus(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	dir := filepath.Join(root, "docs", "awareness")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -70,7 +72,7 @@ func TestBuildHelpersDelegateToGraphbuild(t *testing.T) {
 	root := migCorpus(t)
 	dir := filepath.Join(root, "docs", "awareness")
 
-	raw, _, err := compileAwarenessInputs([]string{dir}, "", "", "", false)
+	raw, _, err := compileAwarenessInputs([]string{dir}, repofixture.DefaultDomain, "", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -4,6 +4,7 @@ package resultpipeline
 
 import (
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -30,6 +31,7 @@ func e2eSeedClean(t *testing.T) (repo, taskDir, resultRev string) {
 	t.Helper()
 	repo = t.TempDir()
 	e2eGit(t, repo, "init", "-q")
+	repofixture.WriteRepositoryIdentity(t, repo, e2eDomain)
 	e2eWrite(t, repo, "docs/awareness/invariants.yaml", e2eInvariants)
 	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n")
 

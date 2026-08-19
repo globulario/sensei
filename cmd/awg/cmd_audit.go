@@ -1458,25 +1458,39 @@ func contractShortID(subj string) string {
 	return s
 }
 
+// iriTokens returns every <...> token in one N-Triples line.
+func iriTokens(line string) []string {
+	var out []string
+	for rest := line; ; {
+		start := strings.IndexByte(rest, '<')
+		if start < 0 {
+			return out
+		}
+		end := strings.IndexByte(rest[start:], '>')
+		if end < 0 {
+			return out
+		}
+		out = append(out, rest[start:start+end+1])
+		rest = rest[start+end+1:]
+	}
+}
+
 func collectFilePathsFromNT(ntBytes []byte) map[string]bool {
 	paths := make(map[string]bool)
 	scanner := bufio.NewScanner(bytes.NewReader(ntBytes))
 	scanner.Buffer(make([]byte, 1<<20), 1<<20)
 	for scanner.Scan() {
 		line := scanner.Text()
-		idx := strings.Index(line, "#sourceFile/")
-		if idx < 0 {
-			continue
+		// Parse each IRI token whole rather than decoding whatever follows
+		// "#sourceFile/": a repository-scoped identity is
+		// "<repo-identity>/<path>", so decoding the remainder would yield
+		// the two joined together instead of the path (issue #197). Both
+		// identity generations are read.
+		for _, iri := range iriTokens(line) {
+			if path, ok := rdf.SourceFilePathFromIRI(iri); ok {
+				paths[path] = true
+			}
 		}
-		rest := line[idx+len("#sourceFile/"):]
-		end := strings.IndexByte(rest, '>')
-		if end < 0 {
-			continue
-		}
-		path := rest[:end]
-		path = strings.ReplaceAll(path, "%2F", "/")
-		path = strings.ReplaceAll(path, "%2f", "/")
-		paths[path] = true
 	}
 	return paths
 }

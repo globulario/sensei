@@ -1056,23 +1056,37 @@ func BuildGraphIndex(triples []graphsnapshot.Triple) GraphIndex {
 	return idx
 }
 
+// canonicalSourceFilePath recovers the repo-relative path a SourceFile IRI
+// denotes, for SourceFile identities of either generation (issue #197):
+// the repository-scoped one and the unscoped one it replaced.
+//
+// The recovered path is still round-tripped through the mint and compared
+// against the original IRI, so an IRI that merely looks decodable but is
+// not one this codebase would have minted is refused rather than half-read.
+// The round trip is against the SAME generation the IRI carries -- checking
+// a repository-scoped IRI against the unscoped mint would reject every
+// current identity, and checking an unscoped one against the scoped mint
+// would require inventing the repository it does not carry.
 func canonicalSourceFilePath(iri, explicit string) string {
 	if explicit != "" {
 		return normalizePath(explicit)
 	}
-	prefix := strings.TrimSuffix(strings.Trim(rdf.MintIRI(rdf.ClassSourceFile, ""), "<>"), "/") + "/"
-	if !strings.HasPrefix(iri, prefix) {
+	parsed, ok := rdf.ParseSourceFileIRI(iri)
+	if !ok {
 		return ""
 	}
-	encoded := strings.TrimPrefix(iri, prefix)
-	if encoded == "" {
-		return ""
-	}
-	decoded := normalizePath(rdf.DecodeIRIPath(encoded))
+	decoded := normalizePath(parsed.Path)
 	if decoded == "" || decoded == "." || filepath.IsAbs(decoded) || strings.HasPrefix(decoded, "../") || strings.Contains(decoded, "/../") || decoded == ".." {
 		return ""
 	}
-	if strings.Trim(rdf.MintIRI(rdf.ClassSourceFile, decoded), "<>") != iri {
+	var reminted string
+	switch parsed.Generation {
+	case rdf.SourceFileGenerationV2:
+		reminted = strings.Trim(rdf.MintSourceFileIRI(parsed.RepositoryIdentity, decoded), "<>")
+	default:
+		reminted = strings.Trim(rdf.MintIRI(rdf.ClassSourceFile, decoded), "<>")
+	}
+	if reminted != strings.Trim(strings.TrimSpace(iri), "<>") {
 		return ""
 	}
 	return decoded

@@ -51,6 +51,27 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
+	if canonicalClass == "source_file" {
+		// A SourceFile subject is repository-scoped (issue #197), so a bare
+		// path does not name one. Look the subject up by its path rather
+		// than minting a subject the graph does not contain.
+		iris, lookupErr := s.store.SourceFileIRIsForPath(ctx, req.GetId())
+		if lookupErr != nil {
+			return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", lookupErr)
+		}
+		if len(iris) == 0 {
+			return &awarenesspb.ResolveResponse{Found: false}, nil
+		}
+		if len(iris) > 1 {
+			// The same path in more than one repository. Reporting the
+			// ambiguity is the honest answer; silently picking one is how
+			// the collapse #197 removed used to read.
+			return nil, status.Errorf(codes.FailedPrecondition,
+				"path %q names a source file in %d repositories; resolve it against one of %v",
+				req.GetId(), len(iris), iris)
+		}
+		iri = iris[0]
+	}
 
 	triples, err := s.store.Describe(ctx, iri)
 	if err != nil {
@@ -228,6 +249,17 @@ func awarenessRelatedID(iri string) (string, bool) {
 	// IDs are copied by agents into Resolve calls, so the id must be the human
 	// form. resolveIRIForClassAndID re-encodes it, so the round-trip is exact.
 	classPart, idPart := rest[:slash], rdf.DecodeIRIPath(rest[slash+1:])
+	// A SourceFile identity carries its repository (issue #197), so its id
+	// is the repo-relative path parsed out of the whole IRI, never the
+	// single segment after the class prefix -- which would be the
+	// repository identity alone.
+	if classPart == "sourceFile" {
+		path, ok := rdf.SourceFilePathFromIRI(iri)
+		if !ok {
+			return "", false
+		}
+		return "source_file:" + path, true
+	}
 	switch classPart {
 	case "invariant":
 		return "invariant:" + idPart, true

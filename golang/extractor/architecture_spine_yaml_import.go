@@ -56,8 +56,8 @@ func emitSpineAnchors(e *rdf.Emitter, subj string, files, symbols []string) {
 			continue
 		}
 		ensureNode(e, rdf.ClassSourceFile, f)
-		e.Triple(subj, rdf.IRI(rdf.PropAnchoredIn), rdf.MintIRI(rdf.ClassSourceFile, f))
-		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+		e.Triple(subj, rdf.IRI(rdf.PropAnchoredIn), e.SourceFileIRI(f))
+		e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 	}
 	for _, s := range symbols {
 		if s = strings.TrimSpace(s); s == "" {

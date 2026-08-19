@@ -112,7 +112,8 @@ grep -q -- "-no-seed" "${WORK}/serve.log" || { cat "${WORK}/serve.log" >&2; fail
 echo "==> build"
 ( cd "${PROJ}" && "${WORK}/sensei" build -strict -all \
     -input docs/awareness \
-    -store-url "http://127.0.0.1:${OXI_PORT}/store?default" ) \
+    -store-url "http://127.0.0.1:${OXI_PORT}/store?default" \
+  -repository-identity example.com/stranger-project ) \
   || fail "sensei build -strict failed"
 
 echo "==> briefing"

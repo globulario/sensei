@@ -4,6 +4,7 @@ package resultpipeline
 
 import (
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,6 +102,7 @@ func e2eSeedVariant(t *testing.T, resultSrc string, supplemental []graphbuild.Su
 	t.Helper()
 	repo = t.TempDir()
 	e2eGit(t, repo, "init", "-q")
+	repofixture.WriteRepositoryIdentity(t, repo, e2eDomain)
 	e2eWrite(t, repo, "docs/awareness/invariants.yaml", e2eInvariants)
 	e2eWrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n")
 

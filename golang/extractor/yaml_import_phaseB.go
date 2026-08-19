@@ -281,9 +281,9 @@ func importForbiddenFixes(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range ff.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse edge — lets briefing-by-file surface forbidden fixes as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 	return nil
@@ -326,9 +326,9 @@ func importRequiredTests(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range rt.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse edge — lets briefing-by-file surface required tests as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 	return nil
@@ -443,8 +443,8 @@ func emitIncident(e *rdf.Emitter, path string, inc yamlIncident) error {
 
 	for _, f := range inc.RelatedFiles {
 		ensureNode(e, rdf.ClassSourceFile, f)
-		e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
-		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+		e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
+		e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 	}
 	return nil
 }
@@ -523,7 +523,7 @@ func importGuardrails(e *rdf.Emitter, path string) error {
 		if g.ID == "" {
 			continue
 		}
-		subj := rdf.MintIRI(rdf.ClassGuardrail, g.ID)
+		subj := e.GuardrailIRI(g.ID)
 		e.Typed(subj, rdf.ClassGuardrail)
 		if g.Title != "" {
 			e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(strings.TrimSpace(g.Title)))
@@ -562,6 +562,13 @@ func importRules(e *rdf.Emitter, path string) error {
 		if r.ID == "" {
 			continue
 		}
+		// Shared, not repository-local: `rules:` carries shipped generic
+		// knowledge (learning_rules.yaml is "system-agnostic ... shipped as
+		// generic seed content"), which the #197 family audit classes as
+		// portable canonical knowledge. It keeps ONE shared identity --
+		// scoping it per repository would fragment knowledge that is
+		// deliberately the same everywhere -- and its custody comes from
+		// governed provenance instead. See Emitter.GuardrailIRI.
 		subj := rdf.MintIRI(rdf.ClassGuardrail, r.ID)
 		e.Typed(subj, rdf.ClassGuardrail)
 		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit(strings.TrimSpace(r.ID)))
@@ -664,7 +671,7 @@ func importHighRiskFiles(e *rdf.Emitter, path string) error {
 	if err := yaml.Unmarshal(data, &f); err != nil {
 		return fmt.Errorf("parse: %w", err)
 	}
-	subj := rdf.MintIRI(rdf.ClassGuardrail, "awareness.high_risk_files")
+	subj := e.GuardrailIRI("awareness.high_risk_files")
 	e.Typed(subj, rdf.ClassGuardrail)
 	e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("High-risk files requiring awareness briefing"))
 	e.Triple(subj, rdf.IRI(rdf.PropStatus), rdf.Lit("active"))
@@ -676,8 +683,8 @@ func importHighRiskFiles(e *rdf.Emitter, path string) error {
 			continue
 		}
 		ensureNode(e, rdf.ClassSourceFile, p)
-		e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
-		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+		e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(p))
+		e.Triple(e.SourceFileIRI(p), rdf.IRI(rdf.PropImplements), subj)
 	}
 	return nil
 }
@@ -699,7 +706,7 @@ func importActivationRules(e *rdf.Emitter, path string) error {
 		return fmt.Errorf("parse: %w", err)
 	}
 
-	root := rdf.MintIRI(rdf.ClassGuardrail, "awareness.activation_rules")
+	root := e.GuardrailIRI("awareness.activation_rules")
 	e.Typed(root, rdf.ClassGuardrail)
 	e.Triple(root, rdf.IRI(rdf.PropLabel), rdf.Lit("Awareness activation rules"))
 	e.Triple(root, rdf.IRI(rdf.PropStatus), rdf.Lit("active"))
@@ -713,7 +720,7 @@ func importActivationRules(e *rdf.Emitter, path string) error {
 		if id == "" {
 			continue
 		}
-		subj := rdf.MintIRI(rdf.ClassGuardrail, "activation_rule."+id)
+		subj := e.GuardrailIRI("activation_rule." + id)
 		e.Typed(subj, rdf.ClassGuardrail)
 		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("Activation rule: "+id))
 		if r.Enforcement != "" {
@@ -730,8 +737,8 @@ func importActivationRules(e *rdf.Emitter, path string) error {
 				continue
 			}
 			ensureNode(e, rdf.ClassSourceFile, p)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(p))
+			e.Triple(e.SourceFileIRI(p), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 
@@ -740,7 +747,7 @@ func importActivationRules(e *rdf.Emitter, path string) error {
 		if name == "" {
 			continue
 		}
-		subj := rdf.MintIRI(rdf.ClassGuardrail, "activation_empty_policy."+name)
+		subj := e.GuardrailIRI("activation_empty_policy." + name)
 		e.Typed(subj, rdf.ClassGuardrail)
 		e.Triple(subj, rdf.IRI(rdf.PropLabel), rdf.Lit("Empty briefing policy: "+name))
 		if tier.Action != "" {

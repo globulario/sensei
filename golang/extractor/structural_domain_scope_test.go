@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"strings"
 	"testing"
 
@@ -15,7 +16,7 @@ import (
 func importDirWithRepo(t *testing.T, dir, repo, sourceSet string) string {
 	t.Helper()
 	var buf bytes.Buffer
-	_, _, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{
+	_, _, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain,
 		DefaultRepo:      repo,
 		DefaultSourceSet: sourceSet,
 	})
@@ -50,7 +51,7 @@ func TestStructural_DefaultRepoScope_TagsComponents(t *testing.T) {
 	wantTriple(t, nt, comp+` <https://globular.io/awareness#sourceSet> "pilot/cli"`, "component source-set")
 	// The file anchor that makes impact-by-file work must still be emitted.
 	wantTriple(t, nt,
-		`<https://globular.io/awareness#sourceFile/api%2Fclient.go> <https://globular.io/awareness#implements> `+comp,
+		`<https://globular.io/awareness#sourceFile/github.com%2Ftest%2Frepo/api%2Fclient.go> <https://globular.io/awareness#implements> `+comp,
 		"source-file implements component anchor")
 }
 

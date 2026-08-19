@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"testing"
 
 	"github.com/globulario/sensei/golang/extractor"
@@ -14,7 +15,7 @@ func evidenceDir(t *testing.T, files map[string]string) (string, *extractor.Impo
 	t.Helper()
 	var buf bytes.Buffer
 	root := makeDir(t, files)
-	_, report, err := extractor.ImportAwarenessDir(root, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}

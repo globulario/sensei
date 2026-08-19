@@ -343,7 +343,7 @@ func TestApplyMustRejectBadState(t *testing.T) {
 		filepath.Join(root, "docs", "awareness"),
 		filepath.Join(root, "docs", "awareness", "generated"),
 		filepath.Join(root, ".sensei", "project"),
-	}, domain, "", "", false)
+	}, domain, domain, "", "", false)
 	if err != nil {
 		t.Fatalf("compile store handoff: %v", err)
 	}
@@ -402,13 +402,21 @@ func TestApplyMustRejectBadState(t *testing.T) {
 	}
 }
 
+// readinessGraph builds the SourceFile typing triples a reconstructed
+// project graph carries, scoped to readinessDomain -- the same repository
+// the assessments below name, since SourceFile identities are
+// repository-scoped (issue #197).
 func readinessGraph(files ...string) []byte {
 	var lines []string
 	for _, file := range files {
-		lines = append(lines, fmt.Sprintf("%s %s %s .", rdf.MintIRI(rdf.ClassSourceFile, file), rdf.IRI(rdf.PropType), rdf.IRI(rdf.ClassSourceFile)))
+		iri := rdf.MintSourceFileIRI(readinessDomain, file)
+		lines = append(lines, fmt.Sprintf("%s %s %s .", iri, rdf.IRI(rdf.PropType), rdf.IRI(rdf.ClassSourceFile)))
 	}
 	return []byte(strings.Join(lines, "\n") + "\n")
 }
+
+// readinessDomain is the repository every readiness fixture assesses.
+const readinessDomain = "github.com/gin-gonic/gin"
 
 func setupCoherentProjectFixture(t *testing.T) (string, string) {
 	root := t.TempDir()

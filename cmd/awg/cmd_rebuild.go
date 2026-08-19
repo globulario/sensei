@@ -9,6 +9,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"io"
 	"net/http"
 	"net/url"
@@ -322,6 +323,20 @@ func dirUnder(dir, root string) bool {
 // forward.
 func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPrefixes []string, servicesOwnershipRepo string, dirDomains []string, intentDomain string) ([]byte, int, int, error) {
 	stripPrefixes := stripPathPrefixes
+	// Resolve each input's repository identity from the tree AS GIVEN,
+	// before ownership normalization may replace one of them with a staged
+	// mirror under a per-run temp root. A mirror has no checkout to resolve
+	// from, and where a tree happens to be staged never participates in
+	// SourceFile identity (issue #197) -- so the identity travels with the
+	// input rather than with its current location.
+	identities := make([]string, len(inputDirs))
+	for i, dir := range inputDirs {
+		identity, err := repodomain.IdentityForTree(dir)
+		if err != nil {
+			return nil, 0, 0, err
+		}
+		identities[i] = identity
+	}
 	cleanup := func() {}
 	// Close over cleanup so the reassigned staging cleanup actually runs.
 	defer func() { cleanup() }()
@@ -354,6 +369,7 @@ func generateNTWithOwnership(inputDirs []string, intentDir string, stripPathPref
 			IdentityRoot:        dir,
 			StripPathPrefixes:   stripPrefixes,
 			RepositoryDomain:    domain,
+			RepositoryIdentity:  identities[i],
 			SkipNestedGenerated: true,
 		})
 	}

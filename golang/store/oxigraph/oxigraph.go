@@ -171,6 +171,49 @@ func (c *Client) Describe(ctx context.Context, iri string) ([]store.Triple, erro
 // DescribeInbound returns the inverse of Describe: every (subject, predicate)
 // whose object is the given IRI. Literal subjects cannot exist, but we filter
 // to IRI subjects defensively so a malformed store cannot inject one.
+// SourceFileIRIsForPath implements store.Store.
+func (c *Client) SourceFileIRIsForPath(ctx context.Context, repoRelativePath string) ([]string, error) {
+	q := fmt.Sprintf(
+		`SELECT ?file WHERE {
+  ?file <https://globular.io/awareness#repoRelativePath> %s .
+}
+ORDER BY ?file`, sparqlLiteral(repoRelativePath))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph source file lookup: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("oxigraph source file lookup: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return nil, fmt.Errorf("oxigraph source file lookup: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var out struct {
+		Results struct {
+			Bindings []struct {
+				File struct {
+					Value string `json:"value"`
+				} `json:"file"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("oxigraph source file lookup: decode: %w", err)
+	}
+	iris := make([]string, 0, len(out.Results.Bindings))
+	for _, b := range out.Results.Bindings {
+		if b.File.Value != "" {
+			iris = append(iris, b.File.Value)
+		}
+	}
+	return iris, nil
+}
+
 func (c *Client) DescribeInbound(ctx context.Context, iri string) ([]store.InboundTriple, error) {
 	// Defense in depth: an unvalidated caller value must never reach SPARQL text.
 	if err := store.ValidateQueryIRI(iri); err != nil {
@@ -220,28 +263,26 @@ func (c *Client) DescribeInbound(ctx context.Context, iri string) ([]store.Inbou
 //  3. File annotations: file → aw:enforces|aw:protects → invariant
 //     This surfaces invariants linked via file_annotations YAML (the inverse
 //     of the invariant-authored protects.files path).
-func (c *Client) ImpactForFile(ctx context.Context, sourceFileIRI string) ([]store.ImpactFact, error) {
+func (c *Client) ImpactForFile(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error) {
 	q := fmt.Sprintf(
 		`SELECT ?node ?type ?p ?o WHERE {
+  ?file <https://globular.io/awareness#repoRelativePath> %s .
   {
-    <%s> <https://globular.io/awareness#implements> ?node .
+    ?file <https://globular.io/awareness#implements> ?node .
   } UNION {
-    <%s> <https://globular.io/awareness#implements> ?inv .
+    ?file <https://globular.io/awareness#implements> ?inv .
     ?inv <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
     ?node <https://globular.io/awareness#affects> ?inv .
     ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#FailureMode> .
   } UNION {
-    <%s> <https://globular.io/awareness#enforces> ?node .
+    ?file <https://globular.io/awareness#enforces> ?node .
   } UNION {
-    <%s> <https://globular.io/awareness#protects> ?node .
+    ?file <https://globular.io/awareness#protects> ?node .
   }
   ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
   OPTIONAL { ?node ?p ?o . }
 }`,
-		sourceFileIRI,
-		sourceFileIRI,
-		sourceFileIRI,
-		sourceFileIRI,
+		sparqlLiteral(repoRelativePath),
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
@@ -347,15 +388,16 @@ func (c *Client) classFactsFromQuery(ctx context.Context, q, classIRI string) ([
 // CodeSymbolFacts returns all triples for CodeSymbol nodes that are
 // anchored to the given source-file IRI via aw:definedInFile.
 // NodeIRI in each fact is the symbol IRI; TypeIRI is the CodeSymbol class IRI.
-func (c *Client) CodeSymbolFacts(ctx context.Context, sourceFileIRI string) ([]store.ImpactFact, error) {
+func (c *Client) CodeSymbolFacts(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error) {
 	q := fmt.Sprintf(
 		`SELECT ?node ?p ?o WHERE {
-  ?node <https://globular.io/awareness#definedInFile> <%s> .
+  ?file <https://globular.io/awareness#repoRelativePath> %s .
+  ?node <https://globular.io/awareness#definedInFile> ?file .
   ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#CodeSymbol> .
   ?node ?p ?o .
 }
 ORDER BY ?node ?p ?o`,
-		sourceFileIRI,
+		sparqlLiteral(repoRelativePath),
 	)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
@@ -1041,13 +1083,14 @@ type sparqlClassFactsResult struct {
 }
 
 // RenderingGroupsForFile queries rendering groups the file belongs to.
-func (c *Client) RenderingGroupsForFile(ctx context.Context, sourceFileIRI string) ([]store.RenderingGroupInfo, error) {
+func (c *Client) RenderingGroupsForFile(ctx context.Context, repoRelativePath string) ([]store.RenderingGroupInfo, error) {
 	q := fmt.Sprintf(
 		`SELECT ?group ?label ?contract WHERE {
-  <%s> <https://globular.io/awareness#memberOfGroup> ?group .
+  ?file <https://globular.io/awareness#repoRelativePath> %s .
+  ?file <https://globular.io/awareness#memberOfGroup> ?group .
   OPTIONAL { ?group <http://www.w3.org/2000/01/rdf-schema#label> ?label . }
   OPTIONAL { ?group <http://www.w3.org/2000/01/rdf-schema#comment> ?contract . }
-}`, sourceFileIRI)
+}`, sparqlLiteral(repoRelativePath))
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {
 		return nil, err
@@ -1217,7 +1260,7 @@ const packageImpactRowCap = 20000
 // from percent-encoded repo-relative paths, so a directory prefix is a literal
 // string prefix; the caller narrows to an exact package because the encoding
 // makes nested directories share it.
-func (c *Client) ImpactForPackage(ctx context.Context, sourceFilePrefix string) ([]store.PackageImpactFact, error) {
+func (c *Client) ImpactForPackage(ctx context.Context, pathPrefix string) ([]store.PackageImpactFact, error) {
 	q := fmt.Sprintf(
 		`SELECT ?file ?node ?type ?p ?o WHERE {
   {
@@ -1232,11 +1275,12 @@ func (c *Client) ImpactForPackage(ctx context.Context, sourceFilePrefix string) 
   } UNION {
     ?file <https://globular.io/awareness#protects> ?node .
   }
-  FILTER(STRSTARTS(STR(?file), %q))
+  ?file <https://globular.io/awareness#repoRelativePath> ?path .
+  FILTER(STRSTARTS(?path, %s))
   ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> ?type .
   OPTIONAL { ?node ?p ?o . }
 }
-LIMIT %d`, sourceFilePrefix, packageImpactRowCap)
+LIMIT %d`, sparqlLiteral(pathPrefix), packageImpactRowCap)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
 	if err != nil {

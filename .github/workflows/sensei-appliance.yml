@@ -121,6 +121,7 @@ jobs:
             --security-opt no-new-privileges:true \
             --volume "${fixture}:/workspace:ro" \
             --volume sensei-appliance-smoke:/var/lib/sensei \
+            --env SENSEI_REPOSITORY_IDENTITY=example.com/appliance-smoke \
             sensei-appliance:ci >/dev/null
 
           for _ in $(seq 1 60); do

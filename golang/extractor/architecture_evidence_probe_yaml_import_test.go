@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -58,7 +59,7 @@ func importEvidenceProbeFixture(t *testing.T, content string) (string, *extracto
 		t.Fatal(err)
 	}
 	var buf bytes.Buffer
-	em, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	em, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatal(err)
 	}

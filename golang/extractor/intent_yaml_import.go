@@ -165,7 +165,7 @@ func importIntent(e *rdf.Emitter, path string) error {
 			continue
 		}
 		f = strings.TrimPrefix(f, "services/")
-		fileSubj := rdf.MintIRI(rdf.ClassSourceFile, f)
+		fileSubj := e.SourceFileIRI(f)
 		e.Typed(fileSubj, rdf.ClassSourceFile)
 		e.Triple(subj, rdf.IRI(rdf.PropExpressedBy), fileSubj)
 		e.Triple(fileSubj, rdf.IRI(rdf.PropImplements), subj)

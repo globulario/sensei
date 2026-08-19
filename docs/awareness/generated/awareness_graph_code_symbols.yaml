@@ -5415,6 +5415,37 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
+    package: main
+    language: go
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementAcceptsAnEndpointTheConfigNames
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireStoreURLAgreementAcceptsAnEndpointTheConfigNames
+    package: main
+    language: go
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementIgnoresAProjectThatStatesNoEndpoint
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireStoreURLAgreementIgnoresAProjectThatStatesNoEndpoint
+    package: main
+    language: go
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementRefusesAMalformedConfig
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireStoreURLAgreementRefusesAMalformedConfig
+    package: main
+    language: go
+    doc: "A config that cannot be parsed is an error, never a skipped tier: the\nsame law repo_domain_binding.go applies to checkout identity. Falling\nthrough would resolve to an endpoint precisely when the file that was\nsupposed to decide could not be read."
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName
+    package: main
+    language: go
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementYieldsToAnExplicitFlag
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestRequireStoreURLAgreementYieldsToAnExplicitFlag
+    package: main
+    language: go
   - id: cmd/awg/gate_policy_test.go:TestApplyGatePolicy_OffDropsFinding
     file: cmd/awg/gate_policy_test.go
     symbol: TestApplyGatePolicy_OffDropsFinding
@@ -12511,6 +12542,18 @@ test_symbols:
     symbol: TestValidationRejectsIncompleteNoWrite
     package: governedmutation_test
     language: go
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoDomainsShareNoSourceFileSubject
+    file: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go
+    symbol: TestTwoDomainsShareNoSourceFileSubject
+    package: graphbuild
+    language: go
+    doc: "TestTwoDomainsShareNoSourceFileSubject is #176's remaining break, at the\nlevel it actually happens: two registered domains publishing into one\ngraph must not claim the same SourceFile subject, so neither one's slice\ncan be moved by the other's publication."
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    file: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go
+    symbol: TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    package: graphbuild
+    language: go
+    doc: "TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject is the rest of\n#176's fresh-store break: two repositories scaffolded from the real\n`sensei init` corpus must claim no repository-local subject in common.\n\nEvery Sensei-onboarded repository scaffolds the same activation rules,\nhigh-risk-file policy and guardrails and then edits its own, so under an\nunscoped identity two repositories' \"activation_rule.auto_briefing\" were\none subject -- the same collapse SourceFile had, in the family #197's\ndecision deferred to a bounded audit. The audit classed them\nrepository-local (see rdf.Emitter.GuardrailIRI), and this pins the result.\n\nIt does NOT require the pack's shared knowledge to be distinct: an\ninstalled principle pack is portable canonical knowledge with ONE\nidentity by design, and custody decides its authorship (#178). Only\nrepository-local families are asserted here."
   - id: golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
     file: golang/architecture/graphbuild/custody_authorship_test.go
     symbol: TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
@@ -15902,6 +15945,11 @@ test_symbols:
     package: questionresolution
     language: go
     doc: "Item 12: building the summary produces zero repository side effects."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestAgreeingDeclarationsResolve
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestAgreeingDeclarationsResolve
+    package: repodomain
+    language: go
   - id: golang/architecture/repodomain/repodomain_test.go:TestConfigPath_UsesStatedir
     file: golang/architecture/repodomain/repodomain_test.go
     symbol: TestConfigPath_UsesStatedir
@@ -15930,6 +15978,35 @@ test_symbols:
   - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_UnboundWhenNoConfig
     file: golang/architecture/repodomain/repodomain_test.go
     symbol: TestConfigured_UnboundWhenNoConfig
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestDisagreeingDeclarationsAreRefused
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestDisagreeingDeclarationsAreRefused
+    package: repodomain
+    language: go
+    doc: "Two signals naming different repositories are never resolved silently:\nafterwards the wrong one is indistinguishable from the right one."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestIdentityIsIndependentOfCheckoutPath
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestIdentityIsIndependentOfCheckoutPath
+    package: repodomain
+    language: go
+    doc: "Identity is a property of the repository, not of where it sits on disk:\nthe same declaration resolves the same way from two different checkout\npaths, and from any directory inside the tree."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestIdentityResolvesInACheckoutWithNoLocalState
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestIdentityResolvesInACheckoutWithNoLocalState
+    package: repodomain
+    language: go
+    doc: "The reason the declaration is committed at all: .sensei/ is gitignored, so\na fresh clone carries none of it. An identity that resolved only from\nlocal state would make the same file mint a different subject depending on\nwhere it was checked out -- exactly what #197 requires must not happen."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestLocalConfigurationResolvesWhenNothingIsDeclared
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestLocalConfigurationResolvesWhenNothingIsDeclared
+    package: repodomain
+    language: go
+    doc: "A checkout that was initialized but has not committed its declaration yet\nstill resolves, from the local configuration."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestUnresolvedIdentityIsEmptyNotAGuess
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestUnresolvedIdentityIsEmptyNotAGuess
     package: repodomain
     language: go
   - id: golang/architecture/repodomain/repodomain_test.go:TestValidate_AcceptsCanonicalShape
@@ -17299,6 +17376,12 @@ test_symbols:
     symbol: TestValidateForMaterializationRejectsUnicodeNormalizationCollision
     package: runnercomposition
     language: go
+  - id: golang/architecture/runnercomposition/store_openat_unix_test.go:TestOpenSealedEntryRefusesADescriptorTheStoreNoLongerOwns
+    file: golang/architecture/runnercomposition/store_openat_unix_test.go
+    symbol: TestOpenSealedEntryRefusesADescriptorTheStoreNoLongerOwns
+    package: runnercomposition
+    language: go
+    doc: "TestOpenSealedEntryRefusesADescriptorTheStoreNoLongerOwns pins the\nmechanism behind failure.runnercomposition.sealed_entry_opened_through_collectible_dirfd:\nthe sealed-entry open must resolve names through a reference the store\nstill owns, never through a bare descriptor number read out of\nos.File.Fd() ahead of the call.\n\nThe defect this guards is a garbage-collection race, not a closed-file\none: os.File closes its descriptor from a GC cleanup, and by the time\nopenat(2) runs, nothing in any live frame references the store (the\nreceiver's last use is the descriptor read itself), so a collection\nlanding in that window closes the descriptor mid-call and frees its\nnumber for reissue to any unrelated file the process opens next. A\nstress reproduction against the pre-fix implementation -- 64,000 Get\ncalls over freshly constructed store values while four goroutines\nhammered runtime.GC() at GOGC=1 -- failed 54 times, with errors\nincluding \"openat <digest>.json: not a directory\", i.e. the reissued\nnumber had landed on a regular file and the open resolved against\nsomething the store does not own. The same run against this\nimplementation failed zero times. That race cannot be asserted\ndeterministically, so this test asserts the property that closes it\ninstead: the open goes through the file's RawConn, which holds a\nreference for exactly the duration of the call and refuses a descriptor\nthe store no longer owns rather than using its stale number."
   - id: golang/architecture/runnercomposition/store_test.go:TestFSCandidateArtifactStoreGetRejectsCorruptedJSON
     file: golang/architecture/runnercomposition/store_test.go
     symbol: TestFSCandidateArtifactStoreGetRejectsCorruptedJSON
@@ -22741,6 +22824,80 @@ test_symbols:
     symbol: TestOntologyVocabDriftForbidden
     package: rdf
     language: go
+  - id: golang/rdf/source_file_identity_test.go:TestAMixedGenerationPublicationIsRefused
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestAMixedGenerationPublicationIsRefused
+    package: rdf
+    language: go
+    doc: "\"v2 publication never exposes a mixed v1/v2 authoritative generation\""
+  - id: golang/rdf/source_file_identity_test.go:TestAV1IdentityWithARepositoryBindingTranslates
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestAV1IdentityWithARepositoryBindingTranslates
+    package: rdf
+    language: go
+    doc: "A v1 identity that the SAME document independently binds to a repository\ntranslates -- and the record says what was translated, rather than\nasserting the two IRIs are one subject."
+  - id: golang/rdf/source_file_identity_test.go:TestAV2IdentityIsNeverRescoped
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestAV2IdentityIsNeverRescoped
+    package: rdf
+    language: go
+  - id: golang/rdf/source_file_identity_test.go:TestAnAmbiguousV1IdentityCannotBeTranslated
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestAnAmbiguousV1IdentityCannotBeTranslated
+    package: rdf
+    language: go
+    doc: "\"ambiguous v1 receipt without repo binding cannot be silently translated\""
+  - id: golang/rdf/source_file_identity_test.go:TestCrossRepoEdgesAttachToTheIntendedFile
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestCrossRepoEdgesAttachToTheIntendedFile
+    package: rdf
+    language: go
+    doc: "\"cross-repo edges attach only to the intended repo-scoped file\" -- an\nedge minted for one repository's file must not resolve to another's."
+  - id: golang/rdf/source_file_identity_test.go:TestMintedIdentitiesRoundTrip
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestMintedIdentitiesRoundTrip
+    package: rdf
+    language: go
+  - id: golang/rdf/source_file_identity_test.go:TestNoAliasEdgeIsMintedBetweenGenerations
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestNoAliasEdgeIsMintedBetweenGenerations
+    package: rdf
+    language: go
+    doc: "No blanket alias is ever minted: nothing in this package produces an\nowl:sameAs (or any other) edge between an old and a new identity. The\nonly bridge is a migration record, which is a Go value a caller records\nas provenance -- not a triple this package emits into the graph."
+  - id: golang/rdf/source_file_identity_test.go:TestParseRejectsNonSourceFileIRIs
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestParseRejectsNonSourceFileIRIs
+    package: rdf
+    language: go
+  - id: golang/rdf/source_file_identity_test.go:TestPublicationDomainAliasingDoesNotChangeIdentity
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestPublicationDomainAliasingDoesNotChangeIdentity
+    package: rdf
+    language: go
+    doc: "\"publication-domain aliasing does not change SourceFileID\" -- a build\nnaming a different publication domain for the same repository must not\nre-identify its files. Nothing in this function reads a publication\ndomain, so the test states the property the call sites must preserve:\nthe identity argument is the repository, not the domain a build selects."
+  - id: golang/rdf/source_file_identity_test.go:TestSameRepositoryAndPathIsStableAcrossCheckouts
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestSameRepositoryAndPathIsStableAcrossCheckouts
+    package: rdf
+    language: go
+    doc: "\"same repo + same path is stable across checkout paths and machines\" --\nidentity is a function of repository identity and repo-relative path\nonly, so nothing about where the checkout happens to live can reach it."
+  - id: golang/rdf/source_file_identity_test.go:TestSourceFilePathFromIRIReadsBothGenerations
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestSourceFilePathFromIRIReadsBothGenerations
+    package: rdf
+    language: go
+  - id: golang/rdf/source_file_identity_test.go:TestTwoRepositoriesREADMEsMintDifferentSubjects
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestTwoRepositoriesREADMEsMintDifferentSubjects
+    package: rdf
+    language: go
+    doc: "\"repo A README.md != repo B README.md\" -- the collapse that started the\nissue. README.md is a path every Sensei-onboarded repository has, so this\nis the ordinary case, not an edge case."
+  - id: golang/rdf/source_file_identity_test.go:TestV1IdentitiesParseAsAmbiguousAndCarryNoRepository
+    file: golang/rdf/source_file_identity_test.go
+    symbol: TestV1IdentitiesParseAsAmbiguousAndCarryNoRepository
+    package: rdf
+    language: go
+    doc: "A v1 identity is reported as v1 and never guessed into a repository:\nsourceFile/README.md can mean any of N repositories, so inventing one\nwould manufacture exactly the false continuity the migration decision\nforbids."
   - id: golang/repoeval/repoeval_test.go:TestDeriveConfidence_HonestBasis
     file: golang/repoeval/repoeval_test.go
     symbol: TestDeriveConfidence_HonestBasis
@@ -24519,6 +24676,18 @@ test_symbols:
     package: main
     language: go
     doc: "TestValidateBackend_UnhealthyStore_RequireTrue_ReturnsError is the\nother arm: the operator explicitly demanded a healthy backend at\nstartup, so we must fail fast with a message that names the URL and\nthe underlying cause. Anything less makes incident triage harder."
+  - id: golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    file: golang/server/metadata_authority_test.go
+    symbol: TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    package: main
+    language: go
+    doc: "The two surfaces must answer from the same evaluation. The issue's finding\nwas not that metadata was wrong in isolation -- it was that the cheap\nsurface and the governing surface DISAGREED, and monitoring reaches for the\ncheap one."
+  - id: golang/server/metadata_authority_test.go:TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone
+    file: golang/server/metadata_authority_test.go
+    symbol: TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone
+    package: main
+    language: go
+    doc: "TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone is #176's\nmonitoring blind spot: Metadata reported freshness and nothing else, so a\nhealth check built on the cheap surface read green for a graph that could\nnot govern -- right up to the moment a governed run started and preflight\nrefused."
   - id: golang/server/metadata_domain_test.go:TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount
     file: golang/server/metadata_domain_test.go
     symbol: TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount

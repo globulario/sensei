@@ -17,6 +17,7 @@ package extractor
 
 import (
 	"fmt"
+	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"io"
 	"io/fs"
 	"os"
@@ -733,6 +734,14 @@ type ImportDirOptions struct {
 	// shared knowledge that merely happens to live in the checkout. See
 	// golang/architecture/packcustody.
 	CustodyRoot string
+
+	// RepositoryIdentity is the canonical repository identity every
+	// SourceFile subject in this tree is scoped to (issue #197). Required:
+	// an import that cannot name the repository its files belong to cannot
+	// mint their identities, and minting them unscoped is precisely the
+	// collapse that made one repository's README implement another
+	// repository's decision.
+	RepositoryIdentity string
 }
 
 // ImportAwarenessDir walks docsDir recursively, classifies every .yaml file,
@@ -752,7 +761,30 @@ func ImportAwarenessDir(docsDir string, w io.Writer) (*rdf.Emitter, *ImportRepor
 
 // ImportAwarenessDirWithOpts is the options-aware variant of ImportAwarenessDir.
 func ImportAwarenessDirWithOpts(docsDir string, w io.Writer, opts ImportDirOptions) (*rdf.Emitter, *ImportReport, error) {
+	// Refuse before a single triple is emitted, not partway through: an
+	// import that got halfway before discovering it cannot identify its
+	// own files would leave the caller holding a partial graph whose
+	// SourceFile subjects are unscoped (issue #197).
+	repositoryIdentity := strings.TrimSpace(opts.RepositoryIdentity)
+	if repositoryIdentity == "" {
+		// Not named by the caller: resolve it from the tree itself, the
+		// same durable identity `sensei init`/`sensei bootstrap` records
+		// in the owning checkout's .sensei/config.yaml.
+		resolved, err := repodomain.IdentityForTree(docsDir)
+		if err != nil {
+			return nil, nil, fmt.Errorf("import %s: %w", docsDir, err)
+		}
+		repositoryIdentity = resolved
+	}
+	if repositoryIdentity == "" {
+		return nil, nil, fmt.Errorf(
+			"import %s: no canonical repository identity for this tree, so its SourceFile identities cannot be scoped to the repository that owns them.\n"+
+				"Declare it in the owning checkout's sensei-repository.yaml (`sensei init` and `sensei bootstrap` write it), or name it explicitly.",
+			docsDir)
+	}
+
 	e := rdf.NewEmitter(w)
+	e.RepositoryIdentity = repositoryIdentity
 	e.PathStripPrefixes = opts.StripPathPrefixes
 	e.DefaultRepo = opts.DefaultRepo
 	e.DefaultDomain = opts.DefaultDomain

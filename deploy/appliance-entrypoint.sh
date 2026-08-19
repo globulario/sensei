@@ -122,6 +122,12 @@ run_serve() {
     if is_true "${SENSEI_BUILD_STRICT:-true}"; then
       set -- "$@" -strict
     fi
+    # A mounted workspace may not declare which repository it is. SourceFile
+    # subjects are scoped to that identity, so the operator can name it here
+    # rather than editing the mounted corpus.
+    if [ -n "${SENSEI_REPOSITORY_IDENTITY:-}" ]; then
+      set -- "$@" -repository-identity "${SENSEI_REPOSITORY_IDENTITY}"
+    fi
 
     echo "sensei appliance: publishing ${awareness_input} to private Oxigraph" >&2
     (cd "${workspace}" && "$@")

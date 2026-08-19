@@ -69,8 +69,10 @@ func (s *server) collectImpact(ctx context.Context, file, requestedDomain string
 		return nil, nil, "", packageInference{}, err
 	}
 
-	fileIRI := mintedIRI(rdf.ClassSourceFile, file)
-	facts, err := s.store.ImpactForFile(ctx, fileIRI)
+	// Looked up by repo-relative path, not by minting the subject: a
+	// SourceFile subject is repository-scoped (issue #197) and the server
+	// holds no checkout to resolve a repository identity from.
+	facts, err := s.store.ImpactForFile(ctx, file)
 	if err != nil {
 		return nil, nil, "", packageInference{}, err
 	}
@@ -214,7 +216,7 @@ func (s *server) collectImpact(ctx context.Context, file, requestedDomain string
 	// Symbol-level context: functions/methods defined in the file plus the
 	// symbols they reference (from an ingested SCIP index). Additive — a failure
 	// here must not sink the architectural answer, so the error is dropped.
-	if syms, symErr := collectCodeSymbols(ctx, s.store, fileIRI); symErr == nil {
+	if syms, symErr := collectCodeSymbols(ctx, s.store, file); symErr == nil {
 		for _, cs := range syms {
 			resp.Symbols = append(resp.Symbols, &awarenesspb.CodeSymbolNode{
 				Id:         strings.ReplaceAll(cs.id, "%2F", "/"),

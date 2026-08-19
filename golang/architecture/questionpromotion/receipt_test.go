@@ -5,6 +5,7 @@ package questionpromotion_test
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -287,6 +288,7 @@ func TestReceiptDigestNotEmbeddedInProvenance(t *testing.T) {
 func TestEndToEndConstructionNoFixedPoint(t *testing.T) {
 	build := func() (lineage, graphDigest, receiptDigest string, provenance []byte) {
 		root := t.TempDir()
+		repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 		if err := os.MkdirAll(filepath.Join(root, "docs", "awareness"), 0o755); err != nil {
 			t.Fatal(err)
 		}

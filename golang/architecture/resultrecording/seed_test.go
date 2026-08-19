@@ -5,6 +5,7 @@ package resultrecording
 import (
 	"context"
 	"fmt"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -112,6 +113,7 @@ func seedTask(t *testing.T, resultMutate func(*testing.T, string), scopeFiles []
 	t.Helper()
 	repo = t.TempDir()
 	rgit(t, repo, "init", "-q")
+	repofixture.WriteRepositoryIdentity(t, repo, rDomain)
 	rwrite(t, repo, "docs/awareness/invariants.yaml", rInvariants)
 	rwrite(t, repo, "src/model.go", "package src\n\nfunc Publish() {}\n")
 

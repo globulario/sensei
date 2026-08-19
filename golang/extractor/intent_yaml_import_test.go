@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"strings"
 	"testing"
@@ -20,7 +21,7 @@ func intentDir(t *testing.T, files map[string]string) (string, *extractor.Import
 	t.Helper()
 	var buf bytes.Buffer
 	root := makeDir(t, files)
-	_, report, err := extractor.ImportAwarenessDir(root, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -326,7 +327,7 @@ intent: Principal identifiers must remain opaque and prefixed.
 expressed_by:
   - internal/identity/types.go
 `,
-	}, extractor.ImportDirOptions{
+	}, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain,
 		DefaultRepo:   "github.com/globulario/Globular",
 		DefaultDomain: rdf.DomainRepo,
 	})
@@ -461,7 +462,7 @@ func TestPhaseC_Intent_IntegrationSelfAwareness(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	_, rep, err := extractor.ImportAwarenessDir(docsIntent, &buf)
+	_, rep, err := extractor.ImportAwarenessDirWithOpts(docsIntent, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
