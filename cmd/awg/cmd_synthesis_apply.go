@@ -59,7 +59,7 @@ func runSynthesisApply(args []string) int {
 	decisionPath := fs.String("decision", "", "admission decision YAML produced by 'sensei admit-change --output' (required)")
 	targetRoot := fs.String("target", "", "dedicated, clean Git worktree checked out at the admitted base revision (required)")
 	taskFlag := fs.String("task", "", "task directory the candidate was generated under (default: the active task); used to refuse task and closure drift")
-	verificationPath := fs.String("verification", "", "optional admission verification YAML to record against the applied result")
+	verificationPath := fs.String("verification", "", "HISTORICAL: attach an already-produced admission verification to this application. A verification OF the applied result cannot exist yet at this point; use 'sensei synthesis-record-verification' after applying instead")
 	format := fs.String("format", "text", "output format: text | json")
 
 	fs.Usage = func() {
@@ -87,6 +87,13 @@ Pipeline:
   sensei synthesis-admit   -> derived admission request
   sensei admit-change      -> admission decision        (separate, deliberate)
   sensei synthesis-apply   -> this command
+  sensei verify-admission  -> admission verification of the applied result
+  sensei synthesis-record-verification -> immutable link between the two
+
+--verification is the HISTORICAL attachment path and rewrites this receipt. It
+cannot express the ordinary case, because a verification of the applied result
+does not exist until after the application. Record it as a separate immutable
+document with 'sensei synthesis-record-verification' instead.
 
 Outcomes:
   0  candidate applied to the target worktree

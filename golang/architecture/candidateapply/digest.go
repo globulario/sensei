@@ -4,6 +4,7 @@ package candidateapply
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
@@ -36,5 +37,28 @@ func ReceiptDigest(in Receipt) (string, error) {
 	r := NormalizeReceipt(in)
 	r.ReceiptDigestSHA256 = ""
 	r.CompletedAt = ""
+	return closureprotocol.SemanticDigest(r)
+}
+
+func NormalizeVerificationRecord(in VerificationRecord) VerificationRecord {
+	r := in
+	r.SchemaVersion = strings.TrimSpace(r.SchemaVersion)
+	r.RecordID = strings.TrimSpace(r.RecordID)
+	r.GeneratedBy = strings.TrimSpace(r.GeneratedBy)
+	r.AdmissionVerificationStatus = strings.TrimSpace(r.AdmissionVerificationStatus)
+	r.ObservedAt = strings.TrimSpace(r.ObservedAt)
+	return r
+}
+
+// VerificationRecordDigest is the record's semantic identity.
+//
+// ObservedAt is excluded for the same reason the application receipt excludes
+// CompletedAt: recording the same verification against the same application at
+// a different moment is the same fact, and letting the clock into the identity
+// would make an idempotent re-record look like a second, different record.
+func VerificationRecordDigest(in VerificationRecord) (string, error) {
+	r := NormalizeVerificationRecord(in)
+	r.RecordDigestSHA256 = ""
+	r.ObservedAt = ""
 	return closureprotocol.SemanticDigest(r)
 }

@@ -160,6 +160,7 @@ components:
       - cmd/awg/cmd_suggest_realizations.go
       - cmd/awg/cmd_synthesis_admit.go
       - cmd/awg/cmd_synthesis_apply.go
+      - cmd/awg/cmd_synthesis_record_verification.go
       - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
@@ -198,6 +199,7 @@ components:
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
       - cmd/awg/synthesis_run_identity.go
+      - cmd/awg/synthesis_run_resume.go
       - cmd/awg/synthesis_run_stop.go
       - cmd/awg/synthesis_task_drift.go
     depends_on:
@@ -749,6 +751,7 @@ components:
     source_files:
       - golang/architecture/candidateapply/apply.go
       - golang/architecture/candidateapply/digest.go
+      - golang/architecture/candidateapply/record.go
       - golang/architecture/candidateapply/types.go
       - golang/architecture/candidateapply/validate.go
     depends_on:
@@ -2077,12 +2080,17 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/synthesisdriver/checkpoint.go
+      - golang/architecture/synthesisdriver/checkpoint_store.go
+      - golang/architecture/synthesisdriver/checkpoint_store_fs.go
       - golang/architecture/synthesisdriver/closure_report_authority.go
       - golang/architecture/synthesisdriver/driver.go
       - golang/architecture/synthesisdriver/engine.go
+      - golang/architecture/synthesisdriver/execution.go
       - golang/architecture/synthesisdriver/interpretation_authority.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
+      - golang/architecture/synthesisdriver/resume.go
       - golang/architecture/synthesisdriver/schema.go
       - golang/architecture/synthesisdriver/types.go
     depends_on:

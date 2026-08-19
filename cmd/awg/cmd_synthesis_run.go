@@ -45,7 +45,9 @@ func runSynthesisRun(args []string) int {
 	repoFlag := fs.String("repo", ".", "repository checkout")
 	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
 	taskFlag := fs.String("task", "", "task directory (default: the active task from .sensei/tasks/active.yaml)")
-	interpretationPath := fs.String("interpretation", "", "path to an authored synthesis.Interpretation JSON file (required)")
+	interpretationPath := fs.String("interpretation", "", "path to an authored synthesis.Interpretation JSON file (required unless --resume carries an accepted one)")
+	resumeCheckpoint := fs.String("resume", "", "resume the exact checkpoint with this digest (64 hex chars); the durable boundary is selected explicitly, never by recency")
+	checkpointStoreDir := fs.String("checkpoint-store", "", "directory of durable resume checkpoints (default: <taskDir>/synthesis-run/checkpoints)")
 	interpretationChallengePath := fs.String("interpretation-challenge", "", "optional query-only interpretation challenge JSON; Go probes are executed against the bound checkout before O1 planning")
 	objectiveFlag := fs.String("objective", "", "session objective (default: the task's own recorded description)")
 	retryBudget := fs.Int("retry-budget", 0, "O1 Session.RetryBudget")
@@ -90,6 +92,18 @@ deliberate steps.
 Requires a repository with served graph authority and an already-prepared
 task (run 'sensei prepare-change' first) -- this command creates neither.
 
+Every run records durable checkpoints, so an interrupted session can be
+continued exactly:
+
+  sensei synthesis-run --resume <checkpoint-digest>
+
+--resume names ONE boundary; there is no "latest". The accepted
+interpretation travels in the checkpoint and must not be re-supplied. The
+session continues only if the repository, base revision, workspace and graph
+identity, task, task control generation, and closure report are all still
+what that checkpoint was produced under; otherwise it stops with the exact
+drift class named and calls no provider at all.
+
 Flags:
 `)
 		fs.PrintDefaults()
@@ -101,8 +115,17 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei synthesis-run: unexpected argument %q\n", fs.Arg(0))
 		return exitInvalidInvocation
 	}
-	if strings.TrimSpace(*interpretationPath) == "" {
+	resuming := strings.TrimSpace(*resumeCheckpoint) != ""
+	if !resuming && strings.TrimSpace(*interpretationPath) == "" {
 		fmt.Fprintln(os.Stderr, "sensei synthesis-run: --interpretation is required")
+		return exitInvalidInvocation
+	}
+	if resuming && !isCheckpointDigest(*resumeCheckpoint) {
+		// A resume names ONE durable boundary. Accepting a prefix, a path, or
+		// an empty value meaning "the latest" would make the command choose
+		// which history to continue, and the operator would not be able to
+		// tell from the invocation which one it picked.
+		fmt.Fprintln(os.Stderr, "sensei synthesis-run: --resume must be the exact 64-character checkpoint digest")
 		return exitInvalidInvocation
 	}
 	if *agentFlag != "codex" && *agentFlag != "claude" {
@@ -271,6 +294,34 @@ Flags:
 			fmt.Sprintf("construct interpretation authority: %v", err), "")
 	}
 
+	// --- step 5b: the durable checkpoint store, and the exact boundary a
+	// resume continues from ---
+	//
+	// The store is wired for BOTH paths. A fresh run that records no boundary
+	// is a run that can never be resumed, and that would only be discovered
+	// after the crash it was supposed to survive.
+	//
+	// Resume loads the checkpoint here, before any provider is constructed,
+	// because everything below is only worth building if this boundary is real.
+	// The CLI does not compare it against anything: drift is O7's law, assessed
+	// once, in one place (synthesisdriver.AssessResume). A second comparison
+	// here would be a second authority on the same question.
+	*checkpointStoreDir = resolveStoreDir(*checkpointStoreDir, absRepo, filepath.Join(taskDir, "synthesis-run", "checkpoints"))
+	checkpointStore, err := synthesisdriver.NewFSCheckpointStore(*checkpointStoreDir)
+	if err != nil {
+		return resolutionStop(*format, stopCheckpointStoreUnusable,
+			fmt.Sprintf("open checkpoint store %s: %v", *checkpointStoreDir, err), "")
+	}
+	var resumeFrom synthesisdriver.Checkpoint
+	if resuming {
+		resumeFrom, err = checkpointStore.Load(ctx, strings.TrimSpace(*resumeCheckpoint))
+		if err != nil {
+			return resolutionStop(*format, stopCheckpointUnavailable,
+				fmt.Sprintf("load checkpoint %s: %v", strings.TrimSpace(*resumeCheckpoint), err),
+				"list the checkpoints under --checkpoint-store and name one exactly")
+		}
+	}
+
 	// --- step 6: file-backed interpretation provider, and the two
 	// preconditions a real review found this command previously let slide
 	// silently: the authored interpretation's objective must match the
@@ -281,11 +332,33 @@ Flags:
 	// obligation to a verified discharge digest, so a non-empty declaration
 	// cannot proceed -- refusing beats silently discarding it). ---
 	now := time.Now().UTC().Format(time.RFC3339)
-	interpretationProvider, err := fileinterpretation.New(fileinterpretation.Config{
-		Path:       *interpretationPath,
-		ProviderID: "sensei-synthesis-run.o2.file",
-		ObservedAt: now,
-	})
+	var interpretationProvider *fileinterpretation.Provider
+	switch {
+	case resuming && resumeFrom.Interpretation != nil:
+		// The accepted Interpretation IS the authored one for this session, so
+		// it is not re-requested (section 8) and, more importantly, cannot be
+		// replaced: supplying a different file here would hand a resumed
+		// session an interpretation its O1 state was never decided under.
+		if strings.TrimSpace(*interpretationPath) != "" {
+			fmt.Fprintln(os.Stderr, "sensei synthesis-run: --interpretation cannot be supplied with --resume: the checkpoint already carries the accepted interpretation, and accepted history is not re-authored")
+			return exitInvalidInvocation
+		}
+		interpretationProvider, err = fileinterpretation.FromAccepted(*resumeFrom.Interpretation, "sensei-synthesis-run.o2.accepted", now)
+	default:
+		// A fresh run, or a resume from a boundary reached BEFORE any
+		// interpretation was accepted -- where the operator does still have to
+		// supply one, because there is no accepted history to carry.
+		if strings.TrimSpace(*interpretationPath) == "" {
+			return resolutionStop(*format, stopInterpretationUnavailable,
+				"this checkpoint carries no accepted interpretation, so --interpretation is required to resume it",
+				"pass the same --interpretation the interrupted run was started with")
+		}
+		interpretationProvider, err = fileinterpretation.New(fileinterpretation.Config{
+			Path:       *interpretationPath,
+			ProviderID: "sensei-synthesis-run.o2.file",
+			ObservedAt: now,
+		})
+	}
 	if err != nil {
 		return resolutionStop(*format, stopInterpretationUnavailable,
 			fmt.Sprintf("construct interpretation provider: %v", err), "")
@@ -591,9 +664,72 @@ Flags:
 		},
 		MaxSteps: *maxSteps,
 		Now:      time.Now,
+
+		// Durability is granted by the caller, never assumed by O7. Wiring it
+		// on the fresh path is what makes a run resumable at all.
+		CheckpointStore: checkpointStore,
+		CheckpointBinding: synthesisdriver.CheckpointBinding{
+			TaskID:                       taskSession.TaskID,
+			TaskControlStateDigestSHA256: taskcontrol.StateDigest(control),
+			// The control state's iteration IS its generation: advance-task
+			// publishes a new one, and a checkpoint stamped with the old value
+			// must not silently resume under the new.
+			TaskControlGeneration: control.Iteration,
+		},
 	}
 
-	result, err := synthesisdriver.Run(ctx, initialState, config)
+	// --- step 11: one dispatcher, entered fresh or resumed ---
+	//
+	// Both paths call the same driver with the same Config. The CLI's whole
+	// job here is to resolve inputs, select the boundary, and render what
+	// comes back -- it re-derives nothing and compares nothing, because the
+	// drift law is O7's and duplicating any part of it in cmd/ would create a
+	// second answer to a question that must have exactly one.
+	var result synthesisdriver.Result
+	if resuming {
+		binding := synthesisdriver.ResumeBinding{Current: synthesisdriver.ResumeIdentitySet{
+			RepositoryDomain:              identity.Binding.RepositoryDomain,
+			BaseRevision:                  baseRevision,
+			WorkspaceIdentityDigestSHA256: identityDigest,
+			GraphAuthorityDigestSHA256:    taskSession.Binding.GraphDigestSHA256,
+			TaskID:                        taskSession.TaskID,
+			TaskSessionDigestSHA256:       taskSession.SessionDigestSHA256,
+			TaskControlStateDigestSHA256:  taskcontrol.StateDigest(control),
+			TaskControlGeneration:         control.Iteration,
+			ClosureReportDigestSHA256:     closureDigest,
+		}}
+		var assessment synthesisdriver.ResumeAssessment
+		result, assessment, err = synthesisdriver.Resume(ctx, resumeFrom, binding, config)
+		if err == nil && !assessment.Allowed() {
+			// A refusal is evidence, not an error. It is persisted beside the
+			// checkpoints it judged so the decision outlives the terminal it
+			// was printed on, and the exact O7 vocabulary is surfaced verbatim
+			// rather than re-worded into a CLI-local phrase.
+			reason := "refused"
+			if assessment.RefusalReason != nil {
+				reason = string(*assessment.RefusalReason)
+			}
+			detail := assessment.Detail
+			if strings.TrimSpace(detail) == "" {
+				detail = "the session may not continue from this checkpoint"
+			}
+			if perr := persistResumeAssessment(ctx, *checkpointStoreDir, assessment); perr != nil {
+				fmt.Fprintf(os.Stderr, "sensei synthesis-run: record resume assessment: %v\n", perr)
+				return exitInternalDefect
+			}
+			return resolutionStop(*format, stopResumeRefused,
+				fmt.Sprintf("%s: %s", reason, detail),
+				"resolve the drift the reason names, or start a fresh run")
+		}
+		if err == nil {
+			if perr := persistResumeAssessment(ctx, *checkpointStoreDir, assessment); perr != nil {
+				fmt.Fprintf(os.Stderr, "sensei synthesis-run: record resume assessment: %v\n", perr)
+				return exitInternalDefect
+			}
+		}
+	} else {
+		result, err = synthesisdriver.Run(ctx, initialState, config)
+	}
 	if err != nil {
 		// Run() itself only returns a Go error for a malformed Config or a
 		// caller-supplied SessionState it should never have been asked to

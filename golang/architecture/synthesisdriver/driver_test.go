@@ -42,7 +42,7 @@ func finishResultTestState(t *testing.T) synthesis.SessionState {
 func TestFinishResult_UsesSealedButUncarriedDigestWhenCandidateIsNil(t *testing.T) {
 	state := finishResultTestState(t)
 	const sealedDigest = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	result, err := finishResult(state, nil, nil, nil, strPtr(sealedDigest), Trace{}, 1, DispositionRunnerStopped, "O3 ended with digest-mismatch", "2026-08-02T00:00:00Z", func() time.Time {
+	result, err := finishResult(state, nil, nil, nil, strPtr(sealedDigest), Trace{}, CheckpointTrace{}, 1, DispositionRunnerStopped, "O3 ended with digest-mismatch", "2026-08-02T00:00:00Z", func() time.Time {
 		return time.Date(2026, 8, 2, 0, 1, 0, 0, time.UTC)
 	})
 	if err != nil {
@@ -68,7 +68,7 @@ func TestFinishResult_CandidateTakesPrecedenceOverUncarriedDigest(t *testing.T) 
 	const realDigest = "1111111111111111111111111111111111111111111111111111111111111111"
 	const staleOverrideDigest = "2222222222222222222222222222222222222222222222222222222222222222"
 	candidate := &runnercomposition.CandidateArtifact{CandidateArtifactDigestSHA256: realDigest}
-	result, err := finishResult(state, nil, nil, candidate, strPtr(staleOverrideDigest), Trace{}, 1, DispositionRunnerStopped, "O3 ended", "2026-08-02T00:00:00Z", func() time.Time {
+	result, err := finishResult(state, nil, nil, candidate, strPtr(staleOverrideDigest), Trace{}, CheckpointTrace{}, 1, DispositionRunnerStopped, "O3 ended", "2026-08-02T00:00:00Z", func() time.Time {
 		return time.Date(2026, 8, 2, 0, 1, 0, 0, time.UTC)
 	})
 	if err != nil {

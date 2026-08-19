@@ -94,6 +94,28 @@ type Config struct {
 
 	MaxSteps int
 	Now      func() time.Time
+
+	// CheckpointStore is the injected durability boundary. When it is nil the
+	// driver runs exactly as before and records nothing: durable resume is a
+	// capability the caller grants, never something O7 assumes about the
+	// filesystem it happens to be running on.
+	CheckpointStore CheckpointStore
+
+	// CheckpointBinding carries the identities a checkpoint must record that
+	// the O1 session does not already hold — the task and its current control
+	// generation. Required whenever CheckpointStore is set, because a boundary
+	// missing them could not be resumed, and that would only be discovered at
+	// restart.
+	CheckpointBinding CheckpointBinding
+}
+
+// CheckpointBinding is the task-side identity O7 stamps into every checkpoint.
+// The caller composes it through the existing task owner; O7 does not observe
+// it.
+type CheckpointBinding struct {
+	TaskID                       string
+	TaskControlStateDigestSHA256 string
+	TaskControlGeneration        int
 }
 
 // Trace preserves every accepted owner document produced while driving. An

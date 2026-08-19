@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/globulario/sensei/schema/synthesisdriver-resume-assessment-v1.json",
+  "title": "Sensei Bounded Synthesis Driver Resume Assessment V1",
+  "description": "Immutable evidence of one O7 resume decision: the checkpoint assessed, the identities it expected, the identities observed now, and either permission to continue or exactly one typed refusal reason. Grants no admission, application, completion, or GitHub authority.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "generated_by",
+    "checkpoint_digest_sha256",
+    "session_digest_sha256",
+    "checkpoint_phase",
+    "checkpoint_sequence",
+    "steps_consumed",
+    "max_steps",
+    "expected",
+    "observed",
+    "disposition",
+    "refusal_reason",
+    "detail",
+    "observed_at",
+    "assessment_digest_sha256"
+  ],
+  "properties": {
+    "schema_version": { "const": "sensei.synthesisdriver.resume-assessment.v1" },
+    "assessment_id": { "type": "string", "minLength": 1 },
+    "generated_by": { "const": "sensei-synthesis-driver" },
+    "checkpoint_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "session_digest_sha256": { "$ref": "#/$defs/sha256Hex" },
+    "checkpoint_phase": { "type": "string" },
+    "checkpoint_sequence": { "type": "integer", "minimum": 0 },
+    "steps_consumed": { "type": "integer", "minimum": 0 },
+    "max_steps": { "type": "integer", "minimum": 0 },
+    "expected": { "$ref": "#/$defs/identitySet" },
+    "observed": { "$ref": "#/$defs/identitySet" },
+    "disposition": { "enum": ["allowed", "refused"] },
+    "refusal_reason": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "enum": [
+            "checkpoint-invalid",
+            "checkpoint-not-resumable",
+            "repository-domain-drift",
+            "base-revision-drift",
+            "workspace-identity-drift",
+            "graph-authority-drift",
+            "task-identity-drift",
+            "task-control-drift",
+            "closure-drift",
+            "evidence-lineage-invalid",
+            "step-budget-exhausted"
+          ]
+        }
+      ]
+    },
+    "detail": { "type": "string" },
+    "observed_at": { "type": "string", "minLength": 1 },
+    "assessment_digest_sha256": { "$ref": "#/$defs/sha256Hex" }
+  },
+  "allOf": [
+    {
+      "comment": "A refusal must name exactly one typed reason; an allowed resume must name none. Machine-readable output never collapses these into a generic failure.",
+      "if": { "properties": { "disposition": { "const": "refused" } }, "required": ["disposition"] },
+      "then": { "properties": { "refusal_reason": { "type": "string" } } },
+      "else": { "properties": { "refusal_reason": { "type": "null" } } }
+    },
+    {
+      "comment": "Strict shape applies to what an ALLOWED assessment claims, since that document permits a resumed owner call. A refused assessment must be able to record whatever the checkpoint actually claimed - impossible accounting or an unknown phase is often the reason it was refused, and an unrecordable refusal is an unauditable one.",
+      "if": { "properties": { "disposition": { "const": "allowed" } }, "required": ["disposition"] },
+      "then": {
+        "properties": {
+          "checkpoint_phase": { "enum": ["created", "planning", "planned", "attempting", "retry", "replan"] },
+          "checkpoint_sequence": { "type": "integer", "minimum": 1 },
+          "max_steps": { "type": "integer", "minimum": 1 }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256Hex": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "identitySet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_domain",
+        "base_revision",
+        "workspace_identity_digest_sha256",
+        "graph_authority_digest_sha256",
+        "task_id",
+        "task_session_digest_sha256",
+        "task_control_state_digest_sha256",
+        "task_control_generation",
+        "closure_report_digest_sha256"
+      ],
+      "properties": {
+        "repository_domain": { "type": "string" },
+        "base_revision": { "type": "string" },
+        "workspace_identity_digest_sha256": { "type": "string" },
+        "graph_authority_digest_sha256": { "type": "string" },
+        "task_id": { "type": "string" },
+        "task_session_digest_sha256": { "type": "string" },
+        "task_control_state_digest_sha256": { "type": "string" },
+        "task_control_generation": { "type": "integer", "minimum": 0 },
+        "closure_report_digest_sha256": { "type": "string" }
+      }
+    }
+  }
+}

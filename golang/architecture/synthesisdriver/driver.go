@@ -22,253 +22,90 @@ import (
 // separately injected InterpretationAuthority closes it. The driver stops at
 // candidate-ready-for-admission, an advisory interpretation, an O1 terminal
 // failure, a typed capability stop, or the separate O7 step limit.
+//
+// When a checkpoint store is injected, Run records a durable boundary before
+// each owner call, so the session it drives can be continued by Resume in a
+// later process.
 func Run(ctx context.Context, initial synthesis.SessionState, config Config) (Result, error) {
 	if err := validateConfig(initial, config); err != nil {
 		return Result{}, err
 	}
-	startedAt := config.Now().UTC().Format(time.RFC3339)
-	state := initial
-	trace := Trace{
-		ProviderExecutions:            []ProviderExecution{},
-		InterpretationClosureReceipts: []interpretationclosure.Receipt{},
-		GenerationHandoffs:            []runnercomposition.VerifiedGenerationHandoff{},
-		EvaluationResults:             nil,
-		Events:                        []synthesis.Event{},
+	execution := &execution{
+		config:    config,
+		state:     initial,
+		startedAt: config.Now().UTC().Format(time.RFC3339),
+		trace: Trace{
+			ProviderExecutions:            []ProviderExecution{},
+			InterpretationClosureReceipts: []interpretationclosure.Receipt{},
+			GenerationHandoffs:            []runnercomposition.VerifiedGenerationHandoff{},
+			EvaluationResults:             nil,
+			Events:                        []synthesis.Event{},
+		},
 	}
-	var interpretation *synthesis.Interpretation
-	var plan *synthesis.Plan
-	var candidate *runnercomposition.CandidateArtifact
+	return execution.drive(ctx)
+}
 
-	for step := 1; step <= config.MaxSteps; step++ {
-		if err := ctx.Err(); err != nil {
-			return Result{}, err
-		}
-		switch state.Phase {
-		case synthesis.PhaseCreated:
-			request, err := buildInterpretationRequest(state, config.InterpretationPolicy)
-			if err != nil {
-				return Result{}, err
-			}
-			execution, err := executeProvider(ctx, config.InterpretationProvider, request, config.Now)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: interpretation provider: %w", err)
-			}
-			trace.ProviderExecutions = append(trace.ProviderExecutions, execution)
-			if execution.Result.TerminalOutcome != providerport.OutcomeCompleted {
-				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionProviderStopped,
-					fmt.Sprintf("interpretation provider ended with %q: %s", execution.Result.TerminalOutcome, execution.Result.Detail), startedAt, config.Now)
-			}
-
-			// O2 has authority to produce a candidate interpretation, not to
-			// promote it. This mapper re-validates and detaches the exact O2
-			// payload while deliberately returning data rather than an O1
-			// command.
-			accepted, err := providerport.MapInterpretationCandidate(state, execution.Request, execution.Result)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: map interpretation candidate: %w", err)
-			}
-			interpretation = &accepted
-
-			closureReceipt, err := config.InterpretationAuthority.Assess(ctx, InterpretationAuthorityRequest{
-				RepositoryRoot: config.RepositoryRoot,
-				Session:        state.Session,
-				Interpretation: accepted,
-			})
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: interpretation authority: %w", err)
-			}
-			if err := interpretationclosure.Verify(
-				closureReceipt,
-				accepted.InterpretationDigestSHA256,
-				state.Session.BaseRevision,
-				state.Session.GraphAuthorityDigestSHA256,
-				state.Session.ClosureDigestSHA256,
-			); err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: interpretation authority returned invalid receipt: %w", err)
-			}
-			trace.InterpretationClosureReceipts = append(trace.InterpretationClosureReceipts, closureReceipt)
-
-			if closureReceipt.Authority != interpretationclosure.AuthorityGoverning {
-				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionInterpretationAdvisory,
-					fmt.Sprintf("interpretation remains advisory: blockers=%v", closureReceipt.Blockers), startedAt, config.Now)
-			}
-
-			// This is the only O7 promotion boundary. The constructor
-			// independently recomputes the interpretation digest and requires
-			// the closure receipt to be governing for the exact repository and
-			// graph identity already bound into the session.
-			command, err := synthesis.NewRecordInterpretationCommand(state, accepted, closureReceipt)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: promote interpretation: %w", err)
-			}
-			next, events, err := synthesis.Transition(state, command)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: record certified interpretation: %w", err)
-			}
-			state = next
-			trace.Events = append(trace.Events, events...)
-
-		case synthesis.PhasePlanning:
-			if interpretation == nil {
-				return Result{}, errors.New("synthesisdriver: planning phase has no accepted interpretation")
-			}
-			request, err := buildPlanningRequest(state, *interpretation, config.PlanningPolicy)
-			if err != nil {
-				return Result{}, err
-			}
-			execution, err := executeProvider(ctx, config.PlanningProvider, request, config.Now)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: planning provider: %w", err)
-			}
-			trace.ProviderExecutions = append(trace.ProviderExecutions, execution)
-			if execution.Result.TerminalOutcome != providerport.OutcomeCompleted {
-				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionProviderStopped,
-					fmt.Sprintf("planning provider ended with %q: %s", execution.Result.TerminalOutcome, execution.Result.Detail), startedAt, config.Now)
-			}
-			if execution.Result.PlanningPayload == nil {
-				return Result{}, errors.New("synthesisdriver: completed planning result has no payload")
-			}
-			accepted, err := detached(*execution.Result.PlanningPayload)
-			if err != nil {
-				return Result{}, err
-			}
-			command, err := providerport.MapToCommand(state, execution.Request, execution.Result, config.Now().UTC().Format(time.RFC3339))
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: map planning result: %w", err)
-			}
-			next, events, err := synthesis.Transition(state, command)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: record plan: %w", err)
-			}
-			state = next
-			plan = &accepted
-			trace.Events = append(trace.Events, events...)
-
-		case synthesis.PhasePlanned, synthesis.PhaseRetry:
-			next, events, err := synthesis.Transition(state, synthesis.StartAttemptCommand{})
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: start attempt: %w", err)
-			}
-			state = next
-			trace.Events = append(trace.Events, events...)
-
-		case synthesis.PhaseReplan:
-			next, events, err := synthesis.Transition(state, synthesis.StartPlanningCommand{})
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: start replan: %w", err)
-			}
-			state = next
-			trace.Events = append(trace.Events, events...)
-
-		case synthesis.PhaseAttempting:
-			if plan == nil {
-				return Result{}, errors.New("synthesisdriver: attempting phase has no accepted plan")
-			}
-			handoff, err := runnercomposition.Run(
-				ctx,
-				state,
-				config.WorkspaceIdentity,
-				config.RepositoryRoot,
-				*plan,
-				config.GenerationFactory,
-				config.CandidateStore,
-				config.GenerationPolicy,
-				config.Now,
-			)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: O3 generation: %w", err)
-			}
-			trace.GenerationHandoffs = append(trace.GenerationHandoffs, handoff)
-			if handoff.RunnerReceipt.Disposition != runnercomposition.DispositionVerified {
-				// A live review found this attempt's own handoff can
-				// already carry a sealed candidate digest even though
-				// it is NOT verified: runnercomposition.Run's
-				// DispositionDigestMismatch path seals the artifact
-				// (store.Put) and stamps
-				// RunnerReceipt.CandidateArtifactDigestSHA256 BEFORE
-				// discovering the mismatch (run.go's own hard law 11 --
-				// a mismatched candidate is sealed as exactly what it
-				// actually is, never repaired into agreement with what
-				// the provider claimed). `candidate` (the local var)
-				// only ever gets set from a VERIFIED attempt's O4
-				// evaluation, so for THIS attempt's own non-verified
-				// handoff it stays whatever an EARLIER attempt left it
-				// as (nil on a run's first attempt) -- passing
-				// handoff.RunnerReceipt.CandidateArtifactDigestSHA256
-				// here lets finishResult stamp the receipt correctly
-				// regardless: it is non-nil only for
-				// DispositionDigestMismatch (and DispositionVerified,
-				// which never reaches this branch), nil for every other
-				// non-verified disposition (snapshot/workspace-init/
-				// provider-construction/o2-run-error/o2-non-completed/
-				// workspace-freeze/evidence-computation/seal failures),
-				// exactly matching which of them actually sealed
-				// anything.
-				return finishResult(state, interpretation, plan, candidate, handoff.RunnerReceipt.CandidateArtifactDigestSHA256, trace, step, DispositionRunnerStopped,
-					fmt.Sprintf("O3 ended with %q: %s", handoff.RunnerReceipt.Disposition, handoff.RunnerReceipt.FailureDetail), startedAt, config.Now)
-			}
-			evaluated, err := config.EvaluationEngine.Evaluate(ctx, state, handoff)
-			if err != nil {
-				return Result{}, fmt.Errorf("synthesisdriver: O4 evaluation: %w", err)
-			}
-			trace.EvaluationResults = append(trace.EvaluationResults, evaluated)
-			trace.Events = append(trace.Events, evaluated.Events...)
-			state = evaluated.SessionState
-			if evaluated.Candidate != nil {
-				copyCandidate, err := detached(*evaluated.Candidate)
-				if err != nil {
-					return Result{}, err
-				}
-				candidate = &copyCandidate
-			}
-			// evaluated.SessionState can already be PhaseSucceeded or
-			// PhaseFailed here (config.EvaluationEngine.Evaluate fully
-			// resolves PhaseEvaluating -> {Succeeded | Retry | Replan |
-			// Failed} within this one call -- see synthesis.transitionRecordEvaluation).
-			// A live review found that finalizing lazily -- falling
-			// through to let the loop's next iteration hit the
-			// PhaseSucceeded/PhaseFailed cases below -- has two real
-			// costs: (1) if THIS was the last allowed step (step ==
-			// config.MaxSteps), the loop exits without a next iteration
-			// at all, and control falls to the step-limit finishResult
-			// below with a terminal receipt already stamped on state --
-			// which ValidateRunReceipt's own DispositionStepLimitReached
-			// case explicitly rejects ("nonterminal stop cannot invent
-			// an O1 terminal receipt"), turning a genuine success (or
-			// governed failure) into a hard Go error and an internal-
-			// defect exit for the CLI caller, silently orphaning a
-			// sealed candidate with no lineage ever persisted; (2) even
-			// on a non-boundary run, the lazily-finalized receipt's
-			// StepCount is stamped one step later than the step that
-			// actually produced the terminal transition. Finalizing
-			// immediately, at the exact step the transition happened,
-			// fixes both.
-			if state.Phase.Terminal() {
-				if state.Phase == synthesis.PhaseSucceeded {
-					return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionCandidateReady,
-						"candidate is ready to be submitted to O5 admission", startedAt, config.Now)
-				}
-				return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionTerminalFailure,
-					"O1 reached a governed terminal failure", startedAt, config.Now)
-			}
-
-		case synthesis.PhaseEvaluating:
-			return Result{}, errors.New("synthesisdriver: external evaluating state is not resumable in O7 v1; O4 must complete within the attempt step")
-
-		case synthesis.PhaseSucceeded:
-			return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionCandidateReady,
-				"candidate is ready to be submitted to O5 admission", startedAt, config.Now)
-
-		case synthesis.PhaseFailed:
-			return finishResult(state, interpretation, plan, candidate, nil, trace, step, DispositionTerminalFailure,
-				"O1 reached a governed terminal failure", startedAt, config.Now)
-
-		default:
-			return Result{}, fmt.Errorf("synthesisdriver: unsupported O1 phase %q", state.Phase)
-		}
+// Resume continues an interrupted governed session from an exact durable
+// boundary.
+//
+// It deliberately does NOT accept a synthesis.SessionState: a caller holding
+// raw O1 state has no way to prove that state is the one a real session
+// reached, nor what it had already consumed. Authority comes from the
+// checkpoint — verified here — and permission comes from the assessment.
+//
+// Resume never reinterprets completed history. It calls no provider to redo an
+// accepted Interpretation, asks no planner to replace an accepted Plan, and
+// reruns no evaluator to refresh a finished O4 decision. It continues from the
+// typed O1 phase captured at the boundary.
+//
+// The assessment is returned in every case, including refusal, because it is
+// the evidence of the decision. On refusal the Result is zero and NO owner call
+// has been made.
+func Resume(ctx context.Context, checkpoint Checkpoint, binding ResumeBinding, config Config) (Result, ResumeAssessment, error) {
+	if config.Now == nil {
+		return Result{}, ResumeAssessment{}, errors.New("synthesisdriver: clock is required")
 	}
-	return finishResult(state, interpretation, plan, candidate, nil, trace, config.MaxSteps, DispositionStepLimitReached,
-		fmt.Sprintf("O7 reached immutable max_steps=%d", config.MaxSteps), startedAt, config.Now)
+	assessment, err := AssessResume(checkpoint, binding, config.Now)
+	if err != nil {
+		return Result{}, ResumeAssessment{}, err
+	}
+	if !assessment.Allowed() {
+		return Result{}, assessment, nil
+	}
+
+	// The checkpoint was verified by the assessment; the capabilities needed
+	// to make the NEXT owner call still have to be present in this process.
+	state := checkpoint.SessionState.ToSessionState()
+	if err := validateResumeConfig(state, checkpoint, config); err != nil {
+		return Result{}, assessment, err
+	}
+
+	startedAt := checkpoint.RunStartedAt
+	if strings.TrimSpace(startedAt) == "" {
+		startedAt = config.Now().UTC().Format(time.RFC3339)
+	}
+	previous := checkpoint.CheckpointDigestSHA256
+	execution := &execution{
+		config:         config,
+		state:          state,
+		interpretation: checkpoint.Interpretation,
+		plan:           checkpoint.Plan,
+		carried:        NormalizeCheckpoint(checkpoint).Trace,
+		stepsConsumed:  checkpoint.StepsConsumed,
+		startedAt:      startedAt,
+		sequence:       checkpoint.Sequence,
+		// The resumed execution's first new boundary continues this
+		// checkpoint's chain rather than starting a second history.
+		previousCheckpointDigest: &previous,
+		trace: Trace{
+			ProviderExecutions: []ProviderExecution{},
+			GenerationHandoffs: []runnercomposition.VerifiedGenerationHandoff{},
+			EvaluationResults:  nil,
+			Events:             []synthesis.Event{},
+		},
+	}
+	result, err := execution.drive(ctx)
+	return result, assessment, err
 }
 
 func executeProvider(ctx context.Context, provider providerport.Provider, request providerport.Request, now func() time.Time) (ProviderExecution, error) {
@@ -293,6 +130,10 @@ func executeProvider(ctx context.Context, provider providerport.Provider, reques
 // complete but is mostly zero-valued/fabricated, which is worse than
 // leaving it correctly nil. Pass nil here whenever candidate itself
 // already carries (or correctly lacks) the true digest.
+//
+// carried is the evidence recorded before a restart. It is merged AHEAD of
+// this process's own evidence so a receipt stamped after a resume describes
+// the whole session, not only the part this process witnessed.
 func finishResult(
 	state synthesis.SessionState,
 	interpretation *synthesis.Interpretation,
@@ -300,25 +141,26 @@ func finishResult(
 	candidate *runnercomposition.CandidateArtifact,
 	sealedButUncarriedCandidateDigestSHA256 *string,
 	trace Trace,
+	carried CheckpointTrace,
 	step int,
 	disposition Disposition,
 	detail string,
 	startedAt string,
 	now func() time.Time,
 ) (Result, error) {
-	o2 := make([]string, 0, len(trace.ProviderExecutions))
+	o2 := append([]string{}, carried.O2ReceiptDigestsSHA256...)
 	for _, execution := range trace.ProviderExecutions {
 		o2 = append(o2, execution.Receipt.ReceiptDigestSHA256)
 	}
-	closures := make([]string, 0, len(trace.InterpretationClosureReceipts))
+	closures := append([]string{}, carried.InterpretationClosureReceiptDigestsSHA256...)
 	for _, receipt := range trace.InterpretationClosureReceipts {
 		closures = append(closures, receipt.ReceiptDigestSHA256)
 	}
-	runners := make([]string, 0, len(trace.GenerationHandoffs))
+	runners := append([]string{}, carried.RunnerReceiptDigestsSHA256...)
 	for _, handoff := range trace.GenerationHandoffs {
 		runners = append(runners, handoff.RunnerReceipt.RunnerReceiptDigestSHA256)
 	}
-	evaluations := make([]string, 0, len(trace.EvaluationResults))
+	evaluations := append([]string{}, carried.EvaluationReceiptDigestsSHA256...)
 	for _, result := range trace.EvaluationResults {
 		if result.Receipt != nil {
 			evaluations = append(evaluations, result.Receipt.ReceiptDigestSHA256)
@@ -376,6 +218,40 @@ func validateConfig(initial synthesis.SessionState, config Config) error {
 	if initial.Session.SessionDigestSHA256 == "" {
 		return errors.New("synthesisdriver: initial session has no digest")
 	}
+	if err := validateCapabilities(config); err != nil {
+		return err
+	}
+	if config.WorkspaceIdentity.Binding.RepositoryDomain != initial.Session.RepositoryDomain ||
+		config.WorkspaceIdentity.Binding.Revision == nil || *config.WorkspaceIdentity.Binding.Revision != initial.Session.BaseRevision ||
+		workspaceIdentityDigestOrEmpty(config) != initial.Session.WorkspaceIdentityDigestSHA256 {
+		return errors.New("synthesisdriver: workspace identity does not match the session repository/base binding")
+	}
+	return nil
+}
+
+// validateResumeConfig applies the same capability requirements to a resumed
+// process. The checkpoint proves what the session IS; it cannot prove this
+// process can still reach the owners needed to continue it, so the workspace
+// binding is re-checked against the state the checkpoint carried.
+func validateResumeConfig(state synthesis.SessionState, checkpoint Checkpoint, config Config) error {
+	if err := validateCapabilities(config); err != nil {
+		return err
+	}
+	if config.MaxSteps != checkpoint.MaxSteps {
+		// max_steps is immutable for the life of the session. Accepting a new
+		// value here would be exactly the budget refill section 7 forbids,
+		// dressed up as configuration.
+		return fmt.Errorf("synthesisdriver: max_steps is immutable across restart: checkpoint %d, config %d", checkpoint.MaxSteps, config.MaxSteps)
+	}
+	if config.WorkspaceIdentity.Binding.RepositoryDomain != state.Session.RepositoryDomain ||
+		config.WorkspaceIdentity.Binding.Revision == nil || *config.WorkspaceIdentity.Binding.Revision != state.Session.BaseRevision ||
+		workspaceIdentityDigestOrEmpty(config) != state.Session.WorkspaceIdentityDigestSHA256 {
+		return errors.New("synthesisdriver: workspace identity does not match the checkpointed session repository/base binding")
+	}
+	return nil
+}
+
+func validateCapabilities(config Config) error {
 	if config.InterpretationProvider == nil || config.InterpretationAuthority == nil || config.PlanningProvider == nil || config.GenerationFactory == nil || config.EvaluationEngine == nil || config.CandidateStore == nil {
 		return errors.New("synthesisdriver: interpretation-provider, interpretation-authority, planning-provider, generation, evaluation, and candidate-store capabilities are required")
 	}
@@ -388,14 +264,15 @@ func validateConfig(initial synthesis.SessionState, config Config) error {
 	if !filepath.IsAbs(config.RepositoryRoot) {
 		return fmt.Errorf("synthesisdriver: repository root must be absolute: %q", config.RepositoryRoot)
 	}
-	identityDigest, err := workspacecontract.IdentityDigest(config.WorkspaceIdentity)
-	if err != nil {
+	if _, err := workspacecontract.IdentityDigest(config.WorkspaceIdentity); err != nil {
 		return fmt.Errorf("synthesisdriver: workspace identity: %w", err)
 	}
-	if config.WorkspaceIdentity.Binding.RepositoryDomain != initial.Session.RepositoryDomain ||
-		config.WorkspaceIdentity.Binding.Revision == nil || *config.WorkspaceIdentity.Binding.Revision != initial.Session.BaseRevision ||
-		identityDigest != initial.Session.WorkspaceIdentityDigestSHA256 {
-		return errors.New("synthesisdriver: workspace identity does not match the session repository/base binding")
+	// A store without the identity O7 must stamp into every checkpoint would
+	// produce boundaries that cannot be resumed, discovered only at restart.
+	if config.CheckpointStore != nil {
+		if err := validateCheckpointBinding(config.CheckpointBinding); err != nil {
+			return err
+		}
 	}
 	if err := validateProviderPolicy(config.InterpretationPolicy); err != nil {
 		return err
@@ -407,4 +284,25 @@ func validateConfig(initial synthesis.SessionState, config Config) error {
 		return fmt.Errorf("synthesisdriver: generation deadline_at must be RFC3339: %w", err)
 	}
 	return nil
+}
+
+func validateCheckpointBinding(binding CheckpointBinding) error {
+	if strings.TrimSpace(binding.TaskID) == "" {
+		return errors.New("synthesisdriver: a checkpoint store requires the task id to stamp into each boundary")
+	}
+	if !isSHA256(binding.TaskControlStateDigestSHA256) {
+		return errors.New("synthesisdriver: a checkpoint store requires the current task control-state digest")
+	}
+	if binding.TaskControlGeneration < 0 {
+		return errors.New("synthesisdriver: task control generation cannot be negative")
+	}
+	return nil
+}
+
+func workspaceIdentityDigestOrEmpty(config Config) string {
+	digest, err := workspacecontract.IdentityDigest(config.WorkspaceIdentity)
+	if err != nil {
+		return ""
+	}
+	return digest
 }

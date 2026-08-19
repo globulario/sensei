@@ -17,7 +17,14 @@ import (
 const (
 	RequestSchemaVersion = "sensei.candidateapply.request.v1"
 	ReceiptSchemaVersion = "sensei.candidateapply.receipt.v1"
-	GeneratedBy          = "sensei-candidate-apply"
+	// VerificationRecordSchemaVersion is the immutable LINK between an
+	// application that already closed and an admission verification produced
+	// afterwards. It exists because those are two facts, observed at two
+	// different times: an application receipt closes when materialization
+	// succeeds and must not be rewritten later merely because verification now
+	// exists (Decision A).
+	VerificationRecordSchemaVersion = "sensei.candidateapply.verification-record.v1"
+	GeneratedBy                     = "sensei-candidate-apply"
 )
 
 type Disposition string
@@ -69,6 +76,38 @@ type Receipt struct {
 	CompletedAt string      `json:"completed_at"`
 
 	ReceiptDigestSHA256 string `json:"receipt_digest_sha256"`
+}
+
+// VerificationRecord binds one already-recorded application to one
+// already-produced admission.Verification.
+//
+// Every field is either observed at recording time or copied from a document
+// that already exists; nothing here is reconstructed. In particular the record
+// carries the application receipt's own digest, so the application it
+// describes is named by identity rather than by position in a directory, and
+// the record can be checked against that receipt without either document
+// having to be mutated.
+//
+// It states no verdict of its own. AdmissionVerificationStatus is the status
+// the admission owner produced, carried verbatim: this owner links, it does
+// not judge.
+type VerificationRecord struct {
+	SchemaVersion string `json:"schema_version"`
+	RecordID      string `json:"record_id"`
+	GeneratedBy   string `json:"generated_by"`
+
+	ApplicationReceiptDigestSHA256 string `json:"application_receipt_digest_sha256"`
+	RequestDigestSHA256            string `json:"request_digest_sha256"`
+	AdmissionDecisionDigestSHA256  string `json:"admission_decision_digest_sha256"`
+	CandidateArtifactDigestSHA256  string `json:"candidate_artifact_digest_sha256"`
+	PatchDigestSHA256              string `json:"patch_digest_sha256"`
+
+	AdmissionVerificationDigestSHA256 string `json:"admission_verification_digest_sha256"`
+	AdmissionVerificationStatus       string `json:"admission_verification_status"`
+
+	ObservedAt string `json:"observed_at"`
+
+	RecordDigestSHA256 string `json:"record_digest_sha256"`
 }
 
 type ApplyInput struct {

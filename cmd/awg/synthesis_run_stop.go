@@ -45,6 +45,14 @@ const (
 	// something that already exists.
 	stopInterpretationObjectiveMismatch resolutionStopReason = "interpretation-objective-mismatch"
 	stopProofObligationsOutstanding     resolutionStopReason = "proof-obligations-outstanding"
+	// Durable resume. "The store cannot be opened" and "that boundary is not
+	// in it" are different repairs -- one is a filesystem/permissions problem,
+	// the other means the operator named a checkpoint this session never
+	// wrote -- and neither is the third case, where the boundary IS found and
+	// O7 refuses to continue from it because identity moved.
+	stopCheckpointStoreUnusable resolutionStopReason = "checkpoint-store-unusable"
+	stopCheckpointUnavailable   resolutionStopReason = "checkpoint-unavailable"
+	stopResumeRefused           resolutionStopReason = "resume-refused"
 	// Unclassified. Deliberately retained rather than removed: a resolution
 	// failure nobody has typed yet must stay visible as untyped instead of
 	// being forced into whichever named world looks closest, which would make
@@ -67,6 +75,9 @@ var stopExitCodes = map[resolutionStopReason]int{
 	stopGenerationProviderUnavailable:   16,
 	stopInterpretationObjectiveMismatch: 17,
 	stopProofObligationsOutstanding:     18,
+	stopCheckpointStoreUnusable:         19,
+	stopCheckpointUnavailable:           20,
+	stopResumeRefused:                   21,
 }
 
 // stopMeanings is what an operator should DO about each state. The exit code
@@ -82,6 +93,9 @@ var stopMeanings = map[resolutionStopReason]string{
 	stopGenerationProviderUnavailable:   "the generation provider could not be constructed",
 	stopInterpretationObjectiveMismatch: "the interpretation's objective does not match the task's",
 	stopProofObligationsOutstanding:     "proof obligations are recorded and undischarged; this run may not proceed past them",
+	stopCheckpointStoreUnusable:         "the durable checkpoint store could not be opened",
+	stopCheckpointUnavailable:           "the named checkpoint is not in this store",
+	stopResumeRefused:                   "the checkpoint is valid but the session may not continue under the current boundary",
 }
 
 // synthesisRunStop is the machine-readable record of a pre-driver refusal. It
