@@ -2139,3 +2139,13 @@ invariants:
     required_tests:
       - golang/architecture/evalmutant/mutant_test.go:TestEveryDefectIsPresentInItsMutantAndAbsentFromTheBaseline
     contract: Every evaluation mutant carries an independent witness that confirms the defect is present in the mutant and absent from the clean baseline. A mutant that cannot demonstrate its own defect measures the instrument, not the subject.
+  - id: invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    title: Workspace drift is evidence about the workspace, never retroactive evidence about an application
+    status: active
+    description: 'An application receipt records what O5B did; a verification records what was observed later; the binding record states only whether those two facts describe the same artifact. Attaching a verification of a drifted tree to an application would launder causation -- the application happened, someone else changed the tree, the verifier saw a bad tree, and the inference ''the application produced that tree'' would follow from evidence that never said so. Refusing the unbound verification is what keeps the three facts separate. Established by the real-CLI witness in PR #211, which found that a genuine scope_violated verification of a drifted worktree is correctly refused as unbound (exit 3) -- and that an applied candidate cannot violate its own derived envelope at all, since O5A derives the admitted scope from the candidate''s own diff.'
+    protects:
+      files:
+        - golang/architecture/candidateapply/record.go
+    required_tests:
+      - golang/architecture/candidateapply/record_test.go:TestRecordRefusesBrokenLineage
+    contract: A post-application verification may describe arbitrary later workspace state, but it may be bound to an O5B application only when it cryptographically and semantically describes the exact artifact that O5B applied. Workspace drift is evidence about the workspace, never retroactive evidence about the application.

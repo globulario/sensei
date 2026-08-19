@@ -1651,3 +1651,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_governed_decision_declared_two_identities_within_one_proce
+  - id: golang/architecture/candidateapply/record_test.go:TestRecordRefusesBrokenLineage
+    title: A verification not bound to this exact application is refused rather than recorded against it
+    protects:
+      invariants:
+        - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
