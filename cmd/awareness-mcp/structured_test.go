@@ -238,3 +238,71 @@ func TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted(t *testing.T) {
 		t.Errorf("reasons were invented for an unclassified verdict: %v", risk["reasons"])
 	}
 }
+
+// Coverage is the other half of the same claim. The preflight verdict above it
+// means nothing if the server has already said its own answer is under-covered,
+// and that disclaimer was reaching text consumers only.
+func TestPreflight_StructuredCoverage(t *testing.T) {
+	b := testBridge(fakeClient{
+		preflight: func(_ context.Context, _ *awarenesspb.PreflightRequest) (*awarenesspb.PreflightResponse, error) {
+			return &awarenesspb.PreflightResponse{
+				Status: awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED,
+				Coverage: &awarenesspb.CoverageSummary{
+					DirectAnchorCount: 0,
+					FileCount:         1,
+					IndexedFileCount:  0,
+					Sufficient:        false,
+					Note:              "domain scope could not be verified — response is not proof of safety",
+				},
+				Authority: testCurrentAuthority(""),
+			}, nil
+		},
+	})
+	res, err := b.callTool(context.Background(), "awareness_preflight", map[string]interface{}{
+		"task":  "widen an authority boundary",
+		"files": []interface{}{"golang/server/preflight.go"},
+	})
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	cov, ok := asMap(t, res)["coverage"].(map[string]interface{})
+	if !ok {
+		t.Fatal("coverage is absent from the structured payload; MCP consumers cannot see that the answer is under-covered")
+	}
+	if cov["sufficient"] != false {
+		t.Errorf("sufficient=%v, want the server's own false", cov["sufficient"])
+	}
+	if cov["note"] == nil || !strings.Contains(cov["note"].(string), "not proof of safety") {
+		t.Errorf("note=%v", cov["note"])
+	}
+	if cov["indexed_file_count"] != int32(0) || cov["file_count"] != int32(1) {
+		t.Errorf("counts did not survive: %v", cov)
+	}
+}
+
+// A response with no coverage summary must say "no summary", not "insufficient".
+//
+// change_risk can be zero-valued because its enums declare UNSPECIFIED to be a
+// real answer. `sufficient` is a plain bool, so a zero-valued object would
+// assert a verdict the server never reached.
+func TestPreflight_AbsentCoverageIsNullNotFabricated(t *testing.T) {
+	b := testBridge(fakeClient{
+		preflight: func(_ context.Context, _ *awarenesspb.PreflightRequest) (*awarenesspb.PreflightResponse, error) {
+			return &awarenesspb.PreflightResponse{
+				Status:    awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY,
+				Authority: testCurrentAuthority(""),
+			}, nil
+		},
+	})
+	res, err := b.callTool(context.Background(), "awareness_preflight", map[string]interface{}{"task": "no files named"})
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	value, present := asMap(t, res)["coverage"]
+	if !present {
+		t.Fatal("the coverage key vanished, so 'no summary' is indistinguishable from an old server")
+	}
+	if value != nil {
+		t.Fatalf("a coverage summary was invented where the server produced none: %v", value)
+	}
+}
