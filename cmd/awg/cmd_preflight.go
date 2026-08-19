@@ -46,6 +46,16 @@ Flags:
 		return 2
 	}
 
+	// The server whose authority this asserts is decided here, and the
+	// project config states one too. Refuse a silent disagreement rather
+	// than report a verdict from a server the operator did not name
+	// (issue #212).
+	preflightRoot, _ := resolveProjectRoot(*repo)
+	if err := requireServerAddrAgreement(fs, preflightRoot, *addr); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
+		return 1
+	}
+
 	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
 	if resolvedDomain.Err != nil {
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", resolvedDomain.Err)
