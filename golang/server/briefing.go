@@ -128,8 +128,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		}
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
-	fileIRI := mintedIRI(rdf.ClassSourceFile, file)
-	codeSyms, err := collectCodeSymbols(ctx, s.store, fileIRI)
+	codeSyms, err := collectCodeSymbols(ctx, s.store, file)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "code symbol query failed: %v", err)
 	}
@@ -249,7 +248,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 
 	// Rendering groups — cross-file visual consistency contracts.
 	var renderingGroups []store.RenderingGroupInfo
-	if groups, gerr := s.store.RenderingGroupsForFile(ctx, fileIRI); gerr == nil {
+	if groups, gerr := s.store.RenderingGroupsForFile(ctx, file); gerr == nil {
 		renderingGroups = groups
 	}
 

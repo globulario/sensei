@@ -50,6 +50,10 @@ type Emitter struct {
 	// leaking into the untagged home domain.
 	typedSubjects  map[string]bool
 	scopedSubjects map[string]bool
+
+	// sourceFilePaths records which SourceFile subjects already carry their
+	// repoRelativePath literal, so naming one file many times emits it once.
+	sourceFilePaths map[string]bool
 }
 
 // NewEmitter wraps w in a buffered writer. Caller must call Flush before
@@ -138,7 +142,19 @@ func (e *Emitter) FinalizeDefaultScope() {
 // valid v1 identity either -- there is no shape this can degrade into
 // that another repository could collide with.
 func (e *Emitter) SourceFileIRI(repoRelativePath string) string {
-	return MintSourceFileIRI(e.RepositoryIdentity, repoRelativePath)
+	iri := MintSourceFileIRI(e.RepositoryIdentity, repoRelativePath)
+	// Emit the path as queryable data the first time this file is named.
+	// A reader that knows only a path cannot mint the repository-scoped
+	// subject, so the path has to be IN the graph rather than encoded in
+	// an identity a reader is expected to reconstruct.
+	if e.sourceFilePaths == nil {
+		e.sourceFilePaths = map[string]bool{}
+	}
+	if !e.sourceFilePaths[iri] {
+		e.sourceFilePaths[iri] = true
+		e.Triple(iri, IRI(PropRepoRelativePath), Lit(repoRelativePath))
+	}
+	return iri
 }
 
 // IRI renders s as an IRI reference token (<s>). Caller is responsible

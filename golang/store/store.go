@@ -82,6 +82,19 @@ type Store interface {
 	// return an empty slice and nil error.
 	Describe(ctx context.Context, iri string) ([]Triple, error)
 
+	// SourceFileIRIsForPath returns every SourceFile subject in the store
+	// whose repo-relative path is exactly repoRelativePath, in a stable
+	// order.
+	//
+	// SourceFile subjects are repository-scoped (issue #197), so a caller
+	// holding only a path cannot mint the subject -- and MUST NOT guess one,
+	// because guessing is the identity collapse the scoping removed. More
+	// than one subject means the same path exists in more than one
+	// repository, which is now a legible fact rather than a collision: the
+	// caller decides (by domain scope) which repository it meant, or reports
+	// the ambiguity.
+	SourceFileIRIsForPath(ctx context.Context, repoRelativePath string) ([]string, error)
+
 	// DescribeInbound returns all triples whose OBJECT is the given IRI — the
 	// inverse of Describe. It lets callers traverse a relationship from the
 	// pointed-at side: a Test that an Invariant `requiresTest`, or a SourceFile
@@ -91,9 +104,9 @@ type Store interface {
 	DescribeInbound(ctx context.Context, iri string) ([]InboundTriple, error)
 
 	// ImpactForFile returns direct node facts for:
-	//   <sourceFileIRI> aw:implements ?node
+	//   ?file aw:repoRelativePath "<repoRelativePath>" ; aw:implements ?node
 	// including each node's rdf:type and direct facts.
-	ImpactForFile(ctx context.Context, sourceFileIRI string) ([]ImpactFact, error)
+	ImpactForFile(ctx context.Context, repoRelativePath string) ([]ImpactFact, error)
 
 	// ClassFacts returns direct facts for nodes with rdf:type = classIRI.
 	// Implementations must enforce a safe upper bound on limit.
@@ -103,11 +116,11 @@ type Store interface {
 	// the given source-file IRI via aw:definedInFile. NodeIRI in each fact
 	// is the symbol IRI; TypeIRI is always the CodeSymbol class IRI.
 	// Returns an empty slice (not an error) when no symbols are found.
-	CodeSymbolFacts(ctx context.Context, sourceFileIRI string) ([]ImpactFact, error)
+	CodeSymbolFacts(ctx context.Context, repoRelativePath string) ([]ImpactFact, error)
 
 	// RenderingGroupsForFile returns rendering groups that the given
 	// source file belongs to (via aw:memberOfGroup edges).
-	RenderingGroupsForFile(ctx context.Context, sourceFileIRI string) ([]RenderingGroupInfo, error)
+	RenderingGroupsForFile(ctx context.Context, repoRelativePath string) ([]RenderingGroupInfo, error)
 
 	// DetectFacts returns all direct facts for every node that carries a
 	// detect block (aw:detectForbiddenPattern OR aw:detectRequiredPattern).
@@ -146,7 +159,7 @@ type PackageAnchorStore interface {
 	// a prefix for "golang/server/" also matches files in nested directories.
 	// Callers narrow to an exact package themselves. Implementations must
 	// enforce a safe upper bound on the number of rows returned.
-	ImpactForPackage(ctx context.Context, sourceFilePrefix string) ([]PackageImpactFact, error)
+	ImpactForPackage(ctx context.Context, pathPrefix string) ([]PackageImpactFact, error)
 }
 
 // RenderingGroupInfo holds one rendering group with its label and contract.

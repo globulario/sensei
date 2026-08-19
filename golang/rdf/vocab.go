@@ -203,8 +203,16 @@ const (
 	PropStatus     = AwNS + "status"
 	PropAuthoredIn = AwNS + "authoredIn"
 	PropAtFile     = AwNS + "atFile"
-	PropAtSymbol   = AwNS + "atSymbol"
-	PropAtLine     = AwNS + "atLine"
+	// PropRepoRelativePath is a SourceFile's repo-relative path as queryable
+	// data. The SourceFile subject itself is repository-scoped (issue #197),
+	// so a reader that knows only a path -- every briefing, impact and
+	// preflight request -- can no longer reconstruct the subject by minting
+	// from the path alone. It matches on this literal instead, which is also
+	// the honest modeling: the path is a property of the file, not something
+	// to decode back out of its identity.
+	PropRepoRelativePath = AwNS + "repoRelativePath"
+	PropAtSymbol         = AwNS + "atSymbol"
+	PropAtLine           = AwNS + "atLine"
 
 	// Domain-scope properties. A knowledge node belongs to exactly one domain
 	// so truth never crosses repos accidentally. Globular's own self-knowledge

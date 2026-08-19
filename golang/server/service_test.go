@@ -148,3 +148,7 @@ func TestMonitorBackendHealth_TransitionsToNotServing(t *testing.T) {
 		t.Fatalf("degraded status=%s, want NOT_SERVING", reporter.statuses[2])
 	}
 }
+
+func (x *flapStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
+}

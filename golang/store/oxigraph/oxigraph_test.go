@@ -293,11 +293,17 @@ func TestImpactForFile_OK(t *testing.T) {
 	}))
 	defer ts.Close()
 	c, _ := oxigraph.New(ts.URL)
-	got, err := c.ImpactForFile(context.Background(), "https://globular.io/awareness#sourceFile/test%2Fexample.go")
+	got, err := c.ImpactForFile(context.Background(), "test/example.go")
 	if err != nil {
 		t.Fatalf("ImpactForFile: %v", err)
 	}
-	fileIRI := "<https://globular.io/awareness#sourceFile/test%2Fexample.go>"
+	// The file is bound by its repo-relative path, not named as a subject:
+	// SourceFile subjects are repository-scoped (issue #197) and this query
+	// is issued by a server that holds no checkout to resolve one from.
+	if !strings.Contains(sawBody, `?file <https://globular.io/awareness#repoRelativePath> "test/example.go"`) {
+		t.Fatalf("query does not bind the file by its repo-relative path: %q", sawBody)
+	}
+	fileIRI := "?file"
 	if !strings.Contains(sawBody, fileIRI+" <https://globular.io/awareness#implements> ?node") {
 		t.Fatalf("direct implements arm missing from query: %q", sawBody)
 	}

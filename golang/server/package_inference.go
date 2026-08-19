@@ -66,7 +66,7 @@ func (s *server) inferPackageAnchors(ctx context.Context, file string, direct ma
 		return out
 	}
 
-	facts, err := pkgStore.ImpactForPackage(ctx, mintedIRI(rdf.ClassSourceFile, dir+"/"))
+	facts, err := pkgStore.ImpactForPackage(ctx, dir+"/")
 	if err != nil {
 		// Additive enrichment must not sink the direct architectural answer, so
 		// the error does not propagate — but it is reported, so an empty

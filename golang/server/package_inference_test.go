@@ -258,7 +258,11 @@ func TestPackageInference_QueriesTheDirectoryPrefix(t *testing.T) {
 	if _, err := s.Impact(context.Background(), &awarenesspb.ImpactRequest{File: "golang/server/impact.go"}); err != nil {
 		t.Fatalf("Impact: %v", err)
 	}
-	want := mintedIRI(rdf.ClassSourceFile, "golang/server/")
+	// The package prefix is a repo-relative PATH prefix now, not an IRI
+	// prefix: SourceFile subjects are repository-scoped (issue #197), so a
+	// string prefix over the subject would also have to match the
+	// repository segment.
+	want := "golang/server/"
 	if ps.gotPrefix != want {
 		t.Fatalf("prefix = %q, want %q", ps.gotPrefix, want)
 	}

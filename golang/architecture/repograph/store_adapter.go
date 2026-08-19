@@ -116,6 +116,9 @@ func (g *Graph) RenderingGroupsForFile(context.Context, string) ([]store.Renderi
 	return nil, nil
 }
 func (g *Graph) DetectFacts(context.Context) ([]store.ImpactFact, error) { return nil, nil }
+func (g *Graph) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
+}
 
 // ── seedmeta.VerifierStore ──────────────────────────────────────────────────
 

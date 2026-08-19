@@ -386,6 +386,10 @@ func (w fullTripwireStore) RenderingGroupsForFile(_ context.Context, iri string)
 	w.trip("RenderingGroupsForFile " + iri)
 	return nil, nil
 }
+func (w fullTripwireStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
 func (w fullTripwireStore) DetectFacts(context.Context) ([]store.ImpactFact, error) {
 	w.trip("DetectFacts")
 	return nil, nil
