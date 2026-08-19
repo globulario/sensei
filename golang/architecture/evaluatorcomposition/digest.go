@@ -43,7 +43,12 @@ func EvaluatorResultDigest(r EvaluatorResult) (string, error) {
 // evaluation-receipt document. CompletedAt is also zeroed before hashing --
 // receipt identity is explicitly defined not to depend on wall-clock time,
 // the same convention synthesis.Receipt and runnercomposition.RunnerReceipt
-// already follow for their own completion timestamps.
+// follow for their own completion timestamps.
+//
+// That claim was false about synthesis.Receipt until #149's proof matrix
+// caught it: the O1 terminal receipt was the only member of the chain whose
+// identity moved with the clock, and this comment asserted otherwise, so a
+// reader checking the convention was told it held. Both are now true.
 func EvaluationReceiptDigest(r EvaluationReceipt) (string, error) {
 	r = NormalizeEvaluationReceipt(r)
 	r.ReceiptDigestSHA256 = ""
