@@ -41,7 +41,7 @@ func resolveSourceRootRepositoryIdentity(root SourceRoot) (string, error) {
 	if identity == "" {
 		return "", fmt.Errorf(
 			"no canonical repository identity for this tree, so its SourceFile identities cannot be scoped to the repository that owns them.\n" +
-				"Establish one with `sensei init` or `sensei bootstrap` in the checkout that owns it (it records repository.domain in .sensei/config.yaml)")
+				"Declare it in the owning checkout's docs/awareness/repository.yaml (`sensei init` and `sensei bootstrap` write it), or name it explicitly with --repository-identity")
 	}
 	return identity, nil
 }

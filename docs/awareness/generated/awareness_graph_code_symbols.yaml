@@ -15981,6 +15981,11 @@ test_symbols:
     package: questionresolution
     language: go
     doc: "Item 12: building the summary produces zero repository side effects."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestAgreeingDeclarationsResolve
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestAgreeingDeclarationsResolve
+    package: repodomain
+    language: go
   - id: golang/architecture/repodomain/repodomain_test.go:TestConfigPath_UsesStatedir
     file: golang/architecture/repodomain/repodomain_test.go
     symbol: TestConfigPath_UsesStatedir
@@ -16009,6 +16014,35 @@ test_symbols:
   - id: golang/architecture/repodomain/repodomain_test.go:TestConfigured_UnboundWhenNoConfig
     file: golang/architecture/repodomain/repodomain_test.go
     symbol: TestConfigured_UnboundWhenNoConfig
+    package: repodomain
+    language: go
+  - id: golang/architecture/repodomain/repodomain_test.go:TestDisagreeingDeclarationsAreRefused
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestDisagreeingDeclarationsAreRefused
+    package: repodomain
+    language: go
+    doc: "Two signals naming different repositories are never resolved silently:\nafterwards the wrong one is indistinguishable from the right one."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestIdentityIsIndependentOfCheckoutPath
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestIdentityIsIndependentOfCheckoutPath
+    package: repodomain
+    language: go
+    doc: "Identity is a property of the repository, not of where it sits on disk:\nthe same declaration resolves the same way from two different checkout\npaths, and from any directory inside the tree."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestIdentityResolvesInACheckoutWithNoLocalState
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestIdentityResolvesInACheckoutWithNoLocalState
+    package: repodomain
+    language: go
+    doc: "The reason the declaration is committed at all: .sensei/ is gitignored, so\na fresh clone carries none of it. An identity that resolved only from\nlocal state would make the same file mint a different subject depending on\nwhere it was checked out -- exactly what #197 requires must not happen."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestLocalConfigurationResolvesWhenNothingIsDeclared
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestLocalConfigurationResolvesWhenNothingIsDeclared
+    package: repodomain
+    language: go
+    doc: "A checkout that was initialized but has not committed its declaration yet\nstill resolves, from the local configuration."
+  - id: golang/architecture/repodomain/repodomain_test.go:TestUnresolvedIdentityIsEmptyNotAGuess
+    file: golang/architecture/repodomain/repodomain_test.go
+    symbol: TestUnresolvedIdentityIsEmptyNotAGuess
     package: repodomain
     language: go
   - id: golang/architecture/repodomain/repodomain_test.go:TestValidate_AcceptsCanonicalShape

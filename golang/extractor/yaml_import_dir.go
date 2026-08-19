@@ -784,7 +784,7 @@ func ImportAwarenessDirWithOpts(docsDir string, w io.Writer, opts ImportDirOptio
 	if repositoryIdentity == "" {
 		return nil, nil, fmt.Errorf(
 			"import %s: no canonical repository identity for this tree, so its SourceFile identities cannot be scoped to the repository that owns them.\n"+
-				"Establish one with `sensei init` or `sensei bootstrap` in the checkout that owns this tree (it records repository.domain in .sensei/config.yaml), or name it explicitly.",
+				"Declare it in the owning checkout's docs/awareness/repository.yaml (`sensei init` and `sensei bootstrap` write it), or name it explicitly.",
 			docsDir)
 	}
 
