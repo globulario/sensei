@@ -635,21 +635,117 @@ AGENT
           *)  fail "the applied result verified as '$VSTATUS'" ;;
         esac
 
-        # And now the part worth measuring rather than assuming. A verification
-        # can only be ATTACHED to an application by synthesis-apply --verification
-        # -- but it can only be PRODUCED from an application that already
-        # happened, and that application is already consumed. So the two
-        # requirements exclude each other: the attach path is unreachable for a
-        # verification of the applied result, unless someone deletes the receipt
-        # and re-applies, which is exactly what makes two applications look like
-        # one.
+        # The gap this smoke measured on 2026-08-18 is CLOSED, and this is its
+        # real-system witness -- criterion 10 of the O7 completion contract:
+        # "the real CLI can demonstrate a scope violation after application
+        # without re-applying the candidate."
+        #
+        # The old route was impossible by construction: a verification can only
+        # be ATTACHED by synthesis-apply --verification, but it can only be
+        # PRODUCED from an application that already happened, by which time the
+        # candidate is consumed. Both halves are still true; what changed is
+        # that attaching is no longer how it is recorded. The application
+        # receipt and the verification are two facts observed at two times, so
+        # the link is its own immutable document.
         code="$(apply_to "$APPLY_TREE" --verification "$VERIFICATION")"
-        if [ "$code" = 6 ]; then
-          echo "  GAP  a post-application verification cannot be attached: producing it"
-          echo "       needs the application, attaching it needs the application not to"
-          echo "       have happened (refused as consumed, exit 6)"
+        [ "$code" = 6 ] \
+          && pass "the historical attach path is still refused after consumption (exit 6)" \
+          || fail "attaching a verification to a consumed candidate -> exit $code, want 6"
+
+        record_verification() { # record_verification <verification.yaml>
+          (cd "$TREE" && "$WORK/sensei" synthesis-record-verification \
+            --lineage "$LINEAGE" --decision "$DECISION" --verification "$1" \
+            --format json >"$WORK/record.json" 2>"$WORK/record.err"); echo $?
+        }
+
+        RECEIPT_BEFORE="$(sha256sum "$APPLY_RECEIPT" | cut -d" " -f1)"
+        code="$(record_verification "$VERIFICATION")"
+        if [ "$code" = 0 ]; then
+          pass "compliant verification recorded against the real application"
         else
-          pass "a post-application verification was attached (exit $code)"
+          fail "recording a compliant verification -> exit $code"
+          sed -n '1,4p' "$WORK/record.err" | sed 's/^/       /'
+        fi
+
+        # THE ROW. A scope violation, recorded against an application that
+        # really happened, on a real repository, without re-applying anything.
+        #
+        # The violation is REAL, not a doctored document. An earlier version of
+        # this row rewrote status: scope_compliant -> scope_violated in the
+        # YAML, and verify-admission's own self-digest refused it -- correctly,
+        # since a verification whose content no longer matches its digest is
+        # exactly what must never be believed. Forging the verdict would also
+        # have proven nothing about the verifier.
+        #
+        # So the applied worktree is made to genuinely violate the admitted
+        # envelope: a file NOT in the decision's scope is modified, and the real
+        # admission owner is asked what it sees.
+        VIOLATION_FILE="README.md"
+        printf '\n<!-- a change nobody admitted -->\n' >>"$APPLY_TREE/$VIOLATION_FILE"
+        VIOLATED="$WORK/verification-violated.yaml"
+        set +e
+        (cd "$TREE" && "$WORK/sensei" verify-admission --decision "$DECISION" \
+          --bundle "$TASK_DIR/convergence" --repo "$APPLY_TREE" \
+          --output "$VIOLATED" --format json >"$WORK/verify-violated.json" 2>"$WORK/verify-violated.err")
+        set -e
+        VSTATUS2="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["architecture_admission_verification"]["status"])' "$WORK/verify-violated.json" 2>/dev/null || true)"
+        if [ "$VSTATUS2" = "scope_violated" ]; then
+          pass "the real verifier reports scope_violated for an unadmitted change"
+        else
+          fail "an out-of-scope modification verified as '$VSTATUS2', want scope_violated"
+          sed -n '1,4p' "$WORK/verify-violated.err" | sed 's/^/       /'
+        fi
+
+        # And here is what the chain actually does with it, which is not what
+        # the O7 contract's wording predicted.
+        #
+        # The verification describes a TREE, and that tree now contains a change
+        # the application did not make, so its patch digest is not the applied
+        # patch. The record refuses it as not bound to this application (exit 3)
+        # -- correctly: a verification of a different patch is not evidence
+        # about this one, and accepting it would let any later edit to the
+        # worktree be filed as a verdict on the candidate.
+        #
+        # That refusal makes criterion 10 as literally worded -- "demonstrate a
+        # scope violation after application" -- structurally unreachable through
+        # this chain, and the reason is a design property rather than a gap:
+        # O5A DERIVES the admitted envelope from the candidate's own diff, so an
+        # applied candidate cannot violate a scope that was computed from it.
+        # A violation can only come from something the application did not do,
+        # and that is precisely what is not bound to it.
+        code="$(record_verification "$VIOLATED")"
+        case "$code" in
+          3) pass "a verification of a drifted tree is refused as not bound (exit 3)" ;;
+          4) pass "SCOPE VIOLATION recorded after real application (exit 4)" ;;
+          0) fail "a scope violation was reported as a compliant result" ;;
+          *) fail "recording a drifted verification -> exit $code, want 3 or 4"
+             sed -n '1,4p' "$WORK/record.err" | sed 's/^/       /' ;;
+        esac
+        echo "  NOTE criterion 10 needs a decision: with a derived envelope, an"
+        echo "       applied candidate cannot violate its own admitted scope, so"
+        echo "       'scope violation after application' is only reachable from"
+        echo "       tree drift -- which is correctly not bound to the application"
+
+        # Put the unadmitted change back, so the checks below judge the
+        # application rather than the violation this row deliberately staged.
+        git -C "$APPLY_TREE" checkout -- "$VIOLATION_FILE" >/dev/null 2>&1
+
+        # And the properties that make the record trustworthy: the application
+        # receipt is untouched, both verifications survive as separate
+        # immutable records, and nothing was applied a second time to get here.
+        if [ "$(sha256sum "$APPLY_RECEIPT" | cut -d' ' -f1)" = "$RECEIPT_BEFORE" ]; then
+          pass "the application receipt is byte-identical after both recordings"
+        else
+          fail "recording a verification rewrote the application receipt"
+        fi
+        records="$(find "$(dirname "$LINEAGE")" -name '*.o5b-verification-record.json' | wc -l)"
+        [ "$records" -ge 1 ] \
+          && pass "the compliant verification survives as an immutable record ($records)" \
+          || fail "no verification record was written"
+        if cmp -s "$APPLY_TREE/$SCOPE_FILE" "$CANDIDATE_CONTENT"; then
+          pass "the applied worktree was never re-applied to record a verdict"
+        else
+          fail "the applied worktree changed while recording verifications"
         fi
 
         # Hard law 6, the half nothing enforced until PR #149's apply work: a

@@ -84,3 +84,27 @@ func persistResumeAssessment(ctx context.Context, dir string, assessment synthes
 	}
 	return writeFileAtomic(path, data)
 }
+
+// openCheckpointStore prepares the durable boundary directory and opens it.
+//
+// NewFSCheckpointStore requires the directory to already exist, and
+// deliberately so: a store that silently creates whatever path it is handed
+// cannot refuse a typo. Creating it is therefore the CALLER's job — exactly as
+// it already is for the candidate and evidence stores.
+//
+// This exists as its own function because omitting that one step made every
+// `sensei synthesis-run` invocation stop at checkpoint-store-unusable: a task's
+// checkpoint directory does not exist until the first run wants one, so the
+// very first thing the new durable path did was refuse itself. Nothing in CI
+// noticed, because the only test that drives the command this far is the
+// ten-minute real-system smoke.
+func openCheckpointStore(dir string) (synthesisdriver.CheckpointStore, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return nil, fmt.Errorf("create checkpoint store %s: %w", dir, err)
+	}
+	store, err := synthesisdriver.NewFSCheckpointStore(dir)
+	if err != nil {
+		return nil, fmt.Errorf("open checkpoint store %s: %w", dir, err)
+	}
+	return store, nil
+}
