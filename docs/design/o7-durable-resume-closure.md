@@ -597,7 +597,7 @@ owners.
 **Implemented.** The matrix now lives as data in `section13Matrix`
 (`golang/architecture/synthesisdriver/lifecycle_matrix_test.go`), with a census
 test that reads every file it cites and fails when a named proof stops being
-declared. It reports **26 rows proven, 7 open**, each open row carrying the
+declared. It reports **26 rows proven, 8 open**, each open row carrying the
 reason it cannot be proven honestly. The list below remains the requirement;
 the census is the current answer, and a prose list is no longer where coverage
 is tracked.

@@ -418,7 +418,7 @@ sentence claiming it goes on reading correctly. `section13Matrix` in
 `golang/architecture/synthesisdriver/lifecycle_matrix_test.go` is now the
 authoritative statement of which rows are proven, which are open, and why —
 checked on every PR by a census test that reads the files it cites and fails
-when a named proof stops existing. It currently reports **26 rows proven, 7
+when a named proof stops existing. It currently reports **26 rows proven, 8
 open**; ask the test, not this document.
 
 Closed since that paragraph was written: durable resume with drift refusal for

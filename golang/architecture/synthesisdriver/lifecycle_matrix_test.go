@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/globulario/sensei/golang/architecture/evaluatorcomposition"
 	"github.com/globulario/sensei/golang/architecture/synthesis"
@@ -101,33 +102,79 @@ func TestReplanExhaustionEndsTheSessionWithoutAnotherPlan(t *testing.T) {
 // in this file meaningful: if two identical runs could differ, a passing row
 // would only describe the run that happened to be observed.
 //
-// Provider nondeterminism is not eliminated by this -- the owners are
-// deterministic fakes. What is proven is that O7's own orchestration and
-// identity decisions add none of their own.
-func TestTwoIdenticalFreshRunsProduceTheSameReceiptIdentity(t *testing.T) {
-	run := func() Result {
-		t.Helper()
-		state, config := lifecycleHarness(t, 1, 1,
-			string(evaluatorcomposition.FailureClassMechanicalCheckFailure),
-			synthesis.RecommendRetryGeneration,
-			func(input evaluatorcomposition.EvaluationInput) bool { return input.AttemptNumber == 1 })
-		result, err := Run(context.Background(), state, config)
-		if err != nil {
-			t.Fatal(err)
-		}
-		return result
+// What is claimed is precise, because two earlier drafts of this row claimed
+// more than was true and each looked like a defect in the code:
+//
+//  1. Building a SECOND harness for the second run. CI rejected it and was
+//     right to: the fixture commits with the wall clock, so two harnesses
+//     produce repositories with different base revisions whenever the runs
+//     straddle a second boundary. Locally they did not, and it passed. The
+//     receipt was correctly binding the base revision; the test was calling
+//     two runs against two different repositories "identical".
+//
+//  2. Reusing the harness but not the clock. lifecycleHarness's clock ADVANCES
+//     one second per call, so the replay stamped later times and those reach
+//     the receipt. Two runs of one session at two different times really are
+//     two different runs — the receipt doing its job, not nondeterminism.
+//
+// With the clock held and everything else identical, what O7 decides is
+// reproducible: the disposition, the accepted Interpretation and Plan
+// identities, the sealed candidate that is the thing actually admitted and
+// applied, and the whole transition chain.
+//
+// The run RECEIPT digest is deliberately not asserted here. It is not
+// replay-stable, because the O4 evaluation receipts it carries embed run-local
+// observation — see the "run receipt digest is replay-stable" row in the matrix
+// below, which is open with that reason rather than quietly weakened.
+func TestReplayingOneSessionReproducesEveryO7Decision(t *testing.T) {
+	state, config := lifecycleHarness(t, 1, 1,
+		string(evaluatorcomposition.FailureClassMechanicalCheckFailure),
+		synthesis.RecommendRetryGeneration,
+		func(input evaluatorcomposition.EvaluationInput) bool { return input.AttemptNumber == 1 })
+	frozen := time.Date(2026, 8, 2, 0, 0, 0, 0, time.UTC)
+	config.Now = func() time.Time { return frozen }
+
+	first, err := Run(context.Background(), state, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The same starting state and the same capabilities, a second time. Run
+	// takes the state by value and seals content-addressed artifacts, so a
+	// replay is legitimate rather than a second, conflicting session.
+	second, err := Run(context.Background(), state, config)
+	if err != nil {
+		t.Fatalf("replaying the same session failed: %v", err)
 	}
 
-	first, second := run(), run()
 	if first.Receipt.Disposition != DispositionCandidateReady {
 		t.Fatalf("the replay fixture did not reach a candidate: %q", first.Receipt.Disposition)
 	}
-	if first.Receipt.ReceiptDigestSHA256 != second.Receipt.ReceiptDigestSHA256 {
-		t.Fatalf("two identical runs produced different receipt identities:\n1: %s\n2: %s",
-			first.Receipt.ReceiptDigestSHA256, second.Receipt.ReceiptDigestSHA256)
+	if first.Receipt.Disposition != second.Receipt.Disposition {
+		t.Fatalf("replay reached %q, first run reached %q", second.Receipt.Disposition, first.Receipt.Disposition)
 	}
+
+	// The sealed candidate is the load-bearing one: it is what admission
+	// decides about and what application materializes. Two replays that
+	// produced different candidates would make every downstream digest binding
+	// meaningless.
+	if first.Candidate == nil || second.Candidate == nil {
+		t.Fatal("a candidate-ready run produced no candidate artifact")
+	}
+	if first.Candidate.CandidateArtifactDigestSHA256 != second.Candidate.CandidateArtifactDigestSHA256 {
+		t.Fatalf("replay sealed a different candidate:\n1: %s\n2: %s",
+			first.Candidate.CandidateArtifactDigestSHA256, second.Candidate.CandidateArtifactDigestSHA256)
+	}
+	if first.Interpretation == nil || second.Interpretation == nil ||
+		first.Interpretation.InterpretationDigestSHA256 != second.Interpretation.InterpretationDigestSHA256 {
+		t.Fatal("replay accepted a different interpretation identity")
+	}
+	if first.Plan == nil || second.Plan == nil ||
+		first.Plan.PlanDigestSHA256 != second.Plan.PlanDigestSHA256 {
+		t.Fatal("replay accepted a different plan identity")
+	}
+
 	if len(first.Trace.Events) != len(second.Trace.Events) {
-		t.Fatalf("two identical runs recorded %d and %d events", len(first.Trace.Events), len(second.Trace.Events))
+		t.Fatalf("replay recorded %d events against %d", len(second.Trace.Events), len(first.Trace.Events))
 	}
 	// Events are a closed interface set, so the chain is compared by the
 	// sequence of event types: that IS the transition chain.
@@ -185,7 +232,7 @@ func section13Matrix() []matrixRow {
 		{requirement: "replan then success", provenBy: "TestRunConsumesExactlyOneReplan", file: driver},
 		{requirement: "retry exhaustion", provenBy: "TestRetryExhaustionEndsTheSessionWithoutAnotherAttempt", file: matrix},
 		{requirement: "replan exhaustion", provenBy: "TestReplanExhaustionEndsTheSessionWithoutAnotherPlan", file: matrix},
-		{requirement: "deterministic replay, fresh", provenBy: "TestTwoIdenticalFreshRunsProduceTheSameReceiptIdentity", file: matrix},
+		{requirement: "deterministic replay, fresh (every O7 decision)", provenBy: "TestReplayingOneSessionReproducesEveryO7Decision", file: matrix},
 		{requirement: "deterministic replay, resumed", provenBy: "TestResumeIsDeterministicGivenDeterministicOwners", file: resume},
 		{requirement: "budgets survive restart unchanged", provenBy: "TestResumeCannotEnlargeTheStepBudget", file: resume},
 		{requirement: "candidate artifact tampering", provenBy: "TestCheckpointRefusesTamperedAcceptedArtifacts", file: "golang/architecture/synthesisdriver/checkpoint_test.go"},
@@ -211,6 +258,7 @@ func section13Matrix() []matrixRow {
 		{requirement: "provider timeout process-group cleanup", openBecause: "requires a real subprocess; witnessed by scripts/synthesis-run-smoke.sh, not hermetically"},
 		{requirement: "unsupported candidate operation refusal", openBecause: "reachable through synthesis-admit; no hermetic row constructs an add/delete candidate yet"},
 		{requirement: "apply digest mismatch", openBecause: "candidateapply refuses it structurally; no row drives it through the CLI dispatcher"},
+		{requirement: "run receipt digest is replay-stable", openBecause: "found open by this matrix: with the clock held and every O7 decision reproducing exactly, the run receipt still differs because the O4 evaluation receipts it carries embed run-local observation. Whether an evaluation receipt SHOULD record where and when it observed is an architectural question, not a missing check, so the row is left open rather than answered by weakening it"},
 	}
 }
 
