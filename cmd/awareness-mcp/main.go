@@ -1684,6 +1684,7 @@ func structPreflight(resp *awarenesspb.PreflightResponse) map[string]interface{}
 	putStrings(obj, "files_to_read", resp.GetFilesToRead())
 	putStrings(obj, "blind_spots", resp.GetBlindSpots())
 	obj["change_risk"] = changeRiskStruct(resp.GetChangeRisk())
+	obj["coverage"] = coverageStruct(resp.GetCoverage())
 	return obj
 }
 
@@ -1709,6 +1710,42 @@ func changeRiskStruct(cr *awarenesspb.ChangeRisk) map[string]interface{} {
 		"approval_gate": cr.GetApprovalGate().String(),
 	}
 	putStrings(obj, "reasons", cr.GetReasons())
+	return obj
+}
+
+// coverageStruct is the machine-parseable coverage summary.
+//
+// It travels with change_risk for the same reason: formatPreflight renders it
+// as "coverage: anchors=… sufficient=…", and a structured consumer must not
+// have to read that sentence to learn that the server considers its own answer
+// under-covered. `sufficient` is the load-bearing bit — a preflight response
+// carrying "sufficient=false … response is not proof of safety" says the
+// verdict above it is not trustworthy, and a consumer blind to it treats a
+// disclaimed answer as a confident one, permissively.
+//
+// The nil case is JSON null rather than a zero-valued object, and the
+// difference from change_risk is deliberate. ChangeRisk's enums declare
+// UNSPECIFIED to be a real answer, so zero values state "no verdict". Coverage
+// has no such sentinel: `sufficient` is a plain bool, so a zero-valued object
+// would assert "coverage is insufficient" — a verdict the server never
+// reached. Null says "no summary", which is what actually happened, while a
+// missing key would still mean "this build publishes no summary at all".
+// The return type is deliberately `any` rather than a map: a typed nil map
+// stored in an interface is not a nil interface, so a consumer testing for
+// absence would see an empty object instead of the null this intends.
+func coverageStruct(cov *awarenesspb.CoverageSummary) any {
+	if cov == nil {
+		return nil
+	}
+	obj := map[string]interface{}{
+		"direct_anchor_count": cov.GetDirectAnchorCount(),
+		"file_count":          cov.GetFileCount(),
+		"indexed_file_count":  cov.GetIndexedFileCount(),
+		"sufficient":          cov.GetSufficient(),
+	}
+	if note := cov.GetNote(); note != "" {
+		obj["note"] = note
+	}
 	return obj
 }
 
