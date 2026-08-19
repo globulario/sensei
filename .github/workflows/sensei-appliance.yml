@@ -99,11 +99,6 @@ jobs:
           trap cleanup EXIT
 
           git -C "${fixture}" init -q
-          # A stranger's checkout has a remote, and bootstrap derives the
-          # repository identity from it. SourceFile subjects are scoped to
-          # that identity, so a corpus published into a store says whose it
-          # is (globulario/sensei#197).
-          git -C "${fixture}" remote add origin https://github.com/example/appliance-smoke.git
           cat > "${fixture}/main.go" <<'GO'
           package main
           func main() {}
@@ -126,6 +121,7 @@ jobs:
             --security-opt no-new-privileges:true \
             --volume "${fixture}:/workspace:ro" \
             --volume sensei-appliance-smoke:/var/lib/sensei \
+            --env SENSEI_REPOSITORY_IDENTITY=example.com/appliance-smoke \
             sensei-appliance:ci >/dev/null
 
           for _ in $(seq 1 60); do
