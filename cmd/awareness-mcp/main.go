@@ -1683,6 +1683,32 @@ func structPreflight(resp *awarenesspb.PreflightResponse) map[string]interface{}
 	putStrings(obj, "tests_to_run", resp.GetTestsToRun())
 	putStrings(obj, "files_to_read", resp.GetFilesToRead())
 	putStrings(obj, "blind_spots", resp.GetBlindSpots())
+	obj["change_risk"] = changeRiskStruct(resp.GetChangeRisk())
+	return obj
+}
+
+// changeRiskStruct is the machine-parseable change-risk verdict.
+//
+// The same verdict is also rendered into required_actions as "Change risk:
+// blast=..., approval=...". That sentence is what a text consumer reads; a
+// structured consumer must not have to recognise it. An agent that regexes a
+// formatted line to learn whether a change needs approval is one wording change
+// away from silently reading "no approval required", and it fails in the
+// permissive direction — which is why the fields exist on the RPC at all.
+//
+// This is emitted unconditionally, unlike the lists above, and that is the
+// point. Preflight leaves change_risk unset when the request named no files, so
+// omitting the key would make "this server reached no verdict" byte-identical
+// to "this server is too old to publish one". Those call for different consumer
+// behaviour, and the proto is explicit that UNSPECIFIED is a real answer rather
+// than an absence. Emitting the enum member names keeps that distinction
+// visible on the wire.
+func changeRiskStruct(cr *awarenesspb.ChangeRisk) map[string]interface{} {
+	obj := map[string]interface{}{
+		"blast_radius":  cr.GetBlastRadius().String(),
+		"approval_gate": cr.GetApprovalGate().String(),
+	}
+	putStrings(obj, "reasons", cr.GetReasons())
 	return obj
 }
 

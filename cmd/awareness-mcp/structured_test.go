@@ -155,3 +155,86 @@ func TestToolsList_IncludesPropose(t *testing.T) {
 		t.Fatal("awareness_propose not advertised in tools/list")
 	}
 }
+
+// The change-risk verdict must reach a structured consumer as fields.
+//
+// globulario/sensei#171 published blast radius and approval gate on the
+// Preflight RPC so consumers would stop parsing the prose line, but the MCP
+// bridge kept projecting only the string lists. Every MCP consumer — which is
+// how agents actually reach this server — was therefore still left with the
+// sentence, and a downstream repository that deleted its parser on the strength
+// of #171 would have found the fields simply absent.
+func TestPreflight_StructuredChangeRisk(t *testing.T) {
+	b := testBridge(fakeClient{
+		preflight: func(_ context.Context, _ *awarenesspb.PreflightRequest) (*awarenesspb.PreflightResponse, error) {
+			return &awarenesspb.PreflightResponse{
+				Status:          awarenesspb.PreflightStatus_PREFLIGHT_STATUS_OK,
+				RequiredActions: []string{"Change risk: blast=cluster, approval=human_approval_required"},
+				ChangeRisk: &awarenesspb.ChangeRisk{
+					BlastRadius:  awarenesspb.BlastRadius_BLAST_RADIUS_CLUSTER,
+					ApprovalGate: awarenesspb.ApprovalGate_APPROVAL_GATE_HUMAN_APPROVAL_REQUIRED,
+					Reasons:      []string{"touches an authority boundary"},
+				},
+				Authority: testCurrentAuthority(""),
+			}, nil
+		},
+	})
+	res, err := b.callTool(context.Background(), "awareness_preflight", map[string]interface{}{
+		"task":  "widen an authority boundary",
+		"files": []interface{}{"golang/server/preflight.go"},
+	})
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	risk, ok := asMap(t, res)["change_risk"].(map[string]interface{})
+	if !ok {
+		t.Fatal("change_risk is absent from the structured payload; MCP consumers are still parsing prose")
+	}
+	if risk["blast_radius"] != "BLAST_RADIUS_CLUSTER" {
+		t.Errorf("blast_radius=%v", risk["blast_radius"])
+	}
+	if risk["approval_gate"] != "APPROVAL_GATE_HUMAN_APPROVAL_REQUIRED" {
+		t.Errorf("approval_gate=%v", risk["approval_gate"])
+	}
+	reasons, _ := risk["reasons"].([]string)
+	if len(reasons) != 1 || reasons[0] != "touches an authority boundary" {
+		t.Errorf("reasons=%v", risk["reasons"])
+	}
+
+	// The prose line stays, unchanged, for consumers that already read it.
+	actions, _ := asMap(t, res)["required_actions"].([]string)
+	if len(actions) != 1 || !strings.HasPrefix(actions[0], "Change risk: ") {
+		t.Errorf("the prose line was disturbed: %v", asMap(t, res)["required_actions"])
+	}
+}
+
+// A response carrying no verdict must say so explicitly rather than by omission.
+//
+// Preflight leaves change_risk unset when the request named no files. If the
+// key vanished in that case, "no verdict was reached" would look exactly like
+// "this build does not publish verdicts", and a consumer cannot fail closed
+// intelligently on a distinction it cannot observe.
+func TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted(t *testing.T) {
+	b := testBridge(fakeClient{
+		preflight: func(_ context.Context, _ *awarenesspb.PreflightRequest) (*awarenesspb.PreflightResponse, error) {
+			return &awarenesspb.PreflightResponse{
+				Status:    awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY,
+				Authority: testCurrentAuthority(""),
+			}, nil
+		},
+	})
+	res, err := b.callTool(context.Background(), "awareness_preflight", map[string]interface{}{"task": "no files named"})
+	if err != nil {
+		t.Fatalf("err=%v", err)
+	}
+	risk, ok := asMap(t, res)["change_risk"].(map[string]interface{})
+	if !ok {
+		t.Fatal("change_risk was omitted, so an unclassified verdict is indistinguishable from an old server")
+	}
+	if risk["blast_radius"] != "BLAST_RADIUS_UNSPECIFIED" || risk["approval_gate"] != "APPROVAL_GATE_UNSPECIFIED" {
+		t.Errorf("an unclassified verdict was not reported as unspecified: %v", risk)
+	}
+	if _, present := risk["reasons"]; present {
+		t.Errorf("reasons were invented for an unclassified verdict: %v", risk["reasons"])
+	}
+}
