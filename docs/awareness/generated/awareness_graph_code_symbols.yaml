@@ -4587,6 +4587,53 @@ test_symbols:
     package: main
     language: go
     doc: "Skipping synthesis-admit leaves nothing to apply, and the message has to say\nwhich command to run rather than reporting a bare missing file."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestAScopeViolationIsRecordedAndReportedWithoutReapplying
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestAScopeViolationIsRecordedAndReportedWithoutReapplying
+    package: main
+    language: go
+    doc: "The proof-matrix row that was unreachable before this command existed: a\nscope violation, recorded against a real application, WITHOUT re-applying."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestApplyReportsAppliedButUnrecordedRatherThanReapplying
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestApplyReportsAppliedButUnrecordedRatherThanReapplying
+    package: main
+    language: go
+    doc: "THE negative control for the apply -> record boundary.\n\nEmission of the consumption record is broken AFTER materialization has\nalready succeeded, and the requirement is precise: the command must report\n\"applied but not recorded\" as its own terminal state. It must NOT claim\ncompletion, and it must NOT try to repair the missing record by applying a\nsecond time -- which is the nasty failure mode durability logic invites,\nwhere a recording problem quietly becomes an extra mutation.\n\nThe store directory is made unwritable so the receipt cannot be persisted,\nwhich is as close to \"the machine failed at exactly that step\" as a test can\nget without stubbing the writer."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesAVerificationBoundElsewhere
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordRefusesAVerificationBoundElsewhere
+    package: main
+    language: go
+    doc: "A verification of something else must not be recordable here, or the record\nwould read as evidence about an application it never described."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesWhenNoApplicationWasRecorded
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordRefusesWhenNoApplicationWasRecorded
+    package: main
+    language: go
+    doc: "There is nothing to record against an application that never happened, and\nthe command must say that rather than inventing one."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordVerificationBindsToTheApplicationWithoutRewritingIt
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordVerificationBindsToTheApplicationWithoutRewritingIt
+    package: main
+    language: go
+    doc: "The ordinary flow Decision A describes: apply, verify, record. The record is\na THIRD document -- the application receipt is not touched."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordVerificationJSONReport
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordVerificationJSONReport
+    package: main
+    language: go
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordVerificationMovesNoBranchAndAppliesNothing
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordVerificationMovesNoBranchAndAppliesNothing
+    package: main
+    language: go
+    doc: "Hard law 7 for this command: it links documents, and touches nothing else."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingNeitherDuplicatesNorOverwrites
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRepeatedRecordingNeitherDuplicatesNorOverwrites
+    package: main
+    language: go
+    doc: "Idempotence at the CLI: re-recording identical evidence is a no-op, and a\nDIFFERENT verification of the same application is an additional record\nrather than a replacement."
   - id: cmd/awg/cmd_synthesis_run_lineage_test.go:TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
     file: cmd/awg/cmd_synthesis_run_lineage_test.go
     symbol: TestPersistAdmissionLineage_CandidateReadyWritesCompleteBundle
@@ -5838,6 +5885,30 @@ test_symbols:
     symbol: TestIdentityPartialOnlyForThinCoverage_TrueForThinCoverageAlone
     package: main
     language: go
+  - id: cmd/awg/synthesis_run_resume_test.go:TestARefusedResumePersistsItsAssessment
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestARefusedResumePersistsItsAssessment
+    package: main
+    language: go
+    doc: "A refusal is evidence. It names which identity moved, and an operator\nreconstructing a stopped session needs it as much as the boundaries\nthemselves -- so it must outlive the terminal it was printed on."
+  - id: cmd/awg/synthesis_run_resume_test.go:TestAssessmentRecordsAreAppendOnly
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestAssessmentRecordsAreAppendOnly
+    package: main
+    language: go
+    doc: "Re-recording the same assessment is a no-op; recording a DIFFERENT one under\nthe same identity is refused. Two different decisions cannot be the same\ndecision, and quietly replacing one would erase a refusal that really\nhappened."
+  - id: cmd/awg/synthesis_run_resume_test.go:TestResumeRefusesAnythingButAnExactDigest
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestResumeRefusesAnythingButAnExactDigest
+    package: main
+    language: go
+    doc: "--resume names one boundary. \"Latest\" is not an input, and neither is a\nprefix: a command that resolves which history to continue by recency makes\nthe invocation an incomplete record of what actually ran, and two operators\nrunning the same command line on different days would continue different\nsessions."
+  - id: cmd/awg/synthesis_run_resume_test.go:TestTheCLIDoesNotReimplementDriftComparison
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestTheCLIDoesNotReimplementDriftComparison
+    package: main
+    language: go
+    doc: "The CLI must not grow its own copy of the drift law. This is a source-level\nassertion because the failure it guards against is not a wrong answer but a\nSECOND answer: a comparison in cmd/ that disagrees with AssessResume would\nbe the one no checkpoint test ever exercises."
   - id: cmd/awg/synthesis_run_stop_test.go:TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop
     file: cmd/awg/synthesis_run_stop_test.go
     symbol: TestEveryIdentityFailurePathRoutesThroughTheTypedGraphStop
@@ -7829,6 +7900,41 @@ test_symbols:
   - id: golang/architecture/candidateapply/apply_test.go:TestReceiptIdentityExcludesObservationTime
     file: golang/architecture/candidateapply/apply_test.go
     symbol: TestReceiptIdentityExcludesObservationTime
+    package: candidateapply
+    language: go
+  - id: golang/architecture/candidateapply/record_test.go:TestAScopeViolationIsRecordable
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestAScopeViolationIsRecordable
+    package: candidateapply
+    language: go
+    doc: "A scope-violated verification is a fact about the applied result, and\nrecording it is a success of the RECORDING even though it reports a failure\nof the application. Refusing to record it would leave the strongest evidence\nagainst a change as the only evidence nobody kept."
+  - id: golang/architecture/candidateapply/record_test.go:TestRecordIdentityIsTheApplicationAndTheVerification
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestRecordIdentityIsTheApplicationAndTheVerification
+    package: candidateapply
+    language: go
+    doc: "Idempotence, pinned: re-recording the SAME verification against the SAME\napplication yields the same record identity, so a retried command cannot\nmanufacture a second logically distinct record of one event. A DIFFERENT\nverification of the same application is a different record, not a rewrite."
+  - id: golang/architecture/candidateapply/record_test.go:TestRecordRefusesBrokenLineage
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestRecordRefusesBrokenLineage
+    package: candidateapply
+    language: go
+    doc: "The lineage refusals, each constructed independently: a record that bound\nthe wrong application would be worse than no record, because it would read\nas evidence about something it never described."
+  - id: golang/architecture/candidateapply/record_test.go:TestRecordRequiresAnApplication
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestRecordRequiresAnApplication
+    package: candidateapply
+    language: go
+    doc: "The record must not be constructible for an application that never happened."
+  - id: golang/architecture/candidateapply/record_test.go:TestRecordingLeavesTheApplicationReceiptByteIdentical
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestRecordingLeavesTheApplicationReceiptByteIdentical
+    package: candidateapply
+    language: go
+    doc: "THE property Decision A exists for: recording a verification later must not\ntouch the application receipt. The receipt is the consumption record for one\napplication, and rewriting it when verification arrives would make the\ndocument that says WHAT WAS APPLIED depend on something observed afterwards."
+  - id: golang/architecture/candidateapply/record_test.go:TestVerificationRecordValidationFailsClosed
+    file: golang/architecture/candidateapply/record_test.go
+    symbol: TestVerificationRecordValidationFailsClosed
     package: candidateapply
     language: go
   - id: golang/architecture/certification/adversarial_test.go:TestAntiForgery_CleanLookingBundleCannotBuyMissingProof
@@ -18265,6 +18371,133 @@ test_symbols:
     symbol: TestTerminalSessionRejectsAnyCommand
     package: synthesis
     language: go
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreHistoryIsAppendOnly
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreHistoryIsAppendOnly
+    package: synthesisdriver
+    language: go
+    doc: "The history is append-only: saving a newer boundary must never destroy the\nolder one it continues from. This is what makes a crash mid-history\nrecoverable instead of fatal."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreLatestNeverRewinds
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreLatestNeverRewinds
+    package: synthesisdriver
+    language: go
+    doc: "A stale writer arriving late must not drag the pointer backwards: both\ncheckpoints stay readable, but latest keeps naming the newest boundary."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreMissingEntriesAreNotFound
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreMissingEntriesAreNotFound
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreRefusesInvalidCheckpoint
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreRefusesInvalidCheckpoint
+    package: synthesisdriver
+    language: go
+    doc: "Nothing invalid is ever persisted, so an entry that exists is an entry that\nwas valid when written."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreRoundTrip
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreRoundTrip
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestCheckpointStoreSaveIsIdempotent
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestCheckpointStoreSaveIsIdempotent
+    package: synthesisdriver
+    language: go
+    doc: "Saving the same checkpoint twice is an idempotent no-op — a retried write\nafter an ambiguous crash must not be an error or a duplicate."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestFSCheckpointStoreCrashBeforePointerUpdateLeavesOlderPointer
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestFSCheckpointStoreCrashBeforePointerUpdateLeavesOlderPointer
+    package: synthesisdriver
+    language: go
+    doc: "A crash between sealing the content and moving the pointer must leave a\nrecoverable older boundary, not a pointer into nothing. The content of the\nnewer checkpoint is on disk and loadable; latest still resolves to the\nprevious one."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestFSCheckpointStoreRefusesDamagedEntries
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestFSCheckpointStoreRefusesDamagedEntries
+    package: synthesisdriver
+    language: go
+    doc: "An entry damaged after it was sealed must be refused, not handed back as if\nit were trustworthy. not-found and corrupted stay distinguishable."
+  - id: golang/architecture/synthesisdriver/checkpoint_store_test.go:TestNewFSCheckpointStoreRequiresAnExistingAbsoluteDirectory
+    file: golang/architecture/synthesisdriver/checkpoint_store_test.go
+    symbol: TestNewFSCheckpointStoreRequiresAnExistingAbsoluteDirectory
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointBoundaryMustMatchTheSessionBinding
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointBoundaryMustMatchTheSessionBinding
+    package: synthesisdriver
+    language: go
+    doc: "The boundary identities are the facts resume compares current observations\nagainst. If they were allowed to differ from the session O1 already bound,\nresume would be checking continuity against something the session never had."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointChainPositionIsStructural
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointChainPositionIsStructural
+    package: synthesisdriver
+    language: go
+    doc: "The chain has to be structural: a first checkpoint has no predecessor, and\nevery later one names exactly which checkpoint it continues."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointDigestBindsEveryAuthorityAndEvidenceField
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointDigestBindsEveryAuthorityAndEvidenceField
+    package: synthesisdriver
+    language: go
+    doc: "Every field below is authority or evidence. Changing any one of them must\ninvalidate the checkpoint, because a resumed driver reads all of them as\nalready-accepted fact."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointDigestExcludesObservationTimestamps
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointDigestExcludesObservationTimestamps
+    package: synthesisdriver
+    language: go
+    doc: "The checkpoint's identity must not move when only observation timestamps\nchange, in the same spirit as RunReceiptDigest. Otherwise two checkpoints\nrecording the same governed facts would be different documents."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointDocumentRejectsUnknownFields
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointDocumentRejectsUnknownFields
+    package: synthesisdriver
+    language: go
+    doc: "A checkpoint that arrives with a field this closed schema does not define\nmust be refused while it is still bytes: decoding first would silently drop\nthe unknown field and validate whatever remained."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRefusesImpossibleBudgets
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRefusesImpossibleBudgets
+    package: synthesisdriver
+    language: go
+    doc: "Restart is not a budget refill. A checkpoint may never claim more remaining\nbudget than the session was granted, or more consumed steps than its own\nimmutable max."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRefusesNonResumablePhases
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRefusesNonResumablePhases
+    package: synthesisdriver
+    language: go
+    doc: "Evaluating is the one nonterminal phase that must never be serialized as a\ndurable boundary: O4 resolves it inside a single owner call, so a\ncheckpoint claiming it would be a half-consumed process-local handoff.\nTerminal phases are reloadable but start no new synthesis work, so they are\nnot continuation checkpoints either."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRefusesTamperedAcceptedArtifacts
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRefusesTamperedAcceptedArtifacts
+    package: synthesisdriver
+    language: go
+    doc: "A tampered interpretation or plan must not re-enter a resumed session under\nan identity O1 accepted for different content."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRefusesTerminalReceiptAtNonterminalPhase
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRefusesTerminalReceiptAtNonterminalPhase
+    package: synthesisdriver
+    language: go
+    doc: "A nonterminal checkpoint carrying an O1 terminal receipt is a lineage\ncontradiction: the receipt says the session ended, the phase says it can\ncontinue."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRejectsWrongSchemaVersion
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRejectsWrongSchemaVersion
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointRequiresAcceptedArtifactsForItsPhase
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointRequiresAcceptedArtifactsForItsPhase
+    package: synthesisdriver
+    language: go
+    doc: "A checkpoint past created cannot continue without the premise O1 accepted:\nthe next owner call would otherwise have to invent it."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestCheckpointSessionStateProjectionIsLossless
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestCheckpointSessionStateProjectionIsLossless
+    package: synthesisdriver
+    language: go
+    doc: "The projection is only safe if it is lossless. This proves every\nSessionState field survives the round trip, and fails when a new field is\nadded to O1 without being carried."
+  - id: golang/architecture/synthesisdriver/checkpoint_test.go:TestResumablePhasesCoverEveryDurableBoundary
+    file: golang/architecture/synthesisdriver/checkpoint_test.go
+    symbol: TestResumablePhasesCoverEveryDurableBoundary
+    package: synthesisdriver
+    language: go
   - id: golang/architecture/synthesisdriver/closure_report_authority_test.go:TestClosureReportAuthorityBlocksIncompleteInterpretationSurface
     file: golang/architecture/synthesisdriver/closure_report_authority_test.go
     symbol: TestClosureReportAuthorityBlocksIncompleteInterpretationSurface
@@ -18501,6 +18734,124 @@ test_symbols:
     symbol: TestRunStepLimitCannotEnlargeSessionBudgets
     package: synthesisdriver
     language: go
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestCheckpointStoreRequiresItsTaskBinding
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestCheckpointStoreRequiresItsTaskBinding
+    package: synthesisdriver
+    language: go
+    doc: "A store cannot be injected without the task identity a boundary must carry:\notherwise the run would happily write checkpoints that cannot be resumed,\nand nobody would find out until the restart that needed them."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestResumeCannotEnlargeTheStepBudget
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestResumeCannotEnlargeTheStepBudget
+    package: synthesisdriver
+    language: go
+    doc: "Restart is not a budget refill, and the step budget is not negotiable\nconfiguration: a resumed process that supplies a larger max_steps is\nrefused rather than quietly granted more room."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestResumeContinuesAnInterruptedSession
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestResumeContinuesAnInterruptedSession
+    package: synthesisdriver
+    language: go
+    doc: "The core capability: a session interrupted mid-flight continues in a later\nprocess from its last durable boundary and still reaches its governed\noutcome, without replaying the owners that already completed."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestResumeFromAttemptRetryAndReplanBoundaries
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestResumeFromAttemptRetryAndReplanBoundaries
+    package: synthesisdriver
+    language: go
+    doc: "The remaining durable phases — attempting, retry, and replan — are only\nreached once O3 and O4 have really run, so they are proven on a session that\nactually consumes a retry or a replan.\n\nThe budget assertion is the point: a resumed session continues with the\ncounters the checkpoint recorded. If restart refilled them, the run would\nconsume a second retry here and still succeed, which is exactly the silent\nfailure this proves cannot happen."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestResumeIsDeterministicGivenDeterministicOwners
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestResumeIsDeterministicGivenDeterministicOwners
+    package: synthesisdriver
+    language: go
+    doc: "The same checkpoint resumed twice into isolated stores must produce the same\ntyped decisions. Provider nondeterminism is not eliminated by this; what is\nproven is that O7's own orchestration and identity decisions are\ndeterministic given deterministic owners."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestResumeRefusalMakesNoOwnerCall
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestResumeRefusalMakesNoOwnerCall
+    package: synthesisdriver
+    language: go
+    doc: "A refused resume performs no owner call at all. This is the property that\nmakes drift refusal meaningful: a refusal that had already called a provider\nwould have changed the world it refused to enter."
+  - id: golang/architecture/synthesisdriver/resume_driver_test.go:TestRunPersistsDurableBoundaries
+    file: golang/architecture/synthesisdriver/resume_driver_test.go
+    symbol: TestRunPersistsDurableBoundaries
+    package: synthesisdriver
+    language: go
+    doc: "A run with a store injected records a boundary before each owner call, and\nthose boundaries form one verifiable chain."
+  - id: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go:TestAnUndriftedResumeDoesCallTheSelectedOwner
+    file: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go
+    symbol: TestAnUndriftedResumeDoesCallTheSelectedOwner
+    package: synthesisdriver
+    language: go
+    doc: "The positive control. Without it the matrix above is satisfied by a Resume\nthat refuses everything, or calls nothing ever -- both of which would pass\nnine subtests while proving the opposite of what is claimed."
+  - id: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go:TestEveryDriftClassRefusesBeforeAnyOwnerCall
+    file: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go
+    symbol: TestEveryDriftClassRefusesBeforeAnyOwnerCall
+    package: synthesisdriver
+    language: go
+    doc: "TestEveryDriftClassRefusesBeforeAnyOwnerCall is exhaustive BY CONSTRUCTION\nover ResumeIdentitySet: every field of the observed boundary gets its own\ncase, mapped to the refusal reason it must produce. A field added to that\nstruct without a drift check therefore fails here rather than silently\nbecoming a boundary nobody compares -- which is the failure this whole\nsection exists to prevent, since an unchecked field is indistinguishable\nfrom a checked one right up to the moment it matters."
+  - id: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go:TestTheDriverHoldsNoAdmissionOrApplicationCapability
+    file: golang/architecture/synthesisdriver/resume_refusal_matrix_test.go
+    symbol: TestTheDriverHoldsNoAdmissionOrApplicationCapability
+    package: synthesisdriver
+    language: go
+    doc: "Admission and application are absent from Config by design, so \"a refused\nresume performs no admission or application\" holds structurally rather than\nby counting: the driver has no capability to admit or apply, and those are\nseparate commands (sensei admit-change / sensei synthesis-apply) operating\non a persisted bundle. This test pins that structure, so wiring either owner\ninto the driver later cannot happen silently without this law being\nrevisited."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeAllowsAnUnchangedBoundary
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeAllowsAnUnchangedBoundary
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeRefusesAnExhaustedStepBudget
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeRefusesAnExhaustedStepBudget
+    package: synthesisdriver
+    language: go
+    doc: "Restart is not a budget refill: an exhausted budget refuses before any\nexternal call rather than starting a step that cannot complete."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeRefusesAnInvalidCheckpoint
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeRefusesAnInvalidCheckpoint
+    package: synthesisdriver
+    language: go
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeRefusesContradictoryLineage
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeRefusesContradictoryLineage
+    package: synthesisdriver
+    language: go
+    doc: "A self-contradictory checkpoint must be reported as a lineage problem, never\nas a clean environment change."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeRefusesEachDriftClassByName
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeRefusesEachDriftClassByName
+    package: synthesisdriver
+    language: go
+    doc: "Each drift class is constructed independently and must produce its own exact\nreason. Collapsing any of these into a generic failure is what makes a\nrefusal unactionable."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeRefusesNonResumablePhases
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeRefusesNonResumablePhases
+    package: synthesisdriver
+    language: go
+    doc: "Externally supplied evaluating stays refused: O4 owns that handoff inside\none call, so there is no durable boundary to continue from."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestAssessResumeTreatsAnImprovedGraphAsDrift
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestAssessResumeTreatsAnImprovedGraphAsDrift
+    package: synthesisdriver
+    language: go
+    doc: "An improved graph is drift exactly like a degraded one: resume claims this\nis the same execution, and a better premise is still a different premise."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestResumeAssessmentDigestBindsTheComparison
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestResumeAssessmentDigestBindsTheComparison
+    package: synthesisdriver
+    language: go
+    doc: "The assessment is evidence, so its identity must bind the comparison it\nrecords — including which reason it refused for."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestResumeRefusalVocabularyIsClosed
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestResumeRefusalVocabularyIsClosed
+    package: synthesisdriver
+    language: go
+    doc: "The vocabulary is closed: every reason must be a reason the validator\naccepts and the schema enumerates, so adding one without updating consumers\nfails here rather than in production output."
+  - id: golang/architecture/synthesisdriver/resume_test.go:TestValidateResumeAssessmentRefusesContradictoryDispositions
+    file: golang/architecture/synthesisdriver/resume_test.go
+    symbol: TestValidateResumeAssessmentRefusesContradictoryDispositions
+    package: synthesisdriver
+    language: go
+    doc: "A document whose disposition and reason disagree is unreadable evidence."
   - id: golang/architecture/synthesisdriver/schema_test.go:TestEmbeddedRunReceiptSchemaMatchesCanonicalSource
     file: golang/architecture/synthesisdriver/schema_test.go
     symbol: TestEmbeddedRunReceiptSchemaMatchesCanonicalSource
