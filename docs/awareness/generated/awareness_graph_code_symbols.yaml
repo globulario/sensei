@@ -773,6 +773,18 @@ test_symbols:
     package: main
     language: go
     doc: "Pillar 3.1: impact returns REAL nodes in structuredContent, not just counts."
+  - id: cmd/awareness-mcp/structured_test.go:TestPreflight_StructuredChangeRisk
+    file: cmd/awareness-mcp/structured_test.go
+    symbol: TestPreflight_StructuredChangeRisk
+    package: main
+    language: go
+    doc: "The change-risk verdict must reach a structured consumer as fields.\n\nglobulario/sensei#171 published blast radius and approval gate on the\nPreflight RPC so consumers would stop parsing the prose line, but the MCP\nbridge kept projecting only the string lists. Every MCP consumer — which is\nhow agents actually reach this server — was therefore still left with the\nsentence, and a downstream repository that deleted its parser on the strength\nof #171 would have found the fields simply absent."
+  - id: cmd/awareness-mcp/structured_test.go:TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted
+    file: cmd/awareness-mcp/structured_test.go
+    symbol: TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted
+    package: main
+    language: go
+    doc: "A response carrying no verdict must say so explicitly rather than by omission.\n\nPreflight leaves change_risk unset when the request named no files. If the\nkey vanished in that case, \"no verdict was reached\" would look exactly like\n\"this build does not publish verdicts\", and a consumer cannot fail closed\nintelligently on a distinction it cannot observe."
   - id: cmd/awareness-mcp/structured_test.go:TestProposeTool_AcceptedStructured
     file: cmd/awareness-mcp/structured_test.go
     symbol: TestProposeTool_AcceptedStructured
