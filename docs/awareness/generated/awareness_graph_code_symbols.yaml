@@ -12548,6 +12548,12 @@ test_symbols:
     package: graphbuild
     language: go
     doc: "TestTwoDomainsShareNoSourceFileSubject is #176's remaining break, at the\nlevel it actually happens: two registered domains publishing into one\ngraph must not claim the same SourceFile subject, so neither one's slice\ncan be moved by the other's publication."
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    file: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go
+    symbol: TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    package: graphbuild
+    language: go
+    doc: "TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject is the rest of\n#176's fresh-store break: two repositories scaffolded from the real\n`sensei init` corpus must claim no repository-local subject in common.\n\nEvery Sensei-onboarded repository scaffolds the same activation rules,\nhigh-risk-file policy and guardrails and then edits its own, so under an\nunscoped identity two repositories' \"activation_rule.auto_briefing\" were\none subject -- the same collapse SourceFile had, in the family #197's\ndecision deferred to a bounded audit. The audit classed them\nrepository-local (see rdf.Emitter.GuardrailIRI), and this pins the result.\n\nIt does NOT require the pack's shared knowledge to be distinct: an\ninstalled principle pack is portable canonical knowledge with ONE\nidentity by design, and custody decides its authorship (#178). Only\nrepository-local families are asserted here."
   - id: golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
     file: golang/architecture/graphbuild/custody_authorship_test.go
     symbol: TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains

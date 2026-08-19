@@ -357,7 +357,7 @@ guardrails:
 	if !strings.Contains(out, rdf.AwNS+"Guardrail") {
 		t.Error("expected aw:Guardrail class in output")
 	}
-	if !strings.Contains(out, "guardrail/test.guardrail.config_seed") {
+	if !strings.Contains(out, "guardrail/github.com%2Ftest%2Frepo/test.guardrail.config_seed") {
 		t.Error("expected IRI for the guardrail")
 	}
 	if !strings.Contains(out, "P1") {
@@ -385,8 +385,17 @@ rules:
 	if !strings.Contains(out, rdf.AwNS+"Guardrail") {
 		t.Error("expected aw:Guardrail class in output")
 	}
+	// Deliberately UNSCOPED. `rules:` carries shipped generic knowledge, which
+	// the #197 family audit classes as portable canonical knowledge: one
+	// shared identity everywhere, custody from governed provenance (#178).
+	// A repository-scoped identity here would fragment knowledge that is
+	// meant to be the same in every repository -- the opposite error from
+	// the collapse that scoping the repository-local guardrails fixed.
 	if !strings.Contains(out, "guardrail/learning.must_be_reviewable") {
 		t.Error("expected IRI for the rule")
+	}
+	if strings.Contains(out, "guardrail/github.com%2Ftest%2Frepo/learning.must_be_reviewable") {
+		t.Error("shared, portable knowledge was scoped to a repository; it must keep one identity everywhere")
 	}
 	if !strings.Contains(out, "AI-generated awareness must remain reviewable") {
 		t.Error("expected summary as rdfs:comment")
@@ -470,7 +479,7 @@ files:
 	if !strings.Contains(out, rdf.AwNS+"Guardrail") {
 		t.Error("expected aw:Guardrail class in output")
 	}
-	if !strings.Contains(out, "guardrail/awareness.high_risk_files") {
+	if !strings.Contains(out, "guardrail/github.com%2Ftest%2Frepo/awareness.high_risk_files") {
 		t.Error("expected guardrail node for high-risk file registry")
 	}
 	if !strings.Contains(out, "sourceFile/github.com%2Ftest%2Frepo/golang%2Fserver%2Fmain.go") {
@@ -515,10 +524,10 @@ activation_rules:
 		t.Fatalf("expected 1 imported file, got %d", len(report.Imported()))
 	}
 	for _, want := range []string{
-		"guardrail/awareness.activation_rules",
-		"guardrail/activation_rule.auto_briefing",
-		"guardrail/activation_rule.manual_briefing",
-		"guardrail/activation_empty_policy.high_risk_target",
+		"guardrail/github.com%2Ftest%2Frepo/awareness.activation_rules",
+		"guardrail/github.com%2Ftest%2Frepo/activation_rule.auto_briefing",
+		"guardrail/github.com%2Ftest%2Frepo/activation_rule.manual_briefing",
+		"guardrail/github.com%2Ftest%2Frepo/activation_empty_policy.high_risk_target",
 		"sourceFile/github.com%2Ftest%2Frepo/golang%2Fserver%2F",
 		"agent_judgment",
 		"treat_as_degraded",

@@ -157,6 +157,39 @@ func (e *Emitter) SourceFileIRI(repoRelativePath string) string {
 	return iri
 }
 
+// GuardrailIRI mints the identity of a REPOSITORY-LOCAL guardrail, scoped
+// to this emitter's RepositoryIdentity.
+//
+// Issue #197's decision required a bounded audit of the guardrail family
+// rather than a bulk rewrite, by what each identity denotes. The audit
+// splits it:
+//
+//   - a repository's activation rules, its high-risk-file policy, and its
+//     operational guardrails are REPOSITORY-LOCAL entities. Every
+//     Sensei-onboarded repository scaffolds them from the same template and
+//     then edits its own, so two repositories' "activation_rule.auto_briefing"
+//     are two different policies -- exactly the collapse SourceFile had.
+//     They take a repository-scoped identity, and go through here;
+//   - shipped generic knowledge (docs/awareness/generic/learning_rules.yaml,
+//     "system-agnostic ... shipped as generic seed content") is
+//     PORTABLE/SHARED canonical knowledge. It keeps ONE shared identity and
+//     mints through MintIRI, because scoping it per repository would
+//     fragment knowledge that is deliberately the same everywhere, and its
+//     custody comes from governed provenance instead (see #178).
+//
+// The two shapes are legible rather than ambiguous: an unscoped guardrail
+// identity means shared canonical knowledge, a scoped one means a
+// repository's own policy.
+func (e *Emitter) GuardrailIRI(id string) string {
+	return IRI(guardrailClassPrefix() + EncodeIRIPath(e.RepositoryIdentity) + "/" + EncodeIRIPath(id))
+}
+
+// guardrailClassPrefix is ".../awareness#guardrail/".
+func guardrailClassPrefix() string {
+	hashIdx := strings.LastIndex(ClassGuardrail, "#")
+	return ClassGuardrail[:hashIdx+1] + lowerFirst(ClassGuardrail[hashIdx+1:]) + "/"
+}
+
 // IRI renders s as an IRI reference token (<s>). Caller is responsible
 // for ensuring s is already a valid IRI — use MintIRI for ID composition.
 func IRI(s string) string { return "<" + s + ">" }
