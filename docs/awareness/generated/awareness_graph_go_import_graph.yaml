@@ -643,6 +643,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/agentcommand/api_agent.go
       - golang/architecture/agentcommand/command_agent.go
       - golang/architecture/agentcommand/plan.go
       - golang/architecture/agentcommand/provider.go
@@ -2077,12 +2078,17 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/synthesisdriver/checkpoint.go
+      - golang/architecture/synthesisdriver/checkpoint_store.go
+      - golang/architecture/synthesisdriver/checkpoint_store_fs.go
       - golang/architecture/synthesisdriver/closure_report_authority.go
       - golang/architecture/synthesisdriver/driver.go
       - golang/architecture/synthesisdriver/engine.go
+      - golang/architecture/synthesisdriver/execution.go
       - golang/architecture/synthesisdriver/interpretation_authority.go
       - golang/architecture/synthesisdriver/receipt.go
       - golang/architecture/synthesisdriver/request.go
+      - golang/architecture/synthesisdriver/resume.go
       - golang/architecture/synthesisdriver/schema.go
       - golang/architecture/synthesisdriver/types.go
     depends_on:
