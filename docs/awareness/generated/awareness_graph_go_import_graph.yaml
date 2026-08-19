@@ -647,7 +647,6 @@ components:
     kind: module
     assertion: inferred
     source_files:
-      - golang/architecture/agentcommand/api_agent.go
       - golang/architecture/agentcommand/command_agent.go
       - golang/architecture/agentcommand/plan.go
       - golang/architecture/agentcommand/provider.go
