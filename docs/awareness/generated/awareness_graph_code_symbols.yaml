@@ -773,12 +773,24 @@ test_symbols:
     package: main
     language: go
     doc: "Pillar 3.1: impact returns REAL nodes in structuredContent, not just counts."
+  - id: cmd/awareness-mcp/structured_test.go:TestPreflight_AbsentCoverageIsNullNotFabricated
+    file: cmd/awareness-mcp/structured_test.go
+    symbol: TestPreflight_AbsentCoverageIsNullNotFabricated
+    package: main
+    language: go
+    doc: "A response with no coverage summary must say \"no summary\", not \"insufficient\".\n\nchange_risk can be zero-valued because its enums declare UNSPECIFIED to be a\nreal answer. `sufficient` is a plain bool, so a zero-valued object would\nassert a verdict the server never reached."
   - id: cmd/awareness-mcp/structured_test.go:TestPreflight_StructuredChangeRisk
     file: cmd/awareness-mcp/structured_test.go
     symbol: TestPreflight_StructuredChangeRisk
     package: main
     language: go
     doc: "The change-risk verdict must reach a structured consumer as fields.\n\nglobulario/sensei#171 published blast radius and approval gate on the\nPreflight RPC so consumers would stop parsing the prose line, but the MCP\nbridge kept projecting only the string lists. Every MCP consumer — which is\nhow agents actually reach this server — was therefore still left with the\nsentence, and a downstream repository that deleted its parser on the strength\nof #171 would have found the fields simply absent."
+  - id: cmd/awareness-mcp/structured_test.go:TestPreflight_StructuredCoverage
+    file: cmd/awareness-mcp/structured_test.go
+    symbol: TestPreflight_StructuredCoverage
+    package: main
+    language: go
+    doc: "Coverage is the other half of the same claim. The preflight verdict above it\nmeans nothing if the server has already said its own answer is under-covered,\nand that disclaimer was reaching text consumers only."
   - id: cmd/awareness-mcp/structured_test.go:TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted
     file: cmd/awareness-mcp/structured_test.go
     symbol: TestPreflight_UnclassifiedChangeRiskIsStatedNotOmitted
