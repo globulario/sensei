@@ -307,10 +307,9 @@ Flags:
 	// once, in one place (synthesisdriver.AssessResume). A second comparison
 	// here would be a second authority on the same question.
 	*checkpointStoreDir = resolveStoreDir(*checkpointStoreDir, absRepo, filepath.Join(taskDir, "synthesis-run", "checkpoints"))
-	checkpointStore, err := synthesisdriver.NewFSCheckpointStore(*checkpointStoreDir)
+	checkpointStore, err := openCheckpointStore(*checkpointStoreDir)
 	if err != nil {
-		return resolutionStop(*format, stopCheckpointStoreUnusable,
-			fmt.Sprintf("open checkpoint store %s: %v", *checkpointStoreDir, err), "")
+		return resolutionStop(*format, stopCheckpointStoreUnusable, err.Error(), "")
 	}
 	var resumeFrom synthesisdriver.Checkpoint
 	if resuming {

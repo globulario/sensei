@@ -133,3 +133,53 @@ func TestTheCLIDoesNotReimplementDriftComparison(t *testing.T) {
 		}
 	}
 }
+
+// The regression that made every run stop before it began.
+//
+// A task's checkpoint directory does not exist until the first run wants one,
+// and NewFSCheckpointStore refuses a directory that is not already there. The
+// durable-resume work added the store without adding the one line that creates
+// it, so the first thing the new path did was refuse itself -- exit 19,
+// checkpoint-store-unusable, on every single invocation.
+//
+// Nothing in CI noticed. The only test that drives the command that far is the
+// ten-minute real-system smoke, which is precisely the layer that caught it and
+// precisely why this test now exists at the layer that runs on every PR.
+func TestOpenCheckpointStoreCreatesTheDirectoryItNeeds(t *testing.T) {
+	// The path a fresh task presents: nothing along the last two segments
+	// exists yet.
+	dir := filepath.Join(t.TempDir(), "tasks", "task.bugfix.abc", "synthesis-run", "checkpoints")
+	if _, err := os.Stat(dir); !os.IsNotExist(err) {
+		t.Fatalf("the fixture directory already exists, so this proves nothing: %v", err)
+	}
+
+	store, err := openCheckpointStore(dir)
+	if err != nil {
+		t.Fatalf("a fresh task could not open its own checkpoint store: %v", err)
+	}
+	if store == nil {
+		t.Fatal("no store was returned")
+	}
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		t.Fatalf("the store directory was not created: %v", err)
+	}
+
+	// Idempotent: a second run must reuse the directory rather than fail on it.
+	if _, err := openCheckpointStore(dir); err != nil {
+		t.Fatalf("reopening an existing checkpoint store failed: %v", err)
+	}
+}
+
+// Creating the directory must not become "create anything, anywhere". A path
+// occupied by a FILE is a mistake the store still has to refuse, or the typo
+// this guards against would simply move one level down.
+func TestOpenCheckpointStoreStillRefusesAnImpossiblePath(t *testing.T) {
+	occupied := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(occupied, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := openCheckpointStore(filepath.Join(occupied, "checkpoints")); err == nil {
+		t.Fatal("a checkpoint store was opened underneath a regular file")
+	}
+}
