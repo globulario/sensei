@@ -256,6 +256,13 @@ func section13Matrix() []matrixRow {
 		{requirement: "application receipt immutable after recording", provenBy: "TestRecordingLeavesTheApplicationReceiptByteIdentical", file: record},
 		{requirement: "verification compliant, recorded", provenBy: "TestRecordVerificationBindsToTheApplicationWithoutRewritingIt", file: recordCL},
 		{requirement: "verification scope violation after real application", provenBy: "TestAScopeViolationIsRecordedAndReportedWithoutReapplying", file: recordCL},
+		// Criterion 10, as CORRECTED. The original wording -- "demonstrate a
+		// scope violation after application" -- was falsified by the real-CLI
+		// witness rather than merely unproven: O5A derives the admitted
+		// envelope from the candidate's own diff, so an applied candidate
+		// cannot violate a scope computed from it. What the witness proved is
+		// the stronger property, and the contract was corrected to state it.
+		{requirement: "post-application scope drift detected; unbound verification refused", provenBy: "TestRecordRefusesBrokenLineage", file: record},
 		{requirement: "wrong-lineage verification refused", provenBy: "TestRecordRefusesBrokenLineage", file: record},
 		{requirement: "historical receipt compatibility", provenBy: "TestAttachVerificationBindsDecisionAndPatch", file: apply},
 

@@ -5921,6 +5921,18 @@ test_symbols:
     package: main
     language: go
     doc: "Re-recording the same assessment is a no-op; recording a DIFFERENT one under\nthe same identity is refused. Two different decisions cannot be the same\ndecision, and quietly replacing one would erase a refusal that really\nhappened."
+  - id: cmd/awg/synthesis_run_resume_test.go:TestOpenCheckpointStoreCreatesTheDirectoryItNeeds
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestOpenCheckpointStoreCreatesTheDirectoryItNeeds
+    package: main
+    language: go
+    doc: "The regression that made every run stop before it began.\n\nA task's checkpoint directory does not exist until the first run wants one,\nand NewFSCheckpointStore refuses a directory that is not already there. The\ndurable-resume work added the store without adding the one line that creates\nit, so the first thing the new path did was refuse itself -- exit 19,\ncheckpoint-store-unusable, on every single invocation.\n\nNothing in CI noticed. The only test that drives the command that far is the\nten-minute real-system smoke, which is precisely the layer that caught it and\nprecisely why this test now exists at the layer that runs on every PR."
+  - id: cmd/awg/synthesis_run_resume_test.go:TestOpenCheckpointStoreStillRefusesAnImpossiblePath
+    file: cmd/awg/synthesis_run_resume_test.go
+    symbol: TestOpenCheckpointStoreStillRefusesAnImpossiblePath
+    package: main
+    language: go
+    doc: "Creating the directory must not become \"create anything, anywhere\". A path\noccupied by a FILE is a mistake the store still has to refuse, or the typo\nthis guards against would simply move one level down."
   - id: cmd/awg/synthesis_run_resume_test.go:TestResumeRefusesAnythingButAnExactDigest
     file: cmd/awg/synthesis_run_resume_test.go
     symbol: TestResumeRefusesAnythingButAnExactDigest

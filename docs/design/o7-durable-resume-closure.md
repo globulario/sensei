@@ -597,7 +597,7 @@ owners.
 **Implemented.** The matrix now lives as data in `section13Matrix`
 (`golang/architecture/synthesisdriver/lifecycle_matrix_test.go`), with a census
 test that reads every file it cites and fails when a named proof stops being
-declared. It reports **28 rows proven, 7 open**, each open row carrying the
+declared. It reports **29 rows proven, 7 open**, each open row carrying the
 reason it cannot be proven honestly. The list below remains the requirement;
 the census is the current answer, and a prose list is no longer where coverage
 is tracked.
@@ -667,8 +667,36 @@ true:
    captured graph evidence offline;
 8. application receipts are immutable after application;
 9. post-application verification is recorded as a separate immutable binding;
-10. the real CLI can demonstrate a scope violation after application without
-    re-applying the candidate;
+10. post-application scope drift is detected by the real verifier, and a
+    verification describing drift outside the exact applied artifact is refused
+    as unbound rather than recorded as an application verdict;
+
+    > **Superseded wording, kept deliberately.** This criterion previously read
+    > *"the real CLI can demonstrate a scope violation after application without
+    > re-applying the candidate"*, and it is recorded here as changed rather than
+    > quietly rewritten, because it did NOT pass as written and must not be read
+    > as having done so.
+    >
+    > The real-CLI witness in #211 falsified it. O5A derives the admitted
+    > envelope from the candidate's own diff and O5B applies exactly that
+    > artifact, so `AppliedPatch == AdmittedPatch` and
+    > `AdmittedScope == Scope(AdmittedPatch)`. An applied candidate therefore
+    > cannot violate a scope computed from it unless some earlier invariant has
+    > already failed. Manufacturing a bound scope violation would have required
+    > deliberately weakening the exact-artifact boundary — making the system
+    > worse in order to satisfy a sentence about it.
+    >
+    > What the witness found instead is the stronger property. Later workspace
+    > drift IS detected (`verify-admission` genuinely returns `scope_violated`),
+    > and the binding owner then refuses to attach that verification to the
+    > application (exit 3), because it describes a tree containing changes the
+    > application never made. Two independent safety properties, both firing.
+    >
+    > Of the three possible designs — (A) application can violate admitted
+    > scope, (B) later drift can be recorded as if the application caused it,
+    > (C) application is exact-scope by construction while later drift stays
+    > detectable but unattributable — the implementation reached (C). The
+    > document yields to the proved architecture, not the reverse.
 11. the #149 completion proof matrix is deliberately exercised on the exact
     accepted head;
 12. no automatic commit, push, PR, approval, merge, or promotion authority is
