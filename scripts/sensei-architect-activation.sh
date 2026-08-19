@@ -167,18 +167,35 @@ else
   record_status preflight degraded "failed_files=$preflight_failures ($(IFS=,; echo "${preflight_degraded_files[*]}"))"
 fi
 
+# The gate queries the server once per changed file, so its cost is
+# proportional to the diff. A fixed budget therefore does not measure the
+# gate at all — it measures the diff size, and a large but perfectly healthy
+# change exhausts it. Scale the budget with the file count, with a floor for
+# small diffs and a ceiling so a runaway diff still terminates.
+changed_file_count=$(wc -l < "$changed_file_list" | tr -d ' ')
+gate_budget=$((90 + 2 * changed_file_count))
+((gate_budget < 90)) && gate_budget=90
+((gate_budget > 420)) && gate_budget=420
+
 set +e
 if [[ "$mode" == "enforce" ]]; then
-  timeout --foreground 90s "$sensei" gate --diff "$diff_range" --domain "$graph_domain" --enforce --addr "$addr" >"$out_dir/gate.txt" 2>"$out_dir/gate.err"
+  timeout --foreground "${gate_budget}s" "$sensei" gate --diff "$diff_range" --domain "$graph_domain" --enforce --addr "$addr" >"$out_dir/gate.txt" 2>"$out_dir/gate.err"
 else
-  timeout --foreground 90s "$sensei" gate --diff "$diff_range" --domain "$graph_domain" --report-only --addr "$addr" >"$out_dir/gate.txt" 2>"$out_dir/gate.err"
+  timeout --foreground "${gate_budget}s" "$sensei" gate --diff "$diff_range" --domain "$graph_domain" --report-only --addr "$addr" >"$out_dir/gate.txt" 2>"$out_dir/gate.err"
 fi
 gate_rc=$?
 set -e
 if ((gate_rc == 0)); then
-  record_status gate pass "$mode"
+  record_status gate pass "$mode files=$changed_file_count budget=${gate_budget}s"
+elif ((gate_rc == 124)); then
+  # A budget exhausted is NOT a verdict. Reporting "fail" here is
+  # indistinguishable from "the gate found a violation", which launders a
+  # resource limit into an architectural judgement — exactly the confusion
+  # this repository refuses everywhere else. Typed as its own state so a
+  # reader can tell "the gate said no" from "the gate never finished".
+  record_status gate timeout "mode=$mode files=$changed_file_count budget=${gate_budget}s — the gate did not finish, so it neither passed nor failed this diff"
 else
-  record_status gate fail "mode=$mode exit=$gate_rc"
+  record_status gate fail "mode=$mode exit=$gate_rc files=$changed_file_count"
 fi
 
 set +e

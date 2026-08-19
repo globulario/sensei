@@ -15,7 +15,11 @@ permissions:
 jobs:
   activation:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Ceilings, not expected cost: a typical run finishes in ~4 minutes. They
+    # are sized so a MIGRATION-sized diff still completes, because a ceiling
+    # that a large-but-healthy change cannot fit inside does not measure the
+    # change — it measures the diff, and reports the difference as a failure.
+    timeout-minutes: 20
     steps:
       - name: Checkout exact change head
         uses: actions/checkout@v4
@@ -99,7 +103,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout --foreground 300s bash scripts/sensei-architect-activation.sh \
+          timeout --foreground 900s bash scripts/sensei-architect-activation.sh \
             --repo . \
             --sensei ./bin/sensei \
             --addr localhost:19120 \
