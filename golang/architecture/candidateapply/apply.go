@@ -171,25 +171,20 @@ func Apply(ctx context.Context, in ApplyInput, completedAt string) (Request, Rec
 }
 
 func AttachVerification(receipt Receipt, decision admission.Decision, verification admission.Verification, completedAt string) (Receipt, error) {
+	// The historical path stays strictly stricter than the shared rule: it
+	// REWRITES the receipt, so it may only ever act on one that has not been
+	// rewritten already. RecordVerification, which writes a separate document,
+	// is the one that may also describe an application already linked to an
+	// earlier verification.
 	if err := ValidateReceipt(receipt); err != nil {
 		return Receipt{}, err
 	}
 	if receipt.Disposition != DispositionApplied {
 		return Receipt{}, errors.New("candidateapply: verification requires an applied receipt")
 	}
-	canonicalDecision, err := canonicalDecision(decision)
+	_, canonicalVerification, err := verificationLineage(receipt, decision, verification)
 	if err != nil {
 		return Receipt{}, err
-	}
-	if canonicalDecision.DecisionDigestSHA256 != receipt.AdmissionDecisionDigestSHA256 {
-		return Receipt{}, errors.New("candidateapply: admission decision changed before verification")
-	}
-	canonicalVerification, err := canonicalVerification(verification)
-	if err != nil {
-		return Receipt{}, err
-	}
-	if canonicalVerification.AdmissionID != canonicalDecision.AdmissionID || canonicalVerification.DecisionDigestSHA256 != canonicalDecision.DecisionDigestSHA256 || canonicalVerification.PatchDigestSHA256 != receipt.PatchDigestSHA256 || !reflect.DeepEqual(canonicalVerification.Binding, canonicalDecision.Binding) {
-		return Receipt{}, errors.New("candidateapply: verification is not bound to the applied candidate")
 	}
 	status := canonicalVerification.Status
 	verificationDigest := canonicalVerification.VerificationDigestSHA256

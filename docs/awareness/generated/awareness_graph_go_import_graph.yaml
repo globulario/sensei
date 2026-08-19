@@ -160,6 +160,7 @@ components:
       - cmd/awg/cmd_suggest_realizations.go
       - cmd/awg/cmd_synthesis_admit.go
       - cmd/awg/cmd_synthesis_apply.go
+      - cmd/awg/cmd_synthesis_record_verification.go
       - cmd/awg/cmd_synthesis_run.go
       - cmd/awg/cmd_task_audit.go
       - cmd/awg/cmd_task_ledger.go
@@ -750,6 +751,7 @@ components:
     source_files:
       - golang/architecture/candidateapply/apply.go
       - golang/architecture/candidateapply/digest.go
+      - golang/architecture/candidateapply/record.go
       - golang/architecture/candidateapply/types.go
       - golang/architecture/candidateapply/validate.go
     depends_on:
