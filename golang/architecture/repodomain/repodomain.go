@@ -161,41 +161,103 @@ func Configured(root string) (string, error) {
 	return d, nil
 }
 
+// DeclarationPath returns the COMMITTED repository-identity declaration for
+// root: docs/awareness/repository.yaml.
+//
+// This is deliberately a tracked file, unlike .sensei/config.yaml, which is
+// local runtime state and gitignored. A SourceFile identity must be the
+// same subject "across checkouts, machines, and publication domains"
+// (issue #197), and an identity that lives only in ignored local state
+// cannot be: a fresh clone -- CI, a new machine, another contributor --
+// would carry none at all.
+func DeclarationPath(root string) string {
+	return filepath.Join(root, "docs", "awareness", "repository.yaml")
+}
+
+// loadDeclaration reads root's committed repository-identity declaration.
+// A missing file is not an error.
+func loadDeclaration(root string) (string, error) {
+	path := DeclarationPath(root)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read %s: %w", path, err)
+	}
+	var cfg Config
+	if err := yaml.Unmarshal(raw, &cfg); err != nil {
+		return "", fmt.Errorf("parse %s: %w", path, err)
+	}
+	return strings.TrimSpace(cfg.Repository.Domain), nil
+}
+
 // IdentityForTree resolves the canonical repository identity of the
 // repository that owns dir, by walking up from dir for the nearest checkout
-// that configures one, and validating it.
+// that declares one, and validating it.
 //
-// This is the identity SourceFile subjects are scoped to (issue #197): the
-// durable one Sensei's repository/admission machinery establishes at `sensei
-// init` / `sensei bootstrap`, NOT the publication domain a build selects
-// with --repo and NOT the checkout path. Walking up from the tree being
-// imported (rather than from the process's working directory) is what makes
-// a cross-repo build attribute the other repository's files to the other
-// repository: a file belongs to the repository it lives in.
+// This is the identity SourceFile subjects are scoped to (issue #197): a
+// durable property of the repository, NOT the publication domain a build
+// selects with --repo and NOT the checkout path. Walking up from the tree
+// being imported (rather than from the process's working directory) is what
+// makes a cross-repo build attribute the other repository's files to the
+// other repository: a file belongs to the repository it lives in.
 //
-// Returns "" with a nil error when no checkout above dir configures a
-// repository domain — an unresolved identity, which callers that mint
-// identities must refuse rather than substitute a fallback for. A malformed
-// config, or a configured value that fails Validate, is a non-nil error and
-// never falls through to a higher directory: configuration that fails to
-// parse must fail visibly, not be worked around by guessing.
+// Two declarations are read at each level:
+//
+//   - docs/awareness/repository.yaml, the COMMITTED declaration. It travels
+//     with the repository, so every checkout on every machine resolves the
+//     same identity;
+//   - .sensei/config.yaml repository.domain, the local one `sensei init`
+//     establishes. It is gitignored runtime state, so it is honored only
+//     where no committed declaration exists -- a checkout that was
+//     initialized but has not yet committed its identity.
+//
+// If both exist and DISAGREE, resolution fails rather than picking one.
+// That is the same law the endpoint guard applies (issue #212): two signals
+// naming different things must never be resolved silently, because the
+// wrong one is indistinguishable from the right one afterwards.
+//
+// Returns "" with a nil error when nothing above dir declares an identity --
+// an unresolved identity, which callers that mint identities must refuse
+// rather than substitute a fallback for. A malformed config, or a declared
+// value that fails Validate, is a non-nil error and never falls through to
+// a higher directory: configuration that fails to parse must fail visibly,
+// not be worked around by guessing.
 func IdentityForTree(dir string) (string, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return "", fmt.Errorf("resolve %s: %w", dir, err)
 	}
 	for current := abs; ; {
+		declared, err := loadDeclaration(current)
+		if err != nil {
+			return "", err
+		}
+		var configured string
 		if _, statErr := os.Stat(ConfigPath(current)); statErr == nil {
 			cfg, err := LoadConfig(current)
 			if err != nil {
 				return "", err
 			}
-			if domain := strings.TrimSpace(cfg.Repository.Domain); domain != "" {
-				if err := Validate(domain); err != nil {
-					return "", fmt.Errorf("configured repository domain %q in %s is invalid: %w", domain, ConfigPath(current), err)
-				}
-				return domain, nil
+			configured = strings.TrimSpace(cfg.Repository.Domain)
+		}
+		switch {
+		case declared != "" && configured != "" && declared != configured:
+			return "", fmt.Errorf(
+				"repository identity is declared twice and they disagree: %s says %q, %s says %q.\n"+
+					"The committed declaration is the durable one; align the local configuration with it, or correct the declaration",
+				DeclarationPath(current), declared, ConfigPath(current), configured)
+		case declared != "":
+			if err := Validate(declared); err != nil {
+				return "", fmt.Errorf("declared repository domain %q in %s is invalid: %w", declared, DeclarationPath(current), err)
 			}
+			return declared, nil
+		case configured != "":
+			if err := Validate(configured); err != nil {
+				return "", fmt.Errorf("configured repository domain %q in %s is invalid: %w", configured, ConfigPath(current), err)
+			}
+			return configured, nil
 		}
 		parent := filepath.Dir(current)
 		if parent == current {
