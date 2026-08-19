@@ -1707,3 +1707,16 @@ failure_modes:
     evidence:
       - A throwaway domain was published into a shared services store because an edited store_url was believed to have redirected the build; seven aw:repo tags landed on subjects another domain owned, the global marker rotated, and that domain lost its proof
     contract: A command must not act on an endpoint that disagrees with the project config the operator reads, unless the operator named it on the command line
+  - id: failure.sensei.cheap_health_surface_read_green_while_graph_could_not_govern
+    title: A cheap health surface read green while the graph could not govern
+    severity: high
+    description: Metadata reported freshness only while preflight checked freshness AND the closure proof AND the transaction certification. A store whose closure report vouched for a different publication therefore read 'authoritative, CURRENT' on the surface monitoring reaches for, and refused on the surface that governs. The repair is one evaluation answering two surfaces, never a second evaluation that agrees today.
+    protects:
+      files:
+        - golang/server/metadata.go
+    related_invariants:
+      - invariant.sensei.repository_local_identity_is_repository_scoped
+    required_tests:
+      - golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    evidence:
+      - 'Observed in issue #176: awareness_metadata reported authoritative/CURRENT for a publication awareness_preflight refused as non-authoritative'

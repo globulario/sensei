@@ -1686,3 +1686,13 @@ required_tests:
     protects:
       invariants:
         - invariant.sensei.source_file_identity_is_repository_scoped
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    title: Two scaffolded repositories share no repository-local subject
+    protects:
+      invariants:
+        - invariant.sensei.repository_local_identity_is_repository_scoped
+  - id: golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    title: Metadata and the governing surfaces return the identical authority verdict
+    protects:
+      failure_modes:
+        - failure.sensei.cheap_health_surface_read_green_while_graph_could_not_govern

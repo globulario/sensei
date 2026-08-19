@@ -2164,3 +2164,15 @@ invariants:
       - golang/rdf/source_file_identity_test.go:TestAMixedGenerationPublicationIsRefused
       - golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoDomainsShareNoSourceFileSubject
     contract: SourceFileID = f(canonical_repository_identity, canonical_repo_relative_path); the publication domain and the checkout path never participate
+  - id: invariant.sensei.repository_local_identity_is_repository_scoped
+    title: A repository-local entity's identity includes its repository; portable knowledge keeps one identity
+    severity: high
+    status: active
+    description: 'Two repositories scaffolded from the same Sensei corpus hold their own activation rules, high-risk-file policy and guardrails. Under an unscoped identity those collapsed onto one subject, so publishing one repository moved another''s slice. The discriminator is what the identity denotes, never convenience: shipped generic knowledge keeps ONE identity because scoping it would fragment knowledge deliberately identical everywhere, and an unscoped guardrail identity therefore MEANS shared canonical knowledge while a scoped one means a repository''s own policy.'
+    protects:
+      files:
+        - golang/rdf/builder.go
+        - golang/extractor/yaml_import_phaseB.go
+    required_tests:
+      - golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
+    contract: 'Identity families are classified by what the identity denotes: repository-local entity -> scoped by canonical repository identity; portable/shared canonical knowledge -> one shared identity, custody from governed provenance'
