@@ -211,7 +211,7 @@ func establishRepositoryDomain(root, explicitFlag string) (establishmentResult, 
 }
 
 // writeRepositoryDeclaration writes the committed repository-identity
-// declaration at docs/awareness/repository.yaml. An existing declaration is
+// declaration at sensei-repository.yaml. An existing declaration is
 // never rewritten — the same "configured identity is preserved, not
 // silently overwritten" law establishRepositoryDomain applies to the local
 // config (contract §3.4). A declaration that disagrees with the domain just

@@ -161,17 +161,34 @@ func Configured(root string) (string, error) {
 	return d, nil
 }
 
-// DeclarationPath returns the COMMITTED repository-identity declaration for
-// root: docs/awareness/repository.yaml.
+// DeclarationFileName is the COMMITTED repository-identity declaration.
+const DeclarationFileName = "sensei-repository.yaml"
+
+// DeclarationPath returns root's committed repository-identity declaration.
 //
-// This is deliberately a tracked file, unlike .sensei/config.yaml, which is
+// It is deliberately a TRACKED file, unlike .sensei/config.yaml, which is
 // local runtime state and gitignored. A SourceFile identity must be the
 // same subject "across checkouts, machines, and publication domains"
 // (issue #197), and an identity that lives only in ignored local state
 // cannot be: a fresh clone -- CI, a new machine, another contributor --
 // would carry none at all.
+//
+// It sits at the repository root, deliberately NOT inside
+// docs/awareness/ and NOT inside the state directory:
+//
+//   - not in the corpus, because the corpus walker enumerates every file
+//     it finds and refuses one whose schema it does not recognize. A
+//     Sensei older than this change reading a corpus containing it would
+//     refuse the whole build -- so putting configuration where the walker
+//     looks would make every already-released Sensei fail on any
+//     repository that adopted the declaration. It is also read BEFORE a
+//     single triple is emitted, so it is not corpus content in the first
+//     place;
+//   - not in the state directory, because statedir prefers ".sensei" once
+//     that directory exists, so creating one in a legacy ".awg" repository
+//     would silently strand that repository's existing configuration.
 func DeclarationPath(root string) string {
-	return filepath.Join(root, "docs", "awareness", "repository.yaml")
+	return filepath.Join(root, DeclarationFileName)
 }
 
 // loadDeclaration reads root's committed repository-identity declaration.
@@ -205,9 +222,9 @@ func loadDeclaration(root string) (string, error) {
 //
 // Two declarations are read at each level:
 //
-//   - docs/awareness/repository.yaml, the COMMITTED declaration. It travels
-//     with the repository, so every checkout on every machine resolves the
-//     same identity;
+//   - sensei-repository.yaml at the repository root, the COMMITTED
+//     declaration. It travels with the repository, so every checkout on
+//     every machine resolves the same identity;
 //   - .sensei/config.yaml repository.domain, the local one `sensei init`
 //     establishes. It is gitignored runtime state, so it is honored only
 //     where no committed declaration exists -- a checkout that was

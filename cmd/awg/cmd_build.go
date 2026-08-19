@@ -55,7 +55,7 @@ func runBuild(args []string) int {
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for runtime transaction certification (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for runtime transaction certification (auto-detect)")
 	repo := fs.String("repo", "", "domain/repo to update IN PLACE, e.g. github.com/globulario/services — compiles this repo's slice, tags it to that domain, and replaces ONLY its triples in the store (non-destructive to other domains, shared nodes, and the home slice). Without --repo, a store load requires --all.")
-	repositoryIdentity := fs.String("repository-identity", "", "canonical repository identity every SourceFile subject is scoped to, e.g. github.com/globulario/sensei (default: resolved from the imported tree's own docs/awareness/repository.yaml, or its .sensei/config.yaml)")
+	repositoryIdentity := fs.String("repository-identity", "", "canonical repository identity every SourceFile subject is scoped to, e.g. github.com/globulario/sensei (default: resolved from the imported tree's own sensei-repository.yaml, or its .sensei/config.yaml)")
 	domain := fs.String("domain", "", "default domain kind for untagged nodes: repo|shared (inferred 'repo' when --repo is set)")
 	sourceSet := fs.String("source-set", "", "default source-set namespace for untagged nodes, e.g. pilot/cli")
 	domainRegistry := fs.String("domain-registry", "", "domain registry binding each domain to its source repository (default: ~/.sensei/domains.yaml)")

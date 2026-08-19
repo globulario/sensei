@@ -132,7 +132,7 @@ shell                       open /bin/sh
 | `SENSEI_NO_SEED` | `true` | Use the mounted project's graph instead of the embedded Globular graph |
 | `SENSEI_AUTO_BUILD` | `true` | Publish `docs/awareness` at startup |
 | `SENSEI_BUILD_STRICT` | `true` | Refuse unrecognized awareness schemas during startup build |
-| `SENSEI_REPOSITORY_IDENTITY` | _(unset)_ | Canonical repository identity the workspace's source files belong to, e.g. `github.com/acme/orders`. Needed when the mounted workspace does not declare one in `docs/awareness/repository.yaml` — which a read-only mount cannot be made to do. Source-file graph subjects are scoped to it, so two repositories' `README.md` never collapse onto one subject |
+| `SENSEI_REPOSITORY_IDENTITY` | _(unset)_ | Canonical repository identity the workspace's source files belong to, e.g. `github.com/acme/orders`. Needed when the mounted workspace does not declare one in `sensei-repository.yaml` — which a read-only mount cannot be made to do. Source-file graph subjects are scoped to it, so two repositories' `README.md` never collapse onto one subject |
 | `SENSEI_ENABLE_PROPOSE` | `false` | Enable the candidate-writing RPC |
 | `SENSEI_TOKEN` | empty | Require bearer authentication when non-empty |
 

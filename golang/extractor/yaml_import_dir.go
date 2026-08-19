@@ -259,11 +259,6 @@ var keySchemas = []struct {
 	{"categories", schemaEntry{"change_risk_classifier", false, true, "C", "change risk classifier"}},
 	{"report_shape", schemaEntry{"runtime_evidence_schema", false, true, "C", "runtime evidence schema"}},
 	{"namespaces", schemaEntry{"namespace_registry", false, true, "C", "namespace registry — pipeline config, not awareness data"}},
-	// The committed repository-identity declaration (issue #197). It is
-	// read by the identity resolver BEFORE any triple is emitted, and
-	// scopes every SourceFile subject in this tree -- it is not itself
-	// awareness data, so it emits nothing.
-	{"repository", schemaEntry{"repository_identity", false, true, "C", "canonical repository identity — scopes SourceFile subjects, not awareness data"}},
 	// Runtime roots and sibling repository names: scanner configuration, not
 	// awareness authority. Declared here because an undeclared file is now a
 	// hard failure — it was previously discovered, dropped, and reported as
@@ -784,7 +779,7 @@ func ImportAwarenessDirWithOpts(docsDir string, w io.Writer, opts ImportDirOptio
 	if repositoryIdentity == "" {
 		return nil, nil, fmt.Errorf(
 			"import %s: no canonical repository identity for this tree, so its SourceFile identities cannot be scoped to the repository that owns them.\n"+
-				"Declare it in the owning checkout's docs/awareness/repository.yaml (`sensei init` and `sensei bootstrap` write it), or name it explicitly.",
+				"Declare it in the owning checkout's sensei-repository.yaml (`sensei init` and `sensei bootstrap` write it), or name it explicitly.",
 			docsDir)
 	}
 
