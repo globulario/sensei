@@ -53,8 +53,25 @@ func EvaluationDigest(e Evaluation) (string, error) {
 }
 
 // ReceiptDigest returns the canonical content digest of a receipt document.
+//
+// CompletedAt is zeroed before hashing. A terminal receipt's identity is WHAT
+// the session concluded -- its disposition, the artifacts it accepted, the
+// evidence chain it carries -- not the wall-clock moment the conclusion was
+// stamped. Two runs that reach the same conclusion from the same inputs are the
+// same conclusion; the time each was observed is recorded in the field, and
+// remains readable, without being part of what the receipt IS.
+//
+// This is the convention runnercomposition.RunnerReceiptDigest and
+// evaluatorcomposition.EvaluationReceiptDigest already follow. The latter's
+// comment asserted that synthesis.Receipt followed it too, and it did not: the
+// O1 terminal receipt was the only member of the chain whose identity moved
+// with the clock, which made the run receipt that carries it unable to
+// reproduce across a replay even when every decision in it was identical. The
+// divergence was documented as agreement, which is worse than either choice
+// alone -- a reader checking the convention was told it held.
 func ReceiptDigest(r Receipt) (string, error) {
 	r = NormalizeReceipt(r)
 	r.ReceiptDigestSHA256 = ""
+	r.CompletedAt = ""
 	return closureprotocol.SemanticDigest(r)
 }

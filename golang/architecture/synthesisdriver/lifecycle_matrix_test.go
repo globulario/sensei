@@ -122,10 +122,15 @@ func TestReplanExhaustionEndsTheSessionWithoutAnotherPlan(t *testing.T) {
 // identities, the sealed candidate that is the thing actually admitted and
 // applied, and the whole transition chain.
 //
-// The run RECEIPT digest is deliberately not asserted here. It is not
-// replay-stable, because the O4 evaluation receipts it carries embed run-local
-// observation — see the "run receipt digest is replay-stable" row in the matrix
-// below, which is open with that reason rather than quietly weakened.
+// The run RECEIPT digest is asserted too, and getting there is what this row
+// was for. It was NOT replay-stable when the matrix first ran, and the cause
+// was a real divergence rather than a property of replay: synthesis.Receipt was
+// the only member of the receipt chain whose identity included its completion
+// timestamp, while runnercomposition and evaluatorcomposition both zeroed
+// theirs — and the latter's comment asserted that synthesis.Receipt agreed.
+// A terminal receipt's identity is what the session concluded, not when the
+// conclusion was stamped, so O1 now follows the convention its siblings already
+// documented for it.
 func TestReplayingOneSessionReproducesEveryO7Decision(t *testing.T) {
 	state, config := lifecycleHarness(t, 1, 1,
 		string(evaluatorcomposition.FailureClassMechanicalCheckFailure),
@@ -173,6 +178,10 @@ func TestReplayingOneSessionReproducesEveryO7Decision(t *testing.T) {
 		t.Fatal("replay accepted a different plan identity")
 	}
 
+	if first.Receipt.ReceiptDigestSHA256 != second.Receipt.ReceiptDigestSHA256 {
+		t.Fatalf("replay produced a different run receipt identity:\n1: %s\n2: %s",
+			first.Receipt.ReceiptDigestSHA256, second.Receipt.ReceiptDigestSHA256)
+	}
 	if len(first.Trace.Events) != len(second.Trace.Events) {
 		t.Fatalf("replay recorded %d events against %d", len(second.Trace.Events), len(first.Trace.Events))
 	}
@@ -233,6 +242,8 @@ func section13Matrix() []matrixRow {
 		{requirement: "retry exhaustion", provenBy: "TestRetryExhaustionEndsTheSessionWithoutAnotherAttempt", file: matrix},
 		{requirement: "replan exhaustion", provenBy: "TestReplanExhaustionEndsTheSessionWithoutAnotherPlan", file: matrix},
 		{requirement: "deterministic replay, fresh (every O7 decision)", provenBy: "TestReplayingOneSessionReproducesEveryO7Decision", file: matrix},
+		{requirement: "run receipt digest is replay-stable", provenBy: "TestReplayingOneSessionReproducesEveryO7Decision", file: matrix},
+		{requirement: "terminal receipt identity excludes its completion time", provenBy: "TestReceiptIdentityIsWhatConcludedNotWhenItWasStamped", file: "golang/architecture/synthesis/digest_identity_test.go"},
 		{requirement: "deterministic replay, resumed", provenBy: "TestResumeIsDeterministicGivenDeterministicOwners", file: resume},
 		{requirement: "budgets survive restart unchanged", provenBy: "TestResumeCannotEnlargeTheStepBudget", file: resume},
 		{requirement: "candidate artifact tampering", provenBy: "TestCheckpointRefusesTamperedAcceptedArtifacts", file: "golang/architecture/synthesisdriver/checkpoint_test.go"},
@@ -258,7 +269,6 @@ func section13Matrix() []matrixRow {
 		{requirement: "provider timeout process-group cleanup", openBecause: "requires a real subprocess; witnessed by scripts/synthesis-run-smoke.sh, not hermetically"},
 		{requirement: "unsupported candidate operation refusal", openBecause: "reachable through synthesis-admit; no hermetic row constructs an add/delete candidate yet"},
 		{requirement: "apply digest mismatch", openBecause: "candidateapply refuses it structurally; no row drives it through the CLI dispatcher"},
-		{requirement: "run receipt digest is replay-stable", openBecause: "found open by this matrix: with the clock held and every O7 decision reproducing exactly, the run receipt still differs because the O4 evaluation receipts it carries embed run-local observation. Whether an evaluation receipt SHOULD record where and when it observed is an architectural question, not a missing check, so the row is left open rather than answered by weakening it"},
 	}
 }
 
