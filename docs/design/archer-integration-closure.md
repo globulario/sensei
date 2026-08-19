@@ -411,24 +411,52 @@ verification scope *violation* (only compliance is proven), oversized provider
 output, process-group cleanup, retry-then-success, replan-then-success,
 retry/replan exhaustion, and deterministic replay.
 
+**Superseded by the census.** The paragraph above was accurate on 2026-08-18 and
+is kept as the record of that moment. It is no longer where coverage is tracked:
+prose lists rot silently, because a row can lose its proof to a rename while the
+sentence claiming it goes on reading correctly. `section13Matrix` in
+`golang/architecture/synthesisdriver/lifecycle_matrix_test.go` is now the
+authoritative statement of which rows are proven, which are open, and why —
+checked on every PR by a census test that reads the files it cites and fails
+when a named proof stops existing. It currently reports **26 rows proven, 7
+open**; ask the test, not this document.
+
+Closed since that paragraph was written: durable resume with drift refusal for
+every identity class, and the stronger law underneath it (a refused resume
+performs no owner call at all); retry-then-success and replan-then-success;
+retry and replan exhaustion swept across budgets; deterministic replay of both a
+fresh and a resumed run; candidate artifact tampering; verification scope
+violation **after real application**, which is what the separate immutable
+verification record made reachable; and the apply/record boundary, where a
+recording failure reports applied-but-unrecorded rather than re-applying.
+
 **Two gaps this contract did not anticipate, both measured rather than
 inferred.**
 
 1. *A post-application verification can never be attached to the application it
-   describes.* Producing a verification OF the applied result requires the
-   application; attaching it through `synthesis-apply --verification` requires
-   the application not to have happened, because the candidate is consumed by
-   then (exit 6). The only route through is deleting the receipt and
-   re-applying, which the command itself warns makes two applications
-   indistinguishable from one. The matrix row "verification scope violation"
-   is therefore unreachable rather than untested.
+   describes.* **CLOSED.** Producing a verification OF the applied result
+   requires the application; attaching it through `synthesis-apply
+   --verification` requires the application not to have happened, because the
+   candidate is consumed by then (exit 6). The resolution was not to relax that
+   refusal but to stop needing it: an application receipt and its verification
+   are two facts observed at two times, so the link became its own immutable
+   document (`sensei.candidateapply.verification-record.v1`) written by
+   `sensei synthesis-record-verification`. The application receipt is never
+   rewritten, several later verifications of one application are several
+   records keyed by verification digest, and a scope violation records
+   *successfully* — suppressing a negative verdict would turn the audit trail
+   into a victory scrapbook. `--verification` remains for historical v1
+   receipts only.
 
-2. *A candidate's graph identity is never revalidated downstream.* With the
-   graph server stopped, `synthesis-run` refuses (exit 12,
-   `graph-identity-unusable`) but `synthesis-admit` composes an admission
-   request from the persisted bundle anyway. This is the concrete shape of the
-   "workspace and graph identity are not re-verified at resume" note above,
-   with the refusing run as its control.
+2. *A candidate's graph identity is never revalidated downstream.* Still true,
+   and now a deliberate decision rather than an oversight: Decision B of
+   `o7-durable-resume-closure.md` holds that downstream immutable evidence does
+   not require a live graph, so `synthesis-admit` composing offline is the
+   contract rather than a leak. What resume added is the other half — a
+   *session* that continues must revalidate repository, base revision,
+   workspace and graph identity, task, control generation and closure before any
+   owner call, and every one of those refusals is proven to stop before
+   execution.
 
 Both are recorded as `failure_mode` entries carrying no `required_tests`
 citation, because nothing proves either fixed.

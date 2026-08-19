@@ -594,6 +594,29 @@ owners.
 
 ## 13. #149 completion proof matrix
 
+**Implemented.** The matrix now lives as data in `section13Matrix`
+(`golang/architecture/synthesisdriver/lifecycle_matrix_test.go`), with a census
+test that reads every file it cites and fails when a named proof stops being
+declared. It reports **26 rows proven, 7 open**, each open row carrying the
+reason it cannot be proven honestly. The list below remains the requirement;
+the census is the current answer, and a prose list is no longer where coverage
+is tracked.
+
+The proof ladder is deliberate, and no layer impersonates another:
+
+```text
+unit contracts
+      ↓
+section 13 hermetic lifecycle matrix   ← always CI, normative
+      ↓
+scripts/synthesis-run-smoke.sh         ← one real-system witness
+```
+
+Every matrix row enters through the public Run/Resume dispatcher — the same
+surface `cmd/awg` enters — with fakes only at owner boundaries, so it proves
+lifecycle compositions rather than components. The smoke is deliberately NOT a
+second copy of these rows: two matrices eventually disagree.
+
 After implementation, deliberately construct and record the rows still missing
 from `archer-integration-closure.md`. Do not mark a row proven because a fixture
 contains a similar branch.
