@@ -24676,6 +24676,18 @@ test_symbols:
     package: main
     language: go
     doc: "TestValidateBackend_UnhealthyStore_RequireTrue_ReturnsError is the\nother arm: the operator explicitly demanded a healthy backend at\nstartup, so we must fail fast with a message that names the URL and\nthe underlying cause. Anything less makes incident triage harder."
+  - id: golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    file: golang/server/metadata_authority_test.go
+    symbol: TestMetadataAndPreflightCannotDisagreeAboutAuthority
+    package: main
+    language: go
+    doc: "The two surfaces must answer from the same evaluation. The issue's finding\nwas not that metadata was wrong in isolation -- it was that the cheap\nsurface and the governing surface DISAGREED, and monitoring reaches for the\ncheap one."
+  - id: golang/server/metadata_authority_test.go:TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone
+    file: golang/server/metadata_authority_test.go
+    symbol: TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone
+    package: main
+    language: go
+    doc: "TestMetadataCarriesTheComposedAuthorityVerdictNotFreshnessAlone is #176's\nmonitoring blind spot: Metadata reported freshness and nothing else, so a\nhealth check built on the cheap surface read green for a graph that could\nnot govern -- right up to the moment a governed run started and preflight\nrefused."
   - id: golang/server/metadata_domain_test.go:TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount
     file: golang/server/metadata_domain_test.go
     symbol: TestMetadata_DomainScopeDoesNotFallBackToGraphWideTripleCount

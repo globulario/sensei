@@ -70,6 +70,14 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	resp.LiveStoreGraphTripleCount = freshness.verification.LiveTripleCount
 	resp.GraphFreshnessState = graphFreshnessStateProto(freshness.verification.State)
 	resp.GraphFreshnessDetail = freshness.verification.Detail
+	// The composed verdict, not freshness alone. Freshness alone reads
+	// "authoritative, CURRENT" for a store whose closure report vouches for a
+	// different publication, and monitoring reaches for the cheap surface --
+	// so a green health check could stand right up to the moment a governed
+	// run started and preflight refused (issue #176). Answered from the SAME
+	// snapshot every other graph-backed surface uses, so the two cannot
+	// disagree.
+	resp.Authority = graphAuthorityFromSnapshot(freshness, s)
 	if resp.GetGovernancePackState() == awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_CURRENT &&
 		freshness.verification.State != seedmeta.FreshnessCurrent {
 		resp.GovernancePackState = awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_STALE
