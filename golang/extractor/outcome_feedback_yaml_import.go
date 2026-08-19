@@ -118,7 +118,7 @@ func importOutcomeFeedback(e *rdf.Emitter, path string) error {
 		if ref == "" {
 			continue
 		}
-		iri, ok := knowledgeRefToIRI(ref)
+		iri, ok := knowledgeRefToIRI(e, ref)
 		if !ok {
 			continue
 		}
@@ -142,7 +142,10 @@ func emitOptLit(e *rdf.Emitter, subj, prop, val string) {
 // dots), matching how the per-class importers mint their nodes. Returns false
 // for an unknown class prefix or empty slug. Shared by the outcome-feedback
 // and repair-plan importers.
-func knowledgeRefToIRI(ref string) (string, bool) {
+// knowledgeRefToIRI resolves a class-qualified reference to its IRI. It
+// takes the emitter because a source_file reference resolves to a
+// repository-scoped identity (issue #197), which only the emitter knows.
+func knowledgeRefToIRI(e *rdf.Emitter, ref string) (string, bool) {
 	colon := strings.IndexByte(ref, ':')
 	if colon < 0 {
 		return "", false
@@ -187,7 +190,7 @@ func knowledgeRefToIRI(ref string) (string, bool) {
 		// the invariant IRI, so a meta_principle ref resolves there.
 		classIRI = rdf.ClassInvariant
 	case "source_file":
-		classIRI = rdf.ClassSourceFile
+		return e.SourceFileIRI(slug), true
 	case "code_symbol":
 		classIRI = rdf.ClassCodeSymbol
 	case "symbol":

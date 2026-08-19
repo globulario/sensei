@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"strings"
 	"testing"
 
@@ -145,7 +146,7 @@ func requirePlaneTriple(t *testing.T, nt, value string) {
 func requireImportError(t *testing.T, files map[string]string) {
 	t.Helper()
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(makeDir(t, files), &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(makeDir(t, files), &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir returned unexpected top-level error: %v", err)
 	}

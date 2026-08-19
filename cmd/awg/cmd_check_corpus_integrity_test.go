@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"io"
 	"os"
 	"path/filepath"
@@ -91,6 +92,10 @@ const proposeMalformedInvariants = `invariants:
 func writeCorpus(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
+	// Declared on the checkout ABOVE the corpus, never inside it: a
+	// config file dropped into the walked awareness directory would be
+	// counted as a source file and rejected as an unknown schema.
+	repofixture.WriteRepositoryIdentity(t, filepath.Dir(dir), repofixture.DefaultDomain)
 	for name, body := range files {
 		path := filepath.Join(dir, name)
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

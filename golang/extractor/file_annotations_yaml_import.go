@@ -72,7 +72,7 @@ func importFileAnnotations(e *rdf.Emitter, path string) error {
 		if ann.File == "" {
 			continue
 		}
-		fileIRI := rdf.MintIRI(rdf.ClassSourceFile, ann.File)
+		fileIRI := e.SourceFileIRI(ann.File)
 		ensureNode(e, rdf.ClassSourceFile, ann.File)
 
 		for _, invID := range ann.Enforces {
@@ -225,7 +225,7 @@ func importRenderingGroups(e *rdf.Emitter, path string) error {
 		}
 		e.Triple(subj, rdf.IRI(rdf.PropAuthoredIn), rdf.Lit(e.NormPath(path)))
 		for _, filePath := range rg.Files {
-			fileIRI := rdf.MintIRI(rdf.ClassSourceFile, filePath)
+			fileIRI := e.SourceFileIRI(filePath)
 			ensureNode(e, rdf.ClassSourceFile, filePath)
 			e.Triple(subj, rdf.IRI(rdf.PropProtects), fileIRI)
 			// Reverse edge: file -> memberOf -> rendering group

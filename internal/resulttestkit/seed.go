@@ -107,6 +107,12 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if _, err := git(repo, "init", "-q"); err != nil {
 		return Result{}, err
 	}
+	// The fixture checkout declares the repository its files belong to, so
+	// their SourceFile identities can be scoped to it (issue #197) through
+	// the same resolution path production uses.
+	if err := write(repo, ".sensei/config.yaml", "repository:\n  domain: "+Domain+"\n"); err != nil {
+		return Result{}, err
+	}
 	if err := write(repo, "docs/awareness/invariants.yaml", invariants); err != nil {
 		return Result{}, err
 	}

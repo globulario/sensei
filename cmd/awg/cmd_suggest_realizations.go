@@ -373,14 +373,11 @@ func iriID(tok string) (id, class string) {
 	return rest[slash+1:], rest[:slash]
 }
 
+// sourceFilePath recovers the repo-relative path of a SourceFile token, for
+// identities of either generation -- the repository-scoped one and the
+// unscoped one it replaced (issue #197).
 func sourceFilePath(tok string) (string, bool) {
-	id, class := iriID(tok)
-	if class != "sourceFile" || id == "" {
-		return "", false
-	}
-	id = strings.ReplaceAll(id, "%2F", "/")
-	id = strings.ReplaceAll(id, "%2f", "/")
-	return id, true
+	return rdf.SourceFilePathFromIRI(tok)
 }
 
 func literal(o string) string {

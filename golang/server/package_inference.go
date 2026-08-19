@@ -11,7 +11,6 @@ import (
 	"context"
 	"path"
 	"sort"
-	"strings"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/rdf"
@@ -177,16 +176,8 @@ func (p packageInference) apply(resp *awarenesspb.ImpactResponse, cap int) {
 func (p packageInference) empty() bool { return len(p.nodes) == 0 }
 
 // repoPathFromSourceFileIRI recovers the repo-relative path from a SourceFile
-// IRI, decoding the percent-encoding the mint applied.
+// IRI of either identity generation -- the repository-scoped one and the
+// unscoped one it replaced (issue #197).
 func repoPathFromSourceFileIRI(iri string) (string, bool) {
-	const marker = "#sourceFile/"
-	i := strings.Index(iri, marker)
-	if i < 0 {
-		return "", false
-	}
-	p := rdf.DecodeIRIPath(iri[i+len(marker):])
-	if p == "" {
-		return "", false
-	}
-	return p, true
+	return rdf.SourceFilePathFromIRI(iri)
 }

@@ -25,6 +25,7 @@ package main
 import (
 	"bytes"
 	"github.com/globulario/sensei/golang/extractor"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +44,7 @@ const fixtureDir = "../../golang/extractor/testdata"
 // job before writing).
 func TestRun_StdoutMode_ProducesValidNTriples(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", fixtureDir}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", fixtureDir}, &stdout, &stderr)
 
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
@@ -74,7 +75,7 @@ func TestRun_OutputFileMode_WritesValidFile(t *testing.T) {
 	outPath := filepath.Join(dir, "awareness.nt")
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", fixtureDir, "-output", outPath}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", fixtureDir, "-output", outPath}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
 	}
@@ -132,7 +133,7 @@ func TestRun_MissingInput_ReturnsUserError(t *testing.T) {
 func TestRun_NonexistentInput_ReturnsUserError(t *testing.T) {
 	var stdout, stderr bytes.Buffer
 	missing := filepath.Join(t.TempDir(), "does-not-exist")
-	code := run([]string{"-input", missing}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", missing}, &stdout, &stderr)
 
 	if code != exitUserError {
 		t.Fatalf("exit code = %d, want %d (user error). stderr:\n%s",
@@ -158,7 +159,7 @@ func TestRun_InputIsFile_ReturnsUserError(t *testing.T) {
 	}
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", regular}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", regular}, &stdout, &stderr)
 	if code != exitUserError {
 		t.Fatalf("exit code = %d, want %d (user error). stderr:\n%s",
 			code, exitUserError, stderr.String())
@@ -173,7 +174,7 @@ func TestRun_InputIsFile_ReturnsUserError(t *testing.T) {
 // fixtures are all importable schemas, so they are the ideal strict-pass case.
 func TestRun_StrictMode_PassesWhenAllImported(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", fixtureDir, "-strict"}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", fixtureDir, "-strict"}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d with all-importable dir. stderr:\n%s",
 			code, exitOK, stderr.String())
@@ -204,7 +205,7 @@ completely_unknown_top_level_key_xyzzy:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", dir, "-strict"}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", dir, "-strict"}, &stdout, &stderr)
 	if code != exitRuntime {
 		t.Fatalf("exit code = %d, want %d (runtime) for strict with unknown-schema file. stderr:\n%s",
 			code, exitRuntime, stderr.String())
@@ -234,7 +235,7 @@ authority_rules:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", dir, "-strict"}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", dir, "-strict"}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d — known_unsupported must not fail strict. stderr:\n%s",
 			code, exitOK, stderr.String())
@@ -245,7 +246,7 @@ authority_rules:
 // appears in stderr even in non-strict mode, so operators always see coverage.
 func TestRun_StrictMode_SummaryAlwaysPrinted(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", fixtureDir}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", fixtureDir}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
 	}
@@ -263,7 +264,7 @@ unsupported_keys: []
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", dir}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", dir}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
 	}
@@ -297,7 +298,7 @@ invariants:
 `)
 
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"-input", dir1, "-input", dir2}, &stdout, &stderr)
+	code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", dir1, "-input", dir2}, &stdout, &stderr)
 	if code != exitOK {
 		t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
 	}
@@ -388,7 +389,7 @@ func TestDedupNTriples_Empty(t *testing.T) {
 func TestRun_Deterministic(t *testing.T) {
 	runOnce := func() string {
 		var stdout, stderr bytes.Buffer
-		if code := run([]string{"-input", fixtureDir}, &stdout, &stderr); code != exitOK {
+		if code := run([]string{"-repository-identity", repofixture.DefaultDomain, "-input", fixtureDir}, &stdout, &stderr); code != exitOK {
 			t.Fatalf("exit code = %d, want %d. stderr:\n%s", code, exitOK, stderr.String())
 		}
 		if stdout.Len() == 0 {

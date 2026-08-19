@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"strings"
 	"testing"
@@ -17,7 +18,7 @@ import (
 func importDirToString(t *testing.T, dir string) (string, *extractor.ImportReport) {
 	t.Helper()
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -472,7 +473,7 @@ files:
 	if !strings.Contains(out, "guardrail/awareness.high_risk_files") {
 		t.Error("expected guardrail node for high-risk file registry")
 	}
-	if !strings.Contains(out, "sourceFile/golang%2Fserver%2Fmain.go") {
+	if !strings.Contains(out, "sourceFile/github.com%2Ftest%2Frepo/golang%2Fserver%2Fmain.go") {
 		t.Error("expected source-file node for high-risk path")
 	}
 	if !strings.Contains(out, rdf.PropProtects) {
@@ -518,7 +519,7 @@ activation_rules:
 		"guardrail/activation_rule.auto_briefing",
 		"guardrail/activation_rule.manual_briefing",
 		"guardrail/activation_empty_policy.high_risk_target",
-		"sourceFile/golang%2Fserver%2F",
+		"sourceFile/github.com%2Ftest%2Frepo/golang%2Fserver%2F",
 		"agent_judgment",
 		"treat_as_degraded",
 	} {
@@ -539,7 +540,7 @@ func TestPhaseB_SelfAwareness_MoreTriplesAfterPhaseB(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(docsDir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(docsDir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Skipf("docs/awareness not accessible: %v", err)
 	}

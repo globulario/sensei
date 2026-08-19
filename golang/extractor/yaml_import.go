@@ -195,27 +195,27 @@ func importInvariants(e *rdf.Emitter, path string) error {
 		// may_affect_files.
 		for _, f := range inv.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 		for _, f := range inv.Protects.EnforcesFiles {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropEnforces), rdf.MintIRI(rdf.ClassSourceFile, f))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropEnforces), e.SourceFileIRI(f))
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 		for _, f := range inv.Protects.ConfiguresFiles {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropConfigures), rdf.MintIRI(rdf.ClassSourceFile, f))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropConfigures), e.SourceFileIRI(f))
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 		for _, f := range inv.Protects.ObservesFiles {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropObserves), rdf.MintIRI(rdf.ClassSourceFile, f))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropObserves), e.SourceFileIRI(f))
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 		for _, f := range inv.Protects.MayAffectFiles {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropMayAffect), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropMayAffect), e.SourceFileIRI(f))
 			// No reverse implements — see comment above.
 		}
 		for _, s := range inv.Protects.Symbols {
@@ -319,11 +319,11 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range fm.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse edge — lets briefing-by-file surface failure modes as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 			// Closure consumes file-scoped failure surface via SourceFile -> vulnerableTo -> FailureMode.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropVulnerableTo), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropVulnerableTo), subj)
 		}
 	}
 	return nil
@@ -355,10 +355,10 @@ func importIncidentPatterns(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range p.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse implements edge — same rationale as the invariant
 			// case: lets impact-by-file land patterns as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 		for _, inv := range p.RelatedInvariants {
 			e.Triple(subj, rdf.IRI(rdf.PropAffects), rdf.MintIRI(rdf.ClassInvariant, inv))
@@ -382,5 +382,17 @@ func importIncidentPatterns(e *rdf.Emitter, path string) error {
 // the emitter's per-class counter reflects unique nodes rather than
 // reference occurrences.
 func ensureNode(e *rdf.Emitter, cls, id string) {
+	if cls == rdf.ClassSourceFile {
+		// SourceFile identities are repository-scoped (issue #197); they
+		// never go through the unscoped MintIRI path.
+		ensureSourceFileNode(e, id)
+		return
+	}
 	e.Typed(rdf.MintIRI(cls, id), cls)
+}
+
+// ensureSourceFileNode types one repo-relative path as a SourceFile under
+// this emitter's repository identity.
+func ensureSourceFileNode(e *rdf.Emitter, repoRelativePath string) {
+	e.Typed(e.SourceFileIRI(repoRelativePath), rdf.ClassSourceFile)
 }

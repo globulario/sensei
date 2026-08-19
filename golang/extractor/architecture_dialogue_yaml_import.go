@@ -52,7 +52,7 @@ func emitOpenQuestion(e *rdf.Emitter, path string, binding architecture.ClaimDoc
 		e.Triple(subj, rdf.IRI(rdf.PropBlocksClaim), rdf.MintIRI(rdf.ClassArchitectureClaim, id))
 	}
 	for _, ref := range q.BlocksNodes {
-		if iri, ok := claimReferenceIRI(ref); ok {
+		if iri, ok := claimReferenceIRI(e, ref); ok {
 			e.Triple(subj, rdf.IRI(rdf.PropBlocksNode), iri)
 		}
 	}

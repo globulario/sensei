@@ -49,16 +49,27 @@ func defaultBuildInputDirsFromRoot(root string) []string {
 // callers finalize it (idempotently) to stamp the whole-graph marker. Source
 // discovery stays here; compilation/canonicalization/validation live in the
 // package.
-func compileAwarenessInputs(inputDirs []string, repo, domain, sourceSet string, strict bool) ([]byte, int, error) {
+// compileAwarenessInputs compiles inputDirs into N-Triples.
+//
+// repositoryIdentity, when non-empty, is the canonical repository identity
+// every SourceFile subject in these trees is scoped to (issue #197). Only a
+// caller that genuinely knows which repository a tree belongs to passes it
+// -- `sensei import`, which is handed the identity of the repository it is
+// importing. An empty value means "resolve it from each tree's own
+// checkout", which is what `sensei build` does, so a cross-repo input is
+// attributed to the repository it lives in rather than to the domain this
+// build happens to publish under.
+func compileAwarenessInputs(inputDirs []string, repositoryIdentity, repo, domain, sourceSet string, strict bool) ([]byte, int, error) {
 	scopedRepo := strings.TrimSpace(repo)
 	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs))
 	for _, dir := range inputDirs {
 		root := graphbuild.SourceRoot{
-			FilesystemPath:   dir,
-			IdentityRoot:     dir,
-			RepositoryDomain: scopedRepo,
-			DefaultDomain:    strings.TrimSpace(domain),
-			DefaultSourceSet: strings.TrimSpace(sourceSet),
+			FilesystemPath:     dir,
+			IdentityRoot:       dir,
+			RepositoryDomain:   scopedRepo,
+			DefaultDomain:      strings.TrimSpace(domain),
+			DefaultSourceSet:   strings.TrimSpace(sourceSet),
+			RepositoryIdentity: strings.TrimSpace(repositoryIdentity),
 		}
 		// Custody derivation is enabled exactly when a repository domain is
 		// named, because that is exactly when the build attributes authorship:
@@ -98,7 +109,7 @@ func compileAwarenessInputs(inputDirs []string, repo, domain, sourceSet string, 
 
 func buildProjectArtifact(root string) ([]byte, error) {
 	inputDirs := defaultBuildInputDirsFromRoot(root)
-	raw, _, err := compileAwarenessInputs(inputDirs, "", "", "", false)
+	raw, _, err := compileAwarenessInputs(inputDirs, "", "", "", "", false)
 	if err != nil {
 		return nil, err
 	}

@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -83,7 +84,7 @@ func TestApplyIntentGroundings_MachineAdoptsStrongOnly(t *testing.T) {
 	// Round-trip: machine-adopted intent imports as an Intent with explicit
 	// machine provenance. The weaker staged candidate remains excluded.
 	var buf bytes.Buffer
-	e, _, err := extractor.ImportAwarenessDir(awDir, &buf)
+	e, _, err := extractor.ImportAwarenessDirWithOpts(awDir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}

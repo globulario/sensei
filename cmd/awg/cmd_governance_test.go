@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"github.com/globulario/sensei/internal/repofixture"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -148,6 +149,7 @@ func TestGovernanceTrustFetch_InvalidCandidateFailsClosed(t *testing.T) {
 
 func TestGovernanceActivate_SuccessWritesActiveRecordAndLog(t *testing.T) {
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	mkdirAll(t, awarenessDir)
 	if err := copyFixtureYAMLs(filepath.Join("..", "..", "golang", "extractor", "testdata"), awarenessDir); err != nil {
@@ -201,6 +203,7 @@ func TestGovernanceActivate_SuccessWritesActiveRecordAndLog(t *testing.T) {
 
 func TestGovernanceActivate_FailureLeavesPreviousActiveRecordUnchanged(t *testing.T) {
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	mkdirAll(t, awarenessDir)
 	if err := copyFixtureYAMLs(filepath.Join("..", "..", "golang", "extractor", "testdata"), awarenessDir); err != nil {
@@ -251,6 +254,7 @@ func TestGovernanceActivate_FailureLeavesPreviousActiveRecordUnchanged(t *testin
 
 func TestRunBuild_FailsClosedWhenManagedGovernanceEnabledAndActivePackMissing(t *testing.T) {
 	root := t.TempDir()
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	mkdirAll(t, awarenessDir)
 	if err := copyFixtureYAMLs(filepath.Join("..", "..", "golang", "extractor", "testdata"), awarenessDir); err != nil {

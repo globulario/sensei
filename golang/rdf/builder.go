@@ -33,6 +33,15 @@ type Emitter struct {
 	DefaultDomain    string
 	DefaultSourceSet string
 
+	// RepositoryIdentity is the canonical repository identity every
+	// SourceFile this emitter mints is scoped to (issue #197). It is the
+	// durable identity of the repository the files belong to, NOT
+	// DefaultRepo -- DefaultRepo is the publication domain a build
+	// selects, and a publication scope may be aliased or rebound while a
+	// file's repository does not change. Resolved once, before any
+	// emission, and refused when unresolved: see SourceFileIRI.
+	RepositoryIdentity string
+
 	// typedSubjects/scopedSubjects support FinalizeDefaultScope: every node the
 	// emitter types is recorded; a node that emits its own aw:domain/aw:repo is
 	// marked scoped. At finalize, typed-but-unscoped nodes adopt DefaultRepo — so
@@ -114,6 +123,22 @@ func (e *Emitter) FinalizeDefaultScope() {
 		e.Triple(subj, IRI(PropDomain), Lit(DomainRepo))
 		e.Triple(subj, IRI(PropRepo), Lit(e.DefaultRepo))
 	}
+}
+
+// SourceFileIRI mints the repository-scoped identity of one repo-relative
+// source file, scoped to this emitter's RepositoryIdentity. Every
+// SourceFile subject goes through here rather than MintIRI(ClassSourceFile,
+// path), which mints the ambiguous unscoped v1 identity issue #197
+// retired.
+//
+// RepositoryIdentity must already be set; callers that construct an
+// emitter refuse before emitting a single triple when it cannot be
+// resolved, so an unscoped identity is never minted as a fallback. If it
+// is somehow empty here, the resulting identity is deliberately not a
+// valid v1 identity either -- there is no shape this can degrade into
+// that another repository could collide with.
+func (e *Emitter) SourceFileIRI(repoRelativePath string) string {
+	return MintSourceFileIRI(e.RepositoryIdentity, repoRelativePath)
 }
 
 // IRI renders s as an IRI reference token (<s>). Caller is responsible

@@ -228,6 +228,17 @@ func awarenessRelatedID(iri string) (string, bool) {
 	// IDs are copied by agents into Resolve calls, so the id must be the human
 	// form. resolveIRIForClassAndID re-encodes it, so the round-trip is exact.
 	classPart, idPart := rest[:slash], rdf.DecodeIRIPath(rest[slash+1:])
+	// A SourceFile identity carries its repository (issue #197), so its id
+	// is the repo-relative path parsed out of the whole IRI, never the
+	// single segment after the class prefix -- which would be the
+	// repository identity alone.
+	if classPart == "sourceFile" {
+		path, ok := rdf.SourceFilePathFromIRI(iri)
+		if !ok {
+			return "", false
+		}
+		return "source_file:" + path, true
+	}
 	switch classPart {
 	case "invariant":
 		return "invariant:" + idPart, true

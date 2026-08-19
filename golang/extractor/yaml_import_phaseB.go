@@ -281,9 +281,9 @@ func importForbiddenFixes(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range ff.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse edge — lets briefing-by-file surface forbidden fixes as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 	return nil
@@ -326,9 +326,9 @@ func importRequiredTests(e *rdf.Emitter, path string) error {
 		}
 		for _, f := range rt.Protects.Files {
 			ensureNode(e, rdf.ClassSourceFile, f)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
 			// Reverse edge — lets briefing-by-file surface required tests as Direct anchors.
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 	return nil
@@ -443,8 +443,8 @@ func emitIncident(e *rdf.Emitter, path string, inc yamlIncident) error {
 
 	for _, f := range inc.RelatedFiles {
 		ensureNode(e, rdf.ClassSourceFile, f)
-		e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, f))
-		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, f), rdf.IRI(rdf.PropImplements), subj)
+		e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(f))
+		e.Triple(e.SourceFileIRI(f), rdf.IRI(rdf.PropImplements), subj)
 	}
 	return nil
 }
@@ -676,8 +676,8 @@ func importHighRiskFiles(e *rdf.Emitter, path string) error {
 			continue
 		}
 		ensureNode(e, rdf.ClassSourceFile, p)
-		e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
-		e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+		e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(p))
+		e.Triple(e.SourceFileIRI(p), rdf.IRI(rdf.PropImplements), subj)
 	}
 	return nil
 }
@@ -730,8 +730,8 @@ func importActivationRules(e *rdf.Emitter, path string) error {
 				continue
 			}
 			ensureNode(e, rdf.ClassSourceFile, p)
-			e.Triple(subj, rdf.IRI(rdf.PropProtects), rdf.MintIRI(rdf.ClassSourceFile, p))
-			e.Triple(rdf.MintIRI(rdf.ClassSourceFile, p), rdf.IRI(rdf.PropImplements), subj)
+			e.Triple(subj, rdf.IRI(rdf.PropProtects), e.SourceFileIRI(p))
+			e.Triple(e.SourceFileIRI(p), rdf.IRI(rdf.PropImplements), subj)
 		}
 	}
 

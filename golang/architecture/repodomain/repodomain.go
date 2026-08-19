@@ -30,6 +30,7 @@ package repodomain
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -158,4 +159,48 @@ func Configured(root string) (string, error) {
 		return "", fmt.Errorf("configured repository domain %q is invalid: %w", d, err)
 	}
 	return d, nil
+}
+
+// IdentityForTree resolves the canonical repository identity of the
+// repository that owns dir, by walking up from dir for the nearest checkout
+// that configures one, and validating it.
+//
+// This is the identity SourceFile subjects are scoped to (issue #197): the
+// durable one Sensei's repository/admission machinery establishes at `sensei
+// init` / `sensei bootstrap`, NOT the publication domain a build selects
+// with --repo and NOT the checkout path. Walking up from the tree being
+// imported (rather than from the process's working directory) is what makes
+// a cross-repo build attribute the other repository's files to the other
+// repository: a file belongs to the repository it lives in.
+//
+// Returns "" with a nil error when no checkout above dir configures a
+// repository domain — an unresolved identity, which callers that mint
+// identities must refuse rather than substitute a fallback for. A malformed
+// config, or a configured value that fails Validate, is a non-nil error and
+// never falls through to a higher directory: configuration that fails to
+// parse must fail visibly, not be worked around by guessing.
+func IdentityForTree(dir string) (string, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return "", fmt.Errorf("resolve %s: %w", dir, err)
+	}
+	for current := abs; ; {
+		if _, statErr := os.Stat(ConfigPath(current)); statErr == nil {
+			cfg, err := LoadConfig(current)
+			if err != nil {
+				return "", err
+			}
+			if domain := strings.TrimSpace(cfg.Repository.Domain); domain != "" {
+				if err := Validate(domain); err != nil {
+					return "", fmt.Errorf("configured repository domain %q in %s is invalid: %w", domain, ConfigPath(current), err)
+				}
+				return domain, nil
+			}
+		}
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", nil
+		}
+		current = parent
+	}
 }

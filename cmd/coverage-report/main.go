@@ -21,8 +21,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/globulario/sensei/golang/rdf"
 	"io/fs"
-	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -141,13 +141,16 @@ func parseSeed(seedPath string) (anchored map[string]bool, covers []string, err 
 
 // decodeSourceFilePath turns a minted SourceFile IRI body into its repo path.
 // The id segment is percent-encoded per N-Triples IRIREF rules.
+// decodeSourceFilePath recovers the repo-relative path a SourceFile subject
+// denotes, for identities of either generation -- the repository-scoped one
+// and the unscoped one it replaced (issue #197). prefix is accepted for call
+// compatibility and no longer decides the split.
 func decodeSourceFilePath(subj, prefix string) string {
-	enc := strings.TrimPrefix(subj, prefix)
-	dec, err := url.PathUnescape(enc)
-	if err != nil {
-		return enc
+	path, ok := rdf.SourceFilePathFromIRI(subj)
+	if !ok {
+		return strings.TrimPrefix(subj, prefix)
 	}
-	return dec
+	return path
 }
 
 // firstLiteral returns the unescaped body of the first quoted literal on the

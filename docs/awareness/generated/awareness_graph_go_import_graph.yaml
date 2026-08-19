@@ -180,6 +180,7 @@ components:
       - cmd/awg/domain_admission.go
       - cmd/awg/domain_admission_ci.go
       - cmd/awg/domain_closure.go
+      - cmd/awg/endpoint_binding.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
       - cmd/awg/git_domain.go
@@ -311,6 +312,7 @@ components:
       - cmd/coverage-report/main.go
     depends_on:
       - component.golang.coverage
+      - component.golang.rdf
     uml:
       kind: Component
       stereotype: service
@@ -645,6 +647,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/agentcommand/api_agent.go
       - golang/architecture/agentcommand/command_agent.go
       - golang/architecture/agentcommand/plan.go
       - golang/architecture/agentcommand/provider.go
@@ -1273,10 +1276,13 @@ components:
       - golang/architecture/graphbuild/graphbuild.go
       - golang/architecture/graphbuild/graphinput.go
       - golang/architecture/graphbuild/manifest.go
+      - golang/architecture/graphbuild/source_root_identity.go
       - golang/architecture/graphbuild/supplemental.go
     depends_on:
       - component.golang.architecture.closureprotocol
+      - component.golang.architecture.repodomain
       - component.golang.extractor
+      - component.golang.rdf
       - component.golang.seedmeta
     uml:
       kind: Component
@@ -2361,6 +2367,7 @@ components:
       - component.golang.architecture.packcustody
       - component.golang.architecture.plane
       - component.golang.architecture.probe
+      - component.golang.architecture.repodomain
       - component.golang.rdf
     external_imports:
       - gopkg.in/yaml.v3
@@ -2586,6 +2593,7 @@ components:
     assertion: inferred
     source_files:
       - golang/rdf/builder.go
+      - golang/rdf/source_file_identity.go
       - golang/rdf/vocab.go
     uml:
       kind: Component
@@ -2817,6 +2825,19 @@ components:
       - component.golang.rdf
       - component.golang.seedmeta
       - component.golang.store
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.internal.repofixture
+    name: repofixture
+    kind: module
+    assertion: inferred
+    source_files:
+      - internal/repofixture/repofixture.go
+    depends_on:
+      - component.golang.statedir
     uml:
       kind: Component
       stereotype: module

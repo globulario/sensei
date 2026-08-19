@@ -15,7 +15,6 @@ package main
 
 import (
 	"context"
-	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -320,18 +319,16 @@ func repairPlansBriefingSection(plans []loadedRepairPlan) string {
 	return b.String()
 }
 
+// sourceFilePathFromIRI recovers the repo-relative path from a SourceFile
+// IRI of either identity generation -- the repository-scoped one and the
+// unscoped one it replaced (issue #197). This reader only needs the path;
+// the repository is already known from the query context.
 func sourceFilePathFromIRI(iri string) string {
-	s := strings.TrimPrefix(strings.TrimSuffix(iri, ">"), "<")
-	const marker = "#sourceFile/"
-	i := strings.Index(s, marker)
-	if i < 0 {
+	path, ok := rdf.SourceFilePathFromIRI(iri)
+	if !ok {
 		return ""
 	}
-	decoded, err := url.PathUnescape(s[i+len(marker):])
-	if err != nil {
-		return ""
-	}
-	return decoded
+	return path
 }
 
 func invalidateRepairPlanCacheForTest() {

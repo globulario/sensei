@@ -737,7 +737,7 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	generatedDir := filepath.Join(awarenessDir, "generated")
 
-	raw, _, err := compileAwarenessInputs([]string{awarenessDir, generatedDir}, domain, "", "", false)
+	raw, _, err := compileAwarenessInputs([]string{awarenessDir, generatedDir}, domain, domain, "", "", false)
 	if err != nil {
 		return phase2Readiness{}, err
 	}
@@ -769,7 +769,7 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	}
 
 	compileFinal := func() ([]byte, error) {
-		finalRaw, _, compileErr := compileAwarenessInputs([]string{awarenessDir, generatedDir, knowledgeDir}, domain, "", "", false)
+		finalRaw, _, compileErr := compileAwarenessInputs([]string{awarenessDir, generatedDir, knowledgeDir}, domain, domain, "", "", false)
 		if compileErr != nil {
 			return nil, compileErr
 		}
@@ -1500,7 +1500,11 @@ func assessPhase2Readiness(root, domain, graphPath, claimsPath string, graphData
 		claimCountByFile[count.File] = count.Count
 	}
 	for _, file := range eligible {
-		iri := strings.Trim(rdf.MintIRI(rdf.ClassSourceFile, file), "<>")
+		// SourceFile subjects are scoped to the repository that owns them
+		// (issue #197), and reconstruction compiled this tree under exactly
+		// this domain, so the coverage lookup mints the same scoped identity
+		// rather than the unscoped one it replaced.
+		iri := strings.Trim(rdf.MintSourceFileIRI(domain, file), "<>")
 		found := typed[rdf.ClassSourceFile][iri]
 		if found {
 			represented++

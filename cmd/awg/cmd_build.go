@@ -142,7 +142,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "  admission: %s (corpus roots: %s)\n", decision.Source, decision.CorpusRoots)
 	}
 
-	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
+	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, "", strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1

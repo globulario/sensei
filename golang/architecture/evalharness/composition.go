@@ -129,6 +129,13 @@ func compileMutantGraph(ctx context.Context, root, domain string) ([]byte, strin
 			// tree happened to be staged.
 			StripPathPrefixes: []string{root},
 			RepositoryDomain:  domain,
+			// A synthetic mutant is staged in a temp directory with no
+			// checkout to resolve a repository identity from, so the
+			// evaluation names it: this corpus belongs to the repository
+			// the arm declared it is evaluating. Naming it here is not the
+			// publication-domain-as-identity hazard #197 forbids -- there
+			// is no separate repository behind this tree to disagree with.
+			RepositoryIdentity: domain,
 		}},
 	})
 	if err != nil {

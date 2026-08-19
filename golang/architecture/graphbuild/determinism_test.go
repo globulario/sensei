@@ -5,6 +5,7 @@ package graphbuild
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ func subRoot(t *testing.T, root, sub, file, content string) SourceRoot {
 	if err := os.WriteFile(filepath.Join(dir, file), []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	return SourceRoot{FilesystemPath: dir, IdentityRoot: root, StripPathPrefixes: []string{root}, RepositoryDomain: "github.com/test/repo"}
 }
 
@@ -99,8 +101,8 @@ func TestNestedGeneratedSkipped(t *testing.T) {
 		"invariants.yaml":     invariantsAlpha,
 		"generated/beta.yaml": invariantsBeta,
 	})
-	kept := srcRoot(root)
-	skip := srcRoot(root)
+	kept := srcRoot(t, root)
+	skip := srcRoot(t, root)
 	skip.SkipNestedGenerated = true
 
 	withGen, err := Build(context.Background(), CompileRequest{Sources: []SourceRoot{kept}, Policy: ValidationPolicy{}}, nil)
@@ -230,7 +232,7 @@ func TestExternalSymlinkRefused(t *testing.T) {
 		t.Skipf("symlinks unsupported: %v", err)
 	}
 	// Permissive policy follows it; closure-strict refuses the escape.
-	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(root)}, Policy: ClosureStrictPolicy()}); err == nil || !strings.Contains(err.Error(), "symlink_escape") {
+	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, root)}, Policy: ClosureStrictPolicy()}); err == nil || !strings.Contains(err.Error(), "symlink_escape") {
 		t.Fatalf("closure-strict must refuse external symlink, got %v", err)
 	}
 }
@@ -254,7 +256,7 @@ func TestContextCancellation(t *testing.T) {
 	writeAwareness(t, root, map[string]string{"invariants.yaml": invariantsAlpha})
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := Compile(ctx, CompileRequest{Sources: []SourceRoot{srcRoot(root)}, Policy: ValidationPolicy{}}); err == nil {
+	if _, err := Compile(ctx, CompileRequest{Sources: []SourceRoot{srcRoot(t, root)}, Policy: ValidationPolicy{}}); err == nil {
 		t.Fatal("cancelled context must abort compile")
 	}
 }
@@ -271,7 +273,7 @@ func TestParallelBuildsRaceClean(t *testing.T) {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			art, err := Build(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(root)}, Policy: ValidationPolicy{}}, nil)
+			art, err := Build(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, root)}, Policy: ValidationPolicy{}}, nil)
 			errs[i] = err
 			if err == nil {
 				digests[i] = art.ArtifactByteDigestSHA256

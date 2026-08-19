@@ -45,7 +45,7 @@ func emitEvidenceProbe(e *rdf.Emitter, path string, doc probe.ProbeDocument, p p
 		e.Triple(subj, rdf.IRI(rdf.PropTargetsClaim), rdf.MintIRI(rdf.ClassArchitectureClaim, id))
 	}
 	for _, ref := range p.NodeRefs {
-		if iri, ok := claimReferenceIRI(ref); ok {
+		if iri, ok := claimReferenceIRI(e, ref); ok {
 			e.Triple(subj, rdf.IRI(rdf.PropTargetsNode), iri)
 		}
 	}

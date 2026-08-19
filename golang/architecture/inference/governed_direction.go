@@ -439,12 +439,14 @@ func classQualifiedRef(class, id string) string {
 	return class + ":" + id
 }
 
+// sourceFilePathFromIRI recovers the repo-relative path from a SourceFile
+// IRI of either identity generation (issue #197).
 func sourceFilePathFromIRI(iri string) (string, bool) {
-	prefix := mintPrefix(rdf.ClassSourceFile)
-	if !strings.HasPrefix(iri, prefix) {
+	raw, ok := rdf.SourceFilePathFromIRI(iri)
+	if !ok {
 		return "", false
 	}
-	path := normalizeFileAnchor(rdf.DecodeIRIPath(iri[len(prefix):]))
+	path := normalizeFileAnchor(raw)
 	if path == "" {
 		return "", false
 	}

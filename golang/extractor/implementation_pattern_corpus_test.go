@@ -17,6 +17,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -62,7 +63,7 @@ func TestImplementationPatternCorpus_AuthoredPatternsImportAsTypedNodes(t *testi
 	}
 
 	var buf bytes.Buffer
-	_, report, err := extractor.ImportAwarenessDir(dir, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir(%s): %v", dir, err)
 	}
@@ -97,7 +98,7 @@ func TestImplementationPatternCorpus_ActivePatternsHaveRequiredShape(t *testing.
 	}
 
 	var buf bytes.Buffer
-	if _, _, err := extractor.ImportAwarenessDir(dir, &buf); err != nil {
+	if _, _, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
 		t.Fatalf("ImportAwarenessDir(%s): %v", dir, err)
 	}
 

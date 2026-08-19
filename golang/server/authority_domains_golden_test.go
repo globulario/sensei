@@ -16,6 +16,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -197,7 +198,7 @@ func loadCorpusAuthorityFacts(t *testing.T) []store.ImpactFact {
 		t.Fatalf("stage corpus: %v", err)
 	}
 	var buf bytes.Buffer
-	if _, _, err := extractor.ImportAwarenessDir(dir, &buf); err != nil {
+	if _, _, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
 	facts := parseCorpusNTFacts(buf.String(), rdf.ClassAuthorityDomain)

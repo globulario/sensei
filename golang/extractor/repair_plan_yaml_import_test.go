@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"testing"
 
 	"github.com/globulario/sensei/golang/extractor"
@@ -14,7 +15,7 @@ func repairDir(t *testing.T, files map[string]string) (string, *extractor.Import
 	t.Helper()
 	var buf bytes.Buffer
 	root := makeDir(t, files)
-	_, report, err := extractor.ImportAwarenessDir(root, &buf)
+	_, report, err := extractor.ImportAwarenessDirWithOpts(root, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
 		t.Fatalf("ImportAwarenessDir: %v", err)
 	}
@@ -112,7 +113,7 @@ func TestRepairPlanLinksToPatternsAuthorityAndTests(t *testing.T) {
 	govInv := rdf.MintIRI(rdf.ClassInvariant, "example.governing.invariant")
 	govFM := rdf.MintIRI(rdf.ClassFailureMode, "some.other.failure")
 	ff := rdf.MintIRI(rdf.ClassForbiddenFix, "forbidden.fix.example")
-	file := rdf.MintIRI(rdf.ClassSourceFile, "golang/workflow/engine/engine.go")
+	file := rdf.MintSourceFileIRI(repofixture.DefaultDomain, "golang/workflow/engine/engine.go")
 	sym := rdf.MintIRI(rdf.ClassCodeSymbol, "workflow.executeForeach")
 	comp := rdf.MintIRI(rdf.ClassComponent, "component.workflow.engine")
 

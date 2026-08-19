@@ -15,6 +15,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -120,7 +121,7 @@ func loadCorpusPatternFacts(t *testing.T) []store.ImpactFact {
 		t.Skip("services implementation_patterns dir not resolvable; set SERVICES_REPO to run")
 	}
 	var buf bytes.Buffer
-	if _, _, err := extractor.ImportAwarenessDir(dir, &buf); err != nil {
+	if _, _, err := extractor.ImportAwarenessDirWithOpts(dir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
 		t.Fatalf("ImportAwarenessDir(%s): %v", dir, err)
 	}
 	facts := parseCorpusNTFacts(buf.String(), rdf.ClassImplementationPattern)

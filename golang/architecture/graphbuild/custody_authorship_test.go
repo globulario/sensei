@@ -4,6 +4,7 @@ package graphbuild
 
 import (
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -83,6 +84,10 @@ func initializedRepo(t *testing.T, name, ownID string, governed bool) (root, cor
 
 func compileRepo(t *testing.T, domain, corpus, custodyRoot string) Compilation {
 	t.Helper()
+	// The corpus's own checkout declares the repository its files belong
+	// to; identity is resolved from the tree, not from the publication
+	// domain this build happens to name (issue #197).
+	repofixture.WriteRepositoryIdentity(t, filepath.Dir(filepath.Dir(corpus)), domain)
 	comp, err := Compile(context.Background(), CompileRequest{
 		Sources: []SourceRoot{{
 			FilesystemPath:   corpus,

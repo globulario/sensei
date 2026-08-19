@@ -5,6 +5,7 @@ package graphbuild
 import (
 	"bytes"
 	"context"
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"path/filepath"
 	"strings"
@@ -41,6 +42,9 @@ const invalidYAML = "invariants: [ this is : not valid : yaml\n"
 // writeAwareness writes files into <root>/docs/awareness and returns that dir.
 func writeAwareness(t *testing.T, root string, files map[string]string) string {
 	t.Helper()
+	// The fixture checkout declares the repository its files belong to, so
+	// their SourceFile identities can be scoped to it (issue #197).
+	repofixture.WriteRepositoryIdentity(t, root, repofixture.DefaultDomain)
 	dir := filepath.Join(root, "docs", "awareness")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -59,7 +63,8 @@ func writeAwareness(t *testing.T, root string, files map[string]string) string {
 
 // srcRoot builds a SourceRoot for <root>/docs/awareness identified against root,
 // stripping the absolute root so no absolute path leaks into the graph.
-func srcRoot(root string) SourceRoot {
+func srcRoot(t *testing.T, root string) SourceRoot {
+	t.Helper()
 	return SourceRoot{
 		FilesystemPath:    filepath.Join(root, "docs", "awareness"),
 		IdentityRoot:      root,
@@ -70,7 +75,7 @@ func srcRoot(root string) SourceRoot {
 
 func compileOne(t *testing.T, root string, policy ValidationPolicy) Compilation {
 	t.Helper()
-	comp, err := Compile(context.Background(), CompileRequest{RepositoryRoot: root, Sources: []SourceRoot{srcRoot(root)}, Policy: policy})
+	comp, err := Compile(context.Background(), CompileRequest{RepositoryRoot: root, Sources: []SourceRoot{srcRoot(t, root)}, Policy: policy})
 	if err != nil {
 		t.Fatalf("Compile: %v", err)
 	}
@@ -79,7 +84,7 @@ func compileOne(t *testing.T, root string, policy ValidationPolicy) Compilation 
 
 func buildOne(t *testing.T, root string, policy ValidationPolicy) Artifact {
 	t.Helper()
-	art, err := Build(context.Background(), CompileRequest{RepositoryRoot: root, Sources: []SourceRoot{srcRoot(root)}, Policy: policy}, nil)
+	art, err := Build(context.Background(), CompileRequest{RepositoryRoot: root, Sources: []SourceRoot{srcRoot(t, root)}, Policy: policy}, nil)
 	if err != nil {
 		t.Fatalf("Build: %v", err)
 	}
@@ -122,7 +127,7 @@ func TestBuildCountsAndSingleMarker(t *testing.T) {
 	// Compiling the identical source root twice emits every triple twice, forcing
 	// canonical duplicate suppression to fire.
 	art, err := Build(context.Background(), CompileRequest{
-		Sources: []SourceRoot{srcRoot(root), srcRoot(root)},
+		Sources: []SourceRoot{srcRoot(t, root), srcRoot(t, root)},
 		Policy:  ValidationPolicy{},
 	}, nil)
 	if err != nil {
@@ -306,28 +311,28 @@ func TestPolicyDispositions(t *testing.T) {
 	}
 
 	// compatibility: unknown schema is fatal.
-	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(root)}, Policy: CompatibilityPolicy()}); err == nil {
+	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, root)}, Policy: CompatibilityPolicy()}); err == nil {
 		t.Fatal("compatibility policy must reject unknown schema")
 	}
 
 	// closure-strict: invalid file is fatal.
 	rootInvalid := t.TempDir()
 	writeAwareness(t, rootInvalid, map[string]string{"invariants.yaml": invariantsAlpha, "bad.yaml": invalidYAML})
-	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(rootInvalid)}, Policy: ClosureStrictPolicy()}); err == nil {
+	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, rootInvalid)}, Policy: ClosureStrictPolicy()}); err == nil {
 		t.Fatal("closure-strict must reject invalid YAML")
 	}
 
 	// closure-strict: known-unsupported is fatal.
 	rootUnsupported := t.TempDir()
 	writeAwareness(t, rootUnsupported, map[string]string{"invariants.yaml": invariantsAlpha, "unsup.yaml": knownUnsupportedYAML})
-	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(rootUnsupported)}, Policy: ClosureStrictPolicy()}); err == nil {
+	if _, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, rootUnsupported)}, Policy: ClosureStrictPolicy()}); err == nil {
 		t.Fatal("closure-strict must reject known-unsupported schema")
 	}
 
 	// ignored config remains allowed and visible under closure-strict.
 	rootIgnored := t.TempDir()
 	writeAwareness(t, rootIgnored, map[string]string{"invariants.yaml": invariantsAlpha, "tracker.yaml": ignoredYAML})
-	c, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(rootIgnored)}, Policy: ClosureStrictPolicy()})
+	c, err := Compile(context.Background(), CompileRequest{Sources: []SourceRoot{srcRoot(t, rootIgnored)}, Policy: ClosureStrictPolicy()})
 	if err != nil {
 		t.Fatalf("closure-strict must allow ignored config: %v", err)
 	}

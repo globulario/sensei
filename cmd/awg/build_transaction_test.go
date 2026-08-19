@@ -3,6 +3,7 @@
 package main
 
 import (
+	"github.com/globulario/sensei/internal/repofixture"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -92,6 +93,10 @@ func writeRepoFile(t *testing.T, path, content string) {
 func initGitRepo(t *testing.T, dir string) {
 	t.Helper()
 	runGit(t, dir, "init")
+	// A fixture checkout declares the repository its files belong to, so
+	// their SourceFile identities can be scoped to it (issue #197) through
+	// the same resolution path production uses.
+	repofixture.WriteRepositoryIdentity(t, dir, repofixture.DefaultDomain)
 	runGit(t, dir, "config", "user.email", "test@example.com")
 	runGit(t, dir, "config", "user.name", "Test User")
 	commitAll(t, dir, "initial")

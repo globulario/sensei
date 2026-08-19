@@ -4,6 +4,7 @@ package extractor_test
 
 import (
 	"bytes"
+	"github.com/globulario/sensei/internal/repofixture"
 	"strings"
 	"testing"
 
@@ -103,11 +104,11 @@ func TestImportFixture_KnownTriplesPresent(t *testing.T) {
 
 		// File anchoring + reverse implements edge: the lever Briefing
 		// uses to find direct-anchor patterns for a file.
-		{`<https://globular.io/awareness#invariant/test.example.invariant> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/test%2Fexample.go>`,
+		{`<https://globular.io/awareness#invariant/test.example.invariant> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Ftest%2Frepo/test%2Fexample.go>`,
 			"invariant must protect the named file (slash percent-encoded)"},
-		{`<https://globular.io/awareness#sourceFile/test%2Fexample.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/test.example.invariant>`,
+		{`<https://globular.io/awareness#sourceFile/github.com%2Ftest%2Frepo/test%2Fexample.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/test.example.invariant>`,
 			"reverse implements edge must exist so impact can find invariants from a file"},
-		{`<https://globular.io/awareness#sourceFile/test%2Fexample.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/test.example.failure_mode>`,
+		{`<https://globular.io/awareness#sourceFile/github.com%2Ftest%2Frepo/test%2Fexample.go> <https://globular.io/awareness#vulnerableTo> <https://globular.io/awareness#failureMode/test.example.failure_mode>`,
 			"failure mode protects.files must materialize a direct source-file vulnerability edge for closure relevance"},
 
 		// {template} placeholder in etcd key — regression guard for the
@@ -142,8 +143,14 @@ func TestImportFixture_KnownTriplesPresent(t *testing.T) {
 func importFixtureToString(t *testing.T) string {
 	t.Helper()
 	var buf bytes.Buffer
-	if _, err := extractor.ImportAwarenessYAMLs("testdata", &buf); err != nil {
-		t.Fatalf("ImportAwarenessYAMLs: %v", err)
+	// Names the fixture's repository identity explicitly rather than
+	// letting it resolve from whatever checkout testdata happens to sit in
+	// -- the expected SourceFile identities below are repository-scoped
+	// (issue #197), so the assertion must not depend on this repository's
+	// own configured domain.
+	if _, _, err := extractor.ImportAwarenessDirWithOpts("testdata", &buf,
+		extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain}); err != nil {
+		t.Fatalf("ImportAwarenessDirWithOpts: %v", err)
 	}
 	return buf.String()
 }

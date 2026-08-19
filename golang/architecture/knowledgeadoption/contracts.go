@@ -127,7 +127,10 @@ func graphComponentFiles(raw []byte) (map[string][]string, error) {
 		if component == "" || !triple.ObjectIsIRI || triple.Predicate != rdf.PropAnchoredIn {
 			continue
 		}
-		if file, ok := mintedID(triple.Object, "sourceFile"); ok {
+		// SourceFile identities are repository-scoped (issue #197), so the
+		// path is parsed out of the whole IRI rather than taken as the
+		// single segment after the class prefix.
+		if file, ok := rdf.SourceFilePathFromIRI(triple.Object); ok {
 			out[file] = append(out[file], component)
 		}
 	}
