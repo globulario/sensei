@@ -567,6 +567,7 @@ components:
       - golang/architecture/dialogue.go
       - golang/architecture/dialogue_document.go
       - golang/architecture/fact.go
+      - golang/architecture/revision_binding.go
     external_imports:
       - gopkg.in/yaml.v3
     uml:

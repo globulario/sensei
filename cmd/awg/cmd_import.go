@@ -825,11 +825,18 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 		GraphDigestStatus: architecture.GraphDigestResolved,
 	}, reg)
 	claimsData, claims := inferenceResult.Rendered, inferenceResult.Document
-	if inferenceErr == nil {
-		inferenceErr = writeFileAtomic(claimsPath, claimsData)
-	}
 	if inferenceErr != nil {
 		return phase2Readiness{}, inferenceErr
+	}
+	// A project family binds its graph, claims, and receipt to one revision.
+	// When the scan could not be bound to the committed tree, that binding
+	// cannot be made truthfully, so the import refuses here rather than
+	// publishing a family that describes a revision it was not read from.
+	if inferenceResult.UnboundRevisionReason != "" {
+		return phase2Readiness{}, fmt.Errorf("project reconstruction requires a committed working tree: %s; commit or stash those files, or reconstruct from a clean checkout", inferenceResult.UnboundRevisionReason)
+	}
+	if err := writeFileAtomic(claimsPath, claimsData); err != nil {
+		return phase2Readiness{}, err
 	}
 	if err := injectFailure(failAfterClaims, &cleanupStaging); err != nil {
 		return phase2Readiness{}, err

@@ -2760,6 +2760,12 @@ test_symbols:
     symbol: TestProjectPublicationWithInvalidAndAbsentPrior
     package: main
     language: go
+  - id: cmd/awg/cmd_import_test.go:TestReconstructImportedProjectRefusesAnUncommittedWorkingTree
+    file: cmd/awg/cmd_import_test.go
+    symbol: TestReconstructImportedProjectRefusesAnUncommittedWorkingTree
+    package: main
+    language: go
+    doc: "A project family binds graph, claims, and receipt to one revision. When the\ntree the scan read is not that revision, reconstruction must say so plainly\ninstead of publishing a family bound to a commit it was not read from."
   - id: cmd/awg/cmd_import_test.go:TestReconstructImportedProjectWritesBoundClaimsAndReadiness
     file: cmd/awg/cmd_import_test.go
     symbol: TestReconstructImportedProjectWritesBoundClaimsAndReadiness
@@ -2780,6 +2786,12 @@ test_symbols:
     symbol: TestInferClaimsAllowsCandidateDirectoryOutput
     package: main
     language: go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsBindsACommittedWorkingTreeToItsRevision
+    file: cmd/awg/cmd_infer_claims_test.go
+    symbol: TestInferClaimsBindsACommittedWorkingTreeToItsRevision
+    package: main
+    language: go
+    doc: "The committed case must keep binding: refusing whenever a repository is not\npristine would trade a false binding for a useless one."
   - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsCheckFresh
     file: cmd/awg/cmd_infer_claims_test.go
     symbol: TestInferClaimsCheckFresh
@@ -2845,6 +2857,12 @@ test_symbols:
     symbol: TestInferClaimsPreservesConflictingGovernedDirections
     package: main
     language: go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
+    file: cmd/awg/cmd_infer_claims_test.go
+    symbol: TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
+    package: main
+    language: go
+    doc: "A dirty checkout is the case the binding exists to describe honestly: the\nfacts come from the working tree, and the commit HEAD names does not contain\nthem. The document must name no revision rather than assert one it has not\nestablished."
   - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsRejectsActiveAwarenessOutputPath
     file: cmd/awg/cmd_infer_claims_test.go
     symbol: TestInferClaimsRejectsActiveAwarenessOutputPath
@@ -2870,6 +2888,12 @@ test_symbols:
     symbol: TestInferClaimsSkipsDraftGovernedDirectionalRecords
     package: main
     language: go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsStillBindsWhenAnUncitedFileIsUncommitted
+    file: cmd/awg/cmd_infer_claims_test.go
+    symbol: TestInferClaimsStillBindsWhenAnUncitedFileIsUncommitted
+    package: main
+    language: go
+    doc: "Dirtiness is judged over the files the facts actually cite. An uncommitted\nfile no fact reads changes nothing the document asserts, and build residue\nleft in a tree must not make every scan permanently unbindable."
   - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
     file: cmd/awg/cmd_infer_claims_test.go
     symbol: TestInferClaimsSynthesizesGovernedDirectionalClaimsFromGraph
@@ -16818,6 +16842,26 @@ test_symbols:
     file: golang/architecture/resulttransition/confine_test.go
     symbol: TestSymlinkEscapeDetection
     package: resulttransition
+    language: go
+  - id: golang/architecture/revision_binding_test.go:TestUncommittedSourceFilesFailsRatherThanReportingCleanOutsideAGitRepository
+    file: golang/architecture/revision_binding_test.go
+    symbol: TestUncommittedSourceFilesFailsRatherThanReportingCleanOutsideAGitRepository
+    package: architecture
+    language: go
+  - id: golang/architecture/revision_binding_test.go:TestUncommittedSourceFilesReportsNothingForACleanCheckout
+    file: golang/architecture/revision_binding_test.go
+    symbol: TestUncommittedSourceFilesReportsNothingForACleanCheckout
+    package: architecture
+    language: go
+  - id: golang/architecture/revision_binding_test.go:TestUncommittedSourceFilesReportsOnlyBytesTheRevisionDoesNotContain
+    file: golang/architecture/revision_binding_test.go
+    symbol: TestUncommittedSourceFilesReportsOnlyBytesTheRevisionDoesNotContain
+    package: architecture
+    language: go
+  - id: golang/architecture/revision_binding_test.go:TestUncommittedSourceFilesRequiresARevisionToCompareAgainst
+    file: golang/architecture/revision_binding_test.go
+    symbol: TestUncommittedSourceFilesRequiresARevisionToCompareAgainst
+    package: architecture
     language: go
   - id: golang/architecture/rigor/rigor_test.go:TestClassDKeepsIntegrityGates
     file: golang/architecture/rigor/rigor_test.go

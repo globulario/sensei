@@ -1720,3 +1720,16 @@ failure_modes:
       - golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
     evidence:
       - 'Observed in issue #176: awareness_metadata reported authoritative/CURRENT for a publication awareness_preflight refused as non-authoritative'
+  - id: failure.sensei.working_tree_facts_bound_to_head_and_reported_as_resolved
+    title: Working-tree facts bound to HEAD and reported as resolved
+    description: 'sensei infer-claims scanned the working tree, then stamped the commit ResolveRevision returned onto every claim and fact receipt with revision_status: resolved. Resolving HEAD establishes what the last commit is, not that the scan read that commit''s bytes, so on a dirty checkout the document asserted that facts citing files the commit does not contain were observed at it.'
+    protects:
+      files:
+        - cmd/awg/cmd_infer_claims.go
+    related_invariants:
+      - awareness.closure_is_revision_scope_and_task_bound
+    required_tests:
+      - cmd/awg/cmd_infer_claims_test.go:TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
+    evidence:
+      - 'globulario/sensei#216: on sensei-code at ed56eb10c647 with uncommitted work, infer-claims emitted 146 claims and 283 fact receipts citing internal/roles/, a package absent from the revision every one of them named as resolved.'
+      - Every provenance field was individually true (real digest of real bytes, resolving revision, file present on disk); only the pairing of bytes to revision was false, so no caller could detect it.
