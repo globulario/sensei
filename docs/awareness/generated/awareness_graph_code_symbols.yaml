@@ -18711,6 +18711,30 @@ test_symbols:
     package: fileinterpretation
     language: go
     doc: "TestProvider_RequiredProofObligationsReturnsAuthoredValueAndCopy guards\nthe accessor synthesis-run uses to refuse a run whose authored\ninterpretation declares any required proof obligation, and confirms it\nreturns a defensive copy rather than aliasing internal state."
+  - id: golang/architecture/synthesisdriver/lifecycle_matrix_test.go:TestReplanExhaustionEndsTheSessionWithoutAnotherPlan
+    file: golang/architecture/synthesisdriver/lifecycle_matrix_test.go
+    symbol: TestReplanExhaustionEndsTheSessionWithoutAnotherPlan
+    package: synthesisdriver
+    language: go
+    doc: "Replan exhaustion, the same law one level up: a spent replan budget ends the\nsession instead of reserving another plan generation."
+  - id: golang/architecture/synthesisdriver/lifecycle_matrix_test.go:TestReplayingOneSessionReproducesEveryO7Decision
+    file: golang/architecture/synthesisdriver/lifecycle_matrix_test.go
+    symbol: TestReplayingOneSessionReproducesEveryO7Decision
+    package: synthesisdriver
+    language: go
+    doc: "Deterministic replay of a FRESH run. The existing replay proof covers resume;\nthis covers the other half, and it is the property that makes every other row\nin this file meaningful: if two identical runs could differ, a passing row\nwould only describe the run that happened to be observed.\n\nWhat is claimed is precise, because two earlier drafts of this row claimed\nmore than was true and each looked like a defect in the code:\n\n 1. Building a SECOND harness for the second run. CI rejected it and was\n    right to: the fixture commits with the wall clock, so two harnesses\n    produce repositories with different base revisions whenever the runs\n    straddle a second boundary. Locally they did not, and it passed. The\n    receipt was correctly binding the base revision; the test was calling\n    two runs against two different repositories \"identical\".\n\n 2. Reusing the harness but not the clock. lifecycleHarness's clock ADVANCES\n    one second per call, so the replay stamped later times and those reach\n    the receipt. Two runs of one session at two different times really are\n    two different runs — the receipt doing its job, not nondeterminism.\n\nWith the clock held and everything else identical, what O7 decides is\nreproducible: the disposition, the accepted Interpretation and Plan\nidentities, the sealed candidate that is the thing actually admitted and\napplied, and the whole transition chain.\n\nThe run RECEIPT digest is deliberately not asserted here. It is not\nreplay-stable, because the O4 evaluation receipts it carries embed run-local\nobservation — see the \"run receipt digest is replay-stable\" row in the matrix\nbelow, which is open with that reason rather than quietly weakened."
+  - id: golang/architecture/synthesisdriver/lifecycle_matrix_test.go:TestRetryExhaustionEndsTheSessionWithoutAnotherAttempt
+    file: golang/architecture/synthesisdriver/lifecycle_matrix_test.go
+    symbol: TestRetryExhaustionEndsTheSessionWithoutAnotherAttempt
+    package: synthesisdriver
+    language: go
+    doc: "Retry exhaustion, proved across the whole budget range rather than at one\npoint. Asserting \"2 attempts\" for a budget of 1 would pass just as well\nagainst a constant; asserting attempts == budget+1 for several budgets is\nwhat makes the number track the grant.\n\nThe session must END when the budget is spent. An exhausted budget that\nsilently allowed one more attempt would make every budget advisory."
+  - id: golang/architecture/synthesisdriver/lifecycle_matrix_test.go:TestSection13MatrixNamesProofsThatExist
+    file: golang/architecture/synthesisdriver/lifecycle_matrix_test.go
+    symbol: TestSection13MatrixNamesProofsThatExist
+    package: synthesisdriver
+    language: go
+    doc: "TestSection13MatrixNamesProofsThatExist is the census.\n\nIt reads the named files and checks each named test is declared. That is a\ndeliberately shallow check -- it proves the proof EXISTS, not that it proves\nwhat the row claims -- because the alternative, re-asserting each row's\ncontent here, would be the duplicate matrix this file exists to avoid."
   - id: golang/architecture/synthesisdriver/lifecycle_test.go:TestRunConsumesExactlyOneReplan
     file: golang/architecture/synthesisdriver/lifecycle_test.go
     symbol: TestRunConsumesExactlyOneReplan
