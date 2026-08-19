@@ -12584,6 +12584,12 @@ test_symbols:
     symbol: TestValidationRejectsIncompleteNoWrite
     package: governedmutation_test
     language: go
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoDomainsShareNoSourceFileSubject
+    file: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go
+    symbol: TestTwoDomainsShareNoSourceFileSubject
+    package: graphbuild
+    language: go
+    doc: "TestTwoDomainsShareNoSourceFileSubject is #176's remaining break, at the\nlevel it actually happens: two registered domains publishing into one\ngraph must not claim the same SourceFile subject, so neither one's slice\ncan be moved by the other's publication."
   - id: golang/architecture/graphbuild/custody_authorship_test.go:TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains
     file: golang/architecture/graphbuild/custody_authorship_test.go
     symbol: TestNoStableSubjectHasTwoAuthoritativeAuthoringDomains

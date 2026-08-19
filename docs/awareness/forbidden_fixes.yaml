@@ -701,3 +701,8 @@ forbidden_fixes:
     related_invariants:
       - invariant.synthesis.declared_digest_must_equal_computed_content_digest
     reason: Stabilising decision_digest_sha256 by hashing the serialized bytes would make the YAML and JSON forms of one decision disagree by construction, since the identity would then be a property of the encoding rather than of the decision. The identity must stay a function of the normalized value, which requires normalization to be idempotent.
+  - id: forbidden_fix.pass_os_file_fd_to_a_syscall_that_outlives_the_field_read
+    title: Pass os.File.Fd() to a syscall that outlives the field read
+    summary: 'Fd() returns a bare int with no lifetime. The object it came from can be collected the instant the field read completes, and os.File closes its descriptor from a GC cleanup, so the number can be closed and reissued while the syscall is still using it. runtime.KeepAlive is not the fix either: it prevents collection but not a concurrent Close, and it must be remembered at every call site. Take the descriptor inside SyscallConn().Control, which holds a reference for exactly the duration of the callback and reports os.ErrClosed rather than a stale number.'
+    reason: A descriptor used to resolve a sealed entry must be held through a reference the store still owns for the duration of the call
+    contract: A descriptor used to resolve a sealed entry must be held through a reference the store still owns for the duration of the call

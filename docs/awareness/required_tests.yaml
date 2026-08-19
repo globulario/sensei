@@ -1656,3 +1656,33 @@ required_tests:
     protects:
       invariants:
         - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+  - id: golang/architecture/runnercomposition/store_openat_unix_test.go:TestOpenSealedEntryRefusesADescriptorTheStoreNoLongerOwns
+    title: A sealed-entry open refuses a descriptor the store no longer owns
+    protects:
+      failure_modes:
+        - failure.runnercomposition.sealed_entry_opened_through_collectible_dirfd
+  - id: cmd/awg/endpoint_binding_test.go:TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName
+    title: A store the project config does not name is refused before mutation
+    protects:
+      failure_modes:
+        - failure.sensei.custody_decided_by_flag_while_config_named_another
+  - id: golang/rdf/source_file_identity_test.go:TestTwoRepositoriesREADMEsMintDifferentSubjects
+    title: Two repositories' README.md files mint different subjects
+    protects:
+      invariants:
+        - invariant.sensei.source_file_identity_is_repository_scoped
+  - id: golang/rdf/source_file_identity_test.go:TestSameRepositoryAndPathIsStableAcrossCheckouts
+    title: One repository and path mint one subject across checkouts and machines
+    protects:
+      invariants:
+        - invariant.sensei.source_file_identity_is_repository_scoped
+  - id: golang/rdf/source_file_identity_test.go:TestAMixedGenerationPublicationIsRefused
+    title: A publication exposing both SourceFile identity generations is refused
+    protects:
+      invariants:
+        - invariant.sensei.source_file_identity_is_repository_scoped
+  - id: golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoDomainsShareNoSourceFileSubject
+    title: Two domains publishing into one graph share no SourceFile subject
+    protects:
+      invariants:
+        - invariant.sensei.source_file_identity_is_repository_scoped
