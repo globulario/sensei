@@ -502,3 +502,72 @@ func scanUniqueJSONValue(decoder *json.Decoder, path string) error {
 		return fmt.Errorf("unexpected delimiter %q at %s", delimiter, path)
 	}
 }
+
+// FromAccepted builds a Provider backed by an Interpretation a session has
+// ALREADY accepted, rather than by a file an operator is authoring now.
+//
+// This exists for resume. A restarted process must still present the
+// interpretation capability -- the driver requires the full capability set
+// regardless of which owner the captured phase selects next -- but asking the
+// operator to re-supply --interpretation at that point would be asking them to
+// re-author history that is already accepted, and would let a *different*
+// interpretation be handed to a session whose O1 state was decided under the
+// original one. The accepted Interpretation is the only correct answer to
+// "what did this session interpret," so it is the one served.
+//
+// The accepted document is not re-validated against the authoring schema here:
+// it was validated when it was accepted, and its identity is already bound
+// into the checkpoint the resume was assessed against. Re-deriving a verdict
+// on settled history is how a second, divergent authority appears.
+func FromAccepted(interpretation synthesis.Interpretation, providerID, observedAt string) (*Provider, error) {
+	providerID = strings.TrimSpace(providerID)
+	observedAt = strings.TrimSpace(observedAt)
+	if providerID == "" {
+		return nil, errors.New("fileinterpretation: provider id is required")
+	}
+	if _, err := time.Parse(time.RFC3339, observedAt); err != nil {
+		return nil, fmt.Errorf("fileinterpretation: observed_at must be RFC3339: %w", err)
+	}
+	if strings.TrimSpace(interpretation.InterpretationDigestSHA256) == "" {
+		return nil, errors.New("fileinterpretation: an accepted interpretation must carry its own digest")
+	}
+
+	caps := providerport.Capabilities{
+		SchemaVersion: providerport.CapabilitiesSchemaVersion,
+		ProviderObservation: synthesis.ProviderObservation{
+			ProviderID:   providerID,
+			ProviderKind: ProviderKind,
+			ObservedAt:   observedAt,
+		},
+		SupportedOperations: []providerport.Operation{providerport.OperationInterpretation},
+	}
+	digest, err := providerport.CapabilitiesDigest(caps)
+	if err != nil {
+		return nil, err
+	}
+	caps.CapabilitiesDigestSHA256 = digest
+
+	return &Provider{
+		config: Config{ProviderID: providerID, ObservedAt: observedAt},
+		caps:   caps,
+		authored: AuthoredInterpretation{
+			Objective:                interpretation.Objective,
+			ApplicableIntent:         interpretation.ApplicableIntent,
+			BindingInvariants:        interpretation.BindingInvariants,
+			RelevantContracts:        interpretation.RelevantContracts,
+			AuthorityBoundaries:      interpretation.AuthorityBoundaries,
+			KnownFailureModes:        interpretation.KnownFailureModes,
+			ForbiddenFixes:           interpretation.ForbiddenFixes,
+			RequiredProofObligations: interpretation.RequiredProofObligations,
+			Assumptions:              interpretation.Assumptions,
+			UnresolvedQuestions:      interpretation.UnresolvedQuestions,
+			SourceReferences:         interpretation.SourceReferences,
+			Limitations:              interpretation.Limitations,
+		},
+		// The source is the accepted document, named as such: an observation
+		// claiming a filesystem path that was never read would be a lie in the
+		// evidence trail.
+		contentSHA256: interpretation.InterpretationDigestSHA256,
+		resolvedPath:  "(accepted interpretation carried by the checkpoint)",
+	}, nil
+}
