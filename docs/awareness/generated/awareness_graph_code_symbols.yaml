@@ -12145,6 +12145,18 @@ test_symbols:
     symbol: TestRenderAuthorityCandidates_UsesCandidateHeader
     package: factextract
     language: go
+  - id: golang/architecture/factextract/corroboration_index_test.go:TestCorroborationIndexAgreesWithTheDirectScan
+    file: golang/architecture/factextract/corroboration_index_test.go
+    symbol: TestCorroborationIndexAgreesWithTheDirectScan
+    package: factextract
+    language: go
+    doc: "The index must select exactly what the unindexed definition selects, for\nevery resource asked of it. A faster scan that returns a different set is a\nchange in what the extractor corroborates, not an optimisation — and this is\nthe function whose result decides an authority candidate's score."
+  - id: golang/architecture/factextract/corroboration_index_test.go:TestCorroborationIndexHoldsOnlyCorroboratingKinds
+    file: golang/architecture/factextract/corroboration_index_test.go
+    symbol: TestCorroborationIndexHoldsOnlyCorroboratingKinds
+    package: factextract
+    language: go
+    doc: "Only the corroborating kinds are eligible, and the index must not widen that\nset by holding facts the direct scan would have skipped."
   - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextAbandonsTheSemanticStageAtTheCeiling
     file: golang/architecture/factextract/extract_context_test.go
     symbol: TestExtractContextAbandonsTheSemanticStageAtTheCeiling
