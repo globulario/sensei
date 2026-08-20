@@ -800,9 +800,20 @@ func executionStateFor(engine string, executionErr error, limitations []architec
 // consistently, rather than being retried into a different answer partway
 // through one document.
 type sourceCache struct {
-	root  string
-	files map[string]*cachedSource
+	root   string
+	files  map[string]*cachedSource
+	budget int64
 }
+
+// sourceCacheBytes bounds what one composition will hold.
+//
+// The cached corpus is the evidence-bearing source, which for this repository
+// is 13.3 MB across 1,525 Go files. The cap is far above that and exists for
+// repositories whose evidence-bearing files are much larger: past it, a file is
+// read through without being retained, and the run behaves exactly as it did
+// before this cache existed — the coherence property is lost for the overflow
+// and for nothing else. Bounded and stated beats unbounded and hoped-for.
+const sourceCacheBytes = 256 << 20
 
 type cachedSource struct {
 	data   []byte
@@ -811,7 +822,7 @@ type cachedSource struct {
 }
 
 func newSourceCache(root string) *sourceCache {
-	return &sourceCache{root: root, files: map[string]*cachedSource{}}
+	return &sourceCache{root: root, files: map[string]*cachedSource{}, budget: sourceCacheBytes}
 }
 
 func (c *sourceCache) load(sourceFile string) *cachedSource {
@@ -826,11 +837,19 @@ func (c *sourceCache) load(sourceFile string) *cachedSource {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		entry.err = err
-	} else {
-		entry.data = data
-		sum := sha256.Sum256(data)
-		entry.digest = hex.EncodeToString(sum[:])
+		// A failure is cheap to retain and expensive to re-attempt per
+		// observation, so it is always cached.
+		c.files[sourceFile] = entry
+		return entry
 	}
+	entry.data = data
+	sum := sha256.Sum256(data)
+	entry.digest = hex.EncodeToString(sum[:])
+	if int64(len(data)) > c.budget {
+		// Over the cap: answer from these bytes, retain nothing.
+		return entry
+	}
+	c.budget -= int64(len(data))
 	c.files[sourceFile] = entry
 	return entry
 }

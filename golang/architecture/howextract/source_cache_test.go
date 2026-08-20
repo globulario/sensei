@@ -95,3 +95,54 @@ func TestSourceCacheMatchesTheDirectReader(t *testing.T) {
 		}
 	}
 }
+
+// Past the cap the run reads through and retains nothing, so peak memory is
+// bounded rather than growing with the corpus. The answers stay correct; only
+// the coherence guarantee lapses, for the overflow and for nothing else.
+func TestSourceCacheStopsRetainingPastItsBudget(t *testing.T) {
+	root := t.TempDir()
+	rel := "big.go"
+	path := filepath.Join(root, rel)
+	if err := os.WriteFile(path, []byte("package big\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cache := newSourceCache(root)
+	cache.budget = 4 // smaller than the file
+
+	first, err := cache.digest(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cache.files) != 0 {
+		t.Fatalf("a file past the budget was retained: %d entry(ies)", len(cache.files))
+	}
+	if first == "" {
+		t.Fatal("a read-through file returned no digest")
+	}
+
+	// Read-through means it sees the current bytes, which is the pre-cache
+	// behaviour and is what "the guarantee lapses past the cap" means.
+	if err := os.WriteFile(path, []byte("package big\nfunc Added() {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	second, err := cache.digest(rel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if second == first {
+		t.Fatal("a read-through file answered from a cache it was not supposed to keep")
+	}
+}
+
+// An unreadable file is retained regardless of the budget: it costs nothing to
+// keep and re-attempting it per observation is what the cache exists to avoid.
+func TestSourceCacheRetainsFailuresEvenPastTheBudget(t *testing.T) {
+	cache := newSourceCache(t.TempDir())
+	cache.budget = 0
+	if _, err := cache.digest("missing.go"); err == nil {
+		t.Fatal("a missing file returned a digest")
+	}
+	if len(cache.files) != 1 {
+		t.Fatalf("the failure was not retained: %d entry(ies)", len(cache.files))
+	}
+}
