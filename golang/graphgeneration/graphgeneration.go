@@ -465,7 +465,43 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 			next.Domains[domain] = DomainProof{Report: &carried, SliceDigest: digest, SliceTripleCount: count}
 		}
 	}
+	carryVanishedExpectations(prev, next, registered)
 	return next
+}
+
+// carryVanishedExpectations keeps the last published size of a domain that is
+// still REGISTERED but has no content in this publication.
+//
+// Without it, the loss erases its own evidence. A domain disappears from the
+// store, some other domain is published, and the vanished one is simply not in
+// the new content — so it would drop out of the proof set, taking with it the
+// only record that it ever held anything. The next publication makes the
+// reduced store current and nothing can ever notice again.
+//
+// Registration is what separates a loss from a retirement. A domain that is no
+// longer registered was deliberately removed and is correctly forgotten; one
+// that is still registered and still absent is a gap, recorded as a refusal
+// carrying its last known count so the live comparison keeps working.
+func carryVanishedExpectations(prev, next *Set, registered []string) {
+	for _, domain := range registered {
+		domain = strings.TrimSpace(domain)
+		if domain == "" {
+			continue
+		}
+		if _, present := next.Domains[domain]; present {
+			continue
+		}
+		prior, ok := prev.ProofFor(domain)
+		if !ok || prior.SliceTripleCount <= 0 {
+			continue
+		}
+		next.Domains[domain] = DomainProof{
+			SliceTripleCount: prior.SliceTripleCount,
+			CarryForwardRefusal: fmt.Sprintf(
+				"%q is registered but has no content in this publication; it last published %d triple(s), and that expectation is kept so the gap stays visible",
+				domain, prior.SliceTripleCount),
+		}
+	}
 }
 
 func shortDigest(d string) string {

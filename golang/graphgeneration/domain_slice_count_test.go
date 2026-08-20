@@ -119,3 +119,55 @@ func TestAProofSetWithoutCountsRecordsNoExpectation(t *testing.T) {
 		t.Fatal("a proof set that recorded no count must not accuse a live store of losing everything")
 	}
 }
+
+// The loss must not erase its own evidence. A domain disappears from the store,
+// another domain is published, and the vanished one has no content in the new
+// generation — so without this it drops out of the proof set entirely, taking
+// with it the only record that it ever held anything.
+func TestAVanishedRegisteredDomainKeepsItsLastPublishedExpectation(t *testing.T) {
+	both := slice(domainA, "a.one", "a.two") + slice(domainB, "b.one")
+	m0 := marker("000000000000000000000000000000000000000000000000000000000000aa01", 6)
+	first := compose(nil, generationOf(m0, domainA), m0, nil, domainA, provenReport(domainA, m0.Digest), both, []string{domainA, domainB})
+	if first.Domains[domainA].SliceTripleCount != 4 {
+		t.Fatalf("setup: count=%d, want 4", first.Domains[domainA].SliceTripleCount)
+	}
+
+	// domainA is gone from the store; a publication of domainB follows.
+	onlyB := slice(domainB, "b.one")
+	m1 := marker("000000000000000000000000000000000000000000000000000000000000aa02", 2)
+	second := compose(first, generationOf(m1, domainB), m1, nil, domainB, provenReport(domainB, m1.Digest), onlyB, []string{domainA, domainB})
+
+	proof, ok := second.Domains[domainA]
+	if !ok {
+		t.Fatal("the vanished domain dropped out of the proof set — nothing can detect the loss now")
+	}
+	if proof.SliceTripleCount != 4 {
+		t.Fatalf("kept count=%d, want 4 (what it last published)", proof.SliceTripleCount)
+	}
+	if proof.Proven() {
+		t.Fatal("an absent domain must never read as proven")
+	}
+	if !strings.Contains(proof.CarryForwardRefusal, "no content in this publication") {
+		t.Fatalf("the gap must be recorded as itself; got %q", proof.CarryForwardRefusal)
+	}
+	if !MaterialShortfall(proof.SliceTripleCount, 0) {
+		t.Fatal("the kept expectation must still be able to report the shortfall")
+	}
+}
+
+// Registration is what separates a loss from a retirement. A domain nobody
+// registers any more was deliberately removed, and must be forgotten rather
+// than warned about forever.
+func TestAnUnregisteredDomainIsForgottenRatherThanMissed(t *testing.T) {
+	both := slice(domainA, "a.one") + slice(domainB, "b.one")
+	m0 := marker("000000000000000000000000000000000000000000000000000000000000bb01", 4)
+	first := compose(nil, generationOf(m0, domainA), m0, nil, domainA, provenReport(domainA, m0.Digest), both, []string{domainA, domainB})
+
+	onlyB := slice(domainB, "b.one")
+	m1 := marker("000000000000000000000000000000000000000000000000000000000000bb02", 2)
+	second := compose(first, generationOf(m1, domainB), m1, nil, domainB, provenReport(domainB, m1.Digest), onlyB, []string{domainB})
+
+	if _, ok := second.Domains[domainA]; ok {
+		t.Fatal("a retired domain must not be kept as a permanent shortfall")
+	}
+}

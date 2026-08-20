@@ -58,7 +58,7 @@ func (r domainSliceReport) line() string {
 //
 // only restricts the check to one domain; empty checks every domain the proof
 // set vouches for.
-func domainSliceReports(ctx context.Context, s store.Store, storeURL, homeDomain, only string) []domainSliceReport {
+func domainSliceReports(ctx context.Context, s store.Store, storeURL, only string) []domainSliceReport {
 	if s == nil || storeURL == "" {
 		return nil
 	}
@@ -70,8 +70,13 @@ func domainSliceReports(ctx context.Context, s store.Store, storeURL, homeDomain
 	if err != nil || set == nil {
 		return nil
 	}
+	// Deliberately NOT CountTriplesInDomain. That answers "what is visible in
+	// this domain's scope", which also draws in shared and untagged subjects —
+	// content the domain never owned, standing in for the content it lost. The
+	// expectation counts subjects the domain OWNS, so the live count must too,
+	// or a small domain can vanish entirely behind the store's shared triples.
 	counter, ok := s.(interface {
-		CountTriplesInDomain(ctx context.Context, domain, home string) (int64, error)
+		CountTriplesOwnedByDomain(ctx context.Context, domain string) (int64, error)
 	})
 	if !ok {
 		return nil
@@ -85,7 +90,7 @@ func domainSliceReports(ctx context.Context, s store.Store, storeURL, homeDomain
 		if proof.SliceTripleCount <= 0 {
 			continue
 		}
-		live, err := counter.CountTriplesInDomain(ctx, domain, homeDomain)
+		live, err := counter.CountTriplesOwnedByDomain(ctx, domain)
 		if err != nil {
 			out = append(out, domainSliceReport{Domain: domain, Expected: proof.SliceTripleCount, Err: err})
 			continue
@@ -104,7 +109,7 @@ func (s *server) domainSliceBlindSpots(ctx context.Context, domain string) []str
 	if s == nil {
 		return nil
 	}
-	reports := domainSliceReports(ctx, s.store, s.oxigraphQueryURL, s.homeDomain, domain)
+	reports := domainSliceReports(ctx, s.store, s.oxigraphQueryURL, domain)
 	out := make([]string, 0, len(reports))
 	for _, r := range reports {
 		out = append(out, r.line())

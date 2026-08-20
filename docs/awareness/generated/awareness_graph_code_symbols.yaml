@@ -22599,6 +22599,18 @@ test_symbols:
     package: graphgeneration
     language: go
     doc: "A proof set written before counts existed must not read as \"this domain\npublished nothing\"; it reads as no expectation, which MaterialShortfall\nrefuses to act on."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestAVanishedRegisteredDomainKeepsItsLastPublishedExpectation
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestAVanishedRegisteredDomainKeepsItsLastPublishedExpectation
+    package: graphgeneration
+    language: go
+    doc: "The loss must not erase its own evidence. A domain disappears from the store,\nanother domain is published, and the vanished one has no content in the new\ngeneration — so without this it drops out of the proof set entirely, taking\nwith it the only record that it ever held anything."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestAnUnregisteredDomainIsForgottenRatherThanMissed
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestAnUnregisteredDomainIsForgottenRatherThanMissed
+    package: graphgeneration
+    language: go
+    doc: "Registration is what separates a loss from a retirement. A domain nobody\nregisters any more was deliberately removed, and must be forgotten rather\nthan warned about forever."
   - id: golang/graphgeneration/domain_slice_count_test.go:TestComposeRecordsSliceCountsAndTheyRoundTrip
     file: golang/graphgeneration/domain_slice_count_test.go
     symbol: TestComposeRecordsSliceCountsAndTheyRoundTrip
@@ -24102,6 +24114,18 @@ test_symbols:
     package: main
     language: go
     doc: "Read time, not write time: the operator meets this on the surface consulted\nBEFORE editing, rather than on the refusal after."
+  - id: golang/server/domain_slice_test.go:TestTheLiveCountMeasuresOnlyWhatTheDomainOwns
+    file: golang/server/domain_slice_test.go
+    symbol: TestTheLiveCountMeasuresOnlyWhatTheDomainOwns
+    package: main
+    language: go
+    doc: "The live count must measure the same set the expectation describes. A count\nthat also draws in shared subjects lets the store's unrelated content stand in\nfor a domain's own missing content: a 100-triple domain deleted from a store\nretaining 50 shared triples would report nothing at all."
+  - id: golang/server/domain_slice_test.go:TestTheStartupShortfallReportIsNotGuardedBySeeding
+    file: golang/server/domain_slice_test.go
+    symbol: TestTheStartupShortfallReportIsNotGuardedBySeeding
+    package: main
+    language: go
+    doc: "-no-seed is how the deployments with the most to lose are started: the\nappliance entrypoint and the documented project flow both use it, and it\nskips enforceCurrentSeed entirely. Whether a domain's published knowledge is\nstill in the store is a question about the STORE, so the report must not live\nin the branch that those deployments skip."
   - id: golang/server/edit_check_test.go:TestEditCheck_BadShape_WarnsInCaddyDomain
     file: golang/server/edit_check_test.go
     symbol: TestEditCheck_BadShape_WarnsInCaddyDomain

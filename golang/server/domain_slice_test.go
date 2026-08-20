@@ -5,6 +5,9 @@ package main
 import (
 	"context"
 	"errors"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"strings"
 	"testing"
 
@@ -16,7 +19,7 @@ import (
 
 const shortfallDomain = "github.com/globulario/services"
 
-// countingStore answers the domain-scoped count, and can fail it, which is a
+// countingStore answers the domain-OWNED count, and can fail it, which is a
 // different answer from counting zero.
 type countingStore struct {
 	fakeStore
@@ -24,7 +27,7 @@ type countingStore struct {
 	err  error
 }
 
-func (c countingStore) CountTriplesInDomain(context.Context, string, string) (int64, error) {
+func (c countingStore) CountTriplesOwnedByDomain(context.Context, string) (int64, error) {
 	return c.live, c.err
 }
 
@@ -69,7 +72,7 @@ func TestDomainSliceShortfallIsReportedWithItsRepair(t *testing.T) {
 	storeURL := writeCountedProofSet(t, 121338)
 	st := countingStore{live: 6}
 
-	reports := domainSliceReports(context.Background(), st, storeURL, "", "")
+	reports := domainSliceReports(context.Background(), st, storeURL, "")
 	if len(reports) != 1 {
 		t.Fatalf("got %d report(s), want 1", len(reports))
 	}
@@ -85,7 +88,7 @@ func TestDomainSliceReportsStaySilentWhenTheSliceIsPresent(t *testing.T) {
 	storeURL := writeCountedProofSet(t, 121338)
 	st := countingStore{live: 121400} // a reader counts shared subjects too
 
-	if reports := domainSliceReports(context.Background(), st, storeURL, "", ""); len(reports) != 0 {
+	if reports := domainSliceReports(context.Background(), st, storeURL, ""); len(reports) != 0 {
 		t.Fatalf("a present slice must not be accused: %q", reports[0].line())
 	}
 }
@@ -96,7 +99,7 @@ func TestDomainSliceCountFailureIsReportedNotSwallowed(t *testing.T) {
 	storeURL := writeCountedProofSet(t, 121338)
 	st := countingStore{err: errors.New("backend refused")}
 
-	reports := domainSliceReports(context.Background(), st, storeURL, "", "")
+	reports := domainSliceReports(context.Background(), st, storeURL, "")
 	if len(reports) != 1 {
 		t.Fatalf("got %d report(s), want 1", len(reports))
 	}
@@ -111,7 +114,7 @@ func TestDomainSliceCountFailureIsReportedNotSwallowed(t *testing.T) {
 func TestNoProofSetProducesNoDomainSliceReports(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	st := countingStore{live: 0}
-	if reports := domainSliceReports(context.Background(), st, "http://127.0.0.1:7878/query", "", ""); len(reports) != 0 {
+	if reports := domainSliceReports(context.Background(), st, "http://127.0.0.1:7878/query", ""); len(reports) != 0 {
 		t.Fatalf("got %d report(s), want none: %q", len(reports), reports[0].line())
 	}
 }
@@ -120,7 +123,7 @@ func TestNoProofSetProducesNoDomainSliceReports(t *testing.T) {
 // than an unfounded one; there is nothing to compare.
 func TestAStoreThatCannotCountDomainsProducesNoReports(t *testing.T) {
 	storeURL := writeCountedProofSet(t, 121338)
-	if reports := domainSliceReports(context.Background(), fakeStore{}, storeURL, "", ""); len(reports) != 0 {
+	if reports := domainSliceReports(context.Background(), fakeStore{}, storeURL, ""); len(reports) != 0 {
 		t.Fatalf("got %d report(s), want none", len(reports))
 	}
 }
@@ -154,5 +157,99 @@ func TestPreflightSurfacesTheDomainSliceShortfall(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("preflight did not report the missing slice: %v", resp.GetBlindSpots())
+	}
+}
+
+// The live count must measure the same set the expectation describes. A count
+// that also draws in shared subjects lets the store's unrelated content stand in
+// for a domain's own missing content: a 100-triple domain deleted from a store
+// retaining 50 shared triples would report nothing at all.
+func TestTheLiveCountMeasuresOnlyWhatTheDomainOwns(t *testing.T) {
+	storeURL := writeCountedProofSet(t, 100)
+
+	// A store that answers the SCOPED count (shared subjects included) does not
+	// satisfy the capability this check requires, so it produces no reports
+	// rather than a wrong one.
+	scopedOnly := scopedCountingStore{live: 50}
+	if reports := domainSliceReports(context.Background(), scopedOnly, storeURL, ""); len(reports) != 0 {
+		t.Fatalf("a store that cannot count owned triples must not be asked to: %q", reports[0].line())
+	}
+
+	// The owned count sees the domain for what it is: empty.
+	owned := countingStore{live: 0}
+	reports := domainSliceReports(context.Background(), owned, storeURL, "")
+	if len(reports) != 1 {
+		t.Fatalf("got %d report(s), want 1 — the loss must not hide behind shared content", len(reports))
+	}
+	if line := reports[0].line(); !strings.Contains(line, "holds 0 triple(s) live but its proof set recorded 100") {
+		t.Fatalf("got %q", line)
+	}
+}
+
+// scopedCountingStore has the domain-SCOPE count and not the owned count — the
+// shape that would mask a loss if it were accepted.
+type scopedCountingStore struct {
+	fakeStore
+	live int64
+}
+
+func (c scopedCountingStore) CountTriplesInDomain(context.Context, string, string) (int64, error) {
+	return c.live, nil
+}
+
+// -no-seed is how the deployments with the most to lose are started: the
+// appliance entrypoint and the documented project flow both use it, and it
+// skips enforceCurrentSeed entirely. Whether a domain's published knowledge is
+// still in the store is a question about the STORE, so the report must not live
+// in the branch that those deployments skip.
+func TestTheStartupShortfallReportIsNotGuardedBySeeding(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "main.go", nil, 0)
+	if err != nil {
+		t.Fatalf("parse main.go: %v", err)
+	}
+	const call = "reportDomainSliceShortfalls"
+
+	var serveBody *ast.BlockStmt
+	nested := map[string]bool{}
+	ast.Inspect(file, func(n ast.Node) bool {
+		fn, ok := n.(*ast.FuncDecl)
+		if !ok {
+			return true
+		}
+		if fn.Name.Name == "serve" {
+			serveBody = fn.Body
+		}
+		if fn.Name.Name == "enforceCurrentSeed" {
+			ast.Inspect(fn.Body, func(inner ast.Node) bool {
+				if id, ok := inner.(*ast.Ident); ok && id.Name == call {
+					nested[fn.Name.Name] = true
+				}
+				return true
+			})
+		}
+		return true
+	})
+	if serveBody == nil {
+		t.Fatal("serve not found")
+	}
+	if nested["enforceCurrentSeed"] {
+		t.Fatal("the report lives inside enforceCurrentSeed, which -no-seed never reaches")
+	}
+
+	unconditional := false
+	for _, stmt := range serveBody.List {
+		expr, ok := stmt.(*ast.ExprStmt)
+		if !ok {
+			continue
+		}
+		if c, ok := expr.X.(*ast.CallExpr); ok {
+			if id, ok := c.Fun.(*ast.Ident); ok && id.Name == call {
+				unconditional = true
+			}
+		}
+	}
+	if !unconditional {
+		t.Fatalf("%s must be called from serve's own body, not from a branch a deployment can skip", call)
 	}
 }

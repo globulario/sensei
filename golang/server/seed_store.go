@@ -284,6 +284,27 @@ func (s embeddedSeedStore) Domains(_ context.Context) ([]string, error) {
 	return out, nil
 }
 
+// CountTriplesOwnedByDomain counts the triples of subjects this domain owns, and
+// nothing else — the in-memory analogue of the Oxigraph method. Shared and
+// untagged subjects are excluded on purpose: they would stand in for a domain's
+// own missing content.
+func (s embeddedSeedStore) CountTriplesOwnedByDomain(_ context.Context, domain string) (int64, error) {
+	var n int64
+	for _, triples := range s.g.bySubject {
+		owned := false
+		for _, t := range triples {
+			if t.pred == rdf.PropRepo && t.obj == domain {
+				owned = true
+				break
+			}
+		}
+		if owned {
+			n += int64(len(triples))
+		}
+	}
+	return n, nil
+}
+
 // CountTriplesInDomain counts triples whose subject is in the domain scope — the
 // in-memory analogue of the Oxigraph method.
 func (s embeddedSeedStore) CountTriplesInDomain(_ context.Context, domain, home string) (int64, error) {
