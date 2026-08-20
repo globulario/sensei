@@ -433,6 +433,23 @@ func composeReceiptsAndCoverage(
 	discoveredByProvider := map[string]int{}
 	captureFailuresByProvider := map[string]int{}
 
+	// One read per FILE, so one document describes one version of each file.
+	//
+	// Every observation used to re-read and re-hash its own source, and a digest
+	// recorded per observation is a claim about the file AT THAT MOMENT. A tree
+	// that changed mid-run therefore left ONE document holding receipts that
+	// described two different versions of one file, with nothing in it saying
+	// which version it was about. Reading each file once removes that by
+	// construction rather than by hoping the tree holds still.
+	//
+	// This was first written as a cost fix and that motivation did NOT survive
+	// measurement: a whole-repository self-extraction takes 23m02s before and
+	// 23m33s after, over 233k observations and ~1,558 files. The page cache was
+	// already absorbing the repeated reads, so the run's cost is somewhere else
+	// and remains unidentified. The comment says so rather than keeping the
+	// tidier story the change was started for.
+	sources := newSourceCache(root)
+
 	capturedFacts := 0
 	for _, f := range normalizedFacts {
 		if ctx.Err() != nil {
@@ -454,7 +471,7 @@ func composeReceiptsAndCoverage(
 		}
 		discoveredByProvider[definition.ProviderID]++
 
-		fileSHA, err := architecture.SourceDigestSHA256(root, f.Evidence.SourceFile)
+		fileSHA, err := sources.digest(f.Evidence.SourceFile)
 		if err != nil {
 			captureFailuresByProvider[definition.ProviderID]++
 			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source digest unavailable: " + err.Error(), Blocking: false})
@@ -470,7 +487,7 @@ func composeReceiptsAndCoverage(
 			lineEnd = lineStart
 		}
 
-		capturedText, readErr := readCapturedLines(filepath.Join(root, f.Evidence.SourceFile), lineStart, lineEnd)
+		capturedText, readErr := sources.lines(f.Evidence.SourceFile, lineStart, lineEnd)
 		if readErr != nil {
 			captureFailuresByProvider[definition.ProviderID]++
 			limitations = append(limitations, architecture.Limitation{Source: f.Extractor, Scope: f.Evidence.SourceFile, Reason: "source capture unavailable: " + readErr.Error(), Blocking: false})
@@ -774,11 +791,77 @@ func executionStateFor(engine string, executionErr error, limitations []architec
 	return executionComplete, ""
 }
 
+// sourceCache holds each source file's bytes and digest for the life of one
+// composition, so every receipt citing a file cites the same bytes.
+//
+// Memory is bounded by the repository's own source, which is the same material
+// the extractors already held to produce the observations. A failed read is
+// cached too: a file that could not be read is reported as unreadable
+// consistently, rather than being retried into a different answer partway
+// through one document.
+type sourceCache struct {
+	root  string
+	files map[string]*cachedSource
+}
+
+type cachedSource struct {
+	data   []byte
+	digest string
+	err    error
+}
+
+func newSourceCache(root string) *sourceCache {
+	return &sourceCache{root: root, files: map[string]*cachedSource{}}
+}
+
+func (c *sourceCache) load(sourceFile string) *cachedSource {
+	if entry, ok := c.files[sourceFile]; ok {
+		return entry
+	}
+	path := sourceFile
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(c.root, filepath.FromSlash(sourceFile))
+	}
+	entry := &cachedSource{}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		entry.err = err
+	} else {
+		entry.data = data
+		sum := sha256.Sum256(data)
+		entry.digest = hex.EncodeToString(sum[:])
+	}
+	c.files[sourceFile] = entry
+	return entry
+}
+
+// digest is architecture.SourceDigestSHA256 over the cached bytes.
+func (c *sourceCache) digest(sourceFile string) (string, error) {
+	entry := c.load(sourceFile)
+	if entry.err != nil {
+		return "", entry.err
+	}
+	return entry.digest, nil
+}
+
+// lines is readCapturedLines over the cached bytes.
+func (c *sourceCache) lines(sourceFile string, lineStart, lineEnd int) (string, error) {
+	entry := c.load(sourceFile)
+	if entry.err != nil {
+		return "", entry.err
+	}
+	return capturedLines(entry.data, lineStart, lineEnd)
+}
+
 func readCapturedLines(filePath string, lineStart, lineEnd int) (string, error) {
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return "", err
 	}
+	return capturedLines(data, lineStart, lineEnd)
+}
+
+func capturedLines(data []byte, lineStart, lineEnd int) (string, error) {
 	if lineStart < 1 || lineEnd < lineStart {
 		return "", fmt.Errorf("invalid line range %d-%d", lineStart, lineEnd)
 	}
