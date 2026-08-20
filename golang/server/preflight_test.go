@@ -339,25 +339,33 @@ func TestPreflight_UnrelatedTaskNoCoverage_RiskClassUnknownImpact(t *testing.T) 
 }
 
 // ────────────────────────────────────────────────────────────────────────
-// 7. Strong pattern match on clean path → LOW_RISK
+// 7. Strong pattern match is guidance, not coverage
 // ────────────────────────────────────────────────────────────────────────
 
-func TestPreflight_UnrelatedTaskGoodCoverage_LowRisk(t *testing.T) {
+// A strong-tier match still travels in the response — it is real advice about
+// how code of this shape is written. It does not make the graph's silence about
+// the change trustworthy: nothing was anchored and no file was indexed, so
+// coverage stays insufficient and the risk stays UNKNOWN_IMPACT (#218).
+func TestPreflight_StrongPatternMatchIsGuidanceNotCoverage(t *testing.T) {
 	s := newPreflightTestServer(t, nil, true)
 	resp, _ := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
 		// matches "wrapping a protobuf client with Globular helpers"
 		Task: "wrapping a protobuf client with Globular helpers",
 	})
-	if resp.GetRiskClass() != awarenesspb.RiskClass_LOW_RISK {
-		t.Errorf("risk: want LOW_RISK (strong pattern + clean path), got %v (patterns=%d strength=%q)",
-			resp.GetRiskClass(),
-			len(resp.GetImplementationPatterns()),
-			func() string {
-				if len(resp.GetImplementationPatterns()) > 0 {
-					return resp.GetImplementationPatterns()[0].GetMatchStrength()
-				}
-				return ""
-			}())
+	if len(resp.GetImplementationPatterns()) == 0 {
+		t.Fatal("the matched pattern must still be surfaced as guidance")
+	}
+	if resp.GetImplementationPatterns()[0].GetMatchStrength() != "strong" {
+		t.Fatalf("fixture no longer produces a strong match: %q",
+			resp.GetImplementationPatterns()[0].GetMatchStrength())
+	}
+	if resp.GetCoverage().GetSufficient() {
+		t.Errorf("coverage.sufficient: a recipe match alone must not report coverage (note=%q)",
+			resp.GetCoverage().GetNote())
+	}
+	if resp.GetRiskClass() != awarenesspb.RiskClass_UNKNOWN_IMPACT {
+		t.Errorf("risk: want UNKNOWN_IMPACT with no anchors and no indexed files, got %v",
+			resp.GetRiskClass())
 	}
 }
 

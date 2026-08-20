@@ -1701,3 +1701,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.working_tree_facts_bound_to_head_and_reported_as_resolved
+  - id: golang/server/preflight_coverage_authority_test.go:TestPatternMatchAloneCannotManufactureSufficientCoverage
+    title: A pattern match alone never reports sufficient preflight coverage
+    protects:
+      failure_modes:
+        - failure.sensei.pattern_recipe_match_reported_as_sufficient_preflight_covera
