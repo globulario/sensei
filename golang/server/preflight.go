@@ -437,6 +437,10 @@ func (s *server) scopeDegradedPreflightResponse(task string, files []string, sta
 // was asked about. Coverage rests on lookups: anchors that fired, or files the
 // graph has indexed.
 //
+// EVERY requested file must be examined, not merely one of them: an examined
+// file's silence says nothing about the file beside it that the graph has never
+// seen, and the summary speaks for the whole request.
+//
 // A matched implementation pattern is deliberately NOT one of them. A pattern
 // is a recipe that recognises the shape of code from task text and file naming;
 // it is good grounds for advice (must_follow, required_calls) and poor grounds
@@ -463,7 +467,7 @@ func computePreflightCoverage(files []string, indexed int,
 	case directCount > 0:
 		sufficient = true
 		note = fmt.Sprintf("%d direct anchor(s) matched", directCount)
-	case len(files) > 0 && indexed > 0:
+	case len(files) > 0 && indexed == len(files):
 		sufficient = true
 		note = fmt.Sprintf("%d/%d file(s) examined in the graph — no governing rule applies", indexed, len(files))
 	case hasStrongPattern:
@@ -471,10 +475,16 @@ func computePreflightCoverage(files []string, indexed int,
 		note = "strong-tier implementation pattern match — recipe identified, but no anchors fired and no files indexed: guidance, not coverage"
 	default:
 		sufficient = false
-		if len(files) > 0 {
-			note = "no anchors fired, no files indexed — coverage thin for this area"
-		} else {
-			note = "no direct anchors and no indexed files — task-only request without graph evidence"
+		switch {
+		case indexed > 0:
+			// Partial examination is not coverage of the request. The examined
+			// file's silence says nothing about the one beside it that the
+			// graph has never seen.
+			note = fmt.Sprintf("only %d of %d requested file(s) are examined in the graph — the rest are unknown to it", indexed, len(files))
+		case len(files) > 0:
+			note = "no anchors fired, no files examined — coverage thin for this area"
+		default:
+			note = "no direct anchors and no examined files — task-only request without graph evidence"
 		}
 	}
 	return &awarenesspb.CoverageSummary{
@@ -508,27 +518,57 @@ func (s *server) sourceFileExamined(ctx context.Context, file, requestedDomain s
 	if err != nil {
 		return false, fmt.Sprintf("index_lookup_failed_for_%s: %v", file, err)
 	}
-	candidates := make([]string, 0, len(iris))
+	if len(iris) == 0 {
+		return false, ""
+	}
+	if requestedDomain != "" {
+		return sourceFileExaminedInDomain(file, requestedDomain, iris)
+	}
+	if len(iris) == 1 {
+		return true, ""
+	}
+	return false, ambiguousIndexBlindSpot(file, len(iris))
+}
+
+// sourceFileExaminedInDomain answers the same question for a caller that named
+// a domain. Only a repository-scoped identity naming that repository is
+// evidence for it. An identity that predates repository scoping is NOT: it
+// carries no repository, so in a multi-repository graph it may stand for any of
+// them, and accepting it would invent the attribution ParseSourceFileIRI
+// refuses to invent.
+func sourceFileExaminedInDomain(file, requestedDomain string, iris []string) (bool, string) {
+	scoped := 0
+	unscoped := 0
 	for _, iri := range iris {
-		if requestedDomain != "" {
-			if id, ok := rdf.ParseSourceFileIRI(iri); ok &&
-				id.Generation == rdf.SourceFileGenerationV2 &&
-				id.RepositoryIdentity != requestedDomain {
-				continue
-			}
+		id, ok := rdf.ParseSourceFileIRI(iri)
+		switch {
+		case !ok || id.Generation != rdf.SourceFileGenerationV2:
+			unscoped++
+		case id.RepositoryIdentity == requestedDomain:
+			scoped++
 		}
-		candidates = append(candidates, iri)
 	}
 	switch {
-	case len(candidates) == 1:
+	case scoped == 1:
 		return true, ""
-	case len(candidates) > 1:
+	case scoped > 1:
+		// One repository and one path mint one subject, so this cannot happen
+		// from a well-formed graph — which is why it is reported rather than
+		// resolved.
+		return false, ambiguousIndexBlindSpot(file, scoped)
+	case unscoped > 0:
 		return false, fmt.Sprintf(
-			"index_ambiguous_for_%s: the path names a source file in %d repositories; coverage cannot say which one was examined",
-			file, len(candidates))
+			"index_unscoped_for_%s: the graph's source-file identity predates repository scoping and cannot be attributed to %s",
+			file, requestedDomain)
 	default:
 		return false, ""
 	}
+}
+
+func ambiguousIndexBlindSpot(file string, count int) string {
+	return fmt.Sprintf(
+		"index_ambiguous_for_%s: the path names a source file in %d repositories; coverage cannot say which one was examined",
+		file, count)
 }
 
 // mergeAnchors flattens the three direct lists into one. Used by the

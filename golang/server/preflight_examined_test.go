@@ -187,3 +187,86 @@ func TestSourceFileExaminedFailsClosedOnAmbiguityAndErrors(t *testing.T) {
 		}
 	})
 }
+
+// Coverage speaks for the whole request. One examined file does not cover the
+// file beside it that the graph has never seen — its silence is about itself.
+func TestPreflightPartialExaminationIsNotCoverage(t *testing.T) {
+	const examined = "internal/x/x.go"
+	const unknown = "internal/y/y.go"
+	invalidateImplementationPatternCacheForTest()
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) { return nil, nil },
+		sourceFileIRIs: func(_ context.Context, path string) ([]string, error) {
+			if path == examined {
+				return []string{fileIRI(examined)}, nil
+			}
+			return nil, nil
+		},
+	})
+	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+		Task:  "adjust the helpers",
+		Files: []string{examined, unknown},
+	})
+	if err != nil {
+		t.Fatalf("Preflight: %v", err)
+	}
+	cov := resp.GetCoverage()
+	if cov.GetIndexedFileCount() != 1 || cov.GetFileCount() != 2 {
+		t.Fatalf("indexed=%d of %d, want 1 of 2", cov.GetIndexedFileCount(), cov.GetFileCount())
+	}
+	if cov.GetSufficient() {
+		t.Fatalf("a partially examined request must not report coverage: note=%q", cov.GetNote())
+	}
+	if !strings.Contains(cov.GetNote(), "only 1 of 2") {
+		t.Fatalf("note must say how much of the request is examined; got %q", cov.GetNote())
+	}
+}
+
+// A source-file identity that predates repository scoping carries no
+// repository. It is evidence that SOME repository holds this path, and a caller
+// that named a domain asked about one — so it is not evidence for that domain,
+// and accepting it would invent the attribution ParseSourceFileIRI refuses to
+// invent (#197).
+func TestUnscopedSourceFileIdentityIsNotDomainEvidence(t *testing.T) {
+	const file = "README.md"
+	legacyIRI := "https://globular.io/awareness#sourceFile/" + rdf.EncodeIRIPath(file)
+
+	t.Run("with a named domain it is not evidence", func(t *testing.T) {
+		s := newTestServer(fakeStore{
+			sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+				return []string{legacyIRI}, nil
+			},
+		})
+		examined, blindSpot := s.sourceFileExamined(context.Background(), file, testRepositoryIdentity)
+		if examined {
+			t.Fatal("an unscoped identity must not count as the requested repository's file")
+		}
+		if !strings.Contains(blindSpot, "index_unscoped_for_") {
+			t.Fatalf("the reason must be reported, got %q", blindSpot)
+		}
+	})
+
+	t.Run("the requested repository's own file still resolves beside it", func(t *testing.T) {
+		s := newTestServer(fakeStore{
+			sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+				return []string{legacyIRI, fileIRI(file)}, nil
+			},
+		})
+		examined, blindSpot := s.sourceFileExamined(context.Background(), file, testRepositoryIdentity)
+		if !examined || blindSpot != "" {
+			t.Fatalf("examined=%v blindSpot=%q, want true and no blind spot", examined, blindSpot)
+		}
+	})
+
+	t.Run("with no domain named there is nothing to attribute it to", func(t *testing.T) {
+		s := newTestServer(fakeStore{
+			sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+				return []string{legacyIRI}, nil
+			},
+		})
+		examined, blindSpot := s.sourceFileExamined(context.Background(), file, "")
+		if !examined || blindSpot != "" {
+			t.Fatalf("examined=%v blindSpot=%q, want true and no blind spot", examined, blindSpot)
+		}
+	})
+}
