@@ -186,6 +186,7 @@ type fakeStore struct {
 	describe        func(ctx context.Context, iri string) ([]store.Triple, error)
 	describeInbound func(ctx context.Context, iri string) ([]store.InboundTriple, error)
 	impactForFile   func(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error)
+	sourceFileIRIs  func(ctx context.Context, repoRelativePath string) ([]string, error)
 	classFacts      func(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error)
 	codeSymbolFacts func(ctx context.Context, repoRelativePath string) ([]store.ImpactFact, error)
 	detectFacts     func(ctx context.Context) ([]store.ImpactFact, error)
@@ -2126,6 +2127,9 @@ func (f failingStore) SourceFileIRIsForPath(context.Context, string) ([]string, 
 	return nil, nil
 }
 
-func (f fakeStore) SourceFileIRIsForPath(context.Context, string) ([]string, error) {
-	return nil, nil
+func (f fakeStore) SourceFileIRIsForPath(ctx context.Context, repoRelativePath string) ([]string, error) {
+	if f.sourceFileIRIs == nil {
+		return nil, nil
+	}
+	return f.sourceFileIRIs(ctx, repoRelativePath)
 }

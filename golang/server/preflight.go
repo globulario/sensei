@@ -34,6 +34,7 @@ import (
 
 	"github.com/globulario/sensei/golang/coverage"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // preflightCaps controls how many entries each list carries per mode.
@@ -150,7 +151,20 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		allForbiddenFixes = append(allForbiddenFixes, impact.GetForbiddenFixes()...)
 		allRequiredTests = append(allRequiredTests, impact.GetRequiredTests()...)
 		allArchitecture = append(allArchitecture, impact.GetDirectArchitecture()...)
-		if len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0 {
+		// Anchors prove examination on their own; the index lookup establishes
+		// it WITHOUT them, and only that second direction was missing (#220).
+		// Before it, a file the graph holds and governs by nothing read
+		// identically to a file nobody had ever analysed. The lookup is skipped
+		// when an anchor already settled the question.
+		examined := len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0
+		if !examined {
+			var blindSpot string
+			examined, blindSpot = s.sourceFileExamined(ctx, file, requestedDomain)
+			if blindSpot != "" {
+				resp.BlindSpots = append(resp.BlindSpots, blindSpot)
+			}
+		}
+		if examined {
 			indexed++
 		}
 	}
@@ -451,7 +465,7 @@ func computePreflightCoverage(files []string, indexed int,
 		note = fmt.Sprintf("%d direct anchor(s) matched", directCount)
 	case len(files) > 0 && indexed > 0:
 		sufficient = true
-		note = fmt.Sprintf("%d/%d file(s) indexed in graph (no rules apply)", indexed, len(files))
+		note = fmt.Sprintf("%d/%d file(s) examined in the graph — no governing rule applies", indexed, len(files))
 	case hasStrongPattern:
 		sufficient = false
 		note = "strong-tier implementation pattern match — recipe identified, but no anchors fired and no files indexed: guidance, not coverage"
@@ -469,6 +483,51 @@ func computePreflightCoverage(files []string, indexed int,
 		IndexedFileCount:  int32(indexed),
 		Sufficient:        sufficient,
 		Note:              note,
+	}
+}
+
+// sourceFileExamined reports whether the graph holds a SourceFile node for
+// this path — that the graph looked at the file — independently of whether
+// anything governs it.
+//
+// This is the fact that makes "examined, and nothing governs it" expressible
+// at all. Deriving examination from anchors (as this did before #220) made it
+// the same fact as governance, so a file the graph holds and governs by
+// nothing was indistinguishable from a file nobody ever analysed, and the
+// coverage branch written for that state could never be reached.
+//
+// It fails closed in every direction it cannot answer: a failed lookup and a
+// path that names files in several repositories both report NOT examined, the
+// latter with a blind spot, because silently picking one repository's file is
+// the identity collapse SourceFile scoping (#197) removed. When the caller
+// named a domain, source files belonging to a DIFFERENT repository are
+// dropped; identities that predate repository scoping carry no repository to
+// compare and are neither dropped nor used to discriminate.
+func (s *server) sourceFileExamined(ctx context.Context, file, requestedDomain string) (bool, string) {
+	iris, err := s.store.SourceFileIRIsForPath(ctx, file)
+	if err != nil {
+		return false, fmt.Sprintf("index_lookup_failed_for_%s: %v", file, err)
+	}
+	candidates := make([]string, 0, len(iris))
+	for _, iri := range iris {
+		if requestedDomain != "" {
+			if id, ok := rdf.ParseSourceFileIRI(iri); ok &&
+				id.Generation == rdf.SourceFileGenerationV2 &&
+				id.RepositoryIdentity != requestedDomain {
+				continue
+			}
+		}
+		candidates = append(candidates, iri)
+	}
+	switch {
+	case len(candidates) == 1:
+		return true, ""
+	case len(candidates) > 1:
+		return false, fmt.Sprintf(
+			"index_ambiguous_for_%s: the path names a source file in %d repositories; coverage cannot say which one was examined",
+			file, len(candidates))
+	default:
+		return false, ""
 	}
 }
 

@@ -1706,3 +1706,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.pattern_recipe_match_reported_as_sufficient_preflight_covera
+  - id: golang/server/preflight_examined_test.go:TestPreflightCoverageDistinguishesExaminedFromUnknown
+    title: Preflight coverage distinguishes examined-and-ungoverned from never-examined
+    protects:
+      failure_modes:
+        - failure.sensei.examination_defined_as_governance_collapsing_emptyproven_int
