@@ -1696,3 +1696,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.cheap_health_surface_read_green_while_graph_could_not_govern
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
+    title: infer-claims names no revision when the scanned tree differs from HEAD
+    protects:
+      failure_modes:
+        - failure.sensei.working_tree_facts_bound_to_head_and_reported_as_resolved

@@ -639,3 +639,93 @@ func containsLimitationReason(limitations []architecture.Limitation, sub string)
 	}
 	return false
 }
+
+// A dirty checkout is the case the binding exists to describe honestly: the
+// facts come from the working tree, and the commit HEAD names does not contain
+// them. The document must name no revision rather than assert one it has not
+// established.
+func TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD(t *testing.T) {
+	root := writeInferClaimsFixture(t, true)
+	writeFile(t, filepath.Join(root, "roles", "roles.go"), `package roles
+func Assign(role string) error {
+	if role == "" { return errEmpty }
+	return nil
+}
+var errEmpty error
+`)
+	result := inferClaims(t, root)
+
+	if result.Document.Binding.RevisionStatus != architecture.RevisionUnavailable {
+		t.Fatalf("revision_status=%q, want %q", result.Document.Binding.RevisionStatus, architecture.RevisionUnavailable)
+	}
+	if result.Document.Binding.Revision != "" {
+		t.Fatalf("unbound document still names revision %q", result.Document.Binding.Revision)
+	}
+	if result.UnboundRevisionReason == "" {
+		t.Fatal("unbound document did not report why it is unbound")
+	}
+	if !containsBlockingLimitation(result.Document.Limitations, "scanned working tree differs from") {
+		t.Fatalf("missing blocking revision limitation: %+v", result.Document.Limitations)
+	}
+	for _, receipt := range result.Document.FactReceipts {
+		if receipt.Provenance.RevisionStatus == architecture.RevisionResolved {
+			t.Fatalf("fact receipt %s claims a resolved revision on a dirty tree", receipt.Fact.ID)
+		}
+	}
+}
+
+// The committed case must keep binding: refusing whenever a repository is not
+// pristine would trade a false binding for a useless one.
+func TestInferClaimsBindsACommittedWorkingTreeToItsRevision(t *testing.T) {
+	root := writeInferClaimsFixture(t, true)
+	result := inferClaims(t, root)
+
+	if result.Document.Binding.RevisionStatus != architecture.RevisionResolved {
+		t.Fatalf("revision_status=%q, want %q", result.Document.Binding.RevisionStatus, architecture.RevisionResolved)
+	}
+	if result.Document.Binding.Revision == "" {
+		t.Fatal("committed checkout produced no revision")
+	}
+	if result.UnboundRevisionReason != "" {
+		t.Fatalf("committed checkout reported unbound: %s", result.UnboundRevisionReason)
+	}
+}
+
+// Dirtiness is judged over the files the facts actually cite. An uncommitted
+// file no fact reads changes nothing the document asserts, and build residue
+// left in a tree must not make every scan permanently unbindable.
+func TestInferClaimsStillBindsWhenAnUncitedFileIsUncommitted(t *testing.T) {
+	root := writeInferClaimsFixture(t, true)
+	writeFile(t, filepath.Join(root, "scratch.txt"), "local notes\n")
+	result := inferClaims(t, root)
+
+	if result.Document.Binding.RevisionStatus != architecture.RevisionResolved {
+		t.Fatalf("revision_status=%q, want %q (reason %q)", result.Document.Binding.RevisionStatus, architecture.RevisionResolved, result.UnboundRevisionReason)
+	}
+}
+
+func inferClaims(t *testing.T, root string) inferClaimsBuildResult {
+	t.Helper()
+	reg, err := inference.DefaultRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := buildInferClaimsResult(root, inferClaimsOptions{
+		Repo:              root,
+		GraphDigestStatus: architecture.GraphDigestResolved,
+		GraphDigest:       strings.Repeat("a", 64),
+	}, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return result
+}
+
+func containsBlockingLimitation(limitations []architecture.Limitation, sub string) bool {
+	for _, lim := range limitations {
+		if lim.Blocking && strings.Contains(lim.Reason, sub) {
+			return true
+		}
+	}
+	return false
+}

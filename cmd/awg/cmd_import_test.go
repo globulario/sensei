@@ -1073,3 +1073,37 @@ func TestProjectPublicationConcurrency(t *testing.T) {
 		t.Fatalf("expected concurrent reconstruction in progress error, got: %v", err)
 	}
 }
+
+// A project family binds graph, claims, and receipt to one revision. When the
+// tree the scan read is not that revision, reconstruction must say so plainly
+// instead of publishing a family bound to a commit it was not read from.
+func TestReconstructImportedProjectRefusesAnUncommittedWorkingTree(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/gin\n")
+	writeFile(t, filepath.Join(root, "state.go"), "package gin\n\nfunc Apply(state string) error { return nil }\n")
+	writeFile(t, filepath.Join(root, "docs", "awareness", "generated", "components.yaml"), `components:
+  - id: component.gin
+    name: gin
+    kind: module
+    assertion: inferred
+    source_files:
+      - state.go
+`)
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "Test User")
+	runGit(t, root, "add", ".")
+	runGit(t, root, "commit", "-m", "initial")
+	writeFile(t, filepath.Join(root, "extra.go"), "package gin\n\nfunc Extra() error { return nil }\n")
+
+	_, err := reconstructImportedProject(root, "github.com/example/gin", false)
+	if err == nil {
+		t.Fatal("reconstruction from an uncommitted tree was accepted")
+	}
+	if !strings.Contains(err.Error(), "requires a committed working tree") || !strings.Contains(err.Error(), "extra.go") {
+		t.Fatalf("refusal does not name the cause: %v", err)
+	}
+	if _, statErr := os.Stat(filepath.Join(root, ".sensei", "project", "claims.yaml")); !os.IsNotExist(statErr) {
+		t.Fatalf("refused reconstruction still published a project family: %v", statErr)
+	}
+}

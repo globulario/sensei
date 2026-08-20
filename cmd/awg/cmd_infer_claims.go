@@ -116,10 +116,15 @@ Flags:
 		fmt.Fprintln(os.Stderr, "sensei infer-claims: --output under docs/awareness or docs/intent must be inside a candidates directory")
 		return 2
 	}
-	rendered, doc, err := buildInferClaimsOutput(root, opts, reg)
+	result, err := buildInferClaimsResult(root, opts, reg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei infer-claims: %v\n", err)
 		return 1
+	}
+	rendered, doc := result.Rendered, result.Document
+	if result.UnboundRevisionReason != "" {
+		fmt.Fprintf(os.Stderr, "infer-claims: UNBOUND REVISION - %s\n", result.UnboundRevisionReason)
+		fmt.Fprintln(os.Stderr, "infer-claims: the document names no revision; commit the cited files to produce a bound corpus")
 	}
 	if opts.Check {
 		existing, err := os.ReadFile(opts.Output)
@@ -150,16 +155,15 @@ Flags:
 	return 0
 }
 
-func buildInferClaimsOutput(root string, opts inferClaimsOptions, reg *inference.Registry) ([]byte, architecture.ClaimDocument, error) {
-	result, err := buildInferClaimsResult(root, opts, reg)
-	return result.Rendered, result.Document, err
-}
-
 type inferClaimsBuildResult struct {
 	Rendered            []byte
 	Document            architecture.ClaimDocument
 	FactCount           int
 	GoSemanticFactCount int
+	// UnboundRevisionReason is set when the scan could not be bound to a
+	// committed revision, and states why. Empty means the document names a
+	// revision that really does contain the bytes the facts cite.
+	UnboundRevisionReason string
 }
 
 func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference.Registry) (inferClaimsBuildResult, error) {
@@ -180,7 +184,8 @@ func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference
 			result.GoSemanticFactCount++
 		}
 	}
-	revision, revisionStatus, revisionLimitations := architecture.ResolveRevision(root, true)
+	revision, revisionStatus, revisionLimitations, unboundReason := bindInferClaimsRevision(root, report.Facts)
+	result.UnboundRevisionReason = unboundReason
 	facts := rebindInferenceFactRevision(report.Facts, revision, revisionStatus)
 	facts = rebindInferenceFactRepositoryDomain(facts, opts.RepositoryDomain)
 	limitations := append([]architecture.Limitation{}, report.Limitations...)
@@ -234,6 +239,72 @@ func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference
 	result.Rendered = rendered
 	result.Document = doc
 	return result, nil
+}
+
+// bindInferClaimsRevision decides which revision, if any, the claim document may
+// name. Facts are read from the working tree, so resolving HEAD only establishes
+// what the last commit is, not that the scan read that commit's bytes. When the
+// two disagree the document names no revision and says so in a blocking
+// limitation, exactly as it already does for an unresolved graph digest: an
+// unbound corpus that reports itself unbound is usable, a corpus bound to a
+// revision that does not contain the files it cites is not.
+func bindInferClaimsRevision(root string, facts []normalizedInvariantFact) (string, string, []architecture.Limitation, string) {
+	revision, status, limitations := architecture.ResolveRevision(root, true)
+	if status != architecture.RevisionResolved {
+		return revision, status, limitations, ""
+	}
+	uncommitted, err := architecture.UncommittedSourceFiles(root, revision, inferClaimsCitedFiles(facts))
+	var reason string
+	switch {
+	case err != nil:
+		reason = fmt.Sprintf("cannot verify that the scanned working tree matches %s: %v", shortRev(revision), err)
+	case len(uncommitted) > 0:
+		reason = fmt.Sprintf("scanned working tree differs from %s: %d cited source file(s) are uncommitted or modified (%s)", shortRev(revision), len(uncommitted), summarizeUncommittedPaths(uncommitted))
+	default:
+		return revision, status, limitations, ""
+	}
+	limitations = append(limitations, architecture.Limitation{
+		Source:   root,
+		Scope:    "git_revision",
+		Reason:   reason + "; facts are bound to their source digests only, and the document names no revision",
+		Blocking: true,
+	})
+	return "", architecture.RevisionUnavailable, limitations, reason
+}
+
+// inferClaimsCitedFiles is the set of repository files the extracted facts
+// actually cite. Dirtiness is judged over exactly these: an edit to a file no
+// fact cites changes nothing the document asserts, while a build artifact left
+// in the tree must not make every scan permanently unbindable.
+func inferClaimsCitedFiles(facts []normalizedInvariantFact) []string {
+	seen := map[string]bool{}
+	var out []string
+	add := func(p string) {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] {
+			return
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	for _, f := range facts {
+		if f.Provenance != nil && f.Provenance.SourceKind != "source_file" {
+			continue
+		}
+		add(f.Evidence.SourceFile)
+		for _, file := range f.Scope.Files {
+			add(file)
+		}
+	}
+	return out
+}
+
+func summarizeUncommittedPaths(paths []string) string {
+	const shown = 3
+	if len(paths) <= shown {
+		return strings.Join(paths, ", ")
+	}
+	return fmt.Sprintf("%s, and %d more", strings.Join(paths[:shown], ", "), len(paths)-shown)
 }
 
 func rebindInferenceFactRevision(facts []normalizedInvariantFact, revision, status string) []architecture.Fact {
