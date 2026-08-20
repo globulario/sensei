@@ -571,6 +571,16 @@ func seedIfEmpty(ctx context.Context, s store.Store, logger *log.Logger) error {
 	return nil
 }
 
+// reportDomainSliceShortfalls says, at startup, which domains are present in the
+// proof set but materially absent from the store — the state #221 recorded as
+// invisible until a write was refused. It warns rather than refusing: one
+// domain's missing slice does not make the rest of the graph untrue.
+func reportDomainSliceShortfalls(ctx context.Context, s store.Store, endpoint string, logger *log.Logger) {
+	for _, r := range domainSliceReports(ctx, s, endpoint, "", "") {
+		logger.Printf("awareness-graph: WARNING — %s", r.line())
+	}
+}
+
 func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, allowStaleSeed bool, logger *log.Logger) error {
 	verifier, ok := s.(interface {
 		Describe(context.Context, string) ([]store.Triple, error)
@@ -597,6 +607,7 @@ func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, all
 	verification := seedmeta.VerifyLiveStore(ctx, verifier, marker)
 	if verification.State == seedmeta.FreshnessCurrent {
 		logger.Printf("awareness-graph: verified live graph authority (%s)", graphFreshnessSummary(verification))
+		reportDomainSliceShortfalls(ctx, s, endpoint, logger)
 		return nil
 	}
 	if allowStaleSeed {
@@ -610,7 +621,7 @@ func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, all
 	case seedmeta.FreshnessEmpty:
 		return fmt.Errorf("live store at %s is empty; load a validated graph artifact or restart with -allow-stale-seed", endpoint)
 	case seedmeta.FreshnessStale, seedmeta.FreshnessUnknown:
-		return fmt.Errorf("live store at %s is not authoritative: %s; run `awg rebuild` or restart with -allow-stale-seed", endpoint, verification.Detail)
+		return fmt.Errorf("live store at %s is not authoritative: %s; run `sensei rebuild`, or republish a domain with `sensei build --repo <domain>`, or restart with -allow-stale-seed", endpoint, verification.Detail)
 	default:
 		if allowStaleSeed {
 			logger.Printf("awareness-graph: WARNING — live graph freshness unspecified")

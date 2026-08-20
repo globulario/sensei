@@ -1711,3 +1711,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.examination_defined_as_governance_collapsing_emptyproven_int
+  - id: golang/server/domain_slice_test.go:TestDomainSliceShortfallIsReportedWithItsRepair
+    title: A vanished domain slice is reported with the command that restores it
+    protects:
+      failure_modes:
+        - failure.sensei.a_domain_s_compiled_knowledge_disappears_without_any_surface

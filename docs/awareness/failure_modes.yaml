@@ -1760,3 +1760,16 @@ failure_modes:
       - 'globulario/sensei#220: computePreflightCoverage(files, indexed=1, no anchors) returns sufficient=true with ''1/1 file(s) indexed'', but no caller could ever pass indexed=1 with zero anchors.'
       - Measured over 39 commits in globulario/sensei-code, the routine tier whose condition is exactly EmptyProven qualified zero changes; the qualifying population was 'a file with an anchor, none of whose anchors governs it', not the designed one.
       - 'The state is reachable in a full build and not in a corpus-only seed: 18 of 36 symbol-indexed files in this repository''s generated code_symbols surface are not named by the authored corpus, and a SourceFile node is minted for each, while every SourceFile in the self seed carries an implements edge.'
+  - id: failure.sensei.a_domain_s_compiled_knowledge_disappears_without_any_surface
+    title: A domain's compiled knowledge disappears without any surface saying so
+    description: The whole-graph marker proves the live store matches the last publication, and nothing measured a DOMAIN's slice against what was published for it. A store that lost a domain and a store that never held one are identical from the inside, so the loss stayed invisible until a write was refused — and the refusal named no repair, so the operator recorded the knowledge in a markdown file beside the graph instead of in it.
+    protects:
+      files:
+        - golang/server/domain_slice.go
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+    required_tests:
+      - golang/server/domain_slice_test.go:TestDomainSliceShortfallIsReportedWithItsRepair
+    evidence:
+      - 'globulario/sensei#221: the store serving github.com/globulario/services held 6 triples while its intact corpus rebuilt to 121338; the gap surfaced only when sensei propose failed closed.'
+      - 'docs/pending-scars.md in that checkout is the first fossil of the side channel: knowledge the graph exists to hold, written beside it, with no proofs, no domain scoping and no way back in.'

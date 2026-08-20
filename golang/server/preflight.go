@@ -169,6 +169,10 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		}
 	}
 
+	// A domain whose published slice has gone missing is reported here rather
+	// than left to surface as a refused write (#221).
+	resp.BlindSpots = append(resp.BlindSpots, s.domainSliceBlindSpots(ctx, patternScope)...)
+
 	// Implementation pattern matching — same engine Briefing uses.
 	patterns := []*awarenesspb.MatchedImplementationPattern{}
 	if loaded, err := s.loadImplementationPatterns(ctx); err == nil {
