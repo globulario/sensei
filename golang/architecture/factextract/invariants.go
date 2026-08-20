@@ -388,49 +388,21 @@ func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIden
 	return facts, authority, nil, nil
 }
 
-// boundedSemanticExtract runs the semantic package load under the caller's
-// context and returns when EITHER the load finishes or the context ends.
+// boundedSemanticExtract runs the semantic load under the caller's ceiling.
 //
-// The load already receives the context, and that is not enough. Measured on
-// Sensei's own repository, a 20-second ceiling produced a 122-second run: the
-// AST pass finished well inside the window and `packages.Load` — which shells
-// out to the Go toolchain and type-checks the module — carried on long past the
-// deadline it was holding. A ceiling that the dominating stage can ignore is
-// not a ceiling, and #131's world 1 could not be run under one.
-//
-// So the ceiling binds the DOCUMENT rather than the process: when the context
-// ends first, this returns without semantic observations and with a blocking
-// limitation saying they are absent because the clock ran out. The load itself
-// keeps running until the toolchain returns and is then discarded — the wall
-// clock bounds when an answer is produced, never how much work the machine has
-// already committed to, and claiming otherwise would be the comfortable version
-// again.
+// The abandonment itself lives in gosemantics, which owns the stage that cannot
+// stop; this only turns it into the limitation this package reports.
 func boundedSemanticExtract(ctx context.Context, root string) (gosemantics.Result, error, *architecture.Limitation) {
-	if _, bounded := ctx.Deadline(); !bounded && ctx.Done() == nil {
-		// No ceiling and nothing to cancel: run it inline, exactly as before.
-		res, err := gosemantics.ExtractBounded(ctx, root, extractbudget.Budget{})
+	res, err, abandoned := gosemantics.ExtractBoundedOrAbandon(ctx, root, extractbudget.Budget{})
+	if !abandoned {
 		return res, err, nil
 	}
-	type outcome struct {
-		res gosemantics.Result
-		err error
-	}
-	done := make(chan outcome, 1)
-	go func() {
-		res, err := gosemantics.ExtractBounded(ctx, root, extractbudget.Budget{})
-		done <- outcome{res: res, err: err}
-	}()
-	select {
-	case out := <-done:
-		return out.res, out.err, nil
-	case <-ctx.Done():
-		return gosemantics.Result{}, nil, &architecture.Limitation{
-			Source: "go_semantic_extractor",
-			Scope:  "repository",
-			Reason: fmt.Sprintf("the semantic package load did not finish within the caller's ceiling (%v) and was abandoned; this document carries no semantic observations, and their absence is the clock rather than the repository",
-				ctx.Err()),
-			Blocking: true,
-		}
+	return gosemantics.Result{}, nil, &architecture.Limitation{
+		Source: "go_semantic_extractor",
+		Scope:  "repository",
+		Reason: fmt.Sprintf("the semantic package load did not finish within the caller's ceiling (%v) and was abandoned; this document carries no semantic observations, and their absence is the clock rather than the repository",
+			ctx.Err()),
+		Blocking: true,
 	}
 }
 
