@@ -830,3 +830,62 @@ func TestRawEvidencePreservesExactCapturedContentAndDigestValidation(t *testing.
 		t.Errorf("Expected validation to fail with content digest mismatch after one-byte mutation, got: %v", err)
 	}
 }
+
+// Coverage entries resolve their evidence IDs through an index now, rather than
+// by scanning every receipt. Profiled over a whole-repository self-extraction
+// (233,479 receipts) that scan was 52% of the entire run's CPU — quadratic in
+// the size of the document being validated. These pin the behaviour the index
+// has to preserve, since a lookup that resolves the wrong receipt, or resolves
+// one that should not have been found, would be a silent validation hole rather
+// than a visible failure.
+func TestCoverageEvidenceResolutionSurvivesTheIndex(t *testing.T) {
+	t.Run("an unresolvable evidence ID is refused", func(t *testing.T) {
+		doc := createValidBaseDocument()
+		doc.Coverage[0].ResultEvidenceIDs = append(doc.Coverage[0].ResultEvidenceIDs, "evidence_nonexistent")
+		if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "does not resolve to raw evidence") {
+			t.Fatalf("want unresolved-evidence refusal, got %v", err)
+		}
+	})
+
+	t.Run("a resolved receipt is checked against its coverage entry", func(t *testing.T) {
+		for _, tc := range []struct {
+			name   string
+			mutate func(*Document)
+			want   string
+		}{
+			{"provider id", func(d *Document) { d.RawEvidence[0].Provider.ID = "other_provider" }, "provider ID"},
+			{"provider version", func(d *Document) { d.RawEvidence[0].Provider.Version = "v9.9.9" }, "provider version"},
+			{"category", func(d *Document) { d.RawEvidence[0].Category = EvidenceTests }, "category"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				doc := createValidBaseDocument()
+				if len(doc.Coverage) == 0 || len(doc.Coverage[0].ResultEvidenceIDs) == 0 {
+					t.Skip("fixture carries no resolved coverage evidence")
+				}
+				tc.mutate(&doc)
+				err := Validate(doc)
+				if err == nil || !strings.Contains(err.Error(), tc.want) {
+					t.Fatalf("want a %s mismatch refusal, got %v", tc.want, err)
+				}
+			})
+		}
+	})
+
+	t.Run("a duplicate evidence ID in one entry is refused", func(t *testing.T) {
+		doc := createValidBaseDocument()
+		if len(doc.Coverage) == 0 || len(doc.Coverage[0].ResultEvidenceIDs) == 0 {
+			t.Skip("fixture carries no resolved coverage evidence")
+		}
+		id := doc.Coverage[0].ResultEvidenceIDs[0]
+		doc.Coverage[0].ResultEvidenceIDs = append(doc.Coverage[0].ResultEvidenceIDs, id)
+		if err := Validate(doc); err == nil || !strings.Contains(err.Error(), "duplicate result evidence ID") {
+			t.Fatalf("want duplicate-ID refusal, got %v", err)
+		}
+	})
+
+	t.Run("a document whose coverage resolves cleanly still validates", func(t *testing.T) {
+		if err := Validate(createValidBaseDocument()); err != nil {
+			t.Fatalf("the base fixture stopped validating: %v", err)
+		}
+	})
+}

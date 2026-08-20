@@ -271,6 +271,23 @@ func Validate(doc Document) error {
 	}
 
 	// 8. Coverage Entry Checks
+	//
+	// Receipts are indexed by ID once. Resolving each coverage entry's evidence
+	// IDs by scanning doc.RawEvidence made validation quadratic in the size of
+	// the document it was validating: profiled over a whole-repository
+	// self-extraction (233,479 receipts), that single comparison was 836 of the
+	// run's 1,621 CPU-seconds — 52% of the work, spent proving that IDs the
+	// composer had just written are the IDs it just wrote.
+	//
+	// The check is unchanged. First-match-wins is preserved because receipt IDs
+	// are already required to be unique, a few lines above.
+	receiptsByID := make(map[string]*EvidenceReceipt, len(doc.RawEvidence))
+	for j := range doc.RawEvidence {
+		if _, seen := receiptsByID[doc.RawEvidence[j].ID]; !seen {
+			receiptsByID[doc.RawEvidence[j].ID] = &doc.RawEvidence[j]
+		}
+	}
+
 	seenCoverageIdentity := make(map[string]bool)
 	for i, entry := range doc.Coverage {
 		if entry.ProviderID == "" {
@@ -333,14 +350,7 @@ func Validate(doc Document) error {
 			}
 			seenResultIDs[evidenceID] = true
 
-			// Find receipt
-			var matchingReceipt *EvidenceReceipt
-			for j := range doc.RawEvidence {
-				if doc.RawEvidence[j].ID == evidenceID {
-					matchingReceipt = &doc.RawEvidence[j]
-					break
-				}
-			}
+			matchingReceipt := receiptsByID[evidenceID]
 
 			if matchingReceipt == nil {
 				errs = append(errs, fmt.Sprintf("coverage entry %d: result evidence ID %q does not resolve to raw evidence", i, evidenceID))
