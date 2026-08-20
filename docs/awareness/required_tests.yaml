@@ -1716,3 +1716,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_domain_s_compiled_knowledge_disappears_without_any_surface
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextAbandonsTheSemanticStageAtTheCeiling
+    title: A stage that outruns the ceiling is abandoned and says so
+    protects:
+      failure_modes:
+        - failure.sensei.a_wall_clock_that_the_dominating_stage_cannot_observe_is_not

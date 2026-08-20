@@ -1773,3 +1773,16 @@ failure_modes:
     evidence:
       - 'globulario/sensei#221: the store serving github.com/globulario/services held 6 triples while its intact corpus rebuilt to 121338; the gap surfaced only when sensei propose failed closed.'
       - 'docs/pending-scars.md in that checkout is the first fossil of the side channel: knowledge the graph exists to hold, written beside it, with no proofs, no domain scoping and no way back in.'
+  - id: failure.sensei.a_wall_clock_that_the_dominating_stage_cannot_observe_is_not
+    title: A wall clock that the dominating stage cannot observe is not a ceiling
+    description: 'factextract.Extract took no context, so a caller enforcing a ceiling bounded only the stages around it. Measured on this repository, a 20-second ceiling produced a 122-second run: the AST pass finished inside the window and the semantic package load, which holds the context but shells out to the Go toolchain and type-checks the module, carried on past the deadline it was given. A run that crossed its ceiling could still report itself completed, which is a ceiling the receipt claims was enforced.'
+    protects:
+      files:
+        - golang/architecture/factextract/invariants.go
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+    required_tests:
+      - golang/architecture/factextract/extract_context_test.go:TestExtractContextAbandonsTheSemanticStageAtTheCeiling
+    evidence:
+      - 'globulario/sensei#131 world 1: self-evaluation could not be run under a budget; before the fix, ceilings of 20s and 60s both produced 2m2s runs with identical output.'
+      - After the fix the same ceilings bind exactly (20s -> 20s, 45s -> 45s), and the document carries blocking limitations naming the abandoned stage instead of arriving late and complete.

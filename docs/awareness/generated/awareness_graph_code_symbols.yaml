@@ -12145,6 +12145,36 @@ test_symbols:
     symbol: TestRenderAuthorityCandidates_UsesCandidateHeader
     package: factextract
     language: go
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextAbandonsTheSemanticStageAtTheCeiling
+    file: golang/architecture/factextract/extract_context_test.go
+    symbol: TestExtractContextAbandonsTheSemanticStageAtTheCeiling
+    package: factextract
+    language: go
+    doc: "The load holds the context and still overruns it: measured on Sensei's own\nrepository, a 20-second ceiling produced a 122-second run because\npackages.Load shells out to the Go toolchain and type-checks the module past\nthe deadline it was given. So the ceiling binds the document — the stage is\nabandoned and its absence is recorded — rather than being left to a\ncancellation the loader may honour whenever it gets round to it."
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextMatchesUnboundedExtract
+    file: golang/architecture/factextract/extract_context_test.go
+    symbol: TestExtractContextMatchesUnboundedExtract
+    package: factextract
+    language: go
+    doc: "An uncancelled run is unchanged: same facts, same candidates, no limitation\ninvented by the new plumbing. Extract keeps its old signature and behaviour."
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextNamesTheASTStageItStoppedIn
+    file: golang/architecture/factextract/extract_context_test.go
+    symbol: TestExtractContextNamesTheASTStageItStoppedIn
+    package: factextract
+    language: go
+    doc: "The ceiling must bind the AST pass itself, not merely the stages around it.\nA cancellation that only surfaced between stages would let a whole-repository\npass run to completion first, which is the state #131 measured."
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractContextStopsWhenTheCallerCancels
+    file: golang/architecture/factextract/extract_context_test.go
+    symbol: TestExtractContextStopsWhenTheCallerCancels
+    package: factextract
+    language: go
+    doc: "#131 world 1: the AST pass dominates a large repository and could not observe\na deadline, so a caller enforcing a ceiling bounded the stages around it and\nlet this one run on — and the run could still report itself completed."
+  - id: golang/architecture/factextract/extract_context_test.go:TestExtractWithoutACeilingKeepsItsSemanticObservations
+    file: golang/architecture/factextract/extract_context_test.go
+    symbol: TestExtractWithoutACeilingKeepsItsSemanticObservations
+    package: factextract
+    language: go
+    doc: "A caller with no ceiling gets the old inline path, so nothing about the\nunbounded run changes — no goroutine, no abandonment, same observations."
   - id: golang/architecture/factextract/invariant_rules_test.go:TestAnyRuleToken_NegatedModal
     file: golang/architecture/factextract/invariant_rules_test.go
     symbol: TestAnyRuleToken_NegatedModal

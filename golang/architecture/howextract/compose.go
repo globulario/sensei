@@ -272,8 +272,12 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		}
 	}
 
-	// 2. Run AST/Invariant Extractor
-	astRes, astErr := factextract.Extract(root, factextract.Options{IncludeTests: true})
+	// 2. Run AST/Invariant Extractor, bounded by the same ceiling as everything
+	// else in this composition. It observes the deadline itself now, so the
+	// stage that dominates a large repository is inside the budget rather than
+	// beside it, and a run that crosses the ceiling mid-pass reports the
+	// truncation in its own limitations.
+	astRes, astErr := factextract.ExtractContext(ctx, root, factextract.Options{IncludeTests: true})
 	if astErr != nil {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_ast_extractor", Scope: "repository", Reason: astErr.Error(), Blocking: false,
@@ -314,15 +318,15 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	// future extractor cannot reintroduce the leak by not knowing about
 	// budgets.
 	//
-	// What this does NOT do is bound that extractor's COST: it still walks the
-	// whole repository and its work is then discarded.
+	// What this does NOT do is bound that extractor's COST by scope: it still
+	// walks the whole repository and its work is then discarded.
 	//
-	// Nor does the wall clock bound it. factextract.Extract takes no context,
-	// so it cannot observe the deadline and can overrun it; the ceiling is
-	// enforced at the stages that DO honour a context (the semantic package
-	// load) and checked between stages, not inside this one. Saying "wall
-	// clock bounds the AST pass" would be the comfortable version and is not
-	// true.
+	// The wall clock, however, now does bound it. factextract.ExtractContext
+	// observes the deadline between files, so a run that crosses the ceiling
+	// mid-pass stops there and says so in its own limitations, rather than
+	// overrunning a ceiling the receipt claims was enforced. What remains
+	// unbounded within a single step is one file's parse, which is not the
+	// stage anyone has measured as the cost.
 	if opts.Budget.ScopesActive() {
 		kept := facts[:0]
 		dropped := 0
@@ -344,13 +348,12 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		}
 	}
 
-	// The wall clock is checked BETWEEN stages, because the stages themselves
-	// cannot check it: factextract.Extract, BuildSourceSnapshotManifest, and
-	// receipt composition take no context. Without this the deadline bounded
-	// only the package load, and a run that crossed it during the AST walk or
-	// evidence capture carried on and could still report "completed" -- a
-	// ceiling the receipt claims was enforced. Caller cancellation after
-	// semantic extraction was ignored the same way.
+	// The wall clock is ALSO checked between stages. The AST pass observes the
+	// context itself now, but BuildSourceSnapshotManifest and receipt
+	// composition still take none, so this check is what bounds those and what
+	// turns a mid-stage stop into a recorded outcome rather than a silently
+	// shorter document. Caller cancellation after semantic extraction was
+	// ignored the same way before it existed.
 	if stopped, wallClock := deadlineCrossed(ctx, opts.Budget); stopped {
 		outcome.Cancelled = outcome.Cancelled || !wallClock
 		outcome.WallClockExhausted = outcome.WallClockExhausted || wallClock

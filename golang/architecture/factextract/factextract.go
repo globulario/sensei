@@ -11,7 +11,11 @@
 // original identifiers and behavior byte-for-byte.
 package factextract
 
-import "github.com/globulario/sensei/golang/architecture"
+import (
+	"context"
+
+	"github.com/globulario/sensei/golang/architecture"
+)
 
 // Report is the full extraction result: normalized facts, review-only invariant
 // candidates, authority surfaces, mutation-analysis state, and limitations.
@@ -37,9 +41,26 @@ type MutationAnalysisState = invariantMutationAnalysisState
 type Fact = architecture.Fact
 
 // Extract runs the full deterministic fact + candidate + authority-surface
-// extraction over a repository root.
+// extraction over a repository root, with no ceiling on how long it may take.
 func Extract(root string, opts Options) (Report, error) {
-	return buildInvariantExtractionReport(root, opts)
+	return ExtractContext(context.Background(), root, opts)
+}
+
+// ExtractContext is Extract bounded by the caller's context.
+//
+// It exists because the wall clock did not bind this extractor. The AST pass
+// dominates a large repository — Sensei's own 1,462 Go files outran every
+// ceiling a caller could set — and it could not observe a deadline, so a
+// caller enforcing one bounded the stages around it and let this one run on.
+// A run that crossed its ceiling here could still report itself completed,
+// which is a ceiling the receipt claims was enforced (#131, world 1).
+//
+// A cancelled run returns what it gathered plus BLOCKING limitations naming
+// where it stopped, never an error and never a quiet truncation: a partial
+// extraction that does not say it is partial turns "the graph has no facts
+// about this file" into a lie the clock told.
+func ExtractContext(ctx context.Context, root string, opts Options) (Report, error) {
+	return buildInvariantExtractionReport(ctx, root, opts)
 }
 
 // ResolveRepositoryIdentity resolves the repository domain/revision identity for

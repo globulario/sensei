@@ -1185,6 +1185,7 @@ components:
       - golang/architecture/factextract/util.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.extractbudget
       - component.golang.architecture.gosemantics
     external_imports:
       - gopkg.in/yaml.v3
