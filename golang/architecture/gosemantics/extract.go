@@ -93,6 +93,50 @@ func Extract(root string) (result Result, err error) {
 	return ExtractBounded(context.Background(), root, extractbudget.Budget{})
 }
 
+// ExtractBoundedOrAbandon is ExtractBounded with the ceiling applied to the
+// ANSWER rather than to the loader.
+//
+// ExtractBounded hands packages.Load the context and that is not sufficient:
+// the loader shells out to the Go toolchain and type-checks the module, and it
+// returns when that finishes rather than when the deadline passes. Measured on
+// Sensei's own repository, a 20-second ceiling produced a 122-second run. A
+// ceiling the dominating stage can ignore is not a ceiling.
+//
+// So this returns as soon as EITHER the load finishes or the context ends. When
+// the context ends first, abandoned is true, the result is empty, and the caller
+// must record that absence as the clock rather than as a repository with no
+// semantics. The load itself keeps running until the toolchain returns and its
+// result is discarded: this bounds when an answer is available, never the work
+// already committed to, and describing it any other way would restore the
+// comfortable version of exactly the defect it repairs.
+//
+// A context with no deadline and no cancellation runs inline, so an unbounded
+// caller is byte-for-byte unchanged.
+func ExtractBoundedOrAbandon(ctx context.Context, root string, budget extractbudget.Budget) (result Result, err error, abandoned bool) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if _, bounded := ctx.Deadline(); !bounded && ctx.Done() == nil {
+		res, err := ExtractBounded(ctx, root, budget)
+		return res, err, false
+	}
+	type outcome struct {
+		res Result
+		err error
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		res, err := ExtractBounded(ctx, root, budget)
+		done <- outcome{res: res, err: err}
+	}()
+	select {
+	case out := <-done:
+		return out.res, out.err, false
+	case <-ctx.Done():
+		return Result{}, nil, true
+	}
+}
+
 // ExtractBounded is Extract with a resource contract that actually binds.
 //
 // The zero Budget is exactly Extract's behaviour, so this is the same code

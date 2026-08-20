@@ -246,7 +246,20 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	// observations, and the wall clock bounds the package load; it does not
 	// narrow the load itself (see gosemantics.ExtractBounded for why loading
 	// less would produce cheaper and wronger types).
-	semanticRes, semanticErr := gosemantics.ExtractBounded(ctx, root, opts.Budget)
+	semanticRes, semanticErr, semanticAbandoned := gosemantics.ExtractBoundedOrAbandon(ctx, root, opts.Budget)
+	if semanticAbandoned {
+		// The load holds the context and returns when the toolchain finishes,
+		// not when the deadline passes, so waiting for it is how a ceiling
+		// silently becomes advisory. Abandoning it keeps the ceiling and makes
+		// the missing observations say why they are missing.
+		outcome.WallClockExhausted = true
+		limitations = append(limitations, architecture.Limitation{
+			Source: "go_semantic_extractor", Scope: "repository",
+			Reason: "the semantic package load did not finish within the ceiling (" + ctx.Err().Error() +
+				") and was abandoned; this document carries no semantic observations, and their absence is the clock rather than the repository",
+			Blocking: true,
+		})
+	}
 	consumption.Files = semanticRes.Selection.Consumption.Files
 	consumption.SourceBytes = semanticRes.Selection.Consumption.SourceBytes
 	consumption.Packages = semanticRes.Packages
@@ -272,8 +285,12 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		}
 	}
 
-	// 2. Run AST/Invariant Extractor
-	astRes, astErr := factextract.Extract(root, factextract.Options{IncludeTests: true})
+	// 2. Run AST/Invariant Extractor, bounded by the same ceiling as everything
+	// else in this composition. It observes the deadline itself now, so the
+	// stage that dominates a large repository is inside the budget rather than
+	// beside it, and a run that crosses the ceiling mid-pass reports the
+	// truncation in its own limitations.
+	astRes, astErr := factextract.ExtractContext(ctx, root, factextract.Options{IncludeTests: true})
 	if astErr != nil {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_ast_extractor", Scope: "repository", Reason: astErr.Error(), Blocking: false,
@@ -314,15 +331,15 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 	// future extractor cannot reintroduce the leak by not knowing about
 	// budgets.
 	//
-	// What this does NOT do is bound that extractor's COST: it still walks the
-	// whole repository and its work is then discarded.
+	// What this does NOT do is bound that extractor's COST by scope: it still
+	// walks the whole repository and its work is then discarded.
 	//
-	// Nor does the wall clock bound it. factextract.Extract takes no context,
-	// so it cannot observe the deadline and can overrun it; the ceiling is
-	// enforced at the stages that DO honour a context (the semantic package
-	// load) and checked between stages, not inside this one. Saying "wall
-	// clock bounds the AST pass" would be the comfortable version and is not
-	// true.
+	// The wall clock, however, now does bound it. factextract.ExtractContext
+	// observes the deadline between files, so a run that crosses the ceiling
+	// mid-pass stops there and says so in its own limitations, rather than
+	// overrunning a ceiling the receipt claims was enforced. What remains
+	// unbounded within a single step is one file's parse, which is not the
+	// stage anyone has measured as the cost.
 	if opts.Budget.ScopesActive() {
 		kept := facts[:0]
 		dropped := 0
@@ -344,13 +361,12 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		}
 	}
 
-	// The wall clock is checked BETWEEN stages, because the stages themselves
-	// cannot check it: factextract.Extract, BuildSourceSnapshotManifest, and
-	// receipt composition take no context. Without this the deadline bounded
-	// only the package load, and a run that crossed it during the AST walk or
-	// evidence capture carried on and could still report "completed" -- a
-	// ceiling the receipt claims was enforced. Caller cancellation after
-	// semantic extraction was ignored the same way.
+	// The wall clock is ALSO checked between stages. The AST pass observes the
+	// context itself now, but BuildSourceSnapshotManifest and receipt
+	// composition still take none, so this check is what bounds those and what
+	// turns a mid-stage stop into a recorded outcome rather than a silently
+	// shorter document. Caller cancellation after semantic extraction was
+	// ignored the same way before it existed.
 	if stopped, wallClock := deadlineCrossed(ctx, opts.Budget); stopped {
 		outcome.Cancelled = outcome.Cancelled || !wallClock
 		outcome.WallClockExhausted = outcome.WallClockExhausted || wallClock
@@ -387,11 +403,21 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		outcome.WallClockExhausted = outcome.WallClockExhausted || wallClock
 	}
 
-	return composeReceiptsAndCoverage(root, normalizedFacts, repoDomain, opts, limitations, semanticErr, astErr,
+	return composeReceiptsAndCoverage(ctx, root, normalizedFacts, repoDomain, opts, limitations, semanticErr, astErr,
 		runMetrics{consumption: consumption, outcome: outcome, diffScope: diffScope})
 }
 
+// composeReceiptsAndCoverage is bounded by the same ceiling as the stages that
+// produced its input.
+//
+// Recording that a run stopped is not the same as stopping it: the checks above
+// mark the outcome and fall through, so before this took a context a run that
+// halted early in the AST pass still captured evidence for every fact it had
+// gathered and still walked the tree for a snapshot manifest — work that scales
+// with the partial result and can outlast the ceiling that produced it. Both
+// are bounded here, each recording what it did not do.
 func composeReceiptsAndCoverage(
+	ctx context.Context,
 	root string,
 	normalizedFacts []architecture.Fact,
 	repoDomain string,
@@ -407,7 +433,18 @@ func composeReceiptsAndCoverage(
 	discoveredByProvider := map[string]int{}
 	captureFailuresByProvider := map[string]int{}
 
+	capturedFacts := 0
 	for _, f := range normalizedFacts {
+		if ctx.Err() != nil {
+			limitations = append(limitations, architecture.Limitation{
+				Source: "how_extraction_budget", Scope: "repository",
+				Reason: fmt.Sprintf("evidence capture stopped after %d of %d observation(s): %v; the remaining observations carry no receipt, which is the ceiling and not a judgement about them",
+					capturedFacts, len(normalizedFacts), ctx.Err()),
+				Blocking: true,
+			})
+			break
+		}
+		capturedFacts++
 		if f.Evidence.SourceFile == "" {
 			continue
 		}
@@ -520,10 +557,26 @@ func composeReceiptsAndCoverage(
 		return investigation.Document{}, err
 	}
 
-	// 3. Source Snapshot Digest
-	snapshotDigest, err := BuildSourceSnapshotManifest(root, repoDomain)
-	if err != nil {
-		return investigation.Document{}, fmt.Errorf("build source manifest: %w", err)
+	// 3. Source Snapshot Digest.
+	//
+	// The manifest walks the whole tree and takes no context of its own, so a
+	// run already past its ceiling skips it rather than paying for it. The
+	// digest is then absent and says so — an empty snapshot digest that nobody
+	// explained would read as a snapshot of nothing.
+	snapshotDigest := ""
+	snapshotSkipped := ctx.Err() != nil
+	if snapshotSkipped {
+		limitations = append(limitations, architecture.Limitation{
+			Source: "how_extraction_budget", Scope: "repository",
+			Reason:   "the source snapshot manifest was not built: " + ctx.Err().Error() + "; this document is not bound to a source snapshot",
+			Blocking: true,
+		})
+	} else {
+		built, err := BuildSourceSnapshotManifest(root, repoDomain)
+		if err != nil {
+			return investigation.Document{}, fmt.Errorf("build source manifest: %w", err)
+		}
+		snapshotDigest = built
 	}
 
 	// 4. Coverage Entries
@@ -572,6 +625,15 @@ func composeReceiptsAndCoverage(
 				status = investigation.CoverageSkipped
 				reason = fmt.Sprintf("all %d discovered evidence receipt(s) were discarded by the extraction budget; this provider found results that are not in this document",
 					droppedByProvider[inv.ProviderID])
+			} else if len(matchingReceiptIDs) == 0 && snapshotSkipped {
+				// "searched and found nothing" is a claim about a snapshot,
+				// and this document is not bound to one: the manifest was
+				// skipped at the ceiling. The document's own validator refuses
+				// searched_no_result without a snapshot digest, and it is right
+				// to — reporting it here would state that this provider looked
+				// at a tree nobody can identify and found it empty.
+				status = investigation.CoverageSkipped
+				reason = "the run stopped before its source snapshot was built, so no search result can be bound to a tree"
 			} else if len(matchingReceiptIDs) == 0 {
 				status = investigation.CoverageNoResult
 			} else {

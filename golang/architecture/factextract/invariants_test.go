@@ -4,6 +4,7 @@ package factextract
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -425,7 +426,7 @@ func TestBuildInvariantExtractionReportConcurrentExtractionDoesNotShareIdentity(
 	}
 	results := make(chan result, 2)
 	run := func(root string) {
-		report, err := buildInvariantExtractionReport(root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"})
+		report, err := buildInvariantExtractionReport(context.Background(), root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"})
 		results <- result{report: report, err: err}
 	}
 
@@ -502,7 +503,7 @@ func TestHistoryRequestedOutsideGitIsReported(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
 	writeFile(t, filepath.Join(root, "state.go"), "package inv\n")
 	opts := invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, IncludeHistory: true, MinimumConfidence: "low"}
-	report, err := buildInvariantExtractionReport(root, opts)
+	report, err := buildInvariantExtractionReport(context.Background(), root, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -515,7 +516,7 @@ func TestUnreadableRequestedSourceIsNotSilentlyIgnored(t *testing.T) {
 	root := t.TempDir()
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
 	writeFile(t, filepath.Join(root, "broken.go"), "package inv\nfunc Broken(\n")
-	if _, err := buildInvariantExtractionReport(root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"}); err == nil {
+	if _, err := buildInvariantExtractionReport(context.Background(), root, invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"}); err == nil {
 		t.Fatal("expected parse error for requested unreadable/uninspectable source")
 	}
 }
@@ -525,7 +526,7 @@ func TestExtractInvariantsMutationAnalysisUsesIsolatedTemp(t *testing.T) {
 	writeFile(t, filepath.Join(root, "go.mod"), "module example.com/inv\n")
 	writeFile(t, filepath.Join(root, "state.go"), "package inv\n")
 	opts := invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, IncludeMutationAnalysis: true}
-	report, err := buildInvariantExtractionReport(root, opts)
+	report, err := buildInvariantExtractionReport(context.Background(), root, opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -540,7 +541,7 @@ func TestExtractInvariantsMutationAnalysisUsesIsolatedTemp(t *testing.T) {
 func buildInvariantReportForTest(t *testing.T, root string) invariantExtractionReport {
 	t.Helper()
 	opts := invariantExtractOptions{Repo: root, Format: "json", IncludeDocs: true, IncludeTests: true, MinimumConfidence: "low"}
-	report, err := buildInvariantExtractionReport(root, opts)
+	report, err := buildInvariantExtractionReport(context.Background(), root, opts)
 	if err != nil {
 		t.Fatalf("buildInvariantExtractionReport: %v", err)
 	}

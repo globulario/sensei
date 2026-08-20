@@ -4,6 +4,7 @@ package factextract
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -17,6 +18,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/extractbudget"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"gopkg.in/yaml.v3"
 )
@@ -113,18 +115,27 @@ type invariantRepositoryIdentity struct {
 	DomainStatus string
 }
 
-func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
+func buildInvariantExtractionReport(ctx context.Context, root string, opts invariantExtractOptions) (invariantExtractionReport, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	identity := resolveInvariantRepositoryIdentity(root)
 	var facts []normalizedInvariantFact
 	var limitations []architecture.Limitation
 	// One Go-AST pass produces both invariant facts and authority surfaces.
-	goFacts, authority, err := extractGoArchitecture(identity, opts)
+	goFacts, authority, astStop, err := extractGoArchitecture(ctx, identity, opts)
 	if err != nil {
 		return invariantExtractionReport{}, err
 	}
+	if astStop != nil {
+		limitations = append(limitations, *astStop)
+	}
 	facts = append(facts, goFacts...)
 	authority = filterAuthorityByMinConfidence(authority, opts.MinimumConfidence)
-	semantic, semanticErr := gosemantics.Extract(root)
+	semantic, semanticErr, semanticAbandoned := boundedSemanticExtract(ctx, root)
+	if semanticAbandoned != nil {
+		limitations = append(limitations, *semanticAbandoned)
+	}
 	if semanticErr != nil {
 		limitations = append(limitations, architecture.Limitation{
 			Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,
@@ -143,6 +154,10 @@ func buildInvariantExtractionReport(root string, opts invariantExtractOptions) (
 				Source: "go_semantic_extractor", Scope: limitation.Scope, Reason: limitation.Reason, Blocking: false,
 			})
 		}
+	}
+	if stop := extractionStopped(ctx, "before the documentation and CI stages"); stop != nil {
+		limitations = append(limitations, *stop)
+		return partialInvariantExtractionReport(root, facts, limitations), nil
 	}
 	facts = append(facts, extractGeneratedAuthorityFacts(identity)...)
 	facts = append(facts, extractCIGateFacts(identity)...)
@@ -328,18 +343,38 @@ func extractGoFileFactsFromAST(identity invariantRepositoryIdentity, rel string,
 // (for non-test files) to the authority-surface extractor. This is the union
 // substrate that retires the old double-parse — extract-authority and
 // extract-invariants no longer each walk the tree separately.
-func extractGoArchitecture(identity invariantRepositoryIdentity, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, error) {
+// extractGoArchitecture runs the Go-AST pass, checking the caller's context
+// between files.
+//
+// This is the stage that dominates a large repository: on Sensei's own 1,462
+// Go files it outran every ceiling a caller could set, because it could not
+// observe one. A cancelled pass now stops where it is and returns a limitation
+// naming exactly how far it got, so a bounded run reports a partial extraction
+// as partial. Truncating silently would be worse than overrunning: it would
+// make "the graph has no facts about this file" indistinguishable from "the
+// clock ran out before that file was read".
+func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIdentity, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, *architecture.Limitation, error) {
 	files, err := invariantGoFiles(identity.Root)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var facts []normalizedInvariantFact
 	var authority []authoritySurfaceCandidate
-	for _, path := range files {
+	for i, path := range files {
+		if err := ctx.Err(); err != nil {
+			sort.SliceStable(authority, func(a, b int) bool { return authority[a].ID < authority[b].ID })
+			return facts, authority, &architecture.Limitation{
+				Source: "go_ast_extractor",
+				Scope:  "repository",
+				Reason: fmt.Sprintf("the Go AST pass stopped after %d of %d file(s): %v; facts from the remaining files are absent from this extraction, not absent from the repository",
+					i, len(files), err),
+				Blocking: true,
+			}, nil
+		}
 		fset := token.NewFileSet()
 		file, perr := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if perr != nil {
-			return nil, nil, fmt.Errorf("parse %s: %w", path, perr)
+			return nil, nil, nil, fmt.Errorf("parse %s: %w", path, perr)
 		}
 		rel := invariantRel(identity.Root, path)
 		facts = append(facts, extractGoFileFactsFromAST(identity, rel, file, fset, opts)...)
@@ -350,7 +385,57 @@ func extractGoArchitecture(identity invariantRepositoryIdentity, opts invariantE
 		}
 	}
 	sort.SliceStable(authority, func(i, j int) bool { return authority[i].ID < authority[j].ID })
-	return facts, authority, nil
+	return facts, authority, nil, nil
+}
+
+// boundedSemanticExtract runs the semantic load under the caller's ceiling.
+//
+// The abandonment itself lives in gosemantics, which owns the stage that cannot
+// stop; this only turns it into the limitation this package reports.
+func boundedSemanticExtract(ctx context.Context, root string) (gosemantics.Result, error, *architecture.Limitation) {
+	res, err, abandoned := gosemantics.ExtractBoundedOrAbandon(ctx, root, extractbudget.Budget{})
+	if !abandoned {
+		return res, err, nil
+	}
+	return gosemantics.Result{}, nil, &architecture.Limitation{
+		Source: "go_semantic_extractor",
+		Scope:  "repository",
+		Reason: fmt.Sprintf("the semantic package load did not finish within the caller's ceiling (%v) and was abandoned; this document carries no semantic observations, and their absence is the clock rather than the repository",
+			ctx.Err()),
+		Blocking: true,
+	}
+}
+
+// extractionStopped reports the caller's cancellation as a typed limitation, or
+// nil when the run may continue.
+func extractionStopped(ctx context.Context, where string) *architecture.Limitation {
+	err := ctx.Err()
+	if err == nil {
+		return nil
+	}
+	return &architecture.Limitation{
+		Source:   "fact_extraction",
+		Scope:    "repository",
+		Reason:   fmt.Sprintf("extraction stopped %s: %v; this document describes part of the repository, not all of it", where, err),
+		Blocking: true,
+	}
+}
+
+// partialInvariantExtractionReport is what a stopped run returns: the facts it
+// did gather, the limitations that say so, and no candidates.
+//
+// Candidates are deliberately omitted. Synthesis weighs facts against each
+// other, and a synthesis run over a truncated fact set would produce candidates
+// whose absence of counter-evidence is an artefact of the clock rather than of
+// the repository.
+func partialInvariantExtractionReport(root string, facts []normalizedInvariantFact, limitations []architecture.Limitation) invariantExtractionReport {
+	return invariantExtractionReport{
+		GeneratedBy: "sensei extract-invariants",
+		GeneratedAt: "deterministic",
+		RepoRoot:    root,
+		Facts:       facts,
+		Limitations: limitations,
+	}
 }
 
 func extractSchemaFacts(identity invariantRepositoryIdentity, rel, pkg string, gen *ast.GenDecl, fset *token.FileSet) []normalizedInvariantFact {

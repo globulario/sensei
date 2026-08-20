@@ -3,6 +3,7 @@
 package howextract
 
 import (
+	"context"
 	"errors"
 	"os"
 	"os/exec"
@@ -240,7 +241,7 @@ func TestSemanticEngineFailureMakesDependentsUnavailable(t *testing.T) {
 	// Inject a semantic extractor failure by calling compose with a non-nil error
 	semanticErr := errors.New("simulated semantic parser crash")
 
-	doc, err := composeReceiptsAndCoverage(root, nil, "example.com", defaultOpts(), nil, semanticErr, nil, runMetrics{})
+	doc, err := composeReceiptsAndCoverage(context.Background(), root, nil, "example.com", defaultOpts(), nil, semanticErr, nil, runMetrics{})
 
 	if err != nil {
 		t.Fatalf("composeReceiptsAndCoverage failed: %v", err)
@@ -281,7 +282,7 @@ func TestPartialSemanticExecutionCannotClaimNoResult(t *testing.T) {
 		Scope:  "example.com/deterministic/api",
 		Reason: "type check failed",
 	}}
-	doc, err := composeReceiptsAndCoverage(root, nil, "example.com/deterministic", defaultOpts(), limitations, nil, nil, runMetrics{})
+	doc, err := composeReceiptsAndCoverage(context.Background(), root, nil, "example.com/deterministic", defaultOpts(), limitations, nil, nil, runMetrics{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -303,7 +304,7 @@ func TestStateEngineFailureAffectsStateIndependently(t *testing.T) {
 	root := deterministicFixture(t)
 	astErr := errors.New("simulated AST parser crash")
 
-	doc, err := composeReceiptsAndCoverage(root, nil, "example.com", defaultOpts(), nil, nil, astErr, runMetrics{})
+	doc, err := composeReceiptsAndCoverage(context.Background(), root, nil, "example.com", defaultOpts(), nil, nil, astErr, runMetrics{})
 	if err != nil {
 		t.Fatalf("composeReceiptsAndCoverage failed: %v", err)
 	}
@@ -741,7 +742,7 @@ func TestUnknownExtractorIsRefused(t *testing.T) {
 			LineEnd:    1,
 		},
 	}
-	if _, err := composeReceiptsAndCoverage(root, []architecture.Fact{fact}, "example.com/deterministic", defaultOpts(), nil, nil, nil, factMetrics(1)); err == nil {
+	if _, err := composeReceiptsAndCoverage(context.Background(), root, []architecture.Fact{fact}, "example.com/deterministic", defaultOpts(), nil, nil, nil, factMetrics(1)); err == nil {
 		t.Fatal("unknown extractor emitted evidence instead of failing closed")
 	}
 }
@@ -777,7 +778,7 @@ func TestCaptureFailurePipelineProof(t *testing.T) {
 	root := deterministicFixture(t)
 	opts := defaultOpts()
 	opts.Repository.RepositoryDomain = "example.test"
-	res, err := composeReceiptsAndCoverage(root, []architecture.Fact{validFact, badFact}, "example.test", opts, nil, nil, nil, factMetrics(2))
+	res, err := composeReceiptsAndCoverage(context.Background(), root, []architecture.Fact{validFact, badFact}, "example.test", opts, nil, nil, nil, factMetrics(2))
 	if err != nil {
 		t.Fatalf("composeReceiptsAndCoverage failed: %v", err)
 	}
@@ -836,7 +837,7 @@ func TestAllCaptureFailuresAreUnavailable(t *testing.T) {
 		Extractor: "data_shape_extractor",
 		Evidence:  architecture.Evidence{SourceFile: "api/missing.go", LineStart: 1, LineEnd: 1},
 	}
-	doc, err := composeReceiptsAndCoverage(root, []architecture.Fact{fact}, "example.com/deterministic", defaultOpts(), nil, nil, nil, factMetrics(1))
+	doc, err := composeReceiptsAndCoverage(context.Background(), root, []architecture.Fact{fact}, "example.com/deterministic", defaultOpts(), nil, nil, nil, factMetrics(1))
 	if err != nil {
 		t.Fatal(err)
 	}
