@@ -13132,6 +13132,36 @@ test_symbols:
     symbol: TestUnknownExtractorIsRefused
     package: howextract
     language: go
+  - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheKeepsReportingAnUnreadableFile
+    file: golang/architecture/howextract/source_cache_test.go
+    symbol: TestSourceCacheKeepsReportingAnUnreadableFile
+    package: howextract
+    language: go
+    doc: "A file that cannot be read is reported as unreadable every time it is asked\nfor, rather than becoming readable because the failure was cached as success."
+  - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheMatchesTheDirectReader
+    file: golang/architecture/howextract/source_cache_test.go
+    symbol: TestSourceCacheMatchesTheDirectReader
+    package: howextract
+    language: go
+    doc: "The cached path must produce exactly what the uncached reader produced, or\nthis is a behaviour change wearing a performance fix's clothes."
+  - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheReadsEachFileOncePerRun
+    file: golang/architecture/howextract/source_cache_test.go
+    symbol: TestSourceCacheReadsEachFileOncePerRun
+    package: howextract
+    language: go
+    doc: "A file is read once per run, so one document cannot hold receipts describing\ntwo different versions of the same file.\n\nBefore this, every observation re-read and re-hashed its own source: 233,392\nobservations over ~1,558 files in a self-extraction, each file read about 300\ntimes. The cost was the visible half; the invisible half was that a tree\nchanging mid-run produced receipts that disagreed with each other, with\nnothing in the document saying which version it described."
+  - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheRetainsFailuresEvenPastTheBudget
+    file: golang/architecture/howextract/source_cache_test.go
+    symbol: TestSourceCacheRetainsFailuresEvenPastTheBudget
+    package: howextract
+    language: go
+    doc: "An unreadable file is retained regardless of the budget: it costs nothing to\nkeep and re-attempting it per observation is what the cache exists to avoid."
+  - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheStopsRetainingPastItsBudget
+    file: golang/architecture/howextract/source_cache_test.go
+    symbol: TestSourceCacheStopsRetainingPastItsBudget
+    package: howextract
+    language: go
+    doc: "Past the cap the run reads through and retains nothing, so peak memory is\nbounded rather than growing with the corpus. The answers stay correct; only\nthe coherence guarantee lapses, for the overflow and for nothing else."
   - id: golang/architecture/howextract/testdata/deterministic_repo/impl/impl_test.go:TestUse
     file: golang/architecture/howextract/testdata/deterministic_repo/impl/impl_test.go
     symbol: TestUse
