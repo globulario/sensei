@@ -880,13 +880,18 @@ type Node struct {
 	ExposedBy               []string
 	ConsumedBy              []string
 	ConstrainedByInvariants []string
-	RequiresTests           []string
-	SupportedByEvidence     []string
-	Forbids                 []string
-	VulnerableTo            []string
-	ReadOrWrite             string
-	Stability               string
-	ArchitecturalPlane      string
+	// Protects is what this node governs. It is an outbound edge on the
+	// governing node and an inbound one on the thing governed, which is why
+	// scope expansion has to look for it in reverse: a request naming a source
+	// file seeds that file, and everything which protects it points at it.
+	Protects            []string
+	RequiresTests       []string
+	SupportedByEvidence []string
+	Forbids             []string
+	VulnerableTo        []string
+	ReadOrWrite         string
+	Stability           string
+	ArchitecturalPlane  string
 }
 
 type GraphIndex struct {
@@ -1020,6 +1025,8 @@ func BuildGraphIndex(triples []graphsnapshot.Triple) GraphIndex {
 			n.ConstrainedByInvariants = append(n.ConstrainedByInvariants, obj)
 		case rdf.PropRequiresTest:
 			n.RequiresTests = append(n.RequiresTests, obj)
+		case rdf.PropProtects:
+			n.Protects = append(n.Protects, obj)
 		case rdf.PropSupportedByEvidence:
 			n.SupportedByEvidence = append(n.SupportedByEvidence, obj)
 		case rdf.PropForbids:

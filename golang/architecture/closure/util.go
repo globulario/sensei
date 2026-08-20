@@ -1464,10 +1464,51 @@ func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Nod
 				result[next.ID] = next
 				nextFrontier[next.ID] = next
 			}
+			// And the nodes that govern this one. Protection is authored as an
+			// outbound edge on the governing node -- an invariant protects a
+			// file, a required test protects a file -- so a scope seeded with
+			// the file finds none of it by following edges forward.
+			//
+			// Without this, a request naming a source file resolves to exactly
+			// that file and nothing else, and every rule reading the scope for
+			// governance sees an ungoverned region. closure.agent.required_test_unidentified
+			// asks for a required test and cannot be satisfied by adding one,
+			// because the test points at the file and the file points nowhere.
+			for _, protector := range protectorsOf(graph, node.ID) {
+				if _, seen := result[protector.ID]; seen {
+					continue
+				}
+				result[protector.ID] = protector
+				nextFrontier[protector.ID] = protector
+			}
 		}
 		frontier = sortedMapKeys(nextFrontier)
 	}
 	return result
+}
+
+// protectorsOf returns the nodes declaring that they protect the given node.
+//
+// It scans rather than consulting an index because GraphIndex holds no reverse
+// map, and building one here would be a second representation of the same
+// edges that could disagree with the first. Scope expansion runs once per
+// assessment over a bounded snapshot, so the scan is paid once.
+func protectorsOf(idx GraphIndex, id string) []Node {
+	if strings.TrimSpace(id) == "" {
+		return nil
+	}
+	var out []Node
+	for _, candidate := range idx.Nodes {
+		for _, protected := range candidate.Protects {
+			if protected != id {
+				continue
+			}
+			out = append(out, candidate)
+			break
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
 }
 
 func oneEdgeIDs(n Node) []string {
