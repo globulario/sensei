@@ -104,6 +104,17 @@ type Generation struct {
 type DomainProof struct {
 	Report      *closure.Report `json:"report"`
 	SliceDigest string          `json:"slice_digest_sha256"`
+	// SliceTripleCount is how many triples this domain's slice held when the
+	// proof was computed. The digest proves WHICH content a proof describes;
+	// the count is what a reader can compare a live store against cheaply,
+	// without pulling the slice back out of it.
+	//
+	// It is what makes a domain's disappearance detectable at all. The
+	// whole-graph marker only proves the store matches the last publication, so
+	// a slice that vanishes without one leaves nothing to notice: the proof set
+	// lives outside every repository and outside the store, and therefore
+	// survives the content it describes.
+	SliceTripleCount int64 `json:"slice_triple_count"`
 	// CarryForwardRefusal is set when this publication could neither recompute
 	// nor honestly carry forward the domain's proof.
 	//
@@ -257,9 +268,10 @@ func Write(dir, storeURL string, s *Set) error {
 				return err
 			}
 		}
-		if err := writeJSONAtomic(filepath.Join(genDir, domainsDirName, slug+sliceSuffix), map[string]string{
-			"domain":              domain,
-			"slice_digest_sha256": proof.SliceDigest,
+		if err := writeJSONAtomic(filepath.Join(genDir, domainsDirName, slug+sliceSuffix), sliceRecord{
+			Domain:           domain,
+			SliceDigest:      proof.SliceDigest,
+			SliceTripleCount: proof.SliceTripleCount,
 		}); err != nil {
 			return err
 		}
@@ -335,15 +347,14 @@ func LoadGeneration(dir, generation string) (*Set, error) {
 		default:
 			continue
 		}
-		var slice struct {
-			Domain      string `json:"domain"`
-			SliceDigest string `json:"slice_digest_sha256"`
-		}
+		var slice sliceRecord
 		// A missing slice digest is not fatal on read: the proof is still a real
 		// verdict for this generation. It only means the next publication must
-		// recompute this domain instead of carrying it forward.
+		// recompute this domain instead of carrying it forward, and that no live
+		// slice comparison is available for it — absent, never zero-as-expected.
 		_ = readJSON(filepath.Join(genDir, domainsDirName, slug+sliceSuffix), &slice)
 		proof.SliceDigest = slice.SliceDigest
+		proof.SliceTripleCount = slice.SliceTripleCount
 		if label == "" {
 			label = slice.Domain
 		}
@@ -409,11 +420,16 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 
 	for domain := range wanted {
 		digest := SliceDigest(postUpdateNT, domain)
+		// Counted from the content being published, never carried forward from
+		// the previous generation: a count that outlives the slice it describes
+		// is the stale-proof shape this package exists to refuse.
+		count := SliceTripleCount(postUpdateNT, domain)
 		if domain == builtDomain {
-			next.Domains[domain] = DomainProof{Report: builtReport, SliceDigest: digest}
+			next.Domains[domain] = DomainProof{Report: builtReport, SliceDigest: digest, SliceTripleCount: count}
 			if builtReport == nil {
 				next.Domains[domain] = DomainProof{
 					SliceDigest:         digest,
+					SliceTripleCount:    count,
 					CarryForwardRefusal: "this build produced no closure report for the domain it published",
 				}
 			}
@@ -423,19 +439,22 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 		switch {
 		case !ok || prior.Report == nil:
 			next.Domains[domain] = DomainProof{
-				SliceDigest: digest,
+				SliceDigest:      digest,
+				SliceTripleCount: count,
 				CarryForwardRefusal: fmt.Sprintf(
 					"no prior closure proof for %q was available to carry forward; rebuild that domain to restore its authority", domain),
 			}
 		case prior.SliceDigest == "":
 			next.Domains[domain] = DomainProof{
-				SliceDigest: digest,
+				SliceDigest:      digest,
+				SliceTripleCount: count,
 				CarryForwardRefusal: fmt.Sprintf(
 					"the prior proof for %q recorded no slice digest, so this publication cannot verify that its content is unchanged", domain),
 			}
 		case prior.SliceDigest != digest:
 			next.Domains[domain] = DomainProof{
-				SliceDigest: digest,
+				SliceDigest:      digest,
+				SliceTripleCount: count,
 				CarryForwardRefusal: fmt.Sprintf(
 					"the slice for %q changed during a publication of %q (%s -> %s), so its proof cannot be carried forward",
 					domain, builtDomain, shortDigest(prior.SliceDigest), shortDigest(digest)),
@@ -443,10 +462,46 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 		default:
 			carried := *prior.Report
 			carried.MarkerDigest = marker.Digest
-			next.Domains[domain] = DomainProof{Report: &carried, SliceDigest: digest}
+			next.Domains[domain] = DomainProof{Report: &carried, SliceDigest: digest, SliceTripleCount: count}
 		}
 	}
+	carryVanishedExpectations(prev, next, registered)
 	return next
+}
+
+// carryVanishedExpectations keeps the last published size of a domain that is
+// still REGISTERED but has no content in this publication.
+//
+// Without it, the loss erases its own evidence. A domain disappears from the
+// store, some other domain is published, and the vanished one is simply not in
+// the new content — so it would drop out of the proof set, taking with it the
+// only record that it ever held anything. The next publication makes the
+// reduced store current and nothing can ever notice again.
+//
+// Registration is what separates a loss from a retirement. A domain that is no
+// longer registered was deliberately removed and is correctly forgotten; one
+// that is still registered and still absent is a gap, recorded as a refusal
+// carrying its last known count so the live comparison keeps working.
+func carryVanishedExpectations(prev, next *Set, registered []string) {
+	for _, domain := range registered {
+		domain = strings.TrimSpace(domain)
+		if domain == "" {
+			continue
+		}
+		if _, present := next.Domains[domain]; present {
+			continue
+		}
+		prior, ok := prev.ProofFor(domain)
+		if !ok || prior.SliceTripleCount <= 0 {
+			continue
+		}
+		next.Domains[domain] = DomainProof{
+			SliceTripleCount: prior.SliceTripleCount,
+			CarryForwardRefusal: fmt.Sprintf(
+				"%q is registered but has no content in this publication; it last published %d triple(s), and that expectation is kept so the gap stays visible",
+				domain, prior.SliceTripleCount),
+		}
+	}
 }
 
 func shortDigest(d string) string {
@@ -590,6 +645,76 @@ func SliceDigest(nt []byte, domain string) string {
 		b.WriteByte('\n')
 	}
 	return DigestLines([]byte(b.String()))
+}
+
+// sliceRecord is the on-disk shape of one domain's slice identity.
+type sliceRecord struct {
+	Domain           string `json:"domain"`
+	SliceDigest      string `json:"slice_digest_sha256"`
+	SliceTripleCount int64  `json:"slice_triple_count"`
+}
+
+// SliceTripleCount counts the triples in one domain's slice, over exactly the
+// lines SliceDigest digests, so the count and the digest always describe the
+// same content.
+func SliceTripleCount(nt []byte, domain string) int64 {
+	repoPredicate := "<" + seedmeta.NamespaceIRI + "repo>"
+	tagged := taggedSubjects(nt, domain)
+
+	seen := map[string]bool{}
+	var n int64
+	for _, line := range strings.Split(string(nt), "\n") {
+		subject, predicate, tail, ok := splitTriple(line)
+		if !ok || !tagged[subject] {
+			continue
+		}
+		if predicate == repoPredicate {
+			if value, ok := literalValue(tail); !ok || value != domain {
+				continue
+			}
+		}
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || seen[trimmed] {
+			continue
+		}
+		seen[trimmed] = true
+		n++
+	}
+	return n
+}
+
+// materialShortfallDivisor sets how far below its recorded size a live slice
+// must fall before it is reported.
+//
+// Equality is deliberately not the test. The publisher counts the slice it
+// wrote; a reader counts the domain scope it serves, which also draws in shared
+// subjects and, for the home domain, untagged ones. Those two numbers legitimately
+// differ by a margin no constant can predict. A factor of two is far outside any
+// such difference and far inside the loss this exists to catch — a domain whose
+// 121,338 triples became 6.
+const materialShortfallDivisor = 2
+
+// MaterialShortfall reports whether a live slice is materially smaller than the
+// proof set recorded for it.
+//
+// An expectation of zero or less is no expectation at all and can never produce
+// a shortfall: a proof set that recorded no count must not be read as recording
+// a count of nothing.
+func MaterialShortfall(expected, live int64) bool {
+	if expected <= 0 {
+		return false
+	}
+	return live*materialShortfallDivisor < expected
+}
+
+// RepairCommand is the command that republishes one domain from its own corpus.
+// It is a string rather than prose so every refusal names the same repair.
+func RepairCommand(domain string) string {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return "sensei build --repo <domain>"
+	}
+	return "sensei build --repo " + domain
 }
 
 // taggedSubjects collects every subject attributed to a domain, shared or not.

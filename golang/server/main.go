@@ -313,7 +313,7 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 	// without a separate data-load step. On a populated store the seed is
 	// skipped so live data is never overwritten on restart.
 	if noSeed {
-		logger.Printf("awareness-graph: -no-seed — embedded seed skipped; populate the store with `awg build`")
+		logger.Printf("awareness-graph: -no-seed — embedded seed skipped; populate the store with `sensei build`")
 	} else {
 		seedCtx, seedCancel := context.WithTimeout(context.Background(), 90*time.Second)
 		if err := seedIfEmpty(seedCtx, rdfStore, logger); err != nil {
@@ -328,6 +328,14 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		}
 		enforceCancel()
 	}
+
+	// Whether a domain's published knowledge is still in the store is a
+	// question about the STORE, not about embedded seeding — and -no-seed is
+	// how the deployments with the most to lose are started. Reporting it here
+	// keeps it out of the branch that skips them.
+	sliceCtx, sliceCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	reportDomainSliceShortfalls(sliceCtx, rdfStore, cfg.OxigraphQueryURL, logger)
+	sliceCancel()
 
 	// 3. Bind and serve. Sensei is a local sidecar — there is no etcd
 	// registration or xDS/Envoy route to publish.
@@ -571,6 +579,16 @@ func seedIfEmpty(ctx context.Context, s store.Store, logger *log.Logger) error {
 	return nil
 }
 
+// reportDomainSliceShortfalls says, at startup, which domains are present in the
+// proof set but materially absent from the store — the state #221 recorded as
+// invisible until a write was refused. It warns rather than refusing: one
+// domain's missing slice does not make the rest of the graph untrue.
+func reportDomainSliceShortfalls(ctx context.Context, s store.Store, endpoint string, logger *log.Logger) {
+	for _, r := range domainSliceReports(ctx, s, endpoint, "") {
+		logger.Printf("awareness-graph: WARNING — %s", r.line())
+	}
+}
+
 func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, allowStaleSeed bool, logger *log.Logger) error {
 	verifier, ok := s.(interface {
 		Describe(context.Context, string) ([]store.Triple, error)
@@ -610,7 +628,7 @@ func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, all
 	case seedmeta.FreshnessEmpty:
 		return fmt.Errorf("live store at %s is empty; load a validated graph artifact or restart with -allow-stale-seed", endpoint)
 	case seedmeta.FreshnessStale, seedmeta.FreshnessUnknown:
-		return fmt.Errorf("live store at %s is not authoritative: %s; run `awg rebuild` or restart with -allow-stale-seed", endpoint, verification.Detail)
+		return fmt.Errorf("live store at %s is not authoritative: %s; run `sensei rebuild`, or republish a domain with `sensei build --repo <domain>`, or restart with -allow-stale-seed", endpoint, verification.Detail)
 	default:
 		if allowStaleSeed {
 			logger.Printf("awareness-graph: WARNING — live graph freshness unspecified")

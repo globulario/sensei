@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture/governedmutation"
+	"github.com/globulario/sensei/golang/graphgeneration"
 	"github.com/globulario/sensei/golang/propose"
 )
 
@@ -347,7 +348,7 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 			res.Reload = "ok"
 		} else {
 			res.Reload = "failed"
-			res.ReloadDetail = "sensei rebuild returned a non-zero exit; see output above"
+			res.ReloadDetail = proposeReloadFailureDetail(req.Domain)
 		}
 		// The seed is regenerated in the awareness-graph repo; stage it too.
 		if opt.agRepo != "" {
@@ -365,6 +366,20 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 	res.DiffSummary = composeDiffSummary(target, relPath)
 	res.NextCommand = buildCommitCommand(target, opt.agRepo, req.Kind, applied.CanonicalID)
 	return res, 0
+}
+
+// proposeReloadFailureDetail names the repair in the refusal (#221).
+//
+// A refusal an operator cannot act on is how knowledge ends up in a markdown
+// file beside the graph instead of inside it. The entry is already written and
+// staged by this point, so what remains is republishing the domain the store
+// could not serve — and the operator should not have to find that command in
+// another repository's notes.
+func proposeReloadFailureDetail(domain string) string {
+	return fmt.Sprintf(
+		"sensei rebuild returned a non-zero exit (see output above); the YAML entry is written and staged. "+
+			"If the store no longer holds this domain's published slice, republish it with: %s",
+		graphgeneration.RepairCommand(domain))
 }
 
 // mapMutationError maps a typed governed-mutation error to the CLI result. The

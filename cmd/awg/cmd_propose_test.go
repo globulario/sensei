@@ -495,3 +495,22 @@ func TestDeriveProposalID_DeterministicSlug(t *testing.T) {
 		t.Fatal("id derivation is not deterministic")
 	}
 }
+
+// A refusal an operator cannot act on is how knowledge ends up in a markdown
+// file beside the graph instead of inside it (#221). The reload failure must
+// name the repair for the domain it could not write to, and must say that the
+// entry itself survived.
+func TestProposeReloadFailureNamesTheRepair(t *testing.T) {
+	got := proposeReloadFailureDetail("github.com/globulario/services")
+	for _, want := range []string{
+		"sensei build --repo github.com/globulario/services",
+		"written and staged",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("detail must contain %q; got %q", want, got)
+		}
+	}
+	if unknown := proposeReloadFailureDetail(""); !strings.Contains(unknown, "<domain>") {
+		t.Fatalf("an unknown domain must still name the shape of the repair; got %q", unknown)
+	}
+}

@@ -702,6 +702,57 @@ func (c *Client) Domains(ctx context.Context) ([]string, error) {
 // CountTriplesInDomain counts triples whose SUBJECT is visible to a domain
 // scope — the per-repo analogue of CountTriples. In scope: aw:repo == domain,
 // or a shared node, or (when domain is the home domain) any untagged subject.
+// CountTriplesOwnedByDomain counts the triples of subjects this domain OWNS —
+// subjects carrying aw:repo "<domain>" — and nothing else.
+//
+// It is deliberately narrower than CountTriplesInDomain, which answers "what is
+// visible in this domain's scope" and therefore also draws in shared and (for
+// the home domain) untagged subjects. That is the right answer for a scoped
+// read and the wrong one for measuring a slice against what was published for
+// it: shared content the domain never owned would stand in for the domain's own
+// missing content and hide the loss.
+func (c *Client) CountTriplesOwnedByDomain(ctx context.Context, domain string) (int64, error) {
+	q := fmt.Sprintf(`SELECT (COUNT(*) AS ?n) WHERE {
+  {
+    SELECT DISTINCT ?s WHERE {
+      ?s <https://globular.io/awareness#repo> %s
+    }
+  }
+  ?s ?p ?o .
+}`, rdf.Lit(domain))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-owned-by-domain: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-owned-by-domain: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return 0, fmt.Errorf("oxigraph count-triples-owned-by-domain: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var result struct {
+		Results struct {
+			Bindings []struct {
+				N struct{ Value string } `json:"n"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return 0, fmt.Errorf("oxigraph count-triples-owned-by-domain: decode: %w", err)
+	}
+	if len(result.Results.Bindings) == 0 {
+		return 0, nil
+	}
+	var n int64
+	fmt.Sscanf(result.Results.Bindings[0].N.Value, "%d", &n)
+	return n, nil
+}
+
 func (c *Client) CountTriplesInDomain(ctx context.Context, domain, home string) (int64, error) {
 	repo := rdf.Lit(domain)
 	branches := []string{

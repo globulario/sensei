@@ -3778,6 +3778,12 @@ test_symbols:
     symbol: TestDeriveProposalID_DeterministicSlug
     package: main
     language: go
+  - id: cmd/awg/cmd_propose_test.go:TestProposeReloadFailureNamesTheRepair
+    file: cmd/awg/cmd_propose_test.go
+    symbol: TestProposeReloadFailureNamesTheRepair
+    package: main
+    language: go
+    doc: "A refusal an operator cannot act on is how knowledge ends up in a markdown\nfile beside the graph instead of inside it (#221). The reload failure must\nname the repair for the domain it could not write to, and must say that the\nentry itself survived."
   - id: cmd/awg/cmd_propose_test.go:TestValidateProposal_ContractUnknownRequiresProposalOrRevision
     file: cmd/awg/cmd_propose_test.go
     symbol: TestValidateProposal_ContractUnknownRequiresProposalOrRevision
@@ -22587,6 +22593,46 @@ test_symbols:
     symbol: TestVerifyPack_Valid
     package: governancepack
     language: go
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestAProofSetWithoutCountsRecordsNoExpectation
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestAProofSetWithoutCountsRecordsNoExpectation
+    package: graphgeneration
+    language: go
+    doc: "A proof set written before counts existed must not read as \"this domain\npublished nothing\"; it reads as no expectation, which MaterialShortfall\nrefuses to act on."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestAVanishedRegisteredDomainKeepsItsLastPublishedExpectation
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestAVanishedRegisteredDomainKeepsItsLastPublishedExpectation
+    package: graphgeneration
+    language: go
+    doc: "The loss must not erase its own evidence. A domain disappears from the store,\nanother domain is published, and the vanished one has no content in the new\ngeneration — so without this it drops out of the proof set entirely, taking\nwith it the only record that it ever held anything."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestAnUnregisteredDomainIsForgottenRatherThanMissed
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestAnUnregisteredDomainIsForgottenRatherThanMissed
+    package: graphgeneration
+    language: go
+    doc: "Registration is what separates a loss from a retirement. A domain nobody\nregisters any more was deliberately removed, and must be forgotten rather\nthan warned about forever."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestComposeRecordsSliceCountsAndTheyRoundTrip
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestComposeRecordsSliceCountsAndTheyRoundTrip
+    package: graphgeneration
+    language: go
+    doc: "The recorded count must survive publication and be readable by the server\nthat later compares a live store against it — that round trip is the whole\nmechanism by which a vanished domain becomes noticeable."
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestMaterialShortfall
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestMaterialShortfall
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestRepairCommandNamesTheDomain
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestRepairCommandNamesTheDomain
+    package: graphgeneration
+    language: go
+  - id: golang/graphgeneration/domain_slice_count_test.go:TestSliceTripleCountCountsTheSameLinesTheDigestCovers
+    file: golang/graphgeneration/domain_slice_count_test.go
+    symbol: TestSliceTripleCountCountsTheSameLinesTheDigestCovers
+    package: graphgeneration
+    language: go
+    doc: "The count must describe exactly the content the digest describes; a count of\none slice beside a digest of another is worse than no count at all."
   - id: golang/graphgeneration/graphgeneration_test.go:TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
     file: golang/graphgeneration/graphgeneration_test.go
     symbol: TestBuildingOneDomainKeepsEveryOtherDomainAuthoritative
@@ -24033,6 +24079,53 @@ test_symbols:
     symbol: TestNodeDomainsFromFacts
     package: main
     language: go
+  - id: golang/server/domain_slice_test.go:TestAStoreThatCannotCountDomainsProducesNoReports
+    file: golang/server/domain_slice_test.go
+    symbol: TestAStoreThatCannotCountDomainsProducesNoReports
+    package: main
+    language: go
+    doc: "A store that cannot answer a domain-scoped count yields no reports rather\nthan an unfounded one; there is nothing to compare."
+  - id: golang/server/domain_slice_test.go:TestDomainSliceCountFailureIsReportedNotSwallowed
+    file: golang/server/domain_slice_test.go
+    symbol: TestDomainSliceCountFailureIsReportedNotSwallowed
+    package: main
+    language: go
+    doc: "\"I could not check\" is reported as itself. Rendering it as agreement is the\nequivalence this whole surface exists to refuse."
+  - id: golang/server/domain_slice_test.go:TestDomainSliceReportsStaySilentWhenTheSliceIsPresent
+    file: golang/server/domain_slice_test.go
+    symbol: TestDomainSliceReportsStaySilentWhenTheSliceIsPresent
+    package: main
+    language: go
+  - id: golang/server/domain_slice_test.go:TestDomainSliceShortfallIsReportedWithItsRepair
+    file: golang/server/domain_slice_test.go
+    symbol: TestDomainSliceShortfallIsReportedWithItsRepair
+    package: main
+    language: go
+    doc: "The state #221 recorded: a domain's compiled knowledge is gone from the store\nwhile its proof set still says what was published. Nothing else in the system\ncan notice, because a store that lost a slice and a store that never held one\nare identical from the inside."
+  - id: golang/server/domain_slice_test.go:TestNoProofSetProducesNoDomainSliceReports
+    file: golang/server/domain_slice_test.go
+    symbol: TestNoProofSetProducesNoDomainSliceReports
+    package: main
+    language: go
+    doc: "No proof set is not a shortfall. Absence of an expectation is reported by the\nmarker path as its own kind of absence, and must not be turned into an\naccusation here."
+  - id: golang/server/domain_slice_test.go:TestPreflightSurfacesTheDomainSliceShortfall
+    file: golang/server/domain_slice_test.go
+    symbol: TestPreflightSurfacesTheDomainSliceShortfall
+    package: main
+    language: go
+    doc: "Read time, not write time: the operator meets this on the surface consulted\nBEFORE editing, rather than on the refusal after."
+  - id: golang/server/domain_slice_test.go:TestTheLiveCountMeasuresOnlyWhatTheDomainOwns
+    file: golang/server/domain_slice_test.go
+    symbol: TestTheLiveCountMeasuresOnlyWhatTheDomainOwns
+    package: main
+    language: go
+    doc: "The live count must measure the same set the expectation describes. A count\nthat also draws in shared subjects lets the store's unrelated content stand in\nfor a domain's own missing content: a 100-triple domain deleted from a store\nretaining 50 shared triples would report nothing at all."
+  - id: golang/server/domain_slice_test.go:TestTheStartupShortfallReportIsNotGuardedBySeeding
+    file: golang/server/domain_slice_test.go
+    symbol: TestTheStartupShortfallReportIsNotGuardedBySeeding
+    package: main
+    language: go
+    doc: "-no-seed is how the deployments with the most to lose are started: the\nappliance entrypoint and the documented project flow both use it, and it\nskips enforceCurrentSeed entirely. Whether a domain's published knowledge is\nstill in the store is a question about the STORE, so the report must not live\nin the branch that those deployments skip."
   - id: golang/server/edit_check_test.go:TestEditCheck_BadShape_WarnsInCaddyDomain
     file: golang/server/edit_check_test.go
     symbol: TestEditCheck_BadShape_WarnsInCaddyDomain
