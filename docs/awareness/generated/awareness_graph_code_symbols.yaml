@@ -13553,6 +13553,12 @@ test_symbols:
     symbol: TestContradictionPreservation
     package: investigation
     language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestCoverageEvidenceResolutionSurvivesTheIndex
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestCoverageEvidenceResolutionSurvivesTheIndex
+    package: investigation
+    language: go
+    doc: "Coverage entries resolve their evidence IDs through an index now, rather than\nby scanning every receipt. Profiled over a whole-repository self-extraction\n(233,479 receipts) that scan was 52% of the entire run's CPU — quadratic in\nthe size of the document being validated. These pin the behaviour the index\nhas to preserve, since a lookup that resolves the wrong receipt, or resolves\none that should not have been found, would be a silent validation hole rather\nthan a visible failure."
   - id: golang/architecture/investigation/investigation_test.go:TestDeduplicationAndCollisionDetection
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestDeduplicationAndCollisionDetection
