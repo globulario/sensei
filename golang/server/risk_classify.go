@@ -132,7 +132,7 @@ func classifyRiskCore(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
 	// Rule 1 — coverage gate.
 	if in.Coverage == nil || !in.Coverage.GetSufficient() {
 		return awarenesspb.RiskClass_UNKNOWN_IMPACT, []string{
-			"coverage_insufficient: no direct anchors and no strong-tier pattern match",
+			"coverage_insufficient: no direct anchors and no indexed files — a pattern match is guidance, not coverage",
 		}
 	}
 

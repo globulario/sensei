@@ -1733,3 +1733,16 @@ failure_modes:
     evidence:
       - 'globulario/sensei#216: on sensei-code at ed56eb10c647 with uncommitted work, infer-claims emitted 146 claims and 283 fact receipts citing internal/roles/, a package absent from the revision every one of them named as resolved.'
       - Every provenance field was individually true (real digest of real bytes, resolving revision, file present on disk); only the pairing of bytes to revision was false, so no caller could detect it.
+  - id: failure.sensei.pattern_recipe_match_reported_as_sufficient_preflight_covera
+    title: Pattern recipe match reported as sufficient preflight coverage
+    description: computePreflightCoverage set coverage.sufficient = true on a strong-tier ImplementationPattern match alone, with zero direct anchors and zero indexed files. A pattern recognises the shape of code from task text; it never examines the files asked about. sufficient is the field that separates 'the graph looked and found nothing' from 'the graph never looked', so the second answer was published wearing the first one's clothes, and every consumer that trusts it -- risk classification, change-risk assessment, MCP output -- inherited the claim.
+    protects:
+      files:
+        - golang/server/preflight.go
+    related_invariants:
+      - awareness.graph.compiled_context_not_authority
+    required_tests:
+      - golang/server/preflight_coverage_authority_test.go:TestPatternMatchAloneCannotManufactureSufficientCoverage
+    evidence:
+      - 'globulario/sensei#218: computePreflightCoverage(files=[internal/x/x.go], indexed=0, no anchors, one strong pattern) returned sufficient=true direct_anchor_count=0 indexed_file_count=0.'
+      - 'The pattern needed no authority of its own to do it: MatchedImplementationPattern carries no promotion state, so the coverage computation could not have filtered an unpromoted match even if it tried.'

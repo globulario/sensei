@@ -419,8 +419,17 @@ func (s *server) scopeDegradedPreflightResponse(task string, files []string, sta
 	}
 }
 
-// computePreflightCoverage applies the strict rule: anchors > 0 OR file
-// indexed OR strong-tier pattern matched.
+// computePreflightCoverage decides whether the graph actually looked at what
+// was asked about. Coverage rests on lookups: anchors that fired, or files the
+// graph has indexed.
+//
+// A matched implementation pattern is deliberately NOT one of them. A pattern
+// is a recipe that recognises the shape of code from task text and file naming;
+// it is good grounds for advice (must_follow, required_calls) and poor grounds
+// for silence. "Code like this usually looks like that" is not "these files
+// were examined and nothing governs them", and sufficient is the field whose
+// whole purpose is to separate those two answers. A strong match still reports
+// itself in the note, and still travels in the response as guidance.
 func computePreflightCoverage(files []string, indexed int,
 	invariants, failureModes, intents []*awarenesspb.KnowledgeNode,
 	patterns []*awarenesspb.MatchedImplementationPattern) *awarenesspb.CoverageSummary {
@@ -444,14 +453,14 @@ func computePreflightCoverage(files []string, indexed int,
 		sufficient = true
 		note = fmt.Sprintf("%d/%d file(s) indexed in graph (no rules apply)", indexed, len(files))
 	case hasStrongPattern:
-		sufficient = true
-		note = "strong-tier implementation pattern match — recipe identified"
+		sufficient = false
+		note = "strong-tier implementation pattern match — recipe identified, but no anchors fired and no files indexed: guidance, not coverage"
 	default:
 		sufficient = false
 		if len(files) > 0 {
 			note = "no anchors fired, no files indexed — coverage thin for this area"
 		} else {
-			note = "no direct anchors and no strong pattern — task-only request without graph evidence"
+			note = "no direct anchors and no indexed files — task-only request without graph evidence"
 		}
 	}
 	return &awarenesspb.CoverageSummary{

@@ -24907,6 +24907,24 @@ test_symbols:
     symbol: TestSeedIfEmpty_SkipsWhenStoreNonEmpty
     package: main
     language: go
+  - id: golang/server/preflight_coverage_authority_test.go:TestPatternMatchAloneCannotManufactureSufficientCoverage
+    file: golang/server/preflight_coverage_authority_test.go
+    symbol: TestPatternMatchAloneCannotManufactureSufficientCoverage
+    package: main
+    language: go
+    doc: "coverage.sufficient exists to separate \"the graph looked and found nothing\"\nfrom \"the graph never looked\". A pattern match is neither: it recognises the\nshape of code from task text, without examining the files asked about. Before\n#218 a strong-tier match alone reported sufficient coverage on zero anchors\nand zero indexed files, so the second answer could wear the first one's\nclothes — including for an ImplementationPattern nobody promoted."
+  - id: golang/server/preflight_coverage_authority_test.go:TestPreflightCoverageRestsOnAnchorsOrIndexedFiles
+    file: golang/server/preflight_coverage_authority_test.go
+    symbol: TestPreflightCoverageRestsOnAnchorsOrIndexedFiles
+    package: main
+    language: go
+    doc: "The lookups coverage does rest on keep working, and the pattern-only case is\nthe only branch that changes."
+  - id: golang/server/preflight_coverage_authority_test.go:TestUnpromotedPatternCandidatesNeverReachTheMatcher
+    file: golang/server/preflight_coverage_authority_test.go
+    symbol: TestUnpromotedPatternCandidatesNeverReachTheMatcher
+    package: main
+    language: go
+    doc: "The other half of the same chain: `sensei skill-ingest` writes candidates with\nstatus \"candidate\", and the loader must keep them out of the matcher entirely.\nOnly `active` (or unstated, which the authored corpus treats as active)\npatterns are selectable."
   - id: golang/server/preflight_golden_usefulness_test.go:TestPreflightGoldenUsefulness
     file: golang/server/preflight_golden_usefulness_test.go
     symbol: TestPreflightGoldenUsefulness
@@ -24999,6 +25017,12 @@ test_symbols:
     symbol: TestPreflight_StoreUnavailableReturnsDegradedUnknownImpact
     package: main
     language: go
+  - id: golang/server/preflight_test.go:TestPreflight_StrongPatternMatchIsGuidanceNotCoverage
+    file: golang/server/preflight_test.go
+    symbol: TestPreflight_StrongPatternMatchIsGuidanceNotCoverage
+    package: main
+    language: go
+    doc: "A strong-tier match still travels in the response — it is real advice about\nhow code of this shape is written. It does not make the graph's silence about\nthe change trustworthy: nothing was anchored and no file was indexed, so\ncoverage stays insufficient and the risk stays UNKNOWN_IMPACT (#218)."
   - id: golang/server/preflight_test.go:TestPreflight_TaskOnlyClientTask_FiresPatternRequiredActions
     file: golang/server/preflight_test.go
     symbol: TestPreflight_TaskOnlyClientTask_FiresPatternRequiredActions
@@ -25012,11 +25036,6 @@ test_symbols:
   - id: golang/server/preflight_test.go:TestPreflight_UnknownRequestedDomainReturnsDegradedUnknownImpact
     file: golang/server/preflight_test.go
     symbol: TestPreflight_UnknownRequestedDomainReturnsDegradedUnknownImpact
-    package: main
-    language: go
-  - id: golang/server/preflight_test.go:TestPreflight_UnrelatedTaskGoodCoverage_LowRisk
-    file: golang/server/preflight_test.go
-    symbol: TestPreflight_UnrelatedTaskGoodCoverage_LowRisk
     package: main
     language: go
   - id: golang/server/preflight_test.go:TestPreflight_UnrelatedTaskNoCoverage_RiskClassUnknownImpact
