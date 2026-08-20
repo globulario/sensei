@@ -1746,3 +1746,17 @@ failure_modes:
     evidence:
       - 'globulario/sensei#218: computePreflightCoverage(files=[internal/x/x.go], indexed=0, no anchors, one strong pattern) returned sufficient=true direct_anchor_count=0 indexed_file_count=0.'
       - 'The pattern needed no authority of its own to do it: MatchedImplementationPattern carries no promotion state, so the coverage computation could not have filtered an unpromoted match even if it tried.'
+  - id: failure.sensei.examination_defined_as_governance_collapsing_emptyproven_int
+    title: Examination defined as governance, collapsing EmptyProven into Absent
+    description: Preflight incremented its indexed-file count only when a file produced direct anchors, so 'the graph examined this file' was defined as 'the graph governs this file'. indexed > 0 implied directCount > 0, which made a file the graph holds and governs by nothing indistinguishable from a file nobody ever analysed, and left computePreflightCoverage's indexed-but-no-rules branch unreachable through the RPC while its note described a state the data model could not produce.
+    protects:
+      files:
+        - golang/server/preflight.go
+    related_invariants:
+      - invariant.sensei.incompleteness_and_coverage_are_explained_by_owner_projectio
+    required_tests:
+      - golang/server/preflight_examined_test.go:TestPreflightCoverageDistinguishesExaminedFromUnknown
+    evidence:
+      - 'globulario/sensei#220: computePreflightCoverage(files, indexed=1, no anchors) returns sufficient=true with ''1/1 file(s) indexed'', but no caller could ever pass indexed=1 with zero anchors.'
+      - Measured over 39 commits in globulario/sensei-code, the routine tier whose condition is exactly EmptyProven qualified zero changes; the qualifying population was 'a file with an anchor, none of whose anchors governs it', not the designed one.
+      - 'The state is reachable in a full build and not in a corpus-only seed: 18 of 36 symbol-indexed files in this repository''s generated code_symbols surface are not named by the authored corpus, and a SourceFile node is minted for each, while every SourceFile in the self seed carries an implements edge.'

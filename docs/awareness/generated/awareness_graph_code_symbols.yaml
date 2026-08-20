@@ -24925,6 +24925,36 @@ test_symbols:
     package: main
     language: go
     doc: "The other half of the same chain: `sensei skill-ingest` writes candidates with\nstatus \"candidate\", and the loader must keep them out of the matcher entirely.\nOnly `active` (or unstated, which the authored corpus treats as active)\npatterns are selectable."
+  - id: golang/server/preflight_examined_test.go:TestPreflightAnchorsAloneStillCountAsExamined
+    file: golang/server/preflight_examined_test.go
+    symbol: TestPreflightAnchorsAloneStillCountAsExamined
+    package: main
+    language: go
+    doc: "Anchors still prove examination on their own. The lookup adds a second,\nindependent route to the same fact; it does not replace the first."
+  - id: golang/server/preflight_examined_test.go:TestPreflightCoverageDistinguishesExaminedFromUnknown
+    file: golang/server/preflight_examined_test.go
+    symbol: TestPreflightCoverageDistinguishesExaminedFromUnknown
+    package: main
+    language: go
+    doc: "Three evidence states, and the middle one is the whole of #220:\n\n\tAbsent       — no evidence about this file at all\n\tEmptyProven  — the graph holds this file, and nothing governs it\n\tGoverned     — the graph holds this file, and something governs it\n\nExamination used to be DEFINED as having an anchor, so EmptyProven could not\nbe expressed: a file the graph holds and governs by nothing read exactly like\na file nobody had ever analysed. Note that case 2 is built with no anchor at\nall — an invented low-severity invariant would produce \"governed by something\nminor\", which is a different state and would let this pass while the missing\none stayed missing."
+  - id: golang/server/preflight_examined_test.go:TestPreflightPartialExaminationIsNotCoverage
+    file: golang/server/preflight_examined_test.go
+    symbol: TestPreflightPartialExaminationIsNotCoverage
+    package: main
+    language: go
+    doc: "Coverage speaks for the whole request. One examined file does not cover the\nfile beside it that the graph has never seen — its silence is about itself."
+  - id: golang/server/preflight_examined_test.go:TestSourceFileExaminedFailsClosedOnAmbiguityAndErrors
+    file: golang/server/preflight_examined_test.go
+    symbol: TestSourceFileExaminedFailsClosedOnAmbiguityAndErrors
+    package: main
+    language: go
+    doc: "The lookup fails closed in both directions it cannot answer, because picking\none repository's file for a path that names several is the identity collapse\nSourceFile scoping removed (#197)."
+  - id: golang/server/preflight_examined_test.go:TestUnscopedSourceFileIdentityIsNotDomainEvidence
+    file: golang/server/preflight_examined_test.go
+    symbol: TestUnscopedSourceFileIdentityIsNotDomainEvidence
+    package: main
+    language: go
+    doc: "A source-file identity that predates repository scoping carries no\nrepository. It is evidence that SOME repository holds this path, and a caller\nthat named a domain asked about one — so it is not evidence for that domain,\nand accepting it would invent the attribution ParseSourceFileIRI refuses to\ninvent (#197)."
   - id: golang/server/preflight_golden_usefulness_test.go:TestPreflightGoldenUsefulness
     file: golang/server/preflight_golden_usefulness_test.go
     symbol: TestPreflightGoldenUsefulness
