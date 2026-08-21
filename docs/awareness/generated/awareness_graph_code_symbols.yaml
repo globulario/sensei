@@ -4682,6 +4682,12 @@ test_symbols:
     package: main
     language: go
     doc: "Hard law 7 for this command: it links documents, and touches nothing else."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    package: main
+    language: go
+    doc: "TestRepeatedRecordingIsIdempotentAcrossAClockTick is the regression for a\nflake that only appeared under load: the two recordings in\nTestRepeatedRecordingNeitherDuplicatesNorOverwrites pass only while both land\ninside the same wall-clock second.\n\nThe record embeds ObservedAt (time.Now at second granularity), but\nVerificationRecordDigest deliberately EXCLUDES ObservedAt, precisely so that\n\"recording the same verification against the same application at a different\nmoment is the same fact\". The conflict check compared raw JSON bytes, which\ndo carry ObservedAt — so it re-admitted the clock the digest had excluded,\nand identical evidence recorded one second later was reported as\nexitRecordConflict: \"two different statements cannot both be what was\nobserved\", about evidence that was in fact the same statement.\n\nRewriting the stored record's ObservedAt reproduces the straddled tick\ndeterministically, with no sleep and no clock injection."
   - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingNeitherDuplicatesNorOverwrites
     file: cmd/awg/cmd_synthesis_record_verification_test.go
     symbol: TestRepeatedRecordingNeitherDuplicatesNorOverwrites

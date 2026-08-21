@@ -1892,3 +1892,16 @@ failure_modes:
     evidence:
       - 'R2 (#164) A0 came back INCOMPLETE: the R1 pilot environment (frozen R1 f8a4e7639071, B 9/9 vs E 5/9 across 9 pairs) could not be reproduced because the freeze captured code, not authority state. Capturing the real repo now shows the drift the receipt could not see: seed built at b2bd6b85 while HEAD is d1cb6bab, and a dirty tree that makes the recorded revision not identify the code that ran.'
     contract: A benchmark freeze receipt must bind the Sensei authority that governed the run — revision, seed digest, authored-corpus digest, build-transaction stamp — and a replay may be reported as comparable only when an independently observed authority equals the bound one. Absence of a binding is a typed verdict, never a match.
+  - id: failure.a_byte_comparison_re_admits_the_clock_that_the_semantic_dige
+    title: A byte comparison re-admits the clock that the semantic digest deliberately excluded
+    description: VerificationRecordDigest excludes ObservedAt so an idempotent re-record is recognised as the same fact, but the synthesis-record-verification conflict check compared raw JSON bytes, which carry ObservedAt. Two recordings of identical evidence separated by one second were reported as exitRecordConflict with the message 'two different statements cannot both be what was observed'.
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_record_verification.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    required_tests:
+      - cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    evidence:
+      - 'TestRepeatedRecordingNeitherDuplicatesNorOverwrites passed locally and failed in CI (run 32523698608, exit 5) because the two recordings straddled a wall-clock second. The digest exclusion was already documented in golang/architecture/candidateapply/digest.go with this exact hazard named: letting the clock into the identity would make an idempotent re-record look like a second, different record.'
+    contract: Where a type defines a semantic identity that excludes a provenance field, every equality decision about that type must use the semantic identity. Comparing serialized bytes re-admits the excluded field and turns provenance back into identity.

@@ -1776,3 +1776,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_frozen_benchmark_run_that_binds_only_target_code_is_replay
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    title: Re-recording identical verification evidence across a clock tick is a no-op
+    protects:
+      failure_modes:
+        - failure.a_byte_comparison_re_admits_the_clock_that_the_semantic_dige
