@@ -14,10 +14,11 @@ import (
 func runBenchmarkFreezeExternal(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-freeze", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	var task, sourceRepo, oracle, outputDir, format string
+	var task, sourceRepo, oracle, outputDir, format, senseiRepo string
 	var check bool
 	fs.StringVar(&task, "task", "", "benchmark task manifest")
 	fs.StringVar(&sourceRepo, "source-repo", "", "local git repository")
+	fs.StringVar(&senseiRepo, "sensei-repo", ".", "Sensei checkout whose authority governs this run")
 	fs.StringVar(&oracle, "oracle", "", "sealed oracle manifest")
 	fs.StringVar(&outputDir, "output-dir", "", "frozen workspace output directory")
 	fs.StringVar(&format, "format", "yaml", "output format: yaml|json")
@@ -27,6 +28,12 @@ func runBenchmarkFreezeExternal(args []string) int {
 
 Freezes a blind local benchmark workspace. No network access, source mutation,
 oracle reveal, active graph import, or reconstruction is performed.
+
+The receipt also binds the Sensei authority that governs the run (revision,
+seed digest, authored-corpus digest) so a later replay can prove it ran under
+the same authority. Verify that with:
+
+  sensei benchmark-status --workspace <workspace> --sensei-repo <checkout>
 `)
 		fs.PrintDefaults()
 	}
@@ -37,7 +44,7 @@ oracle reveal, active graph import, or reconstruction is performed.
 		fmt.Fprintln(os.Stderr, "sensei benchmark-freeze: --task, --source-repo, --oracle, and --output-dir are required")
 		return 2
 	}
-	receipt, contamination, err := benchmark.Freeze(benchmark.FreezeOptions{TaskPath: task, SourceRepo: sourceRepo, OraclePath: oracle, OutputDir: outputDir, Check: check})
+	receipt, contamination, err := benchmark.Freeze(benchmark.FreezeOptions{TaskPath: task, SourceRepo: sourceRepo, OraclePath: oracle, OutputDir: outputDir, SenseiRepo: senseiRepo, Check: check})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-freeze: %v\n", err)
 		return 1
@@ -126,14 +133,18 @@ comparative evidence, not automatic correctness authority.
 func runBenchmarkStatusExternal(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-status", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	var workspace, report, format string
+	var workspace, report, format, senseiRepo string
 	fs.StringVar(&workspace, "workspace", "", "frozen benchmark workspace")
 	fs.StringVar(&report, "report", "", "optional task report YAML")
+	fs.StringVar(&senseiRepo, "sensei-repo", "", "Sensei checkout to verify the frozen authority against")
 	fs.StringVar(&format, "format", "text", "output format: text|yaml|json")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-status --workspace <workspace> [--report <task-report.yaml>]
 
 Prints compact benchmark state. No score is computed.
+
+With --sensei-repo, also compares the authority frozen with the run against the
+authority observed now, and reports whether a replay is comparable.
 `)
 		fs.PrintDefaults()
 	}
@@ -151,6 +162,28 @@ Prints compact benchmark state. No score is computed.
 			return 1
 		}
 		fmt.Print(text)
+		if senseiRepo != "" {
+			drift, err := benchmark.VerifyWorkspaceAuthority(workspace, senseiRepo)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "sensei benchmark-status: %v\n", err)
+				return 1
+			}
+			fmt.Printf("Replay authority: %s\n", drift.Verdict)
+			fmt.Printf("Replay comparable: %s\n", yesNoText(drift.Comparable))
+			for _, r := range drift.Reasons {
+				if r.Detail != "" {
+					fmt.Printf("  - %s: %s\n", r.Code, r.Detail)
+					continue
+				}
+				fmt.Printf("  - %s\n", r.Code)
+			}
+			// A replay that cannot be certified comparable is not a benchmark
+			// result. Exit non-zero so a harness cannot scrape the numbers and
+			// silently treat them as the original run's.
+			if !drift.Comparable {
+				return 3
+			}
+		}
 		return 0
 	}
 	freeze, contamination, err := benchmark.LoadWorkspaceFreeze(workspace)
@@ -189,4 +222,14 @@ func printBenchmarkObject(v interface{}, format string) int {
 		fmt.Fprintf(os.Stderr, "benchmark: unsupported format %q\n", format)
 		return 2
 	}
+}
+
+// yesNoText renders a replay-comparability decision. It is spelled out rather
+// than printed as a bare bool so a reader scanning status output cannot mistake
+// "false" for a missing field.
+func yesNoText(v bool) string {
+	if v {
+		return "yes"
+	}
+	return "no"
 }

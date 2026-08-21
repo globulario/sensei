@@ -166,27 +166,34 @@ type Reason struct {
 }
 
 type FreezeReceipt struct {
-	SchemaVersion              string                    `json:"schema_version" yaml:"schema_version"`
-	GeneratedBy                string                    `json:"generated_by" yaml:"generated_by"`
-	WorkspaceID                string                    `json:"workspace_id" yaml:"workspace_id"`
-	PolicyID                   string                    `json:"policy_id" yaml:"policy_id"`
-	PolicyVersion              string                    `json:"policy_version" yaml:"policy_version"`
-	TaskID                     string                    `json:"task_id" yaml:"task_id"`
-	RepositoryID               string                    `json:"repository_id" yaml:"repository_id"`
-	RepositoryDomain           string                    `json:"repository_domain" yaml:"repository_domain"`
-	SourceBaseRevision         string                    `json:"source_base_revision" yaml:"source_base_revision"`
-	BlindRevision              string                    `json:"blind_revision" yaml:"blind_revision"`
-	SourceTreeDigestSHA256     string                    `json:"source_tree_digest_sha256" yaml:"source_tree_digest_sha256"`
-	BlindTreeDigestSHA256      string                    `json:"blind_tree_digest_sha256" yaml:"blind_tree_digest_sha256"`
-	TaskManifestDigestSHA256   string                    `json:"task_manifest_digest_sha256" yaml:"task_manifest_digest_sha256"`
-	OracleManifestDigestSHA256 string                    `json:"oracle_manifest_digest_sha256" yaml:"oracle_manifest_digest_sha256"`
-	ContaminationStatus        string                    `json:"contamination_status" yaml:"contamination_status"`
-	CommitCount                int                       `json:"commit_count" yaml:"commit_count"`
-	OldestReachableCommit      string                    `json:"oldest_reachable_commit,omitempty" yaml:"oldest_reachable_commit,omitempty"`
-	NewestReachableCommit      string                    `json:"newest_reachable_commit,omitempty" yaml:"newest_reachable_commit,omitempty"`
-	HistoryExportDigestSHA256  string                    `json:"history_export_digest_sha256" yaml:"history_export_digest_sha256"`
-	Limitations                []architecture.Limitation `json:"limitations,omitempty" yaml:"limitations,omitempty"`
-	ReceiptDigestSHA256        string                    `json:"receipt_digest_sha256" yaml:"receipt_digest_sha256"`
+	SchemaVersion              string `json:"schema_version" yaml:"schema_version"`
+	GeneratedBy                string `json:"generated_by" yaml:"generated_by"`
+	WorkspaceID                string `json:"workspace_id" yaml:"workspace_id"`
+	PolicyID                   string `json:"policy_id" yaml:"policy_id"`
+	PolicyVersion              string `json:"policy_version" yaml:"policy_version"`
+	TaskID                     string `json:"task_id" yaml:"task_id"`
+	RepositoryID               string `json:"repository_id" yaml:"repository_id"`
+	RepositoryDomain           string `json:"repository_domain" yaml:"repository_domain"`
+	SourceBaseRevision         string `json:"source_base_revision" yaml:"source_base_revision"`
+	BlindRevision              string `json:"blind_revision" yaml:"blind_revision"`
+	SourceTreeDigestSHA256     string `json:"source_tree_digest_sha256" yaml:"source_tree_digest_sha256"`
+	BlindTreeDigestSHA256      string `json:"blind_tree_digest_sha256" yaml:"blind_tree_digest_sha256"`
+	TaskManifestDigestSHA256   string `json:"task_manifest_digest_sha256" yaml:"task_manifest_digest_sha256"`
+	OracleManifestDigestSHA256 string `json:"oracle_manifest_digest_sha256" yaml:"oracle_manifest_digest_sha256"`
+	ContaminationStatus        string `json:"contamination_status" yaml:"contamination_status"`
+	CommitCount                int    `json:"commit_count" yaml:"commit_count"`
+	OldestReachableCommit      string `json:"oldest_reachable_commit,omitempty" yaml:"oldest_reachable_commit,omitempty"`
+	NewestReachableCommit      string `json:"newest_reachable_commit,omitempty" yaml:"newest_reachable_commit,omitempty"`
+	HistoryExportDigestSHA256  string `json:"history_export_digest_sha256" yaml:"history_export_digest_sha256"`
+	// AuthorityState binds the Sensei-side authority that governed the run.
+	// It is a pointer with omitempty so that freeze receipts written before
+	// authority binding existed keep their original ReceiptDigestSHA256 and
+	// stay loadable; a nil here means "this receipt predates the binding",
+	// which VerifyAuthorityState reports as its own typed verdict rather than
+	// letting it pass as a match. Freeze always populates it.
+	AuthorityState      *AuthorityState           `json:"authority_state,omitempty" yaml:"authority_state,omitempty"`
+	Limitations         []architecture.Limitation `json:"limitations,omitempty" yaml:"limitations,omitempty"`
+	ReceiptDigestSHA256 string                    `json:"receipt_digest_sha256" yaml:"receipt_digest_sha256"`
 }
 
 type ContaminationReport struct {
@@ -330,6 +337,12 @@ type FreezeOptions struct {
 	SourceRepo string
 	OraclePath string
 	OutputDir  string
+	// SenseiRepo is the Sensei checkout whose authority governs the run. It is
+	// bound into the receipt so the run can be replayed against the same
+	// authority, or honestly reported as incomparable when it cannot be. An
+	// empty value does not skip the binding: it records a typed unavailable
+	// authority state instead.
+	SenseiRepo string
 	Check      bool
 }
 
@@ -652,6 +665,8 @@ func Freeze(opts FreezeOptions) (FreezeReceipt, ContaminationReport, error) {
 		TaskManifestDigestSHA256: digest(taskBytes), OracleManifestDigestSHA256: digest(oracleBytes), ContaminationStatus: report.Status,
 		CommitCount: len(commits), HistoryExportDigestSHA256: digest(history),
 	}
+	authority := CaptureAuthorityState(opts.SenseiRepo)
+	receipt.AuthorityState = &authority
 	if len(commits) > 0 {
 		receipt.OldestReachableCommit = commits[0]
 		receipt.NewestReachableCommit = commits[len(commits)-1]
@@ -870,6 +885,7 @@ func Status(workspace, reportPath string) (string, error) {
 	fmt.Fprintf(&b, "Task: %s\n", freeze.TaskID)
 	fmt.Fprintf(&b, "Base: %s\n", freeze.SourceBaseRevision)
 	fmt.Fprintf(&b, "Blind contamination: %s\n", contamination.Status)
+	fmt.Fprintf(&b, "Frozen authority: %s\n", AuthoritySummary(freeze.AuthorityState))
 	if recon.SchemaVersion != "" {
 		fmt.Fprintf(&b, "Initial closure: %s\n", recon.ClosureVerdict)
 		fmt.Fprintf(&b, "Final closure: %s\n", recon.ClosureVerdict)
