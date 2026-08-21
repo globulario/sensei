@@ -811,7 +811,10 @@ type structFieldInfo struct {
 	tagKey string
 	tagVal string
 	rawTag string
-	line   int
+	// file is where the FIELD is declared, which is not always where its struct
+	// is: an embedded or promoted field comes from another file.
+	file string
+	line int
 }
 
 type boundaryInfo struct {
@@ -884,13 +887,25 @@ func (e *extractor) extractDataShapes() {
 				tag := st.Tag(i)
 				tagKey, tagVal := parseTag(tag)
 
+				// A field is not necessarily declared where its struct is: an
+				// embedded or promoted field lives in another file, and taking
+				// the line from the field while taking the file from the struct
+				// produced an anchor that cited a line past the end of the file
+				// it named. Anchor the field to its own declaration, and drop
+				// the field when that declaration is outside the observation
+				// surface rather than attributing it to the struct's file.
+				fieldFile, fieldLine, ok := e.position(field.Pos())
+				if !ok {
+					continue
+				}
 				fields = append(fields, structFieldInfo{
 					name:   field.Name(),
 					typ:    field.Type().String(),
 					tagKey: tagKey,
 					tagVal: tagVal,
 					rawTag: tag,
-					line:   e.fset.Position(field.Pos()).Line,
+					file:   fieldFile,
+					line:   fieldLine,
 				})
 			}
 
@@ -1046,7 +1061,7 @@ func (e *extractor) extractDataShapes() {
 						Subject:    fieldSymbol,
 						Predicate:  "has_serialized_field",
 						Object:     f.tagVal,
-						File:       s.file,
+						File:       f.file,
 						Symbol:     fieldSymbol,
 						Line:       f.line,
 						Confidence: 0.98,
@@ -1062,7 +1077,7 @@ func (e *extractor) extractDataShapes() {
 						Subject:    fieldSymbol,
 						Predicate:  "has_field",
 						Object:     f.name,
-						File:       s.file,
+						File:       f.file,
 						Symbol:     fieldSymbol,
 						Line:       f.line,
 						Confidence: 0.98,

@@ -1756,3 +1756,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_governed_decision_is_recorded_on_the_ledger_but_the_projec
+  - id: golang/architecture/gosemantics/field_anchor_test.go:TestStructFieldObservationsAnchorToTheirOwnFile
+    title: Struct field observations anchor to their own declaration file
+    protects:
+      failure_modes:
+        - failure.sensei.an_observation_anchors_a_field_to_the_file_its_struct_was_de

@@ -1846,3 +1846,14 @@ failure_modes:
     evidence:
       - 'sensei#230: an architect dismissal recorded through questiondisposition (terminal dismissed state, NextNone) left taskcontrol.classifyQuestion classifying the question active_unresolved forever, because classifyQuestion read only the dialogue document status and nothing carried the ledger decision into the projection'
     contract: A decision recorded through a governed mutation path, with an actor, a rationale and a verified receipt, is authority over the state it decides; a projection that presents the next action must read it, or it presents a demand the governed decision already withdrew
+  - id: failure.sensei.an_observation_anchors_a_field_to_the_file_its_struct_was_de
+    title: An observation anchors a field to the file its struct was declared in, not the file the field is in
+    protects:
+      files:
+        - golang/architecture/gosemantics/extract.go
+    required_tests:
+      - golang/architecture/gosemantics/field_anchor_test.go:TestStructFieldObservationsAnchorToTheirOwnFile
+    evidence:
+      - 'sensei#131 evidence-resolvability pass: 74 observations from data_shape_extractor cited lines past the end of the file they named, including golang/architecture/authority/model.go (118 lines) cited at lines 126-140. Cause: type aliases — the alias declaration supplies the file while the aliased struct''s fields supply the line from another package''s longer file'
+      - The extractor already emitted 74 'line N unavailable' limitations; the count was visible for a long time but nothing compared an anchor against the file it named, so the cause was never located
+    contract: An evidence anchor names the file and line where the observed thing is actually declared; a composed anchor that takes the file from one declaration and the line from another names a location that need not exist

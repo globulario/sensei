@@ -26,6 +26,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -387,23 +388,162 @@ var reservedArmNames = map[string]bool{
 // local path: a report naming /home/somebody/checkout is not comparable with
 // the same world run elsewhere, and the path is not what was measured.
 type worldReport struct {
-	SchemaVersion   string         `json:"schema_version"`
-	World           string         `json:"world"`
-	CapturedAt      string         `json:"captured_at"`
-	Domain          string         `json:"repository_domain"`
-	Revision        string         `json:"revision,omitempty"`
-	RevisionStatus  string         `json:"revision_status"`
-	TreeDigest      string         `json:"tree_digest_sha256,omitempty"`
-	Observations    int            `json:"observations"`
-	EvidenceCount   int            `json:"evidence_receipts"`
-	FilesCited      int            `json:"files_cited"`
-	ByProvider      map[string]int `json:"observations_by_provider"`
-	ByPredicate     map[string]int `json:"observations_by_predicate"`
-	CoverageStatus  map[string]int `json:"coverage_status_counts"`
-	Limitations     []string       `json:"limitations"`
-	BlockingCount   int            `json:"blocking_limitations"`
-	SurfaceExcluded bool           `json:"outside_observation_surface"`
+	SchemaVersion  string         `json:"schema_version"`
+	World          string         `json:"world"`
+	CapturedAt     string         `json:"captured_at"`
+	Domain         string         `json:"repository_domain"`
+	Revision       string         `json:"revision,omitempty"`
+	RevisionStatus string         `json:"revision_status"`
+	TreeDigest     string         `json:"tree_digest_sha256,omitempty"`
+	Observations   int            `json:"observations"`
+	EvidenceCount  int            `json:"evidence_receipts"`
+	FilesCited     int            `json:"files_cited"`
+	ByProvider     map[string]int `json:"observations_by_provider"`
+	ByPredicate    map[string]int `json:"observations_by_predicate"`
+	CoverageStatus map[string]int `json:"coverage_status_counts"`
+	// EvidenceResolution answers #131's "evidence coverage by provider and
+	// target": for each provider, how many of its observations carry an anchor
+	// that still resolves in the bound tree.
+	//
+	// Mechanical, not adjudicated. It measures whether an observation POINTS at
+	// something real — file present, line range inside the file — never whether
+	// what it says is true. Precision and recall need a reference set and are
+	// deliberately absent rather than approximated by this.
+	EvidenceResolution map[string]resolutionCounts `json:"evidence_resolution_by_provider"`
+	EvidenceTotals     resolutionCounts            `json:"evidence_resolution_totals"`
+	TargetResolution   resolutionCounts            `json:"evidence_resolution_by_target"`
+	// UnresolvedExamples names a bounded, deterministic sample of the anchors
+	// that did not resolve.
+	//
+	// A count says a number is wrong; an example says where to look. Bounded so
+	// a systematically broken extractor cannot turn the report into its own log,
+	// and sorted so the sample is part of the reproducible identity rather than
+	// whatever the map yielded first.
+	UnresolvedExamples []string `json:"unresolved_anchor_examples,omitempty"`
+	Limitations        []string `json:"limitations"`
+	BlockingCount      int      `json:"blocking_limitations"`
+	SurfaceExcluded    bool     `json:"outside_observation_surface"`
 }
+
+// resolutionCounts is how an anchor set resolved against the tree that was read.
+type resolutionCounts struct {
+	// Resolved: the cited file exists and the line range lies inside it.
+	Resolved int `json:"resolved"`
+	// MissingFile: the observation names a file the bound tree does not have.
+	MissingFile int `json:"missing_file"`
+	// NotARegularFile: the path exists but is a directory or other non-file.
+	// Distinct from missing because the causes are different — a cited
+	// directory is an extractor anchoring mistake, an absent path is a stale or
+	// wrong reference — and collapsing them would report the first as the
+	// second (#216 was exactly this shape).
+	NotARegularFile int `json:"not_a_regular_file"`
+	// LineOutOfRange: the file exists but the cited lines do not.
+	LineOutOfRange int `json:"line_out_of_range"`
+	// NoAnchor: the observation cites no source file at all. Not a failure on
+	// its own — some observations are about the repository rather than a line —
+	// but it cannot be verified either, so it is counted apart from both.
+	NoAnchor int `json:"no_anchor"`
+}
+
+// resolveEvidence measures whether each observation's anchor still resolves.
+//
+// This is the one metric from #131's list that can be produced without a frozen
+// reference set: it asks whether an observation points at something that exists,
+// which the filesystem answers, rather than whether it is correct, which only an
+// adjudicator can. Reported per provider because the extraction is heavily
+// skewed — one provider produces about two thirds of all observations — so a
+// single overall number would mostly describe that provider.
+func resolveEvidence(root string, observations []architecture.Fact) (map[string]resolutionCounts, resolutionCounts, resolutionCounts, []string) {
+	lines := map[string]int{}
+	lineCount := func(rel string) int {
+		if n, ok := lines[rel]; ok {
+			return n
+		}
+		// -1 absent, -2 present but not a regular file, otherwise the line count.
+		n := -1
+		full := filepath.Join(root, filepath.FromSlash(rel))
+		if info, err := os.Lstat(full); err == nil {
+			if !info.Mode().IsRegular() {
+				n = -2
+			} else if data, err := os.ReadFile(full); err == nil {
+				n = bytes.Count(data, []byte("\n"))
+				if len(data) > 0 && !bytes.HasSuffix(data, []byte("\n")) {
+					n++
+				}
+			}
+		}
+		lines[rel] = n
+		return n
+	}
+	byProvider := map[string]resolutionCounts{}
+	var totals resolutionCounts
+	targets := map[string]string{}
+	unresolved := map[string]bool{}
+	for _, o := range observations {
+		counts := byProvider[o.Extractor]
+		file := strings.TrimSpace(o.Evidence.SourceFile)
+		switch {
+		case file == "":
+			counts.NoAnchor++
+			totals.NoAnchor++
+		default:
+			n := lineCount(file)
+			switch {
+			case n == -2:
+				counts.NotARegularFile++
+				totals.NotARegularFile++
+				targets[file] = "not_a_regular_file"
+				unresolved[fmt.Sprintf("%s: %s is not a regular file", o.Extractor, file)] = true
+			case n < 0:
+				counts.MissingFile++
+				totals.MissingFile++
+				targets[file] = "missing_file"
+				unresolved[fmt.Sprintf("%s: %s is absent from the bound tree", o.Extractor, file)] = true
+			case o.Evidence.LineStart > 0 && (o.Evidence.LineStart > n || o.Evidence.LineEnd > n):
+				counts.LineOutOfRange++
+				totals.LineOutOfRange++
+				unresolved[fmt.Sprintf("%s: %s cites line %d-%d of a %d-line file", o.Extractor, file, o.Evidence.LineStart, o.Evidence.LineEnd, n)] = true
+				if targets[file] == "" || targets[file] == "resolved" {
+					targets[file] = "line_out_of_range"
+				}
+			default:
+				counts.Resolved++
+				totals.Resolved++
+				if targets[file] == "" {
+					targets[file] = "resolved"
+				}
+			}
+		}
+		byProvider[o.Extractor] = counts
+	}
+	var byTarget resolutionCounts
+	for _, state := range targets {
+		switch state {
+		case "missing_file":
+			byTarget.MissingFile++
+		case "not_a_regular_file":
+			byTarget.NotARegularFile++
+		case "line_out_of_range":
+			byTarget.LineOutOfRange++
+		default:
+			byTarget.Resolved++
+		}
+	}
+	examples := make([]string, 0, len(unresolved))
+	for e := range unresolved {
+		examples = append(examples, e)
+	}
+	sort.Strings(examples)
+	if len(examples) > unresolvedExampleLimit {
+		examples = append(examples[:unresolvedExampleLimit:unresolvedExampleLimit],
+			fmt.Sprintf("… %d further distinct unresolved anchors not listed", len(unresolved)-unresolvedExampleLimit))
+	}
+	return byProvider, totals, byTarget, examples
+}
+
+// unresolvedExampleLimit bounds the sample. The truncation is always reported,
+// because a silently cut list reads as a complete one.
+const unresolvedExampleLimit = 10
 
 // runWorlds runs each requested world over its checkout and writes a pinned,
 // content-addressed report.
@@ -501,6 +641,7 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, error) {
 		}
 	}
 	report.FilesCited = len(files)
+	report.EvidenceResolution, report.EvidenceTotals, report.TargetResolution, report.UnresolvedExamples = resolveEvidence(abs, doc.Observations)
 	for _, c := range doc.Coverage {
 		report.CoverageStatus[string(c.Status)]++
 	}
