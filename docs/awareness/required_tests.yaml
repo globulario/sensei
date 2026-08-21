@@ -1770,4 +1770,4 @@ required_tests:
     title: An excluded path is filtered even without an evidence anchor
     protects:
       failure_modes:
-        - failure.sensei.a_scope_filter_checks_one_of_the_two_places_a_fact_records_wh
+        - failure.sensei.a_scope_filter_checks_one_of_the_two_places_a_fact_records_w
