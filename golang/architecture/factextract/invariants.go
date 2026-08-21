@@ -511,9 +511,24 @@ func extractGeneratedAuthorityFacts(identity invariantRepositoryIdentity) []norm
 	var facts []normalizedInvariantFact
 	for _, rel := range []string{"docs/awareness/generated", "golang/server/embeddata/awareness.nt", "golang/server/embeddata/awareness.transaction.tsv"} {
 		path := filepath.Join(identity.Root, filepath.FromSlash(rel))
-		if _, err := os.Stat(path); err == nil {
-			facts = append(facts, invariantFact(identity, "generation_check", rel, "generated_artifact_exists", rel, rel, "", 0, 0, "", "generated_artifact_extractor", 0.5, nil))
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
 		}
+		// One of these artifacts is a DIRECTORY, and the observation that it
+		// exists is a real one. But a directory is not a source file, and
+		// anchoring the fact to it made every consumer that reads the anchor as
+		// a file fail on it — source-digest capture emitted "is a directory",
+		// and the #131 resolvability pass counted an unresolvable anchor. The
+		// subject and object already carry the path, so dropping the anchor
+		// loses nothing, and the kind is recorded rather than left implicit in
+		// an empty field.
+		anchor, kind := rel, "file"
+		if !info.Mode().IsRegular() {
+			anchor, kind = "", "directory"
+		}
+		facts = append(facts, invariantFact(identity, "generation_check", rel, "generated_artifact_exists", rel, anchor, "", 0, 0, "", "generated_artifact_extractor", 0.5,
+			map[string]string{"generated_artifact_kind": kind}))
 	}
 	for _, rel := range []string{".github/workflows/seed-rebuild.yml", ".github/workflows/awg-gate.yml", "Makefile"} {
 		path := filepath.Join(identity.Root, filepath.FromSlash(rel))
