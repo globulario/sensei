@@ -276,3 +276,59 @@ func TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace(t *testing.T) {
 			"capture the authority before creating the workspace")
 	}
 }
+
+// TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable: failing to
+// OBSERVE whether the tree was clean is not the same as observing a clean tree.
+// Swallowing the error would let two captures that never established either
+// tree's state agree on authority_match and report Comparable=true.
+func TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable(t *testing.T) {
+	repo := senseiRepoFixture(t)
+	// A repository-level setting that makes `git status` fail while rev-parse
+	// and ls-files keep working.
+	cmd := exec.Command("git", "config", "status.showUntrackedFiles", "definitely-not-valid")
+	cmd.Dir = repo
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git config: %v\n%s", err, out)
+	}
+
+	got := CaptureAuthorityState(repo)
+	if got.CaptureState != AuthorityCaptureUnavailable {
+		t.Fatalf("capture state = %q, want %q when the tree state cannot be observed", got.CaptureState, AuthorityCaptureUnavailable)
+	}
+	if got.CaptureReason != AuthorityCaptureReasonTreeStateUnread {
+		t.Errorf("capture reason = %q, want %q", got.CaptureReason, AuthorityCaptureReasonTreeStateUnread)
+	}
+	// And such a capture must never be comparable with anything.
+	if d := VerifyAuthorityState(&got, got); d.Comparable {
+		t.Error("a capture that never observed the tree state was reported comparable")
+	}
+}
+
+// TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace: ordering alone is
+// not enough. A re-freeze or a --check run reaches the capture while a PREVIOUS
+// workspace already exists inside the checkout and is reported as untracked.
+func TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace(t *testing.T) {
+	sensei := senseiRepoFixture(t)
+	repo, base := localRepo(t)
+	taskPath, oraclePath := writeManifests(t, base, "")
+	workspace := filepath.Join(sensei, "eval-workspace")
+
+	opts := FreezeOptions{
+		TaskPath: taskPath, SourceRepo: repo, OraclePath: oraclePath,
+		OutputDir: workspace, SenseiRepo: sensei,
+	}
+	if _, _, err := Freeze(opts); err != nil {
+		t.Fatal(err)
+	}
+	// The workspace now exists on disk. A --check run must still observe the
+	// checkout as clean and produce an identical receipt.
+	checkOpts := opts
+	checkOpts.Check = true
+	receipt, _, err := Freeze(checkOpts)
+	if err != nil {
+		t.Fatalf("--check over an existing workspace failed: %v", err)
+	}
+	if receipt.AuthorityState == nil || receipt.AuthorityState.SenseiTreeDirty {
+		t.Error("a previously created workspace made the governing authority look dirty on the check path")
+	}
+}

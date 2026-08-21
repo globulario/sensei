@@ -89,6 +89,7 @@ const (
 	AuthorityCaptureReasonCorpusUnread    = "authored_corpus_unreadable"
 	AuthorityCaptureReasonStampAbsent     = "build_transaction_stamp_absent"
 	AuthorityCaptureReasonStampIncomplete = "build_transaction_stamp_incomplete"
+	AuthorityCaptureReasonTreeStateUnread = "sensei_tree_state_unreadable"
 )
 
 // Closed replay-verdict vocabulary.
@@ -140,7 +141,7 @@ var authoredCorpusExcludedPrefixes = []string{"candidates/"}
 // itself a fact about the run and is returned as AuthorityCaptureUnavailable
 // with a typed reason, so a caller cannot accidentally treat "we failed to
 // look" as "there was nothing to see".
-func CaptureAuthorityState(senseiRepo string) AuthorityState {
+func CaptureAuthorityState(senseiRepo string, ignoreRepoRelPaths ...string) AuthorityState {
 	repo := strings.TrimSpace(senseiRepo)
 	if repo == "" {
 		return AuthorityState{CaptureState: AuthorityCaptureUnavailable, CaptureReason: AuthorityCaptureReasonRepoUnset}
@@ -156,9 +157,19 @@ func CaptureAuthorityState(senseiRepo string) AuthorityState {
 
 	// A dirty tree does not block capture; it is recorded so verification can
 	// refuse to certify the run as reproducible.
-	if porcelain, err := git(repo, "status", "--porcelain"); err == nil {
-		state.SenseiTreeDirty = len(strings.TrimSpace(string(porcelain))) > 0
+	//
+	// Failing to OBSERVE the tree state is a different matter and must not be
+	// swallowed. Treating the error as "clean" would let two captures that
+	// never established either tree's state agree on authority_match and
+	// report Comparable=true — the silent empty this whole type exists to
+	// prevent — so an unreadable tree state is a typed unavailable capture.
+	porcelain, err := git(repo, "status", "--porcelain")
+	if err != nil {
+		state.CaptureState = AuthorityCaptureUnavailable
+		state.CaptureReason = AuthorityCaptureReasonTreeStateUnread
+		return state
 	}
+	state.SenseiTreeDirty = porcelainReportsChange(string(porcelain), ignoreRepoRelPaths)
 
 	corpusDigest, err := senseireport.ContentDigest(filepath.Join(repo, "docs", "awareness"), authoredCorpusExcludedPrefixes, nil)
 	if err != nil {
@@ -288,4 +299,48 @@ func AuthoritySummary(state *AuthorityState) string {
 		s += " [" + AuthorityDriftDirtyAtFreeze + "]"
 	}
 	return s
+}
+
+// porcelainReportsChange decides whether `git status --porcelain` output shows
+// a change that belongs to the checkout, ignoring paths the caller knows are
+// its OWN output. A benchmark workspace may legitimately be created inside the
+// Sensei checkout; counting the tool's own untracked artifacts as uncommitted
+// changes would report a clean checkout as dirty and mark every replay of that
+// run incomparable for a change nobody made.
+func porcelainReportsChange(porcelain string, ignoreRepoRelPaths []string) bool {
+	ignore := make([]string, 0, len(ignoreRepoRelPaths))
+	for _, p := range ignoreRepoRelPaths {
+		p = strings.TrimSpace(filepath.ToSlash(p))
+		p = strings.TrimSuffix(p, "/")
+		if p != "" && p != "." {
+			ignore = append(ignore, p)
+		}
+	}
+	for _, line := range strings.Split(porcelain, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		// Porcelain v1: two status columns, a space, then the path. A rename
+		// carries "orig -> new"; the destination is what exists now.
+		path := line
+		if len(line) > 3 {
+			path = line[3:]
+		}
+		path = strings.Trim(strings.TrimSpace(path), "\"")
+		if idx := strings.Index(path, " -> "); idx >= 0 {
+			path = strings.Trim(path[idx+4:], "\"")
+		}
+		path = strings.TrimSuffix(filepath.ToSlash(path), "/")
+		skip := false
+		for _, ig := range ignore {
+			if path == ig || strings.HasPrefix(path, ig+"/") {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			return true
+		}
+	}
+	return false
 }

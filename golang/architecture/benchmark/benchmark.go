@@ -610,13 +610,17 @@ func Freeze(opts FreezeOptions) (FreezeReceipt, ContaminationReport, error) {
 	if err != nil {
 		return FreezeReceipt{}, ContaminationReport{}, err
 	}
-	// Capture the governing authority BEFORE creating the temporary workspace.
+	// Capture the governing authority BEFORE creating the temporary workspace,
+	// and exclude the output workspace from the dirty-tree observation.
+	//
 	// The workspace may legitimately live inside the Sensei checkout, and the
-	// dirty-tree observation runs `git status --porcelain`: a workspace created
-	// first shows up as untracked files, so the freeze's own scratch output
-	// would make a clean checkout look dirty and mark every later replay
-	// incomparable for a change nobody made.
-	authority := CaptureAuthorityState(opts.SenseiRepo)
+	// observation runs `git status --porcelain`. Ordering alone is not enough:
+	// a re-freeze or a `--check` run reaches this point while a PREVIOUS
+	// workspace already exists on disk and is reported as untracked. Either
+	// way the freeze's own output would make a clean checkout look dirty and
+	// mark every replay of that run incomparable for a change nobody made, so
+	// the tool's own artifacts are excluded from the observation as well.
+	authority := CaptureAuthorityState(opts.SenseiRepo, freezeOutputIgnorePaths(opts)...)
 
 	workspaceID := workspaceID(task, digest(taskBytes), digest(oracleBytes))
 	parent := filepath.Dir(opts.OutputDir)
@@ -1281,4 +1285,31 @@ func protectedOutputPath(path string) bool {
 		}
 	}
 	return false
+}
+
+// freezeOutputIgnorePaths names the freeze's own output, relative to the Sensei
+// checkout, so the dirty-tree observation does not count this tool's artifacts
+// as uncommitted changes in the checkout being characterised. It returns
+// nothing when the output lives outside the checkout, which is the common case.
+func freezeOutputIgnorePaths(opts FreezeOptions) []string {
+	repo := strings.TrimSpace(opts.SenseiRepo)
+	out := strings.TrimSpace(opts.OutputDir)
+	if repo == "" || out == "" {
+		return nil
+	}
+	absRepo, err := filepath.Abs(repo)
+	if err != nil {
+		return nil
+	}
+	absOut, err := filepath.Abs(out)
+	if err != nil {
+		return nil
+	}
+	rel, err := filepath.Rel(absRepo, absOut)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return nil
+	}
+	// The retained ".old" sibling the swap path leaves behind is this tool's
+	// output too.
+	return []string{filepath.ToSlash(rel), filepath.ToSlash(rel) + ".old"}
 }

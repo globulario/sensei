@@ -136,15 +136,21 @@ func runBenchmarkStatusExternal(args []string) int {
 	var workspace, report, format, senseiRepo string
 	fs.StringVar(&workspace, "workspace", "", "frozen benchmark workspace")
 	fs.StringVar(&report, "report", "", "optional task report YAML")
-	fs.StringVar(&senseiRepo, "sensei-repo", "", "Sensei checkout to verify the frozen authority against")
+	// Defaults to the current checkout, matching benchmark-freeze. The gate is
+	// opt-OUT (--sensei-repo="") rather than opt-in: the canonical workflow in
+	// the bundled sensei-benchmark skill invokes benchmark-status without this
+	// flag, so an opt-in default left the machine-consumer hole open on exactly
+	// the path evaluators are told to follow.
+	fs.StringVar(&senseiRepo, "sensei-repo", ".", "Sensei checkout to verify the frozen authority against (\"\" disables the replay gate)")
 	fs.StringVar(&format, "format", "text", "output format: text|yaml|json")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei benchmark-status --workspace <workspace> [--report <task-report.yaml>]
 
 Prints compact benchmark state. No score is computed.
 
-With --sensei-repo, also compares the authority frozen with the run against the
-authority observed now, and reports whether a replay is comparable.
+Also compares the authority frozen with the run against the authority observed
+now and reports whether a replay is comparable, exiting 3 when it is not.
+Defaults to the current checkout; pass --sensei-repo="" to disable that gate.
 `)
 		fs.PrintDefaults()
 	}

@@ -136,13 +136,49 @@ func TestBenchmarkStatusReplayGateAppliesToEveryFormat(t *testing.T) {
 		})
 	}
 
-	// Without --sensei-repo nothing is claimed about replay, so the gate must
-	// not fire: refusing to print status is not the same as refusing to certify.
+	// The gate is opt-OUT, not opt-in. The bundled sensei-benchmark skill's
+	// canonical workflow calls benchmark-status WITHOUT --sensei-repo, so an
+	// opt-in default left the machine-consumer hole open on precisely the path
+	// evaluators are told to follow. Omitting the flag must therefore still
+	// gate, against the current checkout.
 	for _, format := range []string{"text", "json", "yaml"} {
-		t.Run("ungated_"+format, func(t *testing.T) {
-			if code := runBenchmarkStatusExternal([]string{"--workspace", workspace, "--format", format}); code != 0 {
-				t.Fatalf("--format %s without --sensei-repo exit = %d, want 0", format, code)
+		t.Run("default_gated_"+format, func(t *testing.T) {
+			if code := runBenchmarkStatusExternal([]string{"--workspace", workspace, "--format", format}); code != 3 {
+				t.Fatalf("--format %s with no --sensei-repo exit = %d, want 3; the gate must not be opt-in", format, code)
 			}
 		})
+	}
+
+	// An explicit empty value is the escape hatch: nothing is then claimed
+	// about replay, and refusing to print status is not the same as refusing
+	// to certify a replay.
+	for _, format := range []string{"text", "json", "yaml"} {
+		t.Run("explicitly_ungated_"+format, func(t *testing.T) {
+			if code := runBenchmarkStatusExternal([]string{"--workspace", workspace, "--sensei-repo", "", "--format", format}); code != 0 {
+				t.Fatalf("--format %s with --sensei-repo=\"\" exit = %d, want 0", format, code)
+			}
+		})
+	}
+}
+
+// The canonical workflow shipped in the bundled skill must invoke the gated
+// path. If that command line loses --sensei-repo, or the flag stops defaulting
+// to the current checkout, the documented evaluation route silently returns
+// uncertifiable numbers with exit 0 again.
+func TestBundledBenchmarkSkillDocumentsTheGatedStatusPath(t *testing.T) {
+	doc, err := os.ReadFile(filepath.Join("templates", "skills", "sensei-benchmark", "SKILL.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(doc)
+	if !strings.Contains(text, "benchmark-status") {
+		t.Fatal("bundled skill no longer documents benchmark-status")
+	}
+	if !strings.Contains(text, "--sensei-repo") {
+		t.Error("the documented benchmark-status invocation does not pass --sensei-repo, " +
+			"so the canonical workflow would not verify replay authority")
+	}
+	if !strings.Contains(text, "Exit 3") {
+		t.Error("the documented workflow does not tell an evaluator what exit 3 means")
 	}
 }
