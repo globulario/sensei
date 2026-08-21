@@ -5945,6 +5945,30 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/synthesis_run_addr_test.go:TestBackendUnreachableSeparatesTransportFromService
+    file: cmd/awg/synthesis_run_addr_test.go
+    symbol: TestBackendUnreachableSeparatesTransportFromService
+    package: main
+    language: go
+    doc: "A running graph server whose store is unavailable returns codes.Unavailable\nitself, and so does a transport that never reached one. Routing on the code\nalone would send an operator to start a server that is already running —\nthe same wrong-repair defect this predicate exists to prevent, one layer in."
+  - id: cmd/awg/synthesis_run_addr_test.go:TestDerivedTaskDirectoryIsAbsolute
+    file: cmd/awg/synthesis_run_addr_test.go
+    symbol: TestDerivedTaskDirectoryIsAbsolute
+    package: main
+    language: go
+    doc: "The documented default invocation must run. The active pointer records a\nrepo-relative session path, so the derived task directory was relative and\nthe checkpoint store — which requires an absolute root — refused it, while an\nexplicit --task worked. The path nobody types was the one that could not run."
+  - id: cmd/awg/synthesis_run_addr_test.go:TestUnreachableEndpointHasItsOwnStopReasonAndCode
+    file: cmd/awg/synthesis_run_addr_test.go
+    symbol: TestUnreachableEndpointHasItsOwnStopReasonAndCode
+    package: main
+    language: go
+    doc: "Its own reason and its own exit code, because the vocabulary's whole point is\nthat a state nobody can act on identically must not share a code with one\nthey can."
+  - id: cmd/awg/synthesis_run_addr_test.go:TestUnreachableGraphEndpointIsReportedAsUnreachable
+    file: cmd/awg/synthesis_run_addr_test.go
+    symbol: TestUnreachableGraphEndpointIsReportedAsUnreachable
+    package: main
+    language: go
+    doc: "#231: an unreachable endpoint composed exactly like a graph that answered and\nhad nothing — same partial identity, same COVERAGE_STATE_EMPTY — so the run\nprescribed \"rebuild or reload the graph\" for a graph that was healthy and\nsimply never asked. The repairs are unrelated: one is starting a server or\ncorrecting --addr, the other is a full republication."
   - id: cmd/awg/synthesis_run_identity_test.go:TestIdentityPartialOnlyForThinCoverage_FalseWhenComplete
     file: cmd/awg/synthesis_run_identity_test.go
     symbol: TestIdentityPartialOnlyForThinCoverage_FalseWhenComplete

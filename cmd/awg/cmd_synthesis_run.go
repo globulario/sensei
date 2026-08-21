@@ -167,7 +167,15 @@ Flags:
 				"run 'sensei prepare-change' to bind a task checkpoint")
 		}
 		taskDir = filepath.Dir(ptr.SessionPath)
-	} else if !filepath.IsAbs(taskDir) {
+	}
+	// Absolutised for BOTH sources, not only for an explicit --task.
+	//
+	// The active pointer records a repo-relative session path, so the
+	// documented default invocation derived a relative task directory and
+	// stopped at checkpoint-store-unusable: NewFSCheckpointStore requires an
+	// absolute root (#231). Only the explicit flag was being resolved, so the
+	// path that nobody types was the one that could not run.
+	if !filepath.IsAbs(taskDir) {
 		taskDir = filepath.Join(absRepo, taskDir)
 	}
 
@@ -217,10 +225,21 @@ Flags:
 	}
 
 	// --- step 4: compose workspace identity via a live Metadata RPC ---
-	identity, err := composeSynthesisRunIdentity(ctx, *addr, absRepo, taskDir)
+	identity, endpointUnreachable, err := composeSynthesisRunIdentity(ctx, *addr, absRepo, taskDir)
 	if err != nil {
 		return resolutionStop(*format, stopGraphIdentityUnusable,
 			fmt.Sprintf("compose workspace identity: %v", err), "")
+	}
+	// Checked BEFORE the composition state, because an unreachable endpoint
+	// composes exactly like a graph that answered and had nothing: the same
+	// partial identity, the same COVERAGE_STATE_EMPTY. Reading it as the latter
+	// sent operators to republish a graph that was healthy the whole time,
+	// which costs a full republication and changes nothing (#231).
+	if endpointUnreachable != "" {
+		return resolutionStop(*format, stopGraphEndpointUnreachable,
+			fmt.Sprintf("nothing is serving the graph endpoint %s: %s — the graph was never consulted, so this is not an empty or non-authoritative graph",
+				*addr, endpointUnreachable),
+			fmt.Sprintf("start an awareness-graph, or pass --addr for the endpoint this repository is configured against, then re-run (currently %s)", *addr))
 	}
 	if identity.CompositionState != workspacecontract.CompositionComplete {
 		if *forceThinCoverage && identityPartialOnlyForThinCoverage(identity) {

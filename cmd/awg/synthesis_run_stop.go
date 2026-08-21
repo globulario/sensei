@@ -53,6 +53,14 @@ const (
 	stopCheckpointStoreUnusable resolutionStopReason = "checkpoint-store-unusable"
 	stopCheckpointUnavailable   resolutionStopReason = "checkpoint-unavailable"
 	stopResumeRefused           resolutionStopReason = "resume-refused"
+	// "Nothing is serving that address" is a different world from "the graph
+	// answered and is not authoritative", and the repairs are not related: one
+	// is starting a server or correcting --addr, the other is republishing a
+	// graph. Folded together, an unreachable endpoint arrived as
+	// COVERAGE_STATE_EMPTY with "rebuild or reload the graph" attached — a full
+	// republication that changes nothing, prescribed for a healthy graph
+	// nobody had asked (#231).
+	stopGraphEndpointUnreachable resolutionStopReason = "graph-endpoint-unreachable"
 	// Unclassified. Deliberately retained rather than removed: a resolution
 	// failure nobody has typed yet must stay visible as untyped instead of
 	// being forced into whichever named world looks closest, which would make
@@ -78,6 +86,7 @@ var stopExitCodes = map[resolutionStopReason]int{
 	stopCheckpointStoreUnusable:         19,
 	stopCheckpointUnavailable:           20,
 	stopResumeRefused:                   21,
+	stopGraphEndpointUnreachable:        22,
 }
 
 // stopMeanings is what an operator should DO about each state. The exit code
@@ -87,6 +96,7 @@ var stopMeanings = map[resolutionStopReason]string{
 	stopNoTaskCheckpoint:                "no verified task checkpoint is bound; run 'sensei prepare-change' first",
 	stopTaskAwaitingAnswer:              "the task carries an unanswered primary blocker and is not ready to synthesize",
 	stopGraphIdentityUnusable:           "workspace/graph identity could not be composed completely",
+	stopGraphEndpointUnreachable:        "nothing is serving the graph endpoint this run was pointed at; the graph itself was never consulted",
 	stopClosureUnavailable:              "the task's closure proof could not be resolved or digested",
 	stopInterpretationUnavailable:       "a grounded interpretation could not be constructed",
 	stopCognitiveProviderUnavailable:    "the cognitive provider is unavailable or unsupported",
