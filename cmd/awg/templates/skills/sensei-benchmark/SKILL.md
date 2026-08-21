@@ -38,8 +38,11 @@ review, performance benchmarking, or running unit tests.
 8. Freeze the final blind state before evaluation.
 9. Evaluate:
    `sensei benchmark-evaluate --workspace <workspace> --oracle <sealed-oracle.yaml> --question-review <review.yaml> --oracle-mapping <mapping.yaml> --output <report.yaml> --format yaml`.
-10. Inspect compact status:
-    `sensei benchmark-status --workspace <workspace> --report <report.yaml>`.
+10. Inspect compact status, verifying the replay authority:
+    `sensei benchmark-status --workspace <workspace> --report <report.yaml> --sensei-repo <sensei-checkout>`.
+    Exit 3 means the authority that governed the frozen run is not the
+    authority observed now, so the numbers are NOT comparable with the
+    original run's. Treat that as a blocked evaluation, not a result.
 11. Report critical false greens first.
 
 ## Compact Output

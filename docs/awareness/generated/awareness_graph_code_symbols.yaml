@@ -1687,11 +1687,23 @@ test_symbols:
     symbol: TestBenchmarkReconstructRequiresFrozenWorkspace
     package: main
     language: go
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    file: cmd/awg/cmd_benchmark_external_test.go
+    symbol: TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    package: main
+    language: go
+    doc: "TestBenchmarkStatusReplayGateAppliesToEveryFormat is the regression for a\ngate that guarded only human-readable output.\n\nThe fail-closed exit exists so a harness cannot scrape numbers from a replay\nthat ran under changed authority — and a harness is exactly the caller that\npasses --format json. Guarding only the text branch therefore exempted the\nsingle caller the gate was written to stop, while still reporting the\nguarantee as implemented."
   - id: cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusRequiresWorkspace
     file: cmd/awg/cmd_benchmark_external_test.go
     symbol: TestBenchmarkStatusRequiresWorkspace
     package: main
     language: go
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    file: cmd/awg/cmd_benchmark_external_test.go
+    symbol: TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    package: main
+    language: go
+    doc: "The canonical workflow shipped in the bundled skill must invoke the gated\npath. If that command line loses --sensei-repo, or the flag stops defaulting\nto the current checkout, the documented evaluation route silently returns\nuncertifiable numbers with exit 0 again."
   - id: cmd/awg/cmd_benchmark_judge_test.go:TestBenchmarkMissingRequiredTests_AllowsFileOrSymbolCoverage
     file: cmd/awg/cmd_benchmark_judge_test.go
     symbol: TestBenchmarkMissingRequiredTests_AllowsFileOrSymbolCoverage
@@ -4653,6 +4665,12 @@ test_symbols:
     package: main
     language: go
     doc: "THE negative control for the apply -> record boundary.\n\nEmission of the consumption record is broken AFTER materialization has\nalready succeeded, and the requirement is precise: the command must report\n\"applied but not recorded\" as its own terminal state. It must NOT claim\ncompletion, and it must NOT try to repair the missing record by applying a\nsecond time -- which is the nasty failure mode durability logic invites,\nwhere a recording problem quietly becomes an extra mutation.\n\nThe store directory is made unwritable so the receipt cannot be persisted,\nwhich is as close to \"the machine failed at exactly that step\" as a test can\nget without stubbing the writer."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt
+    package: main
+    language: go
+    doc: "TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt keeps the\nidempotence check from trusting a self-declared digest.\n\nrecord_digest_sha256 is a value some earlier process WROTE into the file; it\nis not a fact about the bytes on disk now. A record edited to say something\nelse — a different verification status, a different binding — while keeping\nits original digest would be accepted as an idempotent re-record, and the\ncommand would report success while leaving conflicting proof in place. The\npackage's own rule is that a declared digest must equal the computed one."
   - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesAVerificationBoundElsewhere
     file: cmd/awg/cmd_synthesis_record_verification_test.go
     symbol: TestRecordRefusesAVerificationBoundElsewhere
@@ -4682,6 +4700,12 @@ test_symbols:
     package: main
     language: go
     doc: "Hard law 7 for this command: it links documents, and touches nothing else."
+  - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    file: cmd/awg/cmd_synthesis_record_verification_test.go
+    symbol: TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    package: main
+    language: go
+    doc: "TestRepeatedRecordingIsIdempotentAcrossAClockTick is the regression for a\nflake that only appeared under load: the two recordings in\nTestRepeatedRecordingNeitherDuplicatesNorOverwrites pass only while both land\ninside the same wall-clock second.\n\nThe record embeds ObservedAt (time.Now at second granularity), but\nVerificationRecordDigest deliberately EXCLUDES ObservedAt, precisely so that\n\"recording the same verification against the same application at a different\nmoment is the same fact\". The conflict check compared raw JSON bytes, which\ndo carry ObservedAt — so it re-admitted the clock the digest had excluded,\nand identical evidence recorded one second later was reported as\nexitRecordConflict: \"two different statements cannot both be what was\nobserved\", about evidence that was in fact the same statement.\n\nRewriting the stored record's ObservedAt reproduces the straddled tick\ndeterministically, with no sleep and no clock injection."
   - id: cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingNeitherDuplicatesNorOverwrites
     file: cmd/awg/cmd_synthesis_record_verification_test.go
     symbol: TestRepeatedRecordingNeitherDuplicatesNorOverwrites
@@ -7636,6 +7660,77 @@ test_symbols:
     symbol: TestResolveRejectsWrongMechanism
     package: authority
     language: go
+  - id: golang/architecture/benchmark/authority_state_test.go:TestAuthoredCorpusDigestIgnoresCandidates
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestAuthoredCorpusDigestIgnoresCandidates
+    package: benchmark
+    language: go
+    doc: "TestAuthoredCorpusDigestIgnoresCandidates proves candidate churn does not\nregister as an authority change, because candidates are not active authority."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCandidateChurnDoesNotDirtyTheAuthority
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCandidateChurnDoesNotDirtyTheAuthority
+    package: benchmark
+    language: go
+    doc: "TestCandidateChurnDoesNotDirtyTheAuthority: candidates are not active\nauthority. Their content is excluded from the corpus digest, so ordinary\n`sensei propose` churn must not make a run incomparable either — the two\ntreatments have to agree, or the exclusion is only half applied."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateBindsGoverningIdentity
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateBindsGoverningIdentity
+    package: benchmark
+    language: go
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    package: benchmark
+    language: go
+    doc: "TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable: failing to\nOBSERVE whether the tree was clean is not the same as observing a clean tree.\nSwallowing the error would let two captures that never established either\ntree's state agree on authority_match and report Comparable=true."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateUnavailableIsTyped
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateUnavailableIsTyped
+    package: benchmark
+    language: go
+    doc: "TestCaptureAuthorityStateUnavailableIsTyped locks in that a capture which\ncannot complete reports a typed reason instead of an empty state. A silent\nempty here would let \"we never bound the authority\" be read downstream as\n\"the authority matched\"."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace
+    package: benchmark
+    language: go
+    doc: "TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace: ordering alone is\nnot enough. A re-freeze or a --check run reaches the capture while a PREVIOUS\nworkspace already exists inside the checkout and is reported as untracked."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
+    package: benchmark
+    language: go
+    doc: "TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace: a frozen workspace may\nlegitimately live inside the Sensei checkout. The dirty-tree observation runs\n`git status --porcelain`, so if the workspace is created before the authority\nis captured, the freeze's own untracked scratch files make a clean checkout\nlook dirty — and every later replay is then rejected as incomparable for a\nchange nobody made."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDetectsEachDrift
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDetectsEachDrift
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDetectsEachDrift is the reproducibility guarantee:\nevery identity that can make a replay incomparable must be detected by its\nown typed code. Without the authority binding on FreezeReceipt there is\nnothing to compare and every one of these cases silently reads as a match."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDirtyFreezeIsNotComparable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDirtyFreezeIsNotComparable
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDirtyFreezeIsNotComparable: a dirty tree at freeze\ntime means the recorded revision does not identify the code that ran, so\nmatching revisions prove nothing."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable keeps the three\nnon-match worlds apart. Collapsing them would hide whether we are asserting\nthe authority changed, that we cannot tell, or that it was never bound."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved guards the rule the\nseedmeta authority path already enforces: the expected value must never stand\nin as the observed one. A zero observed state must be unverifiable, never a\nmatch."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout is the\ncentral one: a checkout is not evidence about a binary.\n\nRecording a clean checkout proves nothing if the evaluator that actually ran\nwas built from a different commit — an advanced checkout that was never\nrebuilt is the ordinary way this happens. Two such captures would agree on\nevery tree identity and be reported comparable while the runs executed\ndifferent code."
   - id: golang/architecture/benchmark/benchmark_test.go:TestBenchmarkFreezeDoesNotMutateSourceRepository
     file: golang/architecture/benchmark/benchmark_test.go
     symbol: TestBenchmarkFreezeDoesNotMutateSourceRepository
