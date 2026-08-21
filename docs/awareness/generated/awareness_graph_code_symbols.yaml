@@ -13490,6 +13490,12 @@ test_symbols:
     package: inference
     language: go
     doc: "#230: a claim about a local identifier is not a claim about the architecture,\nand it does not stay quiet — it becomes an OpenQuestion nobody can answer,\nstanding in front of a bounded change."
+  - id: golang/architecture/inference/subject_test.go:TestDroppedCountIsAvailableToTheCaller
+    file: golang/architecture/inference/subject_test.go
+    symbol: TestDroppedCountIsAvailableToTheCaller
+    package: inference
+    language: go
+    doc: "The count has to reach a caller, or the observability claim is empty: both\nproduction paths construct the engine inline, so a stored count nobody reads\nwould leave a run that dropped thousands of subjects indistinguishable from\none that derived none."
   - id: golang/architecture/inference/subject_test.go:TestDroppingAClaimDoesNotDropItsFact
     file: golang/architecture/inference/subject_test.go
     symbol: TestDroppingAClaimDoesNotDropItsFact

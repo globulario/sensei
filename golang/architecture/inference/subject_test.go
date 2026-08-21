@@ -16,7 +16,6 @@ func TestArchitecturalSubject(t *testing.T) {
 		"doctor.configuredCommands",           // package-qualified, unexported: a real declaration
 		"internal/doctor/doctor.go",           // a file
 		"component.golang.architecture.rigor", // an id
-		"ProtectedPaths",                      // exported bare identifier
 		"cluster/state",                       // a resource path
 		"invariant:sensei.some_rule",          // a namespaced id
 	}
@@ -31,7 +30,18 @@ func TestArchitecturalSubject(t *testing.T) {
 	dropped := []string{"seen", "lit", "m", "id", "fn", "t", "v", "tip", "scope", "cred", "subParts", "graphProj", ""}
 	for _, s := range dropped {
 		if isArchitecturalSubject(s) {
-			t.Errorf("%q was accepted; a bare unexported name exists only inside one function body", s)
+			t.Errorf("%q was accepted; a bare name exists only inside one function body", s)
+		}
+	}
+
+	// The exported bare case, which was this filter's first draft and is wrong
+	// for a different reason: invariantWriteTarget records a selector write as
+	// its final segment only, so report.Authority.State and an unrelated
+	// status.State both arrive as "State". Accepting it keeps the cross-file
+	// conflation the filter exists to remove.
+	for _, s := range []string{"State", "Authority", "ProtectedPaths"} {
+		if isArchitecturalSubject(s) {
+			t.Errorf("%q was accepted; nothing in a bare exported name says which thing it names", s)
 		}
 	}
 }
@@ -81,5 +91,26 @@ func TestDroppingAClaimDoesNotDropItsFact(t *testing.T) {
 	}
 	if len(ctx.Facts) != 1 {
 		t.Fatalf("the premise fact was discarded with the claim: %d fact(s)", len(ctx.Facts))
+	}
+}
+
+// The count has to reach a caller, or the observability claim is empty: both
+// production paths construct the engine inline, so a stored count nobody reads
+// would leave a run that dropped thousands of subjects indistinguishable from
+// one that derived none.
+func TestDroppedCountIsAvailableToTheCaller(t *testing.T) {
+	engine := NewEngine([]Rule{ObservedWriterSetRule{}})
+	if engine.DroppedNonArchitecturalSubjects() != 0 {
+		t.Fatal("a fresh engine reports drops it has not made")
+	}
+	if _, err := engine.Apply(supportedContext([]architecture.Fact{
+		testFact("a", "write", "svc.A", "writes", "seen", 0.5),
+		testFact("b", "write", "svc.B", "writes", "State", 0.5),
+		testFact("c", "write", "svc.C", "writes", "cluster/state", 0.5),
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if got := engine.DroppedNonArchitecturalSubjects(); got != 2 {
+		t.Fatalf("dropped=%d, want 2 (the bare local and the bare exported field name)", got)
 	}
 }

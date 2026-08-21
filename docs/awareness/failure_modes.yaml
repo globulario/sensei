@@ -1786,3 +1786,16 @@ failure_modes:
     evidence:
       - 'globulario/sensei#131 world 1: self-evaluation could not be run under a budget; before the fix, ceilings of 20s and 60s both produced 2m2s runs with identical output.'
       - After the fix the same ceilings bind exactly (20s -> 20s, 45s -> 45s), and the document carries blocking limitations naming the abandoned stage instead of arriving late and complete.
+  - id: failure.sensei.derived_claims_about_unqualified_identifiers_become_unanswer
+    title: Derived claims about unqualified identifiers become unanswerable blocking questions
+    description: 'Claim derivation accepted any fact subject, including bare identifiers that name nothing outside one function body. An unsupported claim becomes an OpenQuestion, an unanswered OpenQuestion blocks closure, and closure gates admission — so implementation trivia became a question nobody could answer standing in front of a bounded change. The bare EXPORTED case is the same defect: invariantWriteTarget records a selector write as its final segment only, so report.Authority.State and an unrelated status.State both arrive as the subject State, conflating writers across files into one claim.'
+    protects:
+      files:
+        - golang/architecture/inference/subject.go
+    related_invariants:
+      - awareness.architecture_claims_non_authoritative_until_promoted
+    required_tests:
+      - golang/architecture/inference/subject_test.go:TestArchitecturalSubject
+    evidence:
+      - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on ''which evidence establishes: seen has_observed_writer_set <13 symbols>'' — seen being a local variable, with 13 unrelated files pulled into the scope.'
+      - 'Measured in this repository''s own derived corpus: of 14,477 distinct claim subjects, 4,458 are bare unqualified names (scope, cred, digA, subParts, graphProj).'

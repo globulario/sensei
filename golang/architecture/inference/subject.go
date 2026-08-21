@@ -20,33 +20,40 @@ package inference
 // document as one; what stops is promoting it into a proposition about the
 // architecture.
 
-import "unicode"
-
 // isArchitecturalSubject reports whether a claim subject names something the
-// architecture can be asked about: a qualified symbol (`doctor.configuredCommands`),
-// a path (`internal/doctor/doctor.go`), an id (`component.golang.rigor`), or an
-// exported bare identifier (`ProtectedPaths`).
+// architecture can be asked about: a qualified symbol
+// (`doctor.configuredCommands`), a path (`internal/doctor/doctor.go`), or an id
+// (`component.golang.rigor`).
 //
-// A BARE UNEXPORTED identifier is not. It is a name that exists only inside one
-// function body, so no test, runtime observation, or source reading anyone could
-// supply would establish or refute a claim about it.
+// A BARE identifier is not — exported or otherwise, and the exported case is
+// the one worth explaining, because accepting it was this filter's first draft.
 //
-// The test is deliberately structural rather than a length or vocabulary
-// heuristic: `seen` and `lit` are rejected for the same reason as any other
-// bare lowercase name, and a package-qualified unexported symbol is KEPT,
-// because a package-level declaration is a real architectural surface even when
-// it is not exported.
+// `invariantWriteTarget` records a selector write as its final segment only, so
+// `report.Authority.State` and an unrelated `status.State` both arrive as the
+// bare subject `State`. Accepting bare exported names would therefore keep
+// exactly the cross-file conflation this filter exists to remove: one claim,
+// one writer set, assembled from writes to different things that happen to
+// share a field name — and its unsupported claim can still expand and block an
+// unrelated task.
+//
+// So the test is qualification, not capitalisation. It is structural rather
+// than a length or vocabulary heuristic, and it cuts in both directions: a
+// package-qualified UNEXPORTED symbol is kept, because a package-level
+// declaration is a real surface even when it is not exported, while a bare
+// EXPORTED one is not, because nothing in it says which thing it names.
+//
+// The narrower repair — teaching the extractor to keep the full selector path —
+// would make those subjects qualified and admissible again. It changes fact
+// identity, and therefore claim identity across the whole corpus, so it is not
+// folded into this fix.
 func isArchitecturalSubject(subject string) bool {
-	if subject == "" {
-		return false
-	}
 	for _, r := range subject {
 		// Qualification of any kind — package, path, or id namespace — means the
-		// name refers to something outside a single function body.
+		// name refers to something outside a single function body, and says
+		// which thing it refers to.
 		if r == '.' || r == '/' || r == ':' || r == '#' || r == ' ' {
 			return true
 		}
 	}
-	first := []rune(subject)[0]
-	return unicode.IsUpper(first)
+	return false
 }

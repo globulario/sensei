@@ -1721,3 +1721,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_wall_clock_that_the_dominating_stage_cannot_observe_is_not
+  - id: golang/architecture/inference/subject_test.go:TestArchitecturalSubject
+    title: A claim subject must name something the architecture can be asked about
+    protects:
+      failure_modes:
+        - failure.sensei.derived_claims_about_unqualified_identifiers_become_unanswer
