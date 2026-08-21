@@ -79,6 +79,18 @@ type CompositionSiteResult struct {
 	// citing something that does not exist, and no reference set is needed to
 	// say so. Whether a grounded candidate is CORRECT is a separate question
 	// this does not answer.
+	//
+	// MEASURED AFTER VALIDATION, and that bounds what it can prove. Compose
+	// ends in Validate, which rejects a candidate carrying a dangling
+	// reference and fails the whole site — so a site that reaches here has
+	// already had exactly this defect filtered out of it, and 60/60 grounded
+	// means "of the candidates that survived validation", not "no dangling
+	// reference was ever produced". A dangling reference appears in this arm as
+	// a COMPOSITION FAILURE, not as an ungrounded candidate, which is why
+	// CompositionFailures is reported beside the rate rather than left implicit
+	// in a missing denominator. Reaching the pre-validation drafts would mean
+	// widening investigator's surface for the benchmark's convenience, which
+	// #131 forbids.
 	GroundedCandidates int `json:"grounded_candidates" yaml:"grounded_candidates"`
 
 	// DanglingCandidateRefs names the identities that did not resolve, bounded
@@ -109,15 +121,20 @@ type CompositionReport struct {
 // CandidateGrounding totals referential grounding across every site.
 //
 // grounded and candidates are counts of candidates; dangling counts the
-// distinct unresolved references behind them, which is the number that says how
-// bad an ungrounded candidate is rather than merely that one exists.
-func (r CompositionReport) CandidateGrounding() (grounded, candidates, dangling int) {
+// distinct unresolved references behind them. failures is how many sites did
+// not compose at all — reported with the rate because a site that failed
+// contributes nothing to either side of it, and a grounding rate quoted without
+// its population would read as coverage the arm never had.
+func (r CompositionReport) CandidateGrounding() (grounded, candidates, dangling, failures int) {
 	for _, res := range r.Results {
 		grounded += res.GroundedCandidates
 		candidates += res.Candidates
 		dangling += len(res.DanglingCandidateRefs)
+		if strings.TrimSpace(res.WhyUnavailable) != "" {
+			failures++
+		}
 	}
-	return grounded, candidates, dangling
+	return grounded, candidates, dangling, failures
 }
 
 func (r CompositionReport) CandidateRate() (produced, total int) {

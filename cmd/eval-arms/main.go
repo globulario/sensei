@@ -176,14 +176,19 @@ func main() {
 	} else {
 		elapsed[evalharness.ArmCompositionModelDisabled] = time.Since(armStart).Milliseconds()
 		produced, total := report.CandidateRate()
-		grounded, candidates, dangling := report.CandidateGrounding()
+		grounded, candidates, dangling, groundingFailures := report.CandidateGrounding()
 		art := writeReport(*out, evalharness.ArmCompositionModelDisabled, report)
 		art.Subject = subjectMutantSuite
 		art.CandidateRate = fmt.Sprintf("%d/%d", produced, total)
-		if candidates > 0 {
-			art.CandidateGrounding = fmt.Sprintf("%d/%d", grounded, candidates)
+		if candidates > 0 || groundingFailures > 0 {
+			art.CandidateGrounding = fmt.Sprintf("%d/%d post-validation", grounded, candidates)
 			if dangling > 0 {
-				art.CandidateGrounding += fmt.Sprintf(" (%d dangling refs)", dangling)
+				art.CandidateGrounding += fmt.Sprintf(", %d dangling refs", dangling)
+			}
+			if groundingFailures > 0 {
+				// Where a dangling reference actually surfaces: Compose rejects
+				// it and the site fails, so it never reaches the rate above.
+				art.CandidateGrounding += fmt.Sprintf(", %d site(s) did not compose", groundingFailures)
 			}
 		}
 		idx.Arms = append(idx.Arms, art)

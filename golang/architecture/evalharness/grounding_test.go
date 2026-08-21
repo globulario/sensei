@@ -84,3 +84,42 @@ func TestCandidateWithNoCitationsHasNoDanglingReferences(t *testing.T) {
 		t.Fatalf("grounded=%d dangling=%v", grounded, dangling)
 	}
 }
+
+// A site that did not compose contributes nothing to the grounding rate, so the
+// rate must be reported with the count of such sites. Otherwise a run where
+// every site failed reads as "0/0" — indistinguishable from a run with no
+// candidates and no problems.
+//
+// This matters specifically because Compose ends in Validate, which rejects a
+// candidate carrying a dangling reference and fails the whole site: the defect
+// this metric looks for shows up as a composition failure, never as an
+// ungrounded candidate.
+func TestGroundingRateIsReportedWithFailedSites(t *testing.T) {
+	report := CompositionReport{Results: []CompositionSiteResult{
+		{Candidates: 4, GroundedCandidates: 4},
+		{WhyUnavailable: "composition: candidate claim cites evidence that does not exist"},
+		{Candidates: 2, GroundedCandidates: 1, DanglingCandidateRefs: []string{"cand.x -> ev.missing"}},
+	}}
+	grounded, candidates, dangling, failures := report.CandidateGrounding()
+	if grounded != 5 || candidates != 6 || dangling != 1 {
+		t.Fatalf("grounded=%d candidates=%d dangling=%d, want 5, 6, 1", grounded, candidates, dangling)
+	}
+	if failures != 1 {
+		t.Fatalf("failed sites = %d, want 1: a site that did not compose must not vanish from the report", failures)
+	}
+}
+
+// The all-failed case is the one that must not read as success.
+func TestEverySiteFailingIsNotAPerfectRate(t *testing.T) {
+	report := CompositionReport{Results: []CompositionSiteResult{
+		{WhyUnavailable: "composition: rejected"},
+		{WhyUnavailable: "composition: rejected"},
+	}}
+	grounded, candidates, _, failures := report.CandidateGrounding()
+	if grounded != 0 || candidates != 0 {
+		t.Fatalf("grounded=%d candidates=%d", grounded, candidates)
+	}
+	if failures != 2 {
+		t.Fatalf("failed sites = %d, want 2", failures)
+	}
+}
