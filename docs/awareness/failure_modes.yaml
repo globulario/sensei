@@ -1944,3 +1944,29 @@ failure_modes:
     evidence:
       - 'Found by the repository''s Codex PR review on PR #254 (P2). The regression test freezes into a workspace inside a clean fixture checkout; with capture ordered after workspace creation the recorded authority reports a dirty tree.'
     contract: An observation that characterises the environment a run happened in must be taken before the run mutates that environment. Otherwise the record describes the tool's own side effects and attributes them to the subject.
+  - id: failure.a_failed_observation_was_recorded_as_a_negative_observation
+    title: A failed observation was recorded as a negative observation
+    description: CaptureAuthorityState ran git status --porcelain to record whether the governing checkout was clean and, when the command errored, left SenseiTreeDirty at its zero value while still reporting the capture bound. Two captures that had never established either tree's state could then compare equal and be reported as authority_match with Comparable=true.
+    protects:
+      files:
+        - golang/architecture/benchmark/authority_state.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1), in the file whose own doc comment states that absent authority must be a state a reader can see rather than a zero value it has to infer. The regression test makes git status fail via an invalid status.showUntrackedFiles setting while rev-parse and ls-files still work; without the fix the capture reports bound instead of unavailable.'
+    contract: Failing to observe a property and observing that property to be absent are different results and must be represented differently. A read that errors yields a typed unavailable state, never the falsy value the successful read would have produced.
+  - id: failure.a_safety_gate_was_opt_in_while_the_documented_workflow_omitt
+    title: A safety gate was opt-in while the documented workflow omitted the opt-in
+    description: benchmark-status verified replay authority only when --sensei-repo was supplied, and the workflow in the bundled sensei-benchmark skill invokes benchmark-status without it. The documented evaluation route therefore returned uncertifiable numbers with exit 0 and no comparability verdict, which is the same machine-consumer hole the gate had just been written to close.
+    protects:
+      files:
+        - cmd/awg/cmd_benchmark_external.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - cmd/awg/cmd_benchmark_external_test.go:TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1), citing the shipped skill''s own command line. Fixed by defaulting the flag to the current checkout so the gate is opt-out rather than opt-in; the regression fails with exit 0 instead of 3 when the default is empty.'
+    contract: A gate that exists to stop an unsafe consumption must be enforced by default. When the canonical documented workflow can invoke the command without enabling it, the protection is absent exactly where operators were told to look.

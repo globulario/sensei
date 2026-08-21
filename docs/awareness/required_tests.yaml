@@ -1796,3 +1796,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.an_environment_observation_taken_after_the_tool_changed_the
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    title: An unobservable tree state is a typed unavailable capture, never a clean tree
+    protects:
+      failure_modes:
+        - failure.a_failed_observation_was_recorded_as_a_negative_observation
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    title: The shipped benchmark workflow invokes the authority-verifying status path
+    protects:
+      failure_modes:
+        - failure.a_safety_gate_was_opt_in_while_the_documented_workflow_omitt
