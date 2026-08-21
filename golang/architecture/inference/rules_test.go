@@ -778,9 +778,13 @@ func testFact(id, kind, subject, predicate, object string, confidence float64) a
 			RepositoryDomainStatus: architecture.RepositoryDomainResolved,
 			Revision:               "abc123",
 			RevisionStatus:         architecture.RevisionResolved,
-			SourceDigest:           "digest",
-			SourceDigestStatus:     architecture.SourceDigestResolved,
-			SourceKind:             "source_file",
+			// A real 64-hex digest, because the status alone pins nothing.
+			// This fixture previously declared source_digest_status: resolved
+			// beside the placeholder "digest", and the assertion below passed
+			// on the strength of the status — the defect, encoded in the test.
+			SourceDigest:       strings.Repeat("a", 64),
+			SourceDigestStatus: architecture.SourceDigestResolved,
+			SourceKind:         "source_file",
 		},
 	}
 }

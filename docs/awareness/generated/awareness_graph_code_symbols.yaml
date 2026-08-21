@@ -13423,6 +13423,36 @@ test_symbols:
     symbol: TestManifestRoundTrips
     package: identity
     language: go
+  - id: golang/architecture/inference/binding_digest_test.go:TestCommittedPremiseRemainsSupportedWithoutASourceDigest
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestCommittedPremiseRemainsSupportedWithoutASourceDigest
+    package: inference
+    language: go
+    doc: "And a committed revision still binds without any source digest at all."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithAMalformedDigestIsNotSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithAMalformedDigestIsNotSupported
+    package: inference
+    language: go
+    doc: "A malformed digest is not a digest either: accepting any non-empty string\nwould trade one unverifiable claim for another."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithARealDigestRemainsSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithARealDigestRemainsSupported
+    package: inference
+    language: go
+    doc: "The baseline: a real digest on an uncommitted tree IS a binding, and must\nstill support the claim — otherwise this check would simply refuse everything\nand pass for the wrong reason."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithoutARealDigestIsNotSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithoutARealDigestIsNotSupported
+    package: inference
+    language: go
+    doc: "The status is not the evidence.\n\nA premise whose provenance claims a resolved source digest while carrying no\ndigest is pinned to nothing. architecture.ValidateFact accepts that shape, and\nmaintenance.VerifySourceReceipt — which reads the digest — calls the same fact\nunknown. This reader must not disagree with it and promote the claim to\nsupported on the strength of a status string."
+  - id: golang/architecture/inference/premise_binding_consistency_test.go:TestReadersAgreeOnWhetherAPremiseIsPinned
+    file: golang/architecture/inference/premise_binding_consistency_test.go
+    symbol: TestReadersAgreeOnWhetherAPremiseIsPinned
+    package: inference
+    language: go
+    doc: "TestReadersAgreeOnWhetherAPremiseIsPinned is the cross-projection form of the\nproperty behind this repair.\n\nThree readers decide something from the same provenance and each has its own\nvocabulary for it — maintenance produces a lane state, inference produces an\nepistemic status, and questiongen decides whether to suppress a question.\nTheir outputs are not comparable and are not meant to be. What must hold is\nthat none of them treats a premise as pinned when the authority — the digest\nthat pins the bytes — does not pin it.\n\nThe defect this replaces: architecture.ValidateFact accepts\nsource_digest_status: resolved carrying an empty or malformed digest, and\ninference read the status alone, so one reader called a fact bound while\nanother called the same fact unknown."
   - id: golang/architecture/inference/rules_test.go:TestBuildClaimDocumentIncludesOnlyUsedFactReceipts
     file: golang/architecture/inference/rules_test.go
     symbol: TestBuildClaimDocumentIncludesOnlyUsedFactReceipts

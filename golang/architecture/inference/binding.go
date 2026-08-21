@@ -30,11 +30,16 @@ func statusForPremises(ctx Context, facts []architecture.Fact) (string, []string
 		// committed revision or, for an admitted uncommitted result tree, by a
 		// resolved per-file source digest that pins the exact file content.
 		revisionBound := p.RevisionStatus == architecture.RevisionResolved
-		sourceBound := p.SourceKind == "source_file" && p.SourceDigestStatus == architecture.SourceDigestResolved
+		// The status is not the evidence: ValidateFact accepts
+		// source_digest_status: resolved carrying an empty or malformed digest,
+		// and a premise pinned to nothing must not bind an uncommitted tree.
+		// Asked of the type that owns the field, so this reader cannot disagree
+		// with maintenance.VerifySourceReceipt about the same fact.
+		sourceBound := p.SourceKind == "source_file" && p.SourceDigestPinsContent()
 		if !revisionBound && !sourceBound {
 			unknowns = append(unknowns, "A premise fact lacks a resolved repository revision.")
 		}
-		if p.SourceKind == "source_file" && p.SourceDigestStatus != architecture.SourceDigestResolved {
+		if p.SourceKind == "source_file" && !p.SourceDigestPinsContent() {
 			unknowns = append(unknowns, "A source-backed premise fact lacks a resolved source digest.")
 		}
 		if hasBlockingLimitation(ctx.Limitations, f) {

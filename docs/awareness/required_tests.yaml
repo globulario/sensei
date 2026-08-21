@@ -1761,3 +1761,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.an_observation_anchors_a_field_to_the_file_its_struct_was_de
+  - id: golang/architecture/inference/premise_binding_consistency_test.go:TestReadersAgreeOnWhetherAPremiseIsPinned
+    title: Readers agree on whether a premise is pinned
+    protects:
+      failure_modes:
+        - failure.sensei.a_reader_accepts_a_resolved_status_as_proof_of_the_evidence
