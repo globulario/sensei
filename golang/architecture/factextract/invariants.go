@@ -130,6 +130,27 @@ func buildInvariantExtractionReport(ctx context.Context, root string, opts invar
 	if astStop != nil {
 		limitations = append(limitations, *astStop)
 	}
+	// A repository the extractor cannot see at all must say so, BLOCKING.
+	//
+	// The observation surface is Go: both the semantic pass and the AST pass
+	// read .go files and nothing else. Run over a repository written in another
+	// language, extraction returned an empty report whose only note was a
+	// non-blocking "directory prefix . does not contain main module" — which
+	// reads as "I looked and there was nothing to say" rather than "I cannot
+	// see this language at all".
+	//
+	// Measured on sqlite/sqlite: 315 C files, 0 facts, 0 candidates, 0
+	// authority surfaces, and nothing blocking (globulario/sensei#131 world 3).
+	// An evaluation calibrating against a repository like that would have been
+	// measuring the surface while believing it measured the reasoning.
+	if surfaceFiles, serr := invariantGoFiles(identity.Root); serr == nil && len(surfaceFiles) == 0 {
+		limitations = append(limitations, architecture.Limitation{
+			Source:   "go_ast_extractor",
+			Scope:    "repository",
+			Reason:   "this repository contains no files in the extractor's observation surface (Go); an empty result here describes the surface, not the repository",
+			Blocking: true,
+		})
+	}
 	facts = append(facts, goFacts...)
 	authority = filterAuthorityByMinConfidence(authority, opts.MinimumConfidence)
 	semantic, semanticErr, semanticAbandoned := boundedSemanticExtract(ctx, root)

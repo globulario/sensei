@@ -12366,6 +12366,18 @@ test_symbols:
     symbol: TestUnreadableRequestedSourceIsNotSilentlyIgnored
     package: factextract
     language: go
+  - id: golang/architecture/factextract/observation_surface_test.go:TestARepositoryInsideTheSurfaceIsNotReportedBlind
+    file: golang/architecture/factextract/observation_surface_test.go
+    symbol: TestARepositoryInsideTheSurfaceIsNotReportedBlind
+    package: factextract
+    language: go
+    doc: "A repository the extractor CAN see must not carry that limitation, or every\nordinary run would claim to be blind."
+  - id: golang/architecture/factextract/observation_surface_test.go:TestARepositoryOutsideTheObservationSurfaceSaysSo
+    file: golang/architecture/factextract/observation_surface_test.go
+    symbol: TestARepositoryOutsideTheObservationSurfaceSaysSo
+    package: factextract
+    language: go
+    doc: "A repository the extractor cannot see must say so, blocking.\n\nThe observation surface is Go: both passes read .go files and nothing else.\nRun over a repository in another language, extraction returned an empty\nreport whose only note was a non-blocking \"directory prefix . does not\ncontain main module\" — which reads as \"I looked and there was nothing to say\"\nrather than \"I cannot see this language at all\". Measured on sqlite/sqlite:\n315 C files, 0 facts, nothing blocking (#131 world 3)."
   - id: golang/architecture/generatedartifact/generatedartifact_test.go:TestEmbeddedGraphReusesStageThree
     file: golang/architecture/generatedartifact/generatedartifact_test.go
     symbol: TestEmbeddedGraphReusesStageThree
