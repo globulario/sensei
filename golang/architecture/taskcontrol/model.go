@@ -16,6 +16,11 @@ const (
 	ClassDuplicate                  = "duplicate"
 	ClassActiveUnresolved           = "active_unresolved"
 	ClassUncertifiable              = "uncertifiable"
+	// ClassGovernedDisposed: an architect already disposed of this question
+	// through the governed disposition path, with an actor, a rationale and a
+	// receipt in the task ledger. It is terminal — no evidence is outstanding,
+	// because the decision was that none will be sought.
+	ClassGovernedDisposed = "governed_disposed"
 
 	ProbeEligible     = "eligible"
 	ProbeCompleted    = "completed"

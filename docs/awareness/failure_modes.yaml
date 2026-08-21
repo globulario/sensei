@@ -1836,3 +1836,13 @@ failure_modes:
       - golang/architecture/factextract/observation_surface_test.go:TestARepositoryOutsideTheObservationSurfaceSaysSo
     evidence:
       - 'globulario/sensei#131 world 3: sqlite/sqlite at depth 1 — 315 C files, 0 facts, 0 candidates, 0 authority surfaces, and no blocking limitation.'
+  - id: failure.sensei.a_governed_decision_is_recorded_on_the_ledger_but_the_projec
+    title: A governed decision is recorded on the ledger but the projection that acts on it never reads it
+    protects:
+      files:
+        - golang/architecture/taskcontrol/project.go
+    required_tests:
+      - golang/architecture/taskcontrol/disposition_test.go:TestDismissedQuestionStopsDemandingEvidence
+    evidence:
+      - 'sensei#230: an architect dismissal recorded through questiondisposition (terminal dismissed state, NextNone) left taskcontrol.classifyQuestion classifying the question active_unresolved forever, because classifyQuestion read only the dialogue document status and nothing carried the ledger decision into the projection'
+    contract: A decision recorded through a governed mutation path, with an actor, a rationale and a verified receipt, is authority over the state it decides; a projection that presents the next action must read it, or it presents a demand the governed decision already withdrew

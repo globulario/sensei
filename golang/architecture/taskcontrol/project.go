@@ -33,6 +33,29 @@ type Inputs struct {
 	GeneratedAt    string
 	Receipts       []string
 	DominanceEdges []DominanceEdge
+	// Dispositions is the governed disposition of each question, keyed by
+	// question ID, folded from the verified task ledger by the caller.
+	//
+	// The projection reads documents it is handed and never the filesystem, so
+	// the fold happens at the call site. An absent entry means undisposed, which
+	// is what every caller that does not supply this gets.
+	Dispositions map[string]QuestionDisposition
+}
+
+// QuestionDisposition is what the governed ledger recorded about one question.
+//
+// Only what the projection needs to decide the next action. The authority for
+// these values is the disposition receipt; this is a carrier, not a source.
+type QuestionDisposition struct {
+	// Disposition is the recorded outcome: answered, dismissed, deferred or
+	// task_local.
+	Disposition string
+	// Contested is true when the ledger holds more than one distinct receipt for
+	// the question. A contested disposition decides nothing.
+	Contested bool
+	// ReceiptDigestSHA256 identifies the receipt the outcome came from, so a
+	// suppressed demand can be traced to the decision that suppressed it.
+	ReceiptDigestSHA256 string
 }
 
 func Project(in Inputs) (TaskControlState, error) {
@@ -67,7 +90,7 @@ func Project(in Inputs) (TaskControlState, error) {
 	}
 	questionByID := map[string]ClassifiedQuestion{}
 	for _, q := range in.Dialogue.OpenQuestions {
-		cq := classifyQuestion(q, probeByQuestion[q.ID], resultByProbe)
+		cq := classifyQuestion(q, probeByQuestion[q.ID], resultByProbe, in.Dispositions[q.ID])
 		questionByID[q.ID] = cq
 		state.Questions = append(state.Questions, cq)
 	}
@@ -238,7 +261,7 @@ func classifyProbe(p probe.EvidenceProbe, result probe.ProbeResult, taskBinding,
 	return normalizeClassifiedProbe(cp)
 }
 
-func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe, results map[string]probe.ProbeResult) ClassifiedQuestion {
+func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe, results map[string]probe.ProbeResult, disposed QuestionDisposition) ClassifiedQuestion {
 	cq := ClassifiedQuestion{
 		ID: q.ID, BlockingEffect: "load_bearing", Priority: q.Priority,
 		QuestionText: q.QuestionText, BlockerIDs: clean(q.BlocksClosureBlockers),
@@ -253,6 +276,30 @@ func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe,
 		cq.ResolutionClass, cq.RequiredActor = ClassMechanicallyAnswerable, "system"
 		cq.AnswerabilityBasis = []string{"question lifecycle is already resolved"}
 		return cq
+	}
+	// A governed disposition is a decision that has already been taken about this
+	// question, by an actor, with a rationale, recorded in the task ledger. Read
+	// here so the projection stops demanding an answer nobody intends to give
+	// (#230): the dismissal path existed and was recorded, and nothing consulted
+	// it.
+	//
+	// Deliberately narrow. Only dismissed and deferred are honoured: those are
+	// decisions to stop asking. An `answered` or `task_local` receipt asserts an
+	// answer exists, and the dialogue document is the authority on whether it
+	// does — a ledger that disagrees with the document is a divergence to
+	// surface, not a reason to suppress. A contested disposition decides
+	// nothing, so the question stays open.
+	if !disposed.Contested {
+		switch disposed.Disposition {
+		case "dismissed":
+			cq.ResolutionClass, cq.RequiredActor, cq.BlockingEffect = ClassGovernedDisposed, "none", "non_blocking"
+			cq.AnswerabilityBasis = []string{"dismissed by governed disposition receipt " + disposed.ReceiptDigestSHA256}
+			return cq
+		case "deferred":
+			cq.ResolutionClass, cq.RequiredActor = ClassArchitectJudgementRequired, "architect"
+			cq.AnswerabilityBasis = []string{"deferred by governed disposition receipt " + disposed.ReceiptDigestSHA256}
+			return cq
+		}
 	}
 	for _, p := range probes {
 		if result := results[p.ID]; result.ProbeID != "" {

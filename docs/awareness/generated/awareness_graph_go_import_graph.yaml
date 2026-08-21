@@ -2198,6 +2198,7 @@ components:
       - component.golang.architecture.maintenance
       - component.golang.architecture.probe
       - component.golang.architecture.probeexec
+      - component.golang.architecture.questiondisposition
       - component.golang.architecture.resultpipeline
       - component.golang.architecture.resultrecording
       - component.golang.architecture.resulttransition

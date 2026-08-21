@@ -1751,3 +1751,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_repository_outside_the_observation_surface_reports_as_empt
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestDismissedQuestionStopsDemandingEvidence
+    title: A governed dismissal stops the projection demanding evidence
+    protects:
+      failure_modes:
+        - failure.sensei.a_governed_decision_is_recorded_on_the_ledger_but_the_projec

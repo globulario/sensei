@@ -19370,6 +19370,47 @@ test_symbols:
     symbol: TestRunReceiptSchemaRejectsInventedMergeAuthority
     package: synthesisdriver
     language: go
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion
+    package: taskcontrol
+    language: go
+    doc: "An `answered` receipt asserts an answer exists, and the dialogue document is\nthe authority on whether it does. A ledger that disagrees is a divergence to\nsurface, never a reason to stop asking."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestContestedDispositionDoesNotSuppressTheQuestion
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestContestedDispositionDoesNotSuppressTheQuestion
+    package: taskcontrol
+    language: go
+    doc: "Two conflicting receipts decide nothing."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestDeferredQuestionWaitsForTheArchitect
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestDeferredQuestionWaitsForTheArchitect
+    package: taskcontrol
+    language: go
+    doc: "Deferred is a decision to wait for the architect, not to stop asking."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestDismissedQuestionLeavesTheBlockerStanding
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestDismissedQuestionLeavesTheBlockerStanding
+    package: taskcontrol
+    language: go
+    doc: "The claim is still unsupported. Only the question was disposed of, so the\nwork continues rather than reporting itself finished."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestDismissedQuestionStopsDemandingEvidence
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestDismissedQuestionStopsDemandingEvidence
+    package: taskcontrol
+    language: go
+    doc: "An architect who dismissed the question through the governed path decided\nthat no evidence will be sought. Demanding it anyway leaves the task on an\naction nobody intends to take."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestResolvedQuestionIsUnaffectedByADisposition
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestResolvedQuestionIsUnaffectedByADisposition
+    package: taskcontrol
+    language: go
+    doc: "A question the dialogue already closed keeps its own lifecycle answer; the\nledger must not reclassify it."
+  - id: golang/architecture/taskcontrol/disposition_test.go:TestUndisposedQuestionStillDemandsEvidence
+    file: golang/architecture/taskcontrol/disposition_test.go
+    symbol: TestUndisposedQuestionStillDemandsEvidence
+    package: taskcontrol
+    language: go
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -19706,6 +19747,17 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision\nis the direct regression test for a live review finding: once\nadvance-task has published a generation, ResolveControlAndClosure must\nresolve the admission decision from that generation's own\nadmission-decision.yaml, never the fixed prepare-time\ntaskDir/admission/decision.yaml -- admission.projectProof derives\nobligations from the CURRENT closure's RelevantNodes, so the two\ndecisions can genuinely diverge (e.g. an initial decision declaring zero\nproof obligations, superseded by a current one that declares real\nones). This test forces that divergence directly (rather than trying to\nengineer a real claims/closure change that would newly surface an\nobligation) by mutating the on-disk generation decision after\nadvance-task publishes it, and asserts ResolveControlAndClosure returns\nTHAT mutated decision, not the untouched prepare-time one."
+  - id: golang/architecture/tasksession/disposition_fold_test.go:TestGovernedDispositionsFailClosedWithoutALedger
+    file: golang/architecture/tasksession/disposition_fold_test.go
+    symbol: TestGovernedDispositionsFailClosedWithoutALedger
+    package: tasksession
+    language: go
+    doc: "Silence must never suppress a demand: with no readable ledger, every question\nstays exactly as open as it was."
+  - id: golang/architecture/tasksession/disposition_fold_test.go:TestGovernedDispositionsSkipsTheLedgerWithoutQuestions
+    file: golang/architecture/tasksession/disposition_fold_test.go
+    symbol: TestGovernedDispositionsSkipsTheLedgerWithoutQuestions
+    package: tasksession
+    language: go
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant

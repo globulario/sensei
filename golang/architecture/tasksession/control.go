@@ -26,6 +26,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/probe"
 	"github.com/globulario/sensei/golang/architecture/probeexec"
+	"github.com/globulario/sensei/golang/architecture/questiondisposition"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"gopkg.in/yaml.v3"
 )
@@ -332,6 +333,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		Permission: taskcontrol.PermissionSummary{Inspect: decision.InspectionCapability, Modify: modifyCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), modifyScope...)},
 		Closure:    closureReport, Dialogue: latestDialogue, Claims: latestClaims, Probes: latestProbes,
 		Results: &batch.Results, BindingHealthy: true, GeneratedAt: observedAt, Receipts: iterationReceiptIDs(latestIter),
+		Dispositions: governedDispositions(taskDir, latestDialogue),
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -436,6 +438,60 @@ func LoadTaskControl(path string) (taskcontrol.TaskControlState, error) {
 	return taskcontrol.UnmarshalYAML(data)
 }
 
+// taskHasGovernedDisposition reports whether the task ledger holds any question
+// disposition receipt at all.
+//
+// Deliberately coarse. It over-invalidates — any disposition, however old,
+// costs a rebuild — because the two errors are not symmetric: an unnecessary
+// rebuild costs time, while a wrongly served cache shows an operator a demand
+// the authority already terminated. A ledger that cannot be verified rebuilds
+// for the same reason: it cannot prove the cache is current.
+//
+// An ABSENT ledger is not staleness. It reads as an empty chain rather than an
+// error, and a task with no ledger has no control/latest.yaml to serve either,
+// so it rebuilds regardless.
+func taskHasGovernedDisposition(taskDir string) bool {
+	list, err := questiondisposition.ListRecordedDispositions(taskDir)
+	if err != nil {
+		return true
+	}
+	return len(list) > 0
+}
+
+// governedDispositions folds the verified disposition ledger into the form the
+// task-control projection reads.
+//
+// The projection cannot decide the next action truthfully without it: a
+// question an architect already dismissed, with an actor and a rationale on the
+// ledger, was still classified active and selected as the next action forever,
+// because nothing between the ledger and the projection carried the decision
+// across (#230).
+//
+// Fail-closed: an unreadable ledger or an unprojectable question yields no
+// entry, and no entry means the question stays open. Silence must never
+// suppress a demand.
+func governedDispositions(taskDir string, dialogue architecture.DialogueDocument) map[string]taskcontrol.QuestionDisposition {
+	if len(dialogue.OpenQuestions) == 0 {
+		return nil
+	}
+	out := map[string]taskcontrol.QuestionDisposition{}
+	for _, q := range dialogue.OpenQuestions {
+		proj, err := questiondisposition.ProjectQuestion(taskDir, q.ID)
+		if err != nil || !proj.Disposed {
+			continue
+		}
+		out[q.ID] = taskcontrol.QuestionDisposition{
+			Disposition:         string(proj.Latest.Disposition),
+			Contested:           proj.Contested,
+			ReceiptDigestSHA256: proj.Latest.ReceiptDigestSHA256,
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
 func ControlStatus(repoRoot, taskDir string, active bool) (taskcontrol.TaskControlState, string, error) {
 	state, _, _, resolvedTaskDir, err := projectControlStatusAndClosure(repoRoot, taskDir, active, true, false)
 	return state, resolvedTaskDir, err
@@ -501,7 +557,12 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	verifyErrors := cleanStrings(append(loadErrors, verifySession(repoRoot, taskDir, session, ptr)...))
-	if len(verifyErrors) == 0 && latestState != nil {
+	// A cached control state was projected from the ledger as it stood when
+	// advance-task last ran. A disposition recorded since then is invisible to
+	// it, so serving the cache would keep demanding evidence for a question an
+	// architect has already dismissed — the same defect one layer out, where the
+	// projection is correct and a copy of an older one is returned instead.
+	if len(verifyErrors) == 0 && latestState != nil && !taskHasGovernedDisposition(taskDir) {
 		return *latestState, closure.Report{}, admission.Decision{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
@@ -570,6 +631,7 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		Permission: taskcontrol.PermissionSummary{Inspect: inspectCapability, Modify: mutationCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), decision.Envelope.ModifyPaths...)},
 		Closure:    closureReport, Dialogue: dialogue, Claims: claims, Probes: probes, Results: results,
 		BindingHealthy: len(verifyErrors) == 0, BindingErrors: verifyErrors, GeneratedAt: "1970-01-01T00:00:00Z", Receipts: receipts,
+		Dispositions: governedDispositions(taskDir, dialogue),
 	})
 	return state, closureReport, decision, taskDir, err
 }
