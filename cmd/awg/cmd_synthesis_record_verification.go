@@ -152,8 +152,8 @@ Flags:
 
 	// Keyed by the VERIFICATION, so a later verification of the same
 	// application is an additional record rather than a replacement of the
-	// earlier one. Re-recording identical evidence is a no-op; different bytes
-	// under one identity is a conflict, never an overwrite.
+	// earlier one. Re-recording identical evidence is a no-op; a different
+	// record DIGEST under one identity is a conflict, never an overwrite.
 	name := lineage.CandidateArtifactDigestSHA256 + "." + record.AdmissionVerificationDigestSHA256[:12] + ".o5b-verification-record.json"
 	data, err := json.MarshalIndent(record, "", "  ")
 	if err != nil {
@@ -162,7 +162,16 @@ Flags:
 	}
 	recordPath := filepath.Join(storeDir, name)
 	if existing, rerr := os.ReadFile(recordPath); rerr == nil {
-		if string(existing) != string(data) {
+		// Compare the record's SEMANTIC identity, never its raw bytes.
+		// VerificationRecordDigest deliberately excludes ObservedAt, because
+		// recording the same verification against the same application at a
+		// different moment is the same fact. ObservedAt is still IN the
+		// serialized record, so two idempotent recordings that straddle a
+		// clock tick differ byte-for-byte while naming an identical fact.
+		// Comparing bytes here re-admitted the clock the digest had just
+		// excluded and reported that identical evidence as a conflict.
+		var prior candidateapply.VerificationRecord
+		if err := json.Unmarshal(existing, &prior); err != nil || prior.RecordDigestSHA256 != record.RecordDigestSHA256 {
 			fmt.Fprintf(os.Stderr, "sensei synthesis-record-verification: %s already records a different result for this verification\n", recordPath)
 			fmt.Fprintln(os.Stderr, "  an existing record is never overwritten: two different statements cannot both be what was observed")
 			return exitRecordConflict
