@@ -1879,3 +1879,16 @@ failure_modes:
       - 'Audit of the scope-receipt owner: howextract/compose.go filtered on Evidence.SourceFile only, guarded by SourceFile != "". The generated-artifact fact carries no anchor because a directory is not a source file, and names docs/awareness/generated solely in Scope.Files — so it survived an extraction excluding docs/, while the receipt reported the scope as enforced'
       - Reproduced on main at 57ec787e with an in-scope baseline that still produced observations, so the failure was attributable to the filter rather than to the fixture
     contract: A bounded extraction's receipt asserts that the declared scope was enforced. A fact records its location in both the evidence anchor and the scope, so a filter reading only one of them lets a fact whose location lives in the other survive a run that excluded it
+  - id: failure.a_frozen_benchmark_run_that_binds_only_target_code_is_replay
+    title: A frozen benchmark run that binds only target code is replayed under different authority and reported as comparable
+    description: FreezeReceipt bound the target repository (revisions, tree digests, history) and the freeze policy, but nothing about the authority that governed the run. Replaying a frozen workspace later re-ran whatever seed, authored corpus and Sensei revision happened to be installed then, against the same frozen code, and the numbers were reported as if the only variable was the system under test.
+    protects:
+      files:
+        - golang/architecture/benchmark/benchmark.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDetectsEachDrift
+    evidence:
+      - 'R2 (#164) A0 came back INCOMPLETE: the R1 pilot environment (frozen R1 f8a4e7639071, B 9/9 vs E 5/9 across 9 pairs) could not be reproduced because the freeze captured code, not authority state. Capturing the real repo now shows the drift the receipt could not see: seed built at b2bd6b85 while HEAD is d1cb6bab, and a dirty tree that makes the recorded revision not identify the code that ran.'
+    contract: A benchmark freeze receipt must bind the Sensei authority that governed the run — revision, seed digest, authored-corpus digest, build-transaction stamp — and a replay may be reported as comparable only when an independently observed authority equals the bound one. Absence of a binding is a typed verdict, never a match.

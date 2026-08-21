@@ -7636,6 +7636,47 @@ test_symbols:
     symbol: TestResolveRejectsWrongMechanism
     package: authority
     language: go
+  - id: golang/architecture/benchmark/authority_state_test.go:TestAuthoredCorpusDigestIgnoresCandidates
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestAuthoredCorpusDigestIgnoresCandidates
+    package: benchmark
+    language: go
+    doc: "TestAuthoredCorpusDigestIgnoresCandidates proves candidate churn does not\nregister as an authority change, because candidates are not active authority."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateBindsGoverningIdentity
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateBindsGoverningIdentity
+    package: benchmark
+    language: go
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateUnavailableIsTyped
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateUnavailableIsTyped
+    package: benchmark
+    language: go
+    doc: "TestCaptureAuthorityStateUnavailableIsTyped locks in that a capture which\ncannot complete reports a typed reason instead of an empty state. A silent\nempty here would let \"we never bound the authority\" be read downstream as\n\"the authority matched\"."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDetectsEachDrift
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDetectsEachDrift
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDetectsEachDrift is the reproducibility guarantee:\nevery identity that can make a replay incomparable must be detected by its\nown typed code. Without the authority binding on FreezeReceipt there is\nnothing to compare and every one of these cases silently reads as a match."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDirtyFreezeIsNotComparable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDirtyFreezeIsNotComparable
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDirtyFreezeIsNotComparable: a dirty tree at freeze\ntime means the recorded revision does not identify the code that ran, so\nmatching revisions prove nothing."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateDistinguishesNotBoundFromUnverifiable keeps the three\nnon-match worlds apart. Collapsing them would hide whether we are asserting\nthe authority changed, that we cannot tell, or that it was never bound."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved guards the rule the\nseedmeta authority path already enforces: the expected value must never stand\nin as the observed one. A zero observed state must be unverifiable, never a\nmatch."
   - id: golang/architecture/benchmark/benchmark_test.go:TestBenchmarkFreezeDoesNotMutateSourceRepository
     file: golang/architecture/benchmark/benchmark_test.go
     symbol: TestBenchmarkFreezeDoesNotMutateSourceRepository
