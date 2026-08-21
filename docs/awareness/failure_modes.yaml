@@ -1824,3 +1824,15 @@ failure_modes:
     evidence:
       - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on provide_external_evidence for a claim whose premises were already source-backed observations.'
       - taskcontrol.selectNextAction falls through to advance_convergence when no question is available, so declining to raise one does not leave the task without an action — verified in golang/architecture/taskcontrol/project.go.
+  - id: failure.sensei.a_repository_outside_the_observation_surface_reports_as_empt
+    title: A repository outside the observation surface reports as empty rather than unreadable
+    description: Fact extraction reads .go files in both its semantic and AST passes. Run over a repository written in another language it returned an empty report whose only note was a non-blocking Go module-load message, so 'I cannot see this language' was indistinguishable from 'I looked and there is nothing to say'. An evaluation calibrating against such a repository would measure the surface while believing it measured the reasoning.
+    protects:
+      files:
+        - golang/architecture/factextract/invariants.go
+    related_invariants:
+      - awareness.store_unavailable_explicit
+    required_tests:
+      - golang/architecture/factextract/observation_surface_test.go:TestARepositoryOutsideTheObservationSurfaceSaysSo
+    evidence:
+      - 'globulario/sensei#131 world 3: sqlite/sqlite at depth 1 — 315 C files, 0 facts, 0 candidates, 0 authority surfaces, and no blocking limitation.'

@@ -1746,3 +1746,8 @@ required_tests:
     protects:
       invariants:
         - awareness.closure_is_revision_scope_and_task_bound
+  - id: golang/architecture/factextract/observation_surface_test.go:TestARepositoryOutsideTheObservationSurfaceSaysSo
+    title: An unreadable repository is reported as unreadable, blocking
+    protects:
+      failure_modes:
+        - failure.sensei.a_repository_outside_the_observation_surface_reports_as_empt
