@@ -4,10 +4,14 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // #231: an unreachable endpoint composed exactly like a graph that answered and
@@ -88,5 +92,36 @@ func TestDerivedTaskDirectoryIsAbsolute(t *testing.T) {
 	absolutised := filepath.Join(repo, derived)
 	if !filepath.IsAbs(absolutised) {
 		t.Fatalf("derived task dir stayed relative: %q", absolutised)
+	}
+}
+
+// A running graph server whose store is unavailable returns codes.Unavailable
+// itself, and so does a transport that never reached one. Routing on the code
+// alone would send an operator to start a server that is already running —
+// the same wrong-repair defect this predicate exists to prevent, one layer in.
+func TestBackendUnreachableSeparatesTransportFromService(t *testing.T) {
+	transport := []error{
+		status.Error(codes.Unavailable, `connection error: desc = "transport: Error while dialing: dial tcp 127.0.0.1:10120: connect: connection refused"`),
+		status.Error(codes.Unavailable, "name resolver error: no such host"),
+		errors.New("dial tcp 127.0.0.1:1: connect: connection refused"),
+	}
+	for _, err := range transport {
+		if !backendUnreachable(err) {
+			t.Errorf("transport failure was not recognised: %v", err)
+		}
+	}
+
+	service := []error{
+		// golang/server/metadata.go returns exactly this from a RUNNING server.
+		status.Error(codes.Unavailable, "store is unavailable"),
+		status.Error(codes.FailedPrecondition, "graph freshness stale for metadata"),
+		status.Error(codes.PermissionDenied, "auth token required"),
+		errors.New("some other failure"),
+		nil,
+	}
+	for _, err := range service {
+		if backendUnreachable(err) {
+			t.Errorf("a reachable backend declining was reported as unreachable: %v", err)
+		}
 	}
 }

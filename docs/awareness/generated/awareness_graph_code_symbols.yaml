@@ -5945,6 +5945,12 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/synthesis_run_addr_test.go:TestBackendUnreachableSeparatesTransportFromService
+    file: cmd/awg/synthesis_run_addr_test.go
+    symbol: TestBackendUnreachableSeparatesTransportFromService
+    package: main
+    language: go
+    doc: "A running graph server whose store is unavailable returns codes.Unavailable\nitself, and so does a transport that never reached one. Routing on the code\nalone would send an operator to start a server that is already running —\nthe same wrong-repair defect this predicate exists to prevent, one layer in."
   - id: cmd/awg/synthesis_run_addr_test.go:TestDerivedTaskDirectoryIsAbsolute
     file: cmd/awg/synthesis_run_addr_test.go
     symbol: TestDerivedTaskDirectoryIsAbsolute
