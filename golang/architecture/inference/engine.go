@@ -11,7 +11,8 @@ import (
 )
 
 type Engine struct {
-	rules []Rule
+	rules                   []Rule
+	droppedNonArchitectural int
 }
 
 func NewEngine(rules []Rule) *Engine {
@@ -29,6 +30,7 @@ func (e *Engine) Apply(ctx Context) ([]Application, error) {
 		byID[f.ID] = f
 	}
 	var apps []Application
+	dropped := 0
 	for _, rule := range e.rules {
 		ruleID := rule.Descriptor().ID
 		out, err := rule.Apply(ctx)
@@ -39,6 +41,15 @@ func (e *Engine) Apply(ctx Context) ([]Application, error) {
 			if err := validateApplication(ruleID, app, byID); err != nil {
 				return nil, err
 			}
+			// A claim about a local identifier is not a claim about the
+			// architecture, and it is not inert: it becomes an OpenQuestion
+			// nobody can answer, standing in front of a bounded change (#230).
+			// Dropped here rather than in each rule, so a rule added later
+			// cannot reintroduce the class by not knowing about it.
+			if !isArchitecturalSubject(app.Claim.Statement.Subject) {
+				dropped++
+				continue
+			}
 			app.PremiseFactIDs = dedupeStrings(app.PremiseFactIDs)
 			app.Claim.PremiseFacts = dedupeStrings(app.Claim.PremiseFacts)
 			if app.Claim.ID == "" {
@@ -47,8 +58,21 @@ func (e *Engine) Apply(ctx Context) ([]Application, error) {
 			apps = append(apps, app)
 		}
 	}
-	return normalizeApplications(apps)
+	out, err := normalizeApplications(apps)
+	if err != nil {
+		return nil, err
+	}
+	e.droppedNonArchitectural = dropped
+	return out, nil
 }
+
+// DroppedNonArchitecturalSubjects is how many derived claims the last Apply
+// declined to raise because their subject was a bare unexported identifier.
+//
+// Reported rather than silent: a run that quietly derived nothing about a local
+// and a run that never looked are different, and the count is the only thing
+// that distinguishes them.
+func (e *Engine) DroppedNonArchitecturalSubjects() int { return e.droppedNonArchitectural }
 
 func validateApplication(ruleID string, app Application, byID map[string]architecture.Fact) error {
 	if app.RuleID != ruleID {

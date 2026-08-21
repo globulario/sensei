@@ -244,8 +244,8 @@ func TestRuleSignalingTestDoesNotInferProductionGuard(t *testing.T) {
 
 func TestObservedWriterSetRuleGroupsWritersByState(t *testing.T) {
 	apps, err := NewEngine([]Rule{ObservedWriterSetRule{}}).Apply(supportedContext([]architecture.Fact{
-		testFact("a", "write", "svc.A", "writes", "state", 0.5),
-		testFact("b", "write", "svc.B", "writes", "other", 0.5),
+		testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5),
+		testFact("b", "write", "svc.B", "writes", "cluster/other", 0.5),
 	}))
 	if err != nil {
 		t.Fatal(err)
@@ -257,9 +257,9 @@ func TestObservedWriterSetRuleGroupsWritersByState(t *testing.T) {
 
 func TestObservedWriterSetRuleSortsAndDeduplicatesWriters(t *testing.T) {
 	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{
-		testFact("b", "write", "svc.B", "writes", "state", 0.5),
-		testFact("a", "write", "svc.A", "writes", "state", 0.5),
-		testFact("a2", "authority_observation", "svc.A", "mutates_state", "state", 0.5),
+		testFact("b", "write", "svc.B", "writes", "cluster/state", 0.5),
+		testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5),
+		testFact("a2", "authority_observation", "svc.A", "mutates_state", "cluster/state", 0.5),
 	}))
 	if app.Claim.Statement.Object != "svc.A, svc.B" {
 		t.Fatalf("writers=%q", app.Claim.Statement.Object)
@@ -267,15 +267,15 @@ func TestObservedWriterSetRuleSortsAndDeduplicatesWriters(t *testing.T) {
 }
 
 func TestObservedWriterSetRuleAcceptsWriteFacts(t *testing.T) {
-	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "state", 0.5)}))
-	if app.Claim.Statement.Subject != "state" {
+	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5)}))
+	if app.Claim.Statement.Subject != "cluster/state" {
 		t.Fatalf("subject=%s", app.Claim.Statement.Subject)
 	}
 }
 
 func TestObservedWriterSetRuleAcceptsAuthorityMutationFacts(t *testing.T) {
-	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "authority_observation", "svc.A", "mutates_state", "state", 0.5)}))
-	if app.Claim.Statement.Subject != "state" {
+	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "authority_observation", "svc.A", "mutates_state", "cluster/state", 0.5)}))
+	if app.Claim.Statement.Subject != "cluster/state" {
 		t.Fatalf("subject=%s", app.Claim.Statement.Subject)
 	}
 }
@@ -291,7 +291,7 @@ func TestObservedWriterSetRuleRejectsPersistsViaAsStateOwnership(t *testing.T) {
 }
 
 func TestSingleObservedWriterDoesNotInferSoleAuthority(t *testing.T) {
-	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "state", 0.5)}))
+	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5)}))
 	forbidden := app.Claim.Statement.Predicate + " " + app.Claim.Statement.Object
 	if strings.Contains(forbidden, "sole_authority") || strings.Contains(forbidden, "only_writer") || strings.Contains(forbidden, "is_authoritative_for") {
 		t.Fatalf("sole authority inferred: %#v", app.Claim)
@@ -300,8 +300,8 @@ func TestSingleObservedWriterDoesNotInferSoleAuthority(t *testing.T) {
 
 func TestMultipleObservedWritersDoNotAutoConflict(t *testing.T) {
 	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{
-		testFact("a", "write", "svc.A", "writes", "state", 0.5),
-		testFact("b", "write", "svc.B", "writes", "state", 0.5),
+		testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5),
+		testFact("b", "write", "svc.B", "writes", "cluster/state", 0.5),
 	}))
 	if app.Claim.EpistemicStatus == architecture.StatusContested || len(app.Claim.ConflictsWith) > 0 {
 		t.Fatalf("auto conflict inferred: %#v", app.Claim)
@@ -310,8 +310,8 @@ func TestMultipleObservedWritersDoNotAutoConflict(t *testing.T) {
 
 func TestMultipleObservedWritersCarryAlternativeExplanations(t *testing.T) {
 	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{
-		testFact("a", "write", "svc.A", "writes", "state", 0.5),
-		testFact("b", "write", "svc.B", "writes", "state", 0.5),
+		testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5),
+		testFact("b", "write", "svc.B", "writes", "cluster/state", 0.5),
 	}))
 	if !containsText(app.Claim.AlternativeExplanations, "delegated mutation") {
 		t.Fatalf("alternatives=%v", app.Claim.AlternativeExplanations)
@@ -320,8 +320,8 @@ func TestMultipleObservedWritersCarryAlternativeExplanations(t *testing.T) {
 
 func TestObservedWriterSetConfidenceUsesWeakestPremise(t *testing.T) {
 	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{
-		testFact("a", "write", "svc.A", "writes", "state", 0.5),
-		testFact("b", "write", "svc.B", "writes", "state", 0.2),
+		testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5),
+		testFact("b", "write", "svc.B", "writes", "cluster/state", 0.2),
 	}))
 	if app.Claim.Confidence != 0.2 {
 		t.Fatalf("confidence=%v", app.Claim.Confidence)
@@ -329,7 +329,7 @@ func TestObservedWriterSetConfidenceUsesWeakestPremise(t *testing.T) {
 }
 
 func TestMissingGraphDigestProducesUnknownClaim(t *testing.T) {
-	ctx := supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "state", 0.5)})
+	ctx := supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5)})
 	ctx.Binding.GraphDigestSHA256 = ""
 	ctx.Binding.GraphDigestStatus = architecture.GraphDigestNotRequested
 	app := singleApp(t, ObservedWriterSetRule{}, ctx)
@@ -339,7 +339,7 @@ func TestMissingGraphDigestProducesUnknownClaim(t *testing.T) {
 }
 
 func TestResolvedBindingCanProduceSupportedClaim(t *testing.T) {
-	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "state", 0.5)}))
+	app := singleApp(t, ObservedWriterSetRule{}, supportedContext([]architecture.Fact{testFact("a", "write", "svc.A", "writes", "cluster/state", 0.5)}))
 	if app.Claim.EpistemicStatus != architecture.StatusSupported {
 		t.Fatalf("status=%s", app.Claim.EpistemicStatus)
 	}
@@ -365,7 +365,7 @@ func TestGraphDigestDoesNotChangeClaimID(t *testing.T) {
 
 func TestBuildClaimDocumentIncludesOnlyUsedFactReceipts(t *testing.T) {
 	used := testFact("used", "guard", "svc.A", "refuses_when", "bad", 0.5)
-	unused := testFact("unused", "write", "svc.B", "writes", "state", 0.5)
+	unused := testFact("unused", "write", "svc.B", "writes", "cluster/state", 0.5)
 	ctx := supportedContext([]architecture.Fact{used, unused})
 	app := singleApp(t, ObservedGuardRule{}, ctx)
 	doc, err := BuildClaimDocument(ctx, []Application{app})

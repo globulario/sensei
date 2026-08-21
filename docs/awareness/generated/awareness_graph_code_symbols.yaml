@@ -13484,6 +13484,24 @@ test_symbols:
     symbol: TestUnknownRuleSelectionFails
     package: inference
     language: go
+  - id: golang/architecture/inference/subject_test.go:TestArchitecturalSubject
+    file: golang/architecture/inference/subject_test.go
+    symbol: TestArchitecturalSubject
+    package: inference
+    language: go
+    doc: "#230: a claim about a local identifier is not a claim about the architecture,\nand it does not stay quiet — it becomes an OpenQuestion nobody can answer,\nstanding in front of a bounded change."
+  - id: golang/architecture/inference/subject_test.go:TestDroppingAClaimDoesNotDropItsFact
+    file: golang/architecture/inference/subject_test.go
+    symbol: TestDroppingAClaimDoesNotDropItsFact
+    package: inference
+    language: go
+    doc: "The FACTS are untouched. A local write is a real observation and stays one;\nwhat stops is promoting it into a proposition about the architecture."
+  - id: golang/architecture/inference/subject_test.go:TestEngineDropsClaimsAboutLocalIdentifiers
+    file: golang/architecture/inference/subject_test.go
+    symbol: TestEngineDropsClaimsAboutLocalIdentifiers
+    package: inference
+    language: go
+    doc: "The engine drops them wherever they come from, so a rule added later cannot\nreintroduce the class by not knowing about it."
   - id: golang/architecture/interpretationclosure/challenge_test.go:TestChallengePlanDigestIsOrderIndependentAfterNormalization
     file: golang/architecture/interpretationclosure/challenge_test.go
     symbol: TestChallengePlanDigestIsOrderIndependentAfterNormalization
