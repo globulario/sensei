@@ -329,6 +329,7 @@ components:
       - component.golang.architecture.evalharness
       - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
+      - component.golang.architecture.investigation
       - component.golang.client
     uml:
       kind: Component

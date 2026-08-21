@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
 func initRepo(t *testing.T) string {
@@ -221,5 +222,69 @@ func TestWorldBindingRefusesAnIgnoredSemanticInput(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "git-ignored") {
 		t.Fatalf("refusal does not name the reason: %v", err)
+	}
+}
+
+// The four unknown-ish statuses are different worlds, and each carries its own
+// obligation: an absence must say why, and a claim to have searched and found
+// nothing must show the tree it searched. A metric that cannot detect a
+// violation would report integrity it never checked.
+func TestAbsenceIntegrityDetectsAnUnexplainedAbsence(t *testing.T) {
+	got := checkAbsenceIntegrity([]investigation.CoverageEntry{
+		{ProviderID: "p.silent", Status: investigation.CoverageUnavailable},
+		{ProviderID: "p.explained", Status: investigation.CoverageUnavailable, Reason: "the provider is not installed"},
+	})
+	if got.AbsenceClaims != 2 {
+		t.Fatalf("absence claims = %d, want 2", got.AbsenceClaims)
+	}
+	if got.Unexplained != 1 {
+		t.Fatalf("unexplained = %d, want 1", got.Unexplained)
+	}
+	if len(got.Examples) != 1 || !strings.Contains(got.Examples[0], "p.silent") {
+		t.Fatalf("the unexplained absence is not named: %v", got.Examples)
+	}
+}
+
+// searched_no_result asserts that a search happened. Without a snapshot digest
+// there is nothing showing it did, and "we looked and found nothing" is a much
+// stronger claim than "we did not look".
+func TestSearchedNoResultWithoutASnapshotIsNotProof(t *testing.T) {
+	got := checkAbsenceIntegrity([]investigation.CoverageEntry{
+		{ProviderID: "p.unproven", Status: investigation.CoverageNoResult},
+		{ProviderID: "p.proven", Status: investigation.CoverageNoResult, SourceSnapshotDigestSHA256: strings.Repeat("a", 64)},
+	})
+	if got.SearchedWithoutProof != 1 {
+		t.Fatalf("searched-without-proof = %d, want 1", got.SearchedWithoutProof)
+	}
+	if len(got.Examples) != 1 || !strings.Contains(got.Examples[0], "p.unproven") {
+		t.Fatalf("the unproven search is not named: %v", got.Examples)
+	}
+}
+
+// A positive result is not an absence claim and must not be audited as one.
+func TestPositiveCoverageIsNotCountedAsAnAbsence(t *testing.T) {
+	got := checkAbsenceIntegrity([]investigation.CoverageEntry{
+		{ProviderID: "p.found", Status: investigation.CoverageSupporting},
+		{ProviderID: "p.refuted", Status: investigation.CoverageRefuting},
+		{ProviderID: "p.mixed", Status: investigation.CoverageMixed},
+	})
+	if got.AbsenceClaims != 0 || got.Unexplained != 0 || len(got.Examples) != 0 {
+		t.Fatalf("a positive result was audited as an absence: %+v", got)
+	}
+}
+
+// skipped_with_reason and not_configured carry the same obligation as
+// unavailable: the status names a kind of absence, not an excuse from stating
+// one.
+func TestEveryAbsenceStatusMustCarryAReason(t *testing.T) {
+	for _, status := range []investigation.CoverageStatus{
+		investigation.CoverageUnavailable,
+		investigation.CoverageNotConfigured,
+		investigation.CoverageSkipped,
+	} {
+		got := checkAbsenceIntegrity([]investigation.CoverageEntry{{ProviderID: "p", Status: status}})
+		if got.Unexplained != 1 {
+			t.Fatalf("status %s without a reason went unreported: %+v", status, got)
+		}
 	}
 }

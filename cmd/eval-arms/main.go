@@ -45,6 +45,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
+	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/client"
 )
 
@@ -57,6 +58,10 @@ type armArtifact struct {
 	ReportDigest  string `json:"report_digest_sha256,omitempty"`
 	SiteCoverage  string `json:"site_coverage,omitempty"`
 	CandidateRate string `json:"candidate_rate,omitempty"`
+	// CandidateGrounding is how many produced candidates cite only identities
+	// that exist in the documents they were composed from — #131's candidate
+	// grounding, in the half that needs no adjudicator.
+	CandidateGrounding string `json:"candidate_grounding,omitempty"`
 }
 
 const (
@@ -171,9 +176,21 @@ func main() {
 	} else {
 		elapsed[evalharness.ArmCompositionModelDisabled] = time.Since(armStart).Milliseconds()
 		produced, total := report.CandidateRate()
+		grounded, candidates, dangling, groundingFailures := report.CandidateGrounding()
 		art := writeReport(*out, evalharness.ArmCompositionModelDisabled, report)
 		art.Subject = subjectMutantSuite
 		art.CandidateRate = fmt.Sprintf("%d/%d", produced, total)
+		if candidates > 0 || groundingFailures > 0 {
+			art.CandidateGrounding = fmt.Sprintf("%d/%d post-validation", grounded, candidates)
+			if dangling > 0 {
+				art.CandidateGrounding += fmt.Sprintf(", %d dangling refs", dangling)
+			}
+			if groundingFailures > 0 {
+				// Where a dangling reference actually surfaces: Compose rejects
+				// it and the site fails, so it never reaches the rate above.
+				art.CandidateGrounding += fmt.Sprintf(", %d site(s) did not compose", groundingFailures)
+			}
+		}
 		idx.Arms = append(idx.Arms, art)
 	}
 
@@ -240,6 +257,9 @@ func main() {
 		}
 		if a.CandidateRate != "" {
 			line += "  candidates=" + a.CandidateRate
+		}
+		if a.CandidateGrounding != "" {
+			line += "  grounded=" + a.CandidateGrounding
 		}
 		if a.ReportDigest != "" {
 			line += "  digest=" + a.ReportDigest[:12]
@@ -401,6 +421,12 @@ type worldReport struct {
 	ByProvider     map[string]int `json:"observations_by_provider"`
 	ByPredicate    map[string]int `json:"observations_by_predicate"`
 	CoverageStatus map[string]int `json:"coverage_status_counts"`
+	// AbsenceIntegrity answers #131's "unknown/unavailable truthfulness" in the
+	// half that needs no adjudicator: every coverage entry claiming an absence
+	// must SAY WHY, and a claim to have searched and found nothing must show it
+	// searched. It does not judge whether the stated reason is honest — only
+	// whether one exists and whether the entry carries what its status implies.
+	AbsenceIntegrity absenceIntegrity `json:"absence_integrity"`
 	// EvidenceResolution answers #131's "evidence coverage by provider and
 	// target": for each provider, how many of its observations carry an anchor
 	// that still resolves in the bound tree.
@@ -423,6 +449,57 @@ type worldReport struct {
 	Limitations        []string `json:"limitations"`
 	BlockingCount      int      `json:"blocking_limitations"`
 	SurfaceExcluded    bool     `json:"outside_observation_surface"`
+}
+
+// absenceIntegrity is whether the report's claims of absence are backed.
+//
+// The four unknown-ish statuses do not mean the same thing — unavailable,
+// not_configured, skipped_with_reason and searched_no_result are different
+// worlds — and each carries an obligation. Recorded separately from the
+// coverage tally, because "how many said nothing" and "how many said nothing
+// WITHOUT saying why" are different facts, and only the second is a defect.
+type absenceIntegrity struct {
+	// AbsenceClaims is how many entries reported an absence of any kind.
+	AbsenceClaims int `json:"absence_claims"`
+	// Unexplained is how many of those carry no reason at all.
+	Unexplained int `json:"unexplained"`
+	// SearchedWithoutProof is how many claimed searched_no_result while
+	// carrying no source snapshot digest — asserting a search happened without
+	// showing the tree it searched.
+	SearchedWithoutProof int `json:"searched_no_result_without_snapshot"`
+	// Examples names the offending providers, bounded and sorted.
+	Examples []string `json:"examples,omitempty"`
+}
+
+// checkAbsenceIntegrity verifies each claimed absence against its own status.
+func checkAbsenceIntegrity(coverage []investigation.CoverageEntry) absenceIntegrity {
+	var out absenceIntegrity
+	offenders := map[string]bool{}
+	for _, c := range coverage {
+		switch c.Status {
+		case investigation.CoverageUnavailable, investigation.CoverageNotConfigured, investigation.CoverageSkipped:
+			out.AbsenceClaims++
+			if strings.TrimSpace(c.Reason) == "" {
+				out.Unexplained++
+				offenders[fmt.Sprintf("%s: status %s with no reason", c.ProviderID, c.Status)] = true
+			}
+		case investigation.CoverageNoResult:
+			out.AbsenceClaims++
+			if strings.TrimSpace(c.SourceSnapshotDigestSHA256) == "" {
+				out.SearchedWithoutProof++
+				offenders[fmt.Sprintf("%s: searched_no_result with no source snapshot digest", c.ProviderID)] = true
+			}
+		}
+	}
+	for o := range offenders {
+		out.Examples = append(out.Examples, o)
+	}
+	sort.Strings(out.Examples)
+	if len(out.Examples) > unresolvedExampleLimit {
+		out.Examples = append(out.Examples[:unresolvedExampleLimit:unresolvedExampleLimit],
+			fmt.Sprintf("… %d further distinct unbacked absence claims not listed", len(offenders)-unresolvedExampleLimit))
+	}
+	return out
 }
 
 // resolutionCounts is how an anchor set resolved against the tree that was read.
@@ -645,6 +722,7 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, error) {
 	for _, c := range doc.Coverage {
 		report.CoverageStatus[string(c.Status)]++
 	}
+	report.AbsenceIntegrity = checkAbsenceIntegrity(doc.Coverage)
 	for _, l := range doc.Limitations {
 		// A limitation reason quotes whatever path the extractor read, so it
 		// carries this machine's checkout location. Rewritten to a repository-
