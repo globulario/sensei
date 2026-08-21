@@ -10735,6 +10735,35 @@ test_symbols:
     symbol: TestUnknownConvergencePolicyRejected
     package: convergence
     language: go
+  - id: golang/architecture/convergence/disposition_test.go:TestDeferredQuestionWaitsOnTheArchitect
+    file: golang/architecture/convergence/disposition_test.go
+    symbol: TestDeferredQuestionWaitsOnTheArchitect
+    package: convergence
+    language: go
+    doc: "Deferral moves the wait to the architect; it does not remove it."
+  - id: golang/architecture/convergence/disposition_test.go:TestDismissalLeavesTheSessionStalledNotWaiting
+    file: golang/architecture/convergence/disposition_test.go
+    symbol: TestDismissalLeavesTheSessionStalledNotWaiting
+    package: convergence
+    language: go
+    doc: "CHARACTERIZATION, not an endorsement. With the evidence wait gone and the\nblocker still open, the session classifies as stalled rather than waiting.\n\nPinned deliberately: `stalled` is truthful about the machine — there is no\nknown next action — but it sits in a vocabulary of pathologies beside\n`oscillating` and `budget_exhausted`, and a deliberate architect retirement\nis not the engine failing to progress. Whether the REASON should carry the\ngoverned decision is an open question (see the PR); the capability outcome is\nrefusal either way, so nothing is admitted that was not admitted before."
+  - id: golang/architecture/convergence/disposition_test.go:TestDismissedQuestionIsNotAnEvidenceWait
+    file: golang/architecture/convergence/disposition_test.go
+    symbol: TestDismissedQuestionIsNotAnEvidenceWait
+    package: convergence
+    language: go
+    doc: "A dismissal never reaches the dialogue document's status field, so a wait\nclass computed from q.Status alone advertises an evidence wait the architect\nalready terminated."
+  - id: golang/architecture/convergence/disposition_test.go:TestDismissedQuestionIsNotOfferedAsANextAction
+    file: golang/architecture/convergence/disposition_test.go
+    symbol: TestDismissedQuestionIsNotOfferedAsANextAction
+    package: convergence
+    language: go
+  - id: golang/architecture/convergence/disposition_test.go:TestOnlyADecidedDismissalSuppressesTheEvidenceWait
+    file: golang/architecture/convergence/disposition_test.go
+    symbol: TestOnlyADecidedDismissalSuppressesTheEvidenceWait
+    package: convergence
+    language: go
+    doc: "Everything that decides nothing must leave the demand exactly where it was."
   - id: golang/architecture/dashboardprojection/fixtures_test.go:TestFixturesDirectoryHasNoUnexpectedContent
     file: golang/architecture/dashboardprojection/fixtures_test.go
     symbol: TestFixturesDirectoryHasNoUnexpectedContent
@@ -19646,6 +19675,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "A present-but-unusable active pointer is reported, not silently dropped: \"no\nactive task\" and \"the pointer is broken\" are different facts."
+  - id: golang/architecture/tasksession/authority_consumption_test.go:TestNoProjectionAdvertisesADemandTheAuthorityTerminated
+    file: golang/architecture/tasksession/authority_consumption_test.go
+    symbol: TestNoProjectionAdvertisesADemandTheAuthorityTerminated
+    package: tasksession
+    language: go
+    doc: "TestNoProjectionAdvertisesADemandTheAuthorityTerminated is the executable\nform of the law behind #230.\n\nThree projections consume the same governed decision and each has its own\nvocabulary for it — a task-control action, a convergence wait class, a\nconvergence next action. All three read the dialogue document's local status,\nand all three failed the same way: they advertised an evidence demand that an\narchitect had already terminated on the ledger.\n\nThe property is one-directional, not output equality. The projections have\ndifferent jobs and should not agree on their outputs. They must agree that\nNO decision-bearing projection may advertise an evidence demand the\nauthoritative question disposition has ended.\n\nThe decision here is a real recorded dismissal — seeded transition, governed\npolicy, enrolled identity, Prepare + RecordDisposition — not a struct built\nto match the assertion."
   - id: golang/architecture/tasksession/briefing_feedback_test.go:TestPromotedKnowledgeDerivedFromProjection
     file: golang/architecture/tasksession/briefing_feedback_test.go
     symbol: TestPromotedKnowledgeDerivedFromProjection
@@ -19758,7 +19793,6 @@ test_symbols:
     symbol: TestControlCacheIsNotServedAfterAGovernedDisposition
     package: tasksession
     language: go
-    doc: "A cached control state was projected from the ledger as it stood when\nadvance-task last ran. A dismissal recorded since then is invisible to it, so\nserving the cache shows an operator a demand the authority already\nterminated — the #230 defect one layer out, where the projection is correct\nand an older copy of it is returned instead."
   - id: golang/architecture/tasksession/control_cache_disposition_test.go:TestCorruptLedgerInvalidatesTheControlCache
     file: golang/architecture/tasksession/control_cache_disposition_test.go
     symbol: TestCorruptLedgerInvalidatesTheControlCache
