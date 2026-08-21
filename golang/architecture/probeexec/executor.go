@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/probe"
 )
@@ -26,6 +27,10 @@ const (
 	ReasonInputStale      = "task.probe.input_stale"
 	ReasonCommandRejected = "task.probe.command_forbidden"
 	ReasonSecretRejected  = "task.probe.secret_forbidden"
+	// ReasonQuestionDismissed: the probe exists only to answer a question an
+	// architect dismissed through the governed disposition path. Running it
+	// would perform evidence work the decision explicitly terminated.
+	ReasonQuestionDismissed = "task.probe.question_dismissed"
 )
 
 type Budget struct {
@@ -66,6 +71,14 @@ type Context struct {
 	EvidenceState       maintenance.EvidenceStateDocument
 	ObservedAt          string
 	Budget              Budget
+	// GovernedDecisions is the governed disposition of each question, keyed by
+	// question id, folded from the verified task ledger by the caller.
+	//
+	// A probe whose question was dismissed is not executed: the architect
+	// decided no evidence would be sought, and executing anyway spends the
+	// budget on work the decision terminated (#230). Absent entries decide
+	// nothing, so a caller that supplies none executes everything as before.
+	GovernedDecisions map[string]dispositionsemantics.Decision
 }
 
 type BatchResult struct {
@@ -152,6 +165,12 @@ func ExecuteBatch(ctx Context) (BatchResult, error) {
 	registry := map[string]Executor{probe.KindSourceReceiptVerification: sourceReceiptExecutor{}}
 	var decisions []Decision
 	for _, planned := range ctx.Probes.Probes {
+		if planned.QuestionID != "" && ctx.GovernedDecisions[planned.QuestionID].DismissesEvidenceDemand() {
+			// Recorded rather than silently dropped: a probe that was not run
+			// and a probe that found nothing are different worlds.
+			decisions = append(decisions, Decision{ProbeID: planned.ID, ReasonCode: ReasonQuestionDismissed})
+			continue
+		}
 		if prior, ok := existing[planned.ID]; ok {
 			metrics.ReplayPrevented++
 			decisions = append(decisions, Decision{ProbeID: planned.ID, Eligible: true, Replayed: true, ReasonCode: "task.probe.replay", ResultID: prior.ID})

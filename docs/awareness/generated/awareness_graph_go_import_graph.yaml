@@ -1034,6 +1034,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.closure
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.graphsnapshot
       - component.golang.architecture.maintenance
       - component.golang.architecture.plane
@@ -1088,6 +1089,17 @@ components:
       - golang/architecture/diffaudit/evaluator.go
       - golang/architecture/diffaudit/model.go
       - golang/architecture/diffaudit/parser.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.dispositionsemantics
+    name: dispositionsemantics
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/dispositionsemantics/decision.go
     uml:
       kind: Component
       stereotype: module
@@ -1614,6 +1626,7 @@ components:
       - golang/architecture/probeexec/executor.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.maintenance
       - component.golang.architecture.probe
     uml:
@@ -1737,6 +1750,7 @@ components:
       - component.golang.architecture.admission
       - component.golang.architecture.authority
       - component.golang.architecture.closureprotocol
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.identity
       - component.golang.architecture.ledger
       - component.golang.architecture.resultpipeline
@@ -2161,6 +2175,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.closure
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.probe
     external_imports:
       - gopkg.in/yaml.v3
@@ -2191,6 +2206,7 @@ components:
       - component.golang.architecture.closure
       - component.golang.architecture.closureprotocol
       - component.golang.architecture.convergence
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.graphbuild
       - component.golang.architecture.graphsnapshot
       - component.golang.architecture.identity

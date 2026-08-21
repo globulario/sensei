@@ -14,6 +14,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/probe"
 	"gopkg.in/yaml.v3"
 )
@@ -33,29 +34,13 @@ type Inputs struct {
 	GeneratedAt    string
 	Receipts       []string
 	DominanceEdges []DominanceEdge
-	// Dispositions is the governed disposition of each question, keyed by
+	// Dispositions is the governed decision about each question, keyed by
 	// question ID, folded from the verified task ledger by the caller.
 	//
 	// The projection reads documents it is handed and never the filesystem, so
-	// the fold happens at the call site. An absent entry means undisposed, which
-	// is what every caller that does not supply this gets.
-	Dispositions map[string]QuestionDisposition
-}
-
-// QuestionDisposition is what the governed ledger recorded about one question.
-//
-// Only what the projection needs to decide the next action. The authority for
-// these values is the disposition receipt; this is a carrier, not a source.
-type QuestionDisposition struct {
-	// Disposition is the recorded outcome: answered, dismissed, deferred or
-	// task_local.
-	Disposition string
-	// Contested is true when the ledger holds more than one distinct receipt for
-	// the question. A contested disposition decides nothing.
-	Contested bool
-	// ReceiptDigestSHA256 identifies the receipt the outcome came from, so a
-	// suppressed demand can be traced to the decision that suppressed it.
-	ReceiptDigestSHA256 string
+	// the fold happens at the call site. An absent entry is the zero Decision,
+	// which decides nothing — what every caller that does not supply this gets.
+	Dispositions map[string]dispositionsemantics.Decision
 }
 
 func Project(in Inputs) (TaskControlState, error) {
@@ -261,7 +246,7 @@ func classifyProbe(p probe.EvidenceProbe, result probe.ProbeResult, taskBinding,
 	return normalizeClassifiedProbe(cp)
 }
 
-func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe, results map[string]probe.ProbeResult, disposed QuestionDisposition) ClassifiedQuestion {
+func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe, results map[string]probe.ProbeResult, decided dispositionsemantics.Decision) ClassifiedQuestion {
 	cq := ClassifiedQuestion{
 		ID: q.ID, BlockingEffect: "load_bearing", Priority: q.Priority,
 		QuestionText: q.QuestionText, BlockerIDs: clean(q.BlocksClosureBlockers),
@@ -283,23 +268,19 @@ func classifyQuestion(q architecture.OpenQuestion, probes []probe.EvidenceProbe,
 	// (#230): the dismissal path existed and was recorded, and nothing consulted
 	// it.
 	//
-	// Deliberately narrow. Only dismissed and deferred are honoured: those are
-	// decisions to stop asking. An `answered` or `task_local` receipt asserts an
-	// answer exists, and the dialogue document is the authority on whether it
-	// does — a ledger that disagrees with the document is a divergence to
-	// surface, not a reason to suppress. A contested disposition decides
-	// nothing, so the question stays open.
-	if !disposed.Contested {
-		switch disposed.Disposition {
-		case "dismissed":
-			cq.ResolutionClass, cq.RequiredActor, cq.BlockingEffect = ClassGovernedDisposed, "none", "non_blocking"
-			cq.AnswerabilityBasis = []string{"dismissed by governed disposition receipt " + disposed.ReceiptDigestSHA256}
-			return cq
-		case "deferred":
-			cq.ResolutionClass, cq.RequiredActor = ClassArchitectJudgementRequired, "architect"
-			cq.AnswerabilityBasis = []string{"deferred by governed disposition receipt " + disposed.ReceiptDigestSHA256}
-			return cq
-		}
+	// What the decision MEANS is dispositionsemantics'' to answer; what it does
+	// to a task-control class is this package''s. A contested or unrecognised
+	// decision decides nothing, and an `answered` receipt leaves the dialogue
+	// document authoritative, so neither predicate fires for them.
+	switch {
+	case decided.DismissesEvidenceDemand():
+		cq.ResolutionClass, cq.RequiredActor, cq.BlockingEffect = ClassGovernedDisposed, "none", "non_blocking"
+		cq.AnswerabilityBasis = []string{"dismissed by governed disposition receipt " + decided.DecisionReceipt()}
+		return cq
+	case decided.RequiresArchitectJudgement():
+		cq.ResolutionClass, cq.RequiredActor = ClassArchitectJudgementRequired, "architect"
+		cq.AnswerabilityBasis = []string{"deferred by governed disposition receipt " + decided.DecisionReceipt()}
+		return cq
 	}
 	for _, p := range probes {
 		if result := results[p.ID]; result.ProbeID != "" {

@@ -17,6 +17,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
@@ -113,6 +114,11 @@ type Options struct {
 	QuestionCreatedAt string
 	PolicyID          string
 	Session           *Session
+	// Dispositions is the governed decision about each question, keyed by
+	// question ID. A caller that holds a task directory folds it from the
+	// verified ledger; one that does not supplies nothing and every question
+	// stays exactly as open as its dialogue status says.
+	Dispositions map[string]dispositionsemantics.Decision
 }
 
 type Result struct {
@@ -173,6 +179,15 @@ type InputManifest struct {
 	RepositoryRevisionVerified     bool                              `json:"repository_revision_verified" yaml:"repository_revision_verified"`
 	GraphSnapshotDigestVerified    bool                              `json:"graph_snapshot_digest_verified" yaml:"graph_snapshot_digest_verified"`
 	OptionalProbeDocumentWasAbsent bool                              `json:"optional_probe_document_was_absent" yaml:"optional_probe_document_was_absent"`
+	// GovernedDispositionsDigestSHA256 binds the governed decisions this
+	// iteration was computed against.
+	//
+	// Without it a dismissal is invisible to replay: it changes no claim, no
+	// dialogue status, no probe and no graph, so the semantic input digest stays
+	// identical and Advance returns the previous iteration before the decision
+	// ever reaches a projection. The decisions are an input; they belong in the
+	// input identity.
+	GovernedDispositionsDigestSHA256 string `json:"governed_dispositions_digest_sha256,omitempty" yaml:"governed_dispositions_digest_sha256,omitempty"`
 }
 
 type StageReceipt struct {
@@ -261,6 +276,9 @@ type loadedInputs struct {
 	GraphReceipt   graphsnapshot.Receipt
 	GraphPath      string
 	RepositoryRoot string
+	// Dispositions is the governed decision about each question, folded from the
+	// verified task ledger by the caller. Absent entries decide nothing.
+	Dispositions map[string]dispositionsemantics.Decision
 }
 
 type stageOutputs struct {
@@ -419,21 +437,22 @@ func loadInputs(opts Options, policy Policy) (loadedInputs, error) {
 		return loadedInputs{}, err
 	}
 	manifest := InputManifest{
-		Binding:                        req.Binding,
-		ClosureRequestDigestSHA256:     Digest(requestBytes),
-		ClaimsDigestSHA256:             Digest(claimBytes),
-		DialogueDigestSHA256:           Digest(dialogueBytes),
-		EvidenceStateDigestSHA256:      Digest(evidenceBytes),
-		GraphSnapshotDigestSHA256:      graphReceipt.DigestSHA256,
-		ExistingProbesDigestSHA256:     probeDigest,
-		QuestionCreatedAt:              strings.TrimSpace(opts.QuestionCreatedAt),
-		RepositoryRevisionSHA:          repoRevision,
-		RepositoryRevisionVerified:     true,
-		GraphSnapshotDigestVerified:    true,
-		OptionalProbeDocumentWasAbsent: probeAbsent,
+		Binding:                          req.Binding,
+		ClosureRequestDigestSHA256:       Digest(requestBytes),
+		ClaimsDigestSHA256:               Digest(claimBytes),
+		DialogueDigestSHA256:             Digest(dialogueBytes),
+		EvidenceStateDigestSHA256:        Digest(evidenceBytes),
+		GraphSnapshotDigestSHA256:        graphReceipt.DigestSHA256,
+		ExistingProbesDigestSHA256:       probeDigest,
+		QuestionCreatedAt:                strings.TrimSpace(opts.QuestionCreatedAt),
+		RepositoryRevisionSHA:            repoRevision,
+		RepositoryRevisionVerified:       true,
+		GraphSnapshotDigestVerified:      true,
+		OptionalProbeDocumentWasAbsent:   probeAbsent,
+		GovernedDispositionsDigestSHA256: GovernedDispositionsDigest(opts.Dispositions),
 	}
 	manifest.SemanticInputDigestSHA256 = semanticInputDigest(manifest)
-	return loadedInputs{Request: req, Claims: claims, Dialogue: dialogue, Evidence: evidence, ExistingProbe: existing, Manifest: manifest, Policy: policy, RepoRevision: repoRevision, GraphReceipt: graphReceipt, GraphPath: opts.Paths.GraphNT, RepositoryRoot: opts.Paths.RepositoryRoot}, nil
+	return loadedInputs{Request: req, Claims: claims, Dialogue: dialogue, Evidence: evidence, ExistingProbe: existing, Manifest: manifest, Policy: policy, RepoRevision: repoRevision, GraphReceipt: graphReceipt, GraphPath: opts.Paths.GraphNT, RepositoryRoot: opts.Paths.RepositoryRoot, Dispositions: opts.Dispositions}, nil
 }
 
 func prepareSession(existing *Session, inputs loadedInputs, policy Policy) (Session, error) {
@@ -629,8 +648,8 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 		stageReceipt("plan_probes.report", "probe-generation.yaml", out.Bytes["probe-generation.yaml"], inputs.Manifest),
 	)
 	out.SemanticStateDigest = SemanticStateDigest(maint.Document, planeReport, after, dialogue, out.ProbeDocument, inputs.Evidence)
-	out.WaitClasses = WaitClasses(after, dialogue, out.ProbeDocument)
-	out.NextActions = NextActions(after, dialogue, out.ProbeDocument)
+	out.WaitClasses = WaitClasses(after, dialogue, out.ProbeDocument, inputs.Dispositions)
+	out.NextActions = NextActions(after, dialogue, out.ProbeDocument, inputs.Dispositions)
 	out.Limitations = collectLimitations(maint.Report.Limitations, planeReport.Limitations, before.Limitations, questionReport.Limitations, after.Limitations, out.ProbeReport.Limitations)
 	out.CriticalBlockerCount = countCritical(after.Blockers)
 	return out, nil
@@ -778,11 +797,32 @@ func SemanticStateDigest(claims architecture.ClaimDocument, planes plane.Report,
 	return Digest(canonicalJSON(snap))
 }
 
-func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument) []string {
+// WaitClasses reports what the session is waiting on.
+//
+// decisions carries the governed disposition of each question, folded from the
+// verified task ledger by the caller. A dismissal never reaches the dialogue
+// document's status field — dialogue_ops writes a status on answer and on
+// replacement, never on dismissal — so a projection that reads only q.Status
+// keeps advertising an evidence wait the architect already terminated (#230).
+// An absent entry is the zero Decision and changes nothing.
+func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument, decisions map[string]dispositionsemantics.Decision) []string {
 	seen := map[string]bool{}
 	for _, q := range dialogue.OpenQuestions {
+		decided := decisions[q.ID]
+		if decided.DismissesEvidenceDemand() {
+			// The architect decided no evidence will be sought. The blocker
+			// this question was about is untouched and still counts; what stops
+			// is advertising a wait nobody intends to satisfy.
+			continue
+		}
 		if q.ArchitectRequired && (q.Status == architecture.QuestionStatusOpen || q.Status == architecture.QuestionStatusAwaitingArchitect || q.Status == architecture.QuestionStatusAnswered) {
 			seen[WaitArchitect] = true
+		}
+		if decided.RequiresArchitectJudgement() {
+			// Deferral is a decision to wait for the architect, not to stop
+			// asking, so the wait moves rather than disappearing.
+			seen[WaitArchitect] = true
+			continue
 		}
 		if q.Status == architecture.QuestionStatusAwaitingEvidence {
 			seen[WaitEvidence] = true
@@ -797,6 +837,9 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 		}
 	}
 	for _, p := range probes.Probes {
+		if probeAnswersADismissedQuestion(p, decisions) {
+			continue
+		}
 		if p.Status == probe.StatusProposed || p.Status == probe.StatusUnavailable {
 			seen[WaitEvidence] = true
 		}
@@ -809,9 +852,36 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 	return sortedKeys(seen)
 }
 
-func NextActions(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument) []NextAction {
+// probeAnswersADismissedQuestion reports whether a probe exists only to satisfy
+// a question the architect has dismissed.
+//
+// Skipping the question is not enough on its own: its probe survives in the
+// probe document — probe.Generate preserves or regenerates it from the
+// unchanged dialogue status — and an unfiltered probe loop puts the evidence
+// demand straight back, through a different door. A probe with no question
+// stands on its own and is never filtered here.
+func probeAnswersADismissedQuestion(p probe.EvidenceProbe, decisions map[string]dispositionsemantics.Decision) bool {
+	if p.QuestionID == "" {
+		return false
+	}
+	return decisions[p.QuestionID].DismissesEvidenceDemand()
+}
+
+// NextActions lists what could be done next.
+//
+// decisions carries the governed disposition of each question; see WaitClasses
+// for why reading q.Status alone is not enough.
+func NextActions(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument, decisions map[string]dispositionsemantics.Decision) []NextAction {
 	var out []NextAction
 	for _, q := range dialogue.OpenQuestions {
+		decided := decisions[q.ID]
+		if decided.DismissesEvidenceDemand() {
+			continue
+		}
+		if decided.RequiresArchitectJudgement() {
+			out = append(out, NextAction{"answer_question", q.Priority, q.ID, "answer " + q.ID})
+			continue
+		}
 		switch q.Status {
 		case architecture.QuestionStatusAwaitingArchitect, architecture.QuestionStatusOpen:
 			out = append(out, NextAction{"answer_question", q.Priority, q.ID, "answer " + q.ID})
@@ -822,6 +892,9 @@ func NextActions(report closure.Report, dialogue architecture.DialogueDocument, 
 		}
 	}
 	for _, p := range probes.Probes {
+		if probeAnswersADismissedQuestion(p, decisions) {
+			continue
+		}
 		if p.Status == probe.StatusProposed {
 			out = append(out, NextAction{"execute_probe_externally", "medium", p.ID, "execute approved " + p.ID + " outside Sensei"})
 		}
@@ -1022,6 +1095,35 @@ func Digest(data []byte) string {
 }
 
 func emptyDigest() string { return Digest([]byte("canonical-empty")) }
+
+// GovernedDispositionsDigest is the deterministic identity of a set of governed
+// decisions, empty when there are none.
+//
+// Sorted by question id so map iteration order cannot make two identical
+// decision sets look different, which would defeat replay in the other
+// direction.
+func GovernedDispositionsDigest(decisions map[string]dispositionsemantics.Decision) string {
+	if len(decisions) == 0 {
+		return ""
+	}
+	ids := make([]string, 0, len(decisions))
+	for id := range decisions {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	type entry struct {
+		QuestionID string
+		State      string
+		Contested  bool
+		Receipt    string
+	}
+	entries := make([]entry, 0, len(ids))
+	for _, id := range ids {
+		d := decisions[id]
+		entries = append(entries, entry{id, string(d.State), d.Contested, d.ReceiptDigestSHA256})
+	}
+	return Digest(canonicalJSON(entries))
+}
 
 func semanticInputDigest(m InputManifest) string {
 	m.QuestionCreatedAt = ""

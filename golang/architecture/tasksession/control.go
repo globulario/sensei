@@ -22,6 +22,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/convergence"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/probe"
@@ -182,11 +183,17 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	if observedAt == "" {
 		observedAt = started.Format(time.RFC3339)
 	}
+	// Folded BEFORE the batch runs, not after: a probe belonging to a dismissed
+	// question must not be executed at all. Folding it only in time for the
+	// convergence call below would still spend the budget on evidence work the
+	// governed decision terminated.
+	decisions := governedDispositions(taskDir, dialogue)
 	probeStarted := now()
 	batch, err := probeexec.ExecuteBatch(probeexec.Context{
 		RepositoryRoot: repoRoot, Binding: baseSession.Binding, Probes: probes,
 		ProbeDocumentDigest: probeDigest, Claims: claims, ExistingResults: existingResults,
 		EvidenceState: evidence, ObservedAt: observedAt, Budget: opts.Budget,
+		GovernedDecisions: decisions,
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -237,6 +244,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 			ExistingProbes: paths.Probes,
 		},
 		QuestionCreatedAt: questionCreatedAt(dialogue), PolicyID: convergence.PolicyStrictV1, Session: existingSession,
+		Dispositions: decisions,
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -451,11 +459,16 @@ func LoadTaskControl(path string) (taskcontrol.TaskControlState, error) {
 // error, and a task with no ledger has no control/latest.yaml to serve either,
 // so it rebuilds regardless.
 func taskHasGovernedDisposition(taskDir string) bool {
-	list, err := questiondisposition.ListRecordedDispositions(taskDir)
+	decisions, err := questiondisposition.RecordedDecisions(taskDir)
 	if err != nil {
 		return true
 	}
-	return len(list) > 0
+	for _, d := range decisions {
+		if d.Recorded() {
+			return true
+		}
+	}
+	return false
 }
 
 // governedDispositions folds the verified disposition ledger into the form the
@@ -470,21 +483,17 @@ func taskHasGovernedDisposition(taskDir string) bool {
 // Fail-closed: an unreadable ledger or an unprojectable question yields no
 // entry, and no entry means the question stays open. Silence must never
 // suppress a demand.
-func governedDispositions(taskDir string, dialogue architecture.DialogueDocument) map[string]taskcontrol.QuestionDisposition {
+func governedDispositions(taskDir string, dialogue architecture.DialogueDocument) map[string]dispositionsemantics.Decision {
 	if len(dialogue.OpenQuestions) == 0 {
 		return nil
 	}
-	out := map[string]taskcontrol.QuestionDisposition{}
+	out := map[string]dispositionsemantics.Decision{}
 	for _, q := range dialogue.OpenQuestions {
 		proj, err := questiondisposition.ProjectQuestion(taskDir, q.ID)
 		if err != nil || !proj.Disposed {
 			continue
 		}
-		out[q.ID] = taskcontrol.QuestionDisposition{
-			Disposition:         string(proj.Latest.Disposition),
-			Contested:           proj.Contested,
-			ReceiptDigestSHA256: proj.Latest.ReceiptDigestSHA256,
-		}
+		out[q.ID] = questiondisposition.Semantic(proj)
 	}
 	if len(out) == 0 {
 		return nil

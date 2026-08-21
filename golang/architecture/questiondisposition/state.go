@@ -2,7 +2,10 @@
 
 package questiondisposition
 
-import "github.com/globulario/sensei/golang/architecture"
+import (
+	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
+)
 
 // OpenQuestionRef identifies a disposable architect question on the latest
 // recorded result transition.
@@ -132,4 +135,42 @@ func ProjectQuestion(taskDir, questionID string) (QuestionProjection, error) {
 	proj.Contested = len(proj.ContestedDigests) > 1
 	proj.NextAction = NextActionFor(proj.Latest, proj.Contested)
 	return proj, nil
+}
+
+// Semantic reduces a verified projection to what it MEANS, for consumers that
+// act on the decision without needing the ledger machinery behind it.
+//
+// The interpretation lives in dispositionsemantics rather than here because
+// convergence must consume it too, and this package reaches admission, which
+// reaches convergence.
+func Semantic(proj QuestionProjection) dispositionsemantics.Decision {
+	if !proj.Disposed {
+		return dispositionsemantics.Decision{}
+	}
+	return dispositionsemantics.Decision{
+		State:               dispositionsemantics.State(proj.Latest.Disposition),
+		Contested:           proj.Contested,
+		ReceiptDigestSHA256: proj.Latest.ReceiptDigestSHA256,
+	}
+}
+
+// RecordedDecisions returns the meaning of every disposition receipt on the
+// ledger, in sequence order.
+//
+// For consumers that must know whether the authority has spoken at all — a
+// cached projection built before a receipt existed cannot be current — without
+// caring what any individual decision said.
+func RecordedDecisions(taskDir string) ([]dispositionsemantics.Decision, error) {
+	list, err := ListRecordedDispositions(taskDir)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]dispositionsemantics.Decision, 0, len(list))
+	for _, rd := range list {
+		out = append(out, dispositionsemantics.Decision{
+			State:               dispositionsemantics.State(rd.Receipt.Disposition),
+			ReceiptDigestSHA256: rd.Receipt.ReceiptDigestSHA256,
+		})
+	}
+	return out, nil
 }
