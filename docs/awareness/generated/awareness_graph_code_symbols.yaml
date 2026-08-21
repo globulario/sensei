@@ -15755,6 +15755,29 @@ test_symbols:
     symbol: TestGenerateFromDeviationRoutesOnlyRepeatedPatterns
     package: questiongen
     language: go
+  - id: golang/architecture/questiongen/envelope_test.go:TestAQuestionEntirelyOutsideTheEnvelopeKeepsItsFiles
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestAQuestionEntirelyOutsideTheEnvelopeKeepsItsFiles
+    package: questiongen
+    language: go
+    doc: "If every file is outside the envelope, the union stands: a question about no\nfiles at all says less than the honest breadth does."
+  - id: golang/architecture/questiongen/envelope_test.go:TestAnEmptyEnvelopeBindsNothing
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestAnEmptyEnvelopeBindsNothing
+    package: questiongen
+    language: go
+    doc: "An empty envelope binds nothing — a task-wide or repository-wide assessment\nhas no narrower envelope, and inventing one would be worse than the breadth."
+  - id: golang/architecture/questiongen/envelope_test.go:TestBoundToEnvelopeKeepsOnlyAdmittedFiles
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestBoundToEnvelopeKeepsOnlyAdmittedFiles
+    package: questiongen
+    language: go
+  - id: golang/architecture/questiongen/envelope_test.go:TestQuestionScopeIsBoundedToTheTaskEnvelope
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestQuestionScopeIsBoundedToTheTaskEnvelope
+    package: questiongen
+    language: go
+    doc: "#230 item 3: a question raised while assessing a three-file change was naming\nthirteen files, none of them the three. A change to doctor.go was being asked\nto account for internal/architect/debt.go."
   - id: golang/architecture/questiongen/investigation_questions_test.go:TestGenerateFromInvestigationIsDeterministicAndDeduplicates
     file: golang/architecture/questiongen/investigation_questions_test.go
     symbol: TestGenerateFromInvestigationIsDeterministicAndDeduplicates

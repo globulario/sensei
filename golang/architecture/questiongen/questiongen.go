@@ -398,7 +398,7 @@ func (t staticTemplate) Generate(ctx Context, blocker closure.Blocker) (Candidat
 		QuestionTemplateVersion:             d.Version,
 		SourceClosureAssessmentDigestSHA256: ctx.ClosureAssessmentDigestSHA256,
 		AcceptedAnswerTypes:                 d.AcceptedAnswerTypes,
-		ReasonsOpen:                         reasonsOpen(blocker, claims),
+		ReasonsOpen:                         reasonsOpen(ctx, blocker, claims, nodeRefs),
 		KnownFactIDs:                        knownFacts(claims),
 		KnownEvidence:                       knownEvidence(claims),
 		CompetingHypotheses:                 hypotheses(d.ID, blocker, claims),
@@ -733,7 +733,49 @@ func questionScope(ctx Context, b closure.Blocker, claims []architecture.Claim, 
 	scope.Files = cleanStrings(scope.Files)
 	scope.Symbols = cleanStrings(scope.Symbols)
 	scope.Components = cleanStrings(scope.Components)
+	scope.Files, _ = boundToEnvelope(scope.Files, ctx.Closure.ScopeReceipt.Files)
 	return scope
+}
+
+// boundToEnvelope narrows a question's files to the ones the task actually
+// admitted, and reports what it left out.
+//
+// A question raised while assessing a three-file change was naming thirteen
+// files, none of them the three, because the scope was the union of its claims'
+// scopes and a claim can span the repository (#230 item 3). A change to
+// doctor.go was being asked to account for internal/architect/debt.go.
+//
+// The claim keeps its full scope; only the QUESTION is bounded, and the count
+// of what fell outside travels in reasons_open — so the question is answerable
+// within the task while the breadth of what it rests on stays visible. Dropping
+// the files silently would make a wide claim look narrow.
+//
+// An empty envelope binds nothing: a task-wide or repository-wide assessment has
+// no narrower envelope to bound to, and inventing one would be worse than the
+// breadth.
+func boundToEnvelope(files, envelope []string) (bound []string, dropped int) {
+	if len(envelope) == 0 || len(files) == 0 {
+		return files, 0
+	}
+	admitted := make(map[string]bool, len(envelope))
+	for _, f := range envelope {
+		admitted[f] = true
+	}
+	for _, f := range files {
+		if admitted[f] {
+			bound = append(bound, f)
+			continue
+		}
+		dropped++
+	}
+	if len(bound) == 0 {
+		// Every file the question named is outside the envelope. Bounding to
+		// nothing would leave a question about no files at all, which says less
+		// than the honest breadth does, so the union stands and reasons_open
+		// carries the count.
+		return files, dropped
+	}
+	return bound, dropped
 }
 
 func findNode(graph closure.GraphIndex, id string) (closure.Node, bool) {
@@ -745,12 +787,37 @@ func findNode(graph closure.GraphIndex, id string) (closure.Node, bool) {
 	return closure.Node{}, false
 }
 
-func reasonsOpen(b closure.Blocker, claims []architecture.Claim) []string {
+func reasonsOpen(ctx Context, b closure.Blocker, claims []architecture.Claim, nodeRefs []string) []string {
 	out := []string{b.Code + ": " + b.Summary}
 	for _, c := range claims {
 		out = append(out, c.ID+" status "+c.EpistemicStatus)
 	}
+	// What the envelope bounded out, so a narrowed question still says how wide
+	// the claim under it reaches.
+	if _, dropped := boundToEnvelope(unboundedQuestionFiles(ctx, b, claims, nodeRefs), ctx.Closure.ScopeReceipt.Files); dropped > 0 {
+		out = append(out, fmt.Sprintf("scope bounded to this task's %d admitted file(s); the claims under this question also reach %d file(s) outside it",
+			len(ctx.Closure.ScopeReceipt.Files), dropped))
+	}
 	return cleanStrings(out)
+}
+
+// unboundedQuestionFiles is the file union questionScope builds before the
+// envelope narrows it, kept as one definition so the count in reasons_open
+// cannot drift from what was actually dropped.
+func unboundedQuestionFiles(ctx Context, b closure.Blocker, claims []architecture.Claim, nodeRefs []string) []string {
+	var files []string
+	files = append(files, b.Files...)
+	for _, c := range claims {
+		files = append(files, c.Scope.Files...)
+	}
+	for _, ref := range nodeRefs {
+		_, id, _ := architecture.ParseClassQualifiedReference(ref)
+		if n, ok := findNode(ctx.Graph, id); ok {
+			files = append(files, n.SourcePath)
+			files = append(files, n.AuthoredIn...)
+		}
+	}
+	return cleanStrings(files)
 }
 
 func knownFacts(claims []architecture.Claim) []string {
