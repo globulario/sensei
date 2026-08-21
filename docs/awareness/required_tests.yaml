@@ -1731,3 +1731,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.an_unreachable_graph_endpoint_reported_as_an_empty_or_non_au
+  - id: golang/architecture/questiongen/self_evidenced_test.go:TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence
+    title: No evidence question is raised for a claim that carries its own evidence
+    protects:
+      failure_modes:
+        - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
