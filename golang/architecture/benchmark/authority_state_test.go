@@ -239,3 +239,40 @@ func codes(reasons []Reason) []string {
 	}
 	return out
 }
+
+// TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace: a frozen workspace may
+// legitimately live inside the Sensei checkout. The dirty-tree observation runs
+// `git status --porcelain`, so if the workspace is created before the authority
+// is captured, the freeze's own untracked scratch files make a clean checkout
+// look dirty — and every later replay is then rejected as incomparable for a
+// change nobody made.
+func TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace(t *testing.T) {
+	sensei := senseiRepoFixture(t)
+	if got := CaptureAuthorityState(sensei); got.SenseiTreeDirty {
+		t.Fatal("fixture checkout is dirty before the freeze; test cannot prove anything")
+	}
+
+	repo, base := localRepo(t)
+	taskPath, oraclePath := writeManifests(t, base, "")
+	// The workspace lives INSIDE the Sensei checkout, which is the case that
+	// exposes the ordering.
+	workspace := filepath.Join(sensei, "eval-workspace")
+
+	receipt, _, err := Freeze(FreezeOptions{
+		TaskPath: taskPath, SourceRepo: repo, OraclePath: oraclePath,
+		OutputDir: workspace, SenseiRepo: sensei,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.AuthorityState == nil {
+		t.Fatal("freeze recorded no authority state")
+	}
+	if receipt.AuthorityState.CaptureState != AuthorityCaptureBound {
+		t.Fatalf("capture state = %q (%s), want %q", receipt.AuthorityState.CaptureState, receipt.AuthorityState.CaptureReason, AuthorityCaptureBound)
+	}
+	if receipt.AuthorityState.SenseiTreeDirty {
+		t.Error("the freeze's own workspace made the governing authority look dirty; " +
+			"capture the authority before creating the workspace")
+	}
+}

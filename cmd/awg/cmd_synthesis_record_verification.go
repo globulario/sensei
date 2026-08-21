@@ -170,8 +170,21 @@ Flags:
 		// clock tick differ byte-for-byte while naming an identical fact.
 		// Comparing bytes here re-admitted the clock the digest had just
 		// excluded and reported that identical evidence as a conflict.
+		// The stored digest is a value a previous process WROTE, not a fact
+		// about the bytes on disk now. Recompute it before trusting it: a
+		// record edited to say something else while keeping its original
+		// record_digest_sha256 would otherwise be accepted as an idempotent
+		// re-record, and the command would report success over conflicting
+		// proof. Recomputing still permits an ObservedAt-only difference,
+		// because ObservedAt is excluded from the digest.
 		var prior candidateapply.VerificationRecord
-		if err := json.Unmarshal(existing, &prior); err != nil || prior.RecordDigestSHA256 != record.RecordDigestSHA256 {
+		priorDigest, ok := "", false
+		if err := json.Unmarshal(existing, &prior); err == nil {
+			if d, derr := candidateapply.VerificationRecordDigest(prior); derr == nil {
+				priorDigest, ok = d, true
+			}
+		}
+		if !ok || priorDigest != prior.RecordDigestSHA256 || priorDigest != record.RecordDigestSHA256 {
 			fmt.Fprintf(os.Stderr, "sensei synthesis-record-verification: %s already records a different result for this verification\n", recordPath)
 			fmt.Fprintln(os.Stderr, "  an existing record is never overwritten: two different statements cannot both be what was observed")
 			return exitRecordConflict

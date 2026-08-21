@@ -610,6 +610,14 @@ func Freeze(opts FreezeOptions) (FreezeReceipt, ContaminationReport, error) {
 	if err != nil {
 		return FreezeReceipt{}, ContaminationReport{}, err
 	}
+	// Capture the governing authority BEFORE creating the temporary workspace.
+	// The workspace may legitimately live inside the Sensei checkout, and the
+	// dirty-tree observation runs `git status --porcelain`: a workspace created
+	// first shows up as untracked files, so the freeze's own scratch output
+	// would make a clean checkout look dirty and mark every later replay
+	// incomparable for a change nobody made.
+	authority := CaptureAuthorityState(opts.SenseiRepo)
+
 	workspaceID := workspaceID(task, digest(taskBytes), digest(oracleBytes))
 	parent := filepath.Dir(opts.OutputDir)
 	tmp, err := os.MkdirTemp(parent, "."+filepath.Base(opts.OutputDir)+".tmp-*")
@@ -665,7 +673,6 @@ func Freeze(opts FreezeOptions) (FreezeReceipt, ContaminationReport, error) {
 		TaskManifestDigestSHA256: digest(taskBytes), OracleManifestDigestSHA256: digest(oracleBytes), ContaminationStatus: report.Status,
 		CommitCount: len(commits), HistoryExportDigestSHA256: digest(history),
 	}
-	authority := CaptureAuthorityState(opts.SenseiRepo)
 	receipt.AuthorityState = &authority
 	if len(commits) > 0 {
 		receipt.OldestReachableCommit = commits[0]

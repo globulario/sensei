@@ -255,6 +255,55 @@ func TestRepeatedRecordingIsIdempotentAcrossAClockTick(t *testing.T) {
 	}
 }
 
+// TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt keeps the
+// idempotence check from trusting a self-declared digest.
+//
+// record_digest_sha256 is a value some earlier process WROTE into the file; it
+// is not a fact about the bytes on disk now. A record edited to say something
+// else — a different verification status, a different binding — while keeping
+// its original digest would be accepted as an idempotent re-record, and the
+// command would report success while leaving conflicting proof in place. The
+// package's own rule is that a declared digest must equal the computed one.
+func TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt(t *testing.T) {
+	f := newApplyFixture(t)
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("apply exit = %d", code)
+	}
+	compliant := verificationFor(t, f, admission.VerificationScopeCompliant)
+	if code := f.record(t, compliant); code != exitVerificationRecorded {
+		t.Fatalf("first record exit = %d", code)
+	}
+
+	matches, _ := filepath.Glob(filepath.Join(f.storeDir, "*.o5b-verification-record.json"))
+	if len(matches) != 1 {
+		t.Fatalf("first record produced %d records, want 1", len(matches))
+	}
+	stored, err := os.ReadFile(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]interface{}
+	if err := json.Unmarshal(stored, &record); err != nil {
+		t.Fatal(err)
+	}
+	// Change what the record SAYS while leaving its declared digest intact.
+	// Unlike observed_at, this field is inside the digest, so the stored
+	// digest no longer describes the stored content.
+	record["admission_verification_status"] = "tampered_status"
+	tampered, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(matches[0], tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if code := f.record(t, compliant); code != exitRecordConflict {
+		t.Fatalf("recording over a record whose digest does not describe it exit = %d, want %d; "+
+			"a self-declared digest must be recomputed before it is trusted", code, exitRecordConflict)
+	}
+}
+
 // Idempotence at the CLI: re-recording identical evidence is a no-op, and a
 // DIFFERENT verification of the same application is an additional record
 // rather than a replacement.
