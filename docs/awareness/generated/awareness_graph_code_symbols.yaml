@@ -13368,6 +13368,42 @@ test_symbols:
     symbol: TestUnknownExtractorIsRefused
     package: howextract
     language: go
+  - id: golang/architecture/howextract/scope_filter_test.go:TestAnchoredFactStillDecidedByItsAnchor
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestAnchoredFactStillDecidedByItsAnchor
+    package: howextract
+    language: go
+    doc: "The anchor still decides on its own when it is present and in scope, so this\nchange cannot narrow what a previously-passing anchored fact does."
+  - id: golang/architecture/howextract/scope_filter_test.go:TestExcludedPathsAreFilteredEvenWithoutAnEvidenceAnchor
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestExcludedPathsAreFilteredEvenWithoutAnEvidenceAnchor
+    package: howextract
+    language: go
+    doc: "A bounded extraction's receipt claims the scope was enforced. A fact whose\nlocation is recorded only in Scope.Files — with no evidence anchor — was\nnever checked against the scope at all, because the filter reads only\nEvidence.SourceFile.\n\nReachable today: the generated-artifact fact deliberately carries no anchor\n(a directory is not a source file), so it names an excluded path in its scope\nand survives a run that excluded it."
+  - id: golang/architecture/howextract/scope_filter_test.go:TestFactSpanningScopeBoundaryIsKept
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestFactSpanningScopeBoundaryIsKept
+    package: howextract
+    language: go
+    doc: "A fact spanning an in-scope and an out-of-scope file describes something the\ncaller asked about. Scoping bounds what was searched; it does not redact what\nwas found."
+  - id: golang/architecture/howextract/scope_filter_test.go:TestFactWithNoRecordedLocationIsKept
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestFactWithNoRecordedLocationIsKept
+    package: howextract
+    language: go
+    doc: "A fact recording no location at all is repository-level: there is nothing to\ncheck it against, and inventing a scope for it would drop observations the\ncaller never excluded."
+  - id: golang/architecture/howextract/scope_filter_test.go:TestIncludedPathsStillProduceObservations
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestIncludedPathsStillProduceObservations
+    package: howextract
+    language: go
+    doc: "The baseline: the scope filter must not simply drop everything. A file inside\nthe scope still produces observations, so a passing test above cannot pass by\nrefusing the whole repository."
+  - id: golang/architecture/howextract/scope_filter_test.go:TestUnboundedBudgetDropsNothing
+    file: golang/architecture/howextract/scope_filter_test.go
+    symbol: TestUnboundedBudgetDropsNothing
+    package: howextract
+    language: go
+    doc: "With no scopes active the filter never runs, but the predicate must still be\nsafe if called: an unbounded budget excludes nothing."
   - id: golang/architecture/howextract/source_cache_test.go:TestSourceCacheKeepsReportingAnUnreadableFile
     file: golang/architecture/howextract/source_cache_test.go
     symbol: TestSourceCacheKeepsReportingAnUnreadableFile

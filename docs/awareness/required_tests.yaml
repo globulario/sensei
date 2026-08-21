@@ -1766,3 +1766,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_reader_accepts_a_resolved_status_as_proof_of_the_evidence
+  - id: golang/architecture/howextract/scope_filter_test.go:TestExcludedPathsAreFilteredEvenWithoutAnEvidenceAnchor
+    title: An excluded path is filtered even without an evidence anchor
+    protects:
+      failure_modes:
+        - failure.sensei.a_scope_filter_checks_one_of_the_two_places_a_fact_records_w

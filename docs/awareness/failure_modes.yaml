@@ -1868,3 +1868,14 @@ failure_modes:
       - 'Audit of the source-digest owner: architecture.ValidateFact accepts source_digest_status=resolved carrying an empty or malformed SourceDigest. inference.statusForPremises read the status alone and promoted such a premise to StatusSupported on an uncommitted tree, while maintenance.VerifySourceReceipt, which reads the digest, called the same fact unknown'
       - 'The inference package''s own test fixture encoded the defect: it declared source_digest_status resolved beside the placeholder digest string ''digest'', and the supported-claim assertion passed on the strength of the status'
     contract: A status field reports what a check concluded; the artifact it describes is the evidence. A reader that accepts the status without the artifact treats an unpinned premise as pinned, and two readers of the same fact then disagree
+  - id: failure.sensei.a_scope_filter_checks_one_of_the_two_places_a_fact_records_w
+    title: A scope filter checks one of the two places a fact records where it belongs
+    protects:
+      files:
+        - golang/architecture/howextract/compose.go
+    required_tests:
+      - golang/architecture/howextract/scope_filter_test.go:TestExcludedPathsAreFilteredEvenWithoutAnEvidenceAnchor
+    evidence:
+      - 'Audit of the scope-receipt owner: howextract/compose.go filtered on Evidence.SourceFile only, guarded by SourceFile != "". The generated-artifact fact carries no anchor because a directory is not a source file, and names docs/awareness/generated solely in Scope.Files — so it survived an extraction excluding docs/, while the receipt reported the scope as enforced'
+      - Reproduced on main at 57ec787e with an in-scope baseline that still produced observations, so the failure was attributable to the filter rather than to the fixture
+    contract: A bounded extraction's receipt asserts that the declared scope was enforced. A fact records its location in both the evidence anchor and the scope, so a filter reading only one of them lets a fact whose location lives in the other survive a run that excluded it
