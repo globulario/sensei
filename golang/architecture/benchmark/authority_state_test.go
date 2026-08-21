@@ -136,6 +136,10 @@ func TestVerifyAuthorityStateDetectsEachDrift(t *testing.T) {
 		GraphBuildCommit:           "build1",
 		PairedRepoCommit:           "paired1",
 		TransactionStampSHA256:     "stamp1",
+		// The running evaluator must be tied to the recorded checkout, so a
+		// comparable baseline is one built FROM that checkout.
+		ExecutedBuildState:    AuthorityBuildStamped,
+		ExecutedBuildRevision: "rev1",
 	}
 	if got := VerifyAuthorityState(&base, base); got.Verdict != AuthorityReplayMatch || !got.Comparable {
 		t.Fatalf("identical authority: verdict=%s comparable=%v, want %s/true", got.Verdict, got.Comparable, AuthorityReplayMatch)
@@ -154,6 +158,9 @@ func TestVerifyAuthorityStateDetectsEachDrift(t *testing.T) {
 		{"paired repo commit", func(s *AuthorityState) { s.PairedRepoCommit = "paired2" }, AuthorityDriftPairedRepoCommit},
 		{"transaction stamp", func(s *AuthorityState) { s.TransactionStampSHA256 = "stamp2" }, AuthorityDriftStampDigest},
 		{"dirty at replay", func(s *AuthorityState) { s.SenseiTreeDirty = true }, AuthorityDriftDirtyAtReplay},
+		{"executed build revision", func(s *AuthorityState) { s.SenseiRevision = "rev2"; s.ExecutedBuildRevision = "rev2" }, AuthorityDriftBuildRevision},
+		{"executed build from a modified tree", func(s *AuthorityState) { s.ExecutedBuildModified = true }, AuthorityDriftBuildModified},
+		{"executed build unstamped", func(s *AuthorityState) { s.ExecutedBuildState = AuthorityBuildUnstamped; s.ExecutedBuildRevision = "" }, AuthorityDriftBuildUnstamped},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			observed := base
@@ -330,5 +337,50 @@ func TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace(t *testing.T) {
 	}
 	if receipt.AuthorityState == nil || receipt.AuthorityState.SenseiTreeDirty {
 		t.Error("a previously created workspace made the governing authority look dirty on the check path")
+	}
+}
+
+// TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout is the
+// central one: a checkout is not evidence about a binary.
+//
+// Recording a clean checkout proves nothing if the evaluator that actually ran
+// was built from a different commit — an advanced checkout that was never
+// rebuilt is the ordinary way this happens. Two such captures would agree on
+// every tree identity and be reported comparable while the runs executed
+// different code.
+func TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout(t *testing.T) {
+	built := AuthorityState{
+		CaptureState:          AuthorityCaptureBound,
+		SenseiRevision:        "checkoutB",
+		ExecutedBuildState:    AuthorityBuildStamped,
+		ExecutedBuildRevision: "commitA",
+	}
+	got := VerifyAuthorityState(&built, built)
+	if got.Comparable || got.Verdict != AuthorityReplayDrifted {
+		t.Fatalf("verdict=%s comparable=%v, want %s/false: the checkout did not build the running evaluator",
+			got.Verdict, got.Comparable, AuthorityReplayDrifted)
+	}
+	if !hasReasonCode(got.Reasons, AuthorityDriftBuildNotFromRepo) {
+		t.Errorf("reasons %v do not name %s", codes(got.Reasons), AuthorityDriftBuildNotFromRepo)
+	}
+}
+
+// TestCandidateChurnDoesNotDirtyTheAuthority: candidates are not active
+// authority. Their content is excluded from the corpus digest, so ordinary
+// `sensei propose` churn must not make a run incomparable either — the two
+// treatments have to agree, or the exclusion is only half applied.
+func TestCandidateChurnDoesNotDirtyTheAuthority(t *testing.T) {
+	repo := senseiRepoFixture(t)
+	if CaptureAuthorityState(repo).SenseiTreeDirty {
+		t.Fatal("fixture is dirty before the candidate write")
+	}
+	writeFixture(t, filepath.Join(repo, "docs", "awareness", "candidates", "proposed.yaml"), "candidate: uncommitted\n")
+	if got := CaptureAuthorityState(repo); got.SenseiTreeDirty {
+		t.Error("an uncommitted candidate marked the checkout dirty; candidate knowledge is not active authority")
+	}
+	// An authored source, by contrast, must still register.
+	writeFixture(t, filepath.Join(repo, "docs", "awareness", "invariants.yaml"), "invariants: [uncommitted]\n")
+	if got := CaptureAuthorityState(repo); !got.SenseiTreeDirty {
+		t.Error("an uncommitted authored source did not mark the checkout dirty")
 	}
 }

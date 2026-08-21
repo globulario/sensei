@@ -5,6 +5,7 @@ package benchmark
 import (
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/senseireport"
@@ -73,7 +74,29 @@ type AuthorityState struct {
 	// TransactionStampSHA256 is the digest of the stamp file itself, so a
 	// rewritten stamp is detectable even when every field it reports is equal.
 	TransactionStampSHA256 string `json:"transaction_stamp_sha256,omitempty" yaml:"transaction_stamp_sha256,omitempty"`
+
+	// ExecutedBuild* identify the binary that is ACTUALLY RUNNING, as opposed
+	// to the checkout on disk. The two are not the same claim: a checkout can
+	// be advanced, or pointed at with --sensei-repo, without rebuilding, in
+	// which case the recorded revision/corpus/stamp describe a tree that never
+	// produced the evaluator. Recording only the checkout would let a replay
+	// report authority_match while the original run executed different code.
+	//
+	// ExecutedBuildState is the closed vocabulary AuthorityBuild*: provenance
+	// is stamped into a binary by `go build` inside a repository, and is
+	// legitimately absent otherwise (a `go test` binary, a distribution build
+	// stripped of VCS data). Absent is recorded as its own state rather than
+	// guessed at.
+	ExecutedBuildState    string `json:"executed_build_state,omitempty" yaml:"executed_build_state,omitempty"`
+	ExecutedBuildRevision string `json:"executed_build_revision,omitempty" yaml:"executed_build_revision,omitempty"`
+	ExecutedBuildModified bool   `json:"executed_build_modified,omitempty" yaml:"executed_build_modified,omitempty"`
 }
+
+// Closed executed-build provenance vocabulary.
+const (
+	AuthorityBuildStamped   = "stamped"
+	AuthorityBuildUnstamped = "unstamped"
+)
 
 // Closed capture-state vocabulary.
 const (
@@ -118,6 +141,11 @@ const (
 	AuthorityDriftStampDigest      = "build_transaction_stamp_drift"
 	AuthorityDriftDirtyAtFreeze    = "sensei_tree_dirty_at_freeze"
 	AuthorityDriftDirtyAtReplay    = "sensei_tree_dirty_at_replay"
+	// The running evaluator could not be tied to the checkout being recorded.
+	AuthorityDriftBuildUnstamped   = "executed_build_unstamped"
+	AuthorityDriftBuildRevision    = "executed_build_revision_drift"
+	AuthorityDriftBuildNotFromRepo = "executed_build_not_from_recorded_checkout"
+	AuthorityDriftBuildModified    = "executed_build_from_modified_tree"
 )
 
 // AuthorityDrift is the typed result of comparing a frozen authority identity
@@ -135,6 +163,14 @@ type AuthorityDrift struct {
 // authoredCorpusExcludedPrefixes are paths under docs/awareness that are not
 // active authority and so must not contribute to the authored-corpus identity.
 var authoredCorpusExcludedPrefixes = []string{"candidates/"}
+
+// inactiveAuthorityRepoPaths are the same non-authoritative paths, expressed
+// relative to the repository root, for the dirty-tree observation. Candidate
+// knowledge is not active authority: its content is already excluded from the
+// corpus digest, so leaving ordinary `sensei propose` churn to mark the tree
+// dirty would make a run incomparable over a change that by definition governs
+// nothing.
+var inactiveAuthorityRepoPaths = []string{"docs/awareness/candidates"}
 
 // CaptureAuthorityState records the authority identity of the Sensei checkout
 // at senseiRepo. It never returns an error: a capture that cannot complete is
@@ -169,7 +205,7 @@ func CaptureAuthorityState(senseiRepo string, ignoreRepoRelPaths ...string) Auth
 		state.CaptureReason = AuthorityCaptureReasonTreeStateUnread
 		return state
 	}
-	state.SenseiTreeDirty = porcelainReportsChange(string(porcelain), ignoreRepoRelPaths)
+	state.SenseiTreeDirty = porcelainReportsChange(string(porcelain), append(append([]string{}, ignoreRepoRelPaths...), inactiveAuthorityRepoPaths...))
 
 	corpusDigest, err := senseireport.ContentDigest(filepath.Join(repo, "docs", "awareness"), authoredCorpusExcludedPrefixes, nil)
 	if err != nil {
@@ -197,6 +233,7 @@ func CaptureAuthorityState(senseiRepo string, ignoreRepoRelPaths ...string) Auth
 	state.GraphBuildCommit = stamp.AwarenessGraphCommit
 	state.PairedRepoCommit = stamp.ServicesCommit
 	state.TransactionStampSHA256 = digest(stampBytes)
+	state.ExecutedBuildState, state.ExecutedBuildRevision, state.ExecutedBuildModified = executedBuildProvenance()
 	state.CaptureState = AuthorityCaptureBound
 	return state
 }
@@ -244,6 +281,17 @@ func VerifyAuthorityState(frozen *AuthorityState, observed AuthorityState) Autho
 			reasons = append(reasons, Reason{Code: c.code, Detail: "frozen " + shortID(c.frozen) + " observed " + shortID(c.actual)})
 		}
 	}
+	// The checkout identities can agree while the binary that actually ran came
+	// from somewhere else. Equal trees are not evidence about the evaluator.
+	reasons = append(reasons, executedBuildReasons("freeze", *frozen)...)
+	reasons = append(reasons, executedBuildReasons("replay", observed)...)
+	if frozen.ExecutedBuildState == AuthorityBuildStamped &&
+		observed.ExecutedBuildState == AuthorityBuildStamped &&
+		frozen.ExecutedBuildRevision != observed.ExecutedBuildRevision {
+		reasons = append(reasons, Reason{Code: AuthorityDriftBuildRevision,
+			Detail: "frozen " + shortID(frozen.ExecutedBuildRevision) + " observed " + shortID(observed.ExecutedBuildRevision)})
+	}
+
 	if len(reasons) > 0 {
 		return AuthorityDrift{Verdict: AuthorityReplayDrifted, Reasons: reasons}
 	}
@@ -301,6 +349,29 @@ func AuthoritySummary(state *AuthorityState) string {
 	return s
 }
 
+// executedBuildProvenance reports the VCS identity Go stamps into a binary
+// built inside a repository. It never substitutes the checkout's revision when
+// the stamp is absent: that would manufacture exactly the proof this is here to
+// supply.
+func executedBuildProvenance() (state, revision string, modified bool) {
+	info, ok := debug.ReadBuildInfo()
+	if !ok {
+		return AuthorityBuildUnstamped, "", false
+	}
+	for _, s := range info.Settings {
+		switch s.Key {
+		case "vcs.revision":
+			revision = s.Value
+		case "vcs.modified":
+			modified = s.Value == "true"
+		}
+	}
+	if revision == "" {
+		return AuthorityBuildUnstamped, "", false
+	}
+	return AuthorityBuildStamped, revision, modified
+}
+
 // porcelainReportsChange decides whether `git status --porcelain` output shows
 // a change that belongs to the checkout, ignoring paths the caller knows are
 // its OWN output. A benchmark workspace may legitimately be created inside the
@@ -343,4 +414,31 @@ func porcelainReportsChange(porcelain string, ignoreRepoRelPaths []string) bool 
 		}
 	}
 	return false
+}
+
+// executedBuildReasons reports why one side's running evaluator cannot be tied
+// to the checkout that side recorded.
+//
+// A checkout is not proof about a binary. When the executable was built from a
+// different commit than --sensei-repo names — an advanced checkout that was
+// never rebuilt is the ordinary way this happens — the recorded revision,
+// corpus and stamp describe a tree that did not produce the evaluator, and two
+// such captures would otherwise agree on authority_match while the runs
+// executed different code. Unstamped provenance is likewise not permission to
+// assume a match: it means we cannot tell, which is a refusal, not a pass.
+func executedBuildReasons(side string, s AuthorityState) []Reason {
+	switch s.ExecutedBuildState {
+	case AuthorityBuildStamped:
+		var out []Reason
+		if s.ExecutedBuildModified {
+			out = append(out, Reason{Code: AuthorityDriftBuildModified, Detail: side})
+		}
+		if s.SenseiRevision != "" && s.ExecutedBuildRevision != s.SenseiRevision {
+			out = append(out, Reason{Code: AuthorityDriftBuildNotFromRepo,
+				Detail: side + ": built at " + shortID(s.ExecutedBuildRevision) + ", checkout " + shortID(s.SenseiRevision)})
+		}
+		return out
+	default:
+		return []Reason{{Code: AuthorityDriftBuildUnstamped, Detail: side + ": the running evaluator carries no build provenance to tie it to this checkout"}}
+	}
 }
