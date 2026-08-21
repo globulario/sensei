@@ -7,6 +7,17 @@
 /bin/
 /sensei
 /awg
+# `go build ./cmd/<name>` writes its binary into the working directory, so every
+# command in cmd/ needs an entry here or the next `git add -A` commits 27 MB of
+# build output. Listed explicitly rather than by a wildcard: an ignore rule wide
+# enough to swallow a stray binary is wide enough to swallow a source file
+# somebody meant to commit.
+/eval-arms
+/import-scan
+/loadnt
+/yaml2nt
+/awareness-graph
+/awareness-mcp
 /server
 /principle-check
 /yaml2nt
