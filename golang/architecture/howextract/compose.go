@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/extractbudget"
@@ -171,6 +172,39 @@ type runMetrics struct {
 	consumption extractbudget.Consumption
 	outcome     extractbudget.RunOutcome
 	diffScope   *investigation.DiffScope
+}
+
+// outOfScope reports whether a fact belongs to no path the caller asked for.
+//
+// A fact records where it belongs in TWO places, and checking only the evidence
+// anchor let a fact whose location lives solely in Scope.Files survive a bounded
+// run — while the receipt claimed the scope was enforced. The generated-artifact
+// fact is exactly that shape: a directory is not a source file, so it carries no
+// anchor and names its path only in scope.
+//
+// A fact is dropped only when EVERY location it records is out of scope. One
+// citing an in-scope and an out-of-scope file genuinely describes something the
+// caller asked about, and scoping bounds what was searched rather than redacting
+// what was found. A fact recording no location at all is repository-level and
+// has nothing to check against, so it stays.
+func outOfScope(f architecture.Fact, budget extractbudget.Budget) bool {
+	locations := 0
+	if anchor := strings.TrimSpace(f.Evidence.SourceFile); anchor != "" {
+		locations++
+		if budget.InScope(anchor) {
+			return false
+		}
+	}
+	for _, file := range f.Scope.Files {
+		if strings.TrimSpace(file) == "" {
+			continue
+		}
+		locations++
+		if budget.InScope(file) {
+			return false
+		}
+	}
+	return locations > 0
 }
 
 func extractAll(ctx context.Context, root string, opts Options) (investigation.Document, error) {
@@ -344,7 +378,7 @@ func extractAll(ctx context.Context, root string, opts Options) (investigation.D
 		kept := facts[:0]
 		dropped := 0
 		for _, f := range facts {
-			if f.Evidence.SourceFile != "" && !opts.Budget.InScope(f.Evidence.SourceFile) {
+			if outOfScope(f, opts.Budget) {
 				dropped++
 				continue
 			}
