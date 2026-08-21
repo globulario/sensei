@@ -7666,6 +7666,12 @@ test_symbols:
     package: benchmark
     language: go
     doc: "TestAuthoredCorpusDigestIgnoresCandidates proves candidate churn does not\nregister as an authority change, because candidates are not active authority."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCandidateChurnDoesNotDirtyTheAuthority
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCandidateChurnDoesNotDirtyTheAuthority
+    package: benchmark
+    language: go
+    doc: "TestCandidateChurnDoesNotDirtyTheAuthority: candidates are not active\nauthority. Their content is excluded from the corpus digest, so ordinary\n`sensei propose` churn must not make a run incomparable either — the two\ntreatments have to agree, or the exclusion is only half applied."
   - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateBindsGoverningIdentity
     file: golang/architecture/benchmark/authority_state_test.go
     symbol: TestCaptureAuthorityStateBindsGoverningIdentity
@@ -7719,6 +7725,12 @@ test_symbols:
     package: benchmark
     language: go
     doc: "TestVerifyAuthorityStateNeverSubstitutesFrozenForObserved guards the rule the\nseedmeta authority path already enforces: the expected value must never stand\nin as the observed one. A zero observed state must be unverifiable, never a\nmatch."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    package: benchmark
+    language: go
+    doc: "TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout is the\ncentral one: a checkout is not evidence about a binary.\n\nRecording a clean checkout proves nothing if the evaluator that actually ran\nwas built from a different commit — an advanced checkout that was never\nrebuilt is the ordinary way this happens. Two such captures would agree on\nevery tree identity and be reported comparable while the runs executed\ndifferent code."
   - id: golang/architecture/benchmark/benchmark_test.go:TestBenchmarkFreezeDoesNotMutateSourceRepository
     file: golang/architecture/benchmark/benchmark_test.go
     symbol: TestBenchmarkFreezeDoesNotMutateSourceRepository

@@ -1970,3 +1970,16 @@ failure_modes:
     evidence:
       - 'Found by the repository''s Codex PR review on PR #254 (P1), citing the shipped skill''s own command line. Fixed by defaulting the flag to the current checkout so the gate is opt-out rather than opt-in; the regression fails with exit 0 instead of 3 when the default is empty.'
     contract: A gate that exists to stop an unsafe consumption must be enforced by default. When the canonical documented workflow can invoke the command without enabling it, the protection is absent exactly where operators were told to look.
+  - id: failure.a_checkout_identity_was_recorded_as_proof_about_the_binary_t
+    title: A checkout identity was recorded as proof about the binary that actually ran
+    description: CaptureAuthorityState recorded the revision, authored-corpus digest and build-transaction stamp of whatever checkout --sensei-repo named, without establishing that this checkout produced the evaluator. A checkout advanced without rebuilding — the ordinary case — meant two captures could agree on every tree identity and be reported authority_match with Comparable=true while the runs executed different code.
+    protects:
+      files:
+        - golang/architecture/benchmark/authority_state.go
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1). Demonstrated on the branch''s own end-to-end run: the binary built at 71f72c50 against a fixture checkout 753e2aad previously printed authority_match, and now reports executed_build_not_from_recorded_checkout. Go stamps vcs.revision into binaries built inside a repository; when that stamp is absent the state is recorded as unstamped and the replay is refused rather than assumed to match.'
+    contract: An identity recorded for a checkout characterises that tree, never the executable built from some other tree. A run may be certified reproducible only when the running evaluator's own build provenance ties it to the checkout being recorded; absent provenance is a refusal, not a pass.

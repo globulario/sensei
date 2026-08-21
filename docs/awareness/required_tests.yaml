@@ -1806,3 +1806,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_safety_gate_was_opt_in_while_the_documented_workflow_omitt
+  - id: golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    title: A run whose evaluator was not built from the recorded checkout is not comparable
+    protects:
+      failure_modes:
+        - failure.a_checkout_identity_was_recorded_as_proof_about_the_binary_t
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCandidateChurnDoesNotDirtyTheAuthority
+    title: Uncommitted candidate knowledge does not make a run incomparable
+    protects:
+      failure_modes:
+        - failure.a_frozen_benchmark_run_that_binds_only_target_code_is_replay
