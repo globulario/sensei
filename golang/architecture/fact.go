@@ -65,6 +65,24 @@ type Evidence struct {
 	EvidenceUnavailableReason string `json:"-" yaml:"-"`
 }
 
+// SourceDigestPinsContent reports whether provenance actually pins the bytes it
+// was derived from.
+//
+// The STATUS is not the evidence. ValidateFact accepts
+// source_digest_status: resolved carrying an empty or malformed digest, so a
+// reader that trusts the status alone treats a premise pinned to nothing as
+// pinned — while maintenance.VerifySourceReceipt, which reads the digest, calls
+// the same fact unknown. Two readers disagreeing about one fact is the defect
+// this answers, so the question "does this provenance pin content" is answered
+// once, here, by the type that owns the field.
+//
+// It reports only what the provenance carries. Whether the digest MATCHES the
+// file on disk is a different question, and verifying that requires reading the
+// tree — see maintenance.VerifySourceReceipt.
+func (p Provenance) SourceDigestPinsContent() bool {
+	return p.SourceDigestStatus == SourceDigestResolved && isHexSHA256(strings.TrimSpace(p.SourceDigest))
+}
+
 type Provenance struct {
 	RepositoryDomain       string `json:"repository_domain" yaml:"repository_domain"`
 	RepositoryDomainStatus string `json:"repository_domain_status" yaml:"repository_domain_status"`

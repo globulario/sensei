@@ -1857,3 +1857,14 @@ failure_modes:
       - 'sensei#131 evidence-resolvability pass: 74 observations from data_shape_extractor cited lines past the end of the file they named, including golang/architecture/authority/model.go (118 lines) cited at lines 126-140. Cause: type aliases — the alias declaration supplies the file while the aliased struct''s fields supply the line from another package''s longer file'
       - The extractor already emitted 74 'line N unavailable' limitations; the count was visible for a long time but nothing compared an anchor against the file it named, so the cause was never located
     contract: An evidence anchor names the file and line where the observed thing is actually declared; a composed anchor that takes the file from one declaration and the line from another names a location that need not exist
+  - id: failure.sensei.a_reader_accepts_a_resolved_status_as_proof_of_the_evidence
+    title: A reader accepts a resolved status as proof of the evidence the status describes
+    protects:
+      files:
+        - golang/architecture/inference/binding.go
+    required_tests:
+      - golang/architecture/inference/premise_binding_consistency_test.go:TestReadersAgreeOnWhetherAPremiseIsPinned
+    evidence:
+      - 'Audit of the source-digest owner: architecture.ValidateFact accepts source_digest_status=resolved carrying an empty or malformed SourceDigest. inference.statusForPremises read the status alone and promoted such a premise to StatusSupported on an uncommitted tree, while maintenance.VerifySourceReceipt, which reads the digest, called the same fact unknown'
+      - 'The inference package''s own test fixture encoded the defect: it declared source_digest_status resolved beside the placeholder digest string ''digest'', and the supported-claim assertion passed on the strength of the status'
+    contract: A status field reports what a check concluded; the artifact it describes is the evidence. A reader that accepts the status without the artifact treats an unpinned premise as pinned, and two readers of the same fact then disagree

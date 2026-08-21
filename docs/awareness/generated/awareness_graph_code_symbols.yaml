@@ -6108,11 +6108,23 @@ test_symbols:
     symbol: TestVerifyWorktreeUncommittedEditVerifies
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestAbsenceIntegrityDetectsAnUnexplainedAbsence
+    file: cmd/eval-arms/world_test.go
+    symbol: TestAbsenceIntegrityDetectsAnUnexplainedAbsence
+    package: main
+    language: go
+    doc: "The four unknown-ish statuses are different worlds, and each carries its own\nobligation: an absence must say why, and a claim to have searched and found\nnothing must show the tree it searched. A metric that cannot detect a\nviolation would report integrity it never checked."
   - id: cmd/eval-arms/world_test.go:TestDuplicateWorldNameIsRefused
     file: cmd/eval-arms/world_test.go
     symbol: TestDuplicateWorldNameIsRefused
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestEveryAbsenceStatusMustCarryAReason
+    file: cmd/eval-arms/world_test.go
+    symbol: TestEveryAbsenceStatusMustCarryAReason
+    package: main
+    language: go
+    doc: "skipped_with_reason and not_configured carry the same obligation as\nunavailable: the status names a kind of absence, not an excuse from stating\none."
   - id: cmd/eval-arms/world_test.go:TestEveryRequiredWorldIsAccountedFor
     file: cmd/eval-arms/world_test.go
     symbol: TestEveryRequiredWorldIsAccountedFor
@@ -6124,6 +6136,12 @@ test_symbols:
     symbol: TestParseWorldSpecRejectsIncompleteSpec
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestPositiveCoverageIsNotCountedAsAnAbsence
+    file: cmd/eval-arms/world_test.go
+    symbol: TestPositiveCoverageIsNotCountedAsAnAbsence
+    package: main
+    language: go
+    doc: "A positive result is not an absence claim and must not be audited as one."
   - id: cmd/eval-arms/world_test.go:TestRelocateRootRemovesCheckoutLocation
     file: cmd/eval-arms/world_test.go
     symbol: TestRelocateRootRemovesCheckoutLocation
@@ -6136,6 +6154,12 @@ test_symbols:
     package: main
     language: go
     doc: "A world may not claim the name of an arm this command writes itself, or of\nanother world in the same run: the second report would overwrite the first\nafter its digest was already recorded in the index."
+  - id: cmd/eval-arms/world_test.go:TestSearchedNoResultWithoutASnapshotIsNotProof
+    file: cmd/eval-arms/world_test.go
+    symbol: TestSearchedNoResultWithoutASnapshotIsNotProof
+    package: main
+    language: go
+    doc: "searched_no_result asserts that a search happened. Without a snapshot digest\nthere is nothing showing it did, and \"we looked and found nothing\" is a much\nstronger claim than \"we did not look\"."
   - id: cmd/eval-arms/world_test.go:TestWorldBindingCleanTreeBindsRevision
     file: cmd/eval-arms/world_test.go
     symbol: TestWorldBindingCleanTreeBindsRevision
@@ -11398,6 +11422,41 @@ test_symbols:
     package: evalharness
     language: go
     doc: "The most dangerous number this arm can report is a zero candidate count,\nbecause it has two completely different meanings: composition ran and found\nnothing (a real result about capability), or composition never ran (a\nstructural limit that says nothing about capability).\n\nToday it is the second: a synthetic mutant has no graph to bind, so the\ncomposition step is refused. The report must say which, in its own\nlimitations, rather than leaving a reader to assume the flattering reading."
+  - id: golang/architecture/evalharness/grounding_test.go:TestCandidateCitingAnAbsentIdentityIsNotGrounded
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestCandidateCitingAnAbsentIdentityIsNotGrounded
+    package: evalharness
+    language: go
+    doc: "The metric has to be able to fail, or it is decoration. A candidate citing an\nidentity that is not in the documents it was composed from is pointing at\nnothing, and that is checkable without any reference set."
+  - id: golang/architecture/evalharness/grounding_test.go:TestCandidateCitingOnlyPresentIdentitiesIsGrounded
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestCandidateCitingOnlyPresentIdentitiesIsGrounded
+    package: evalharness
+    language: go
+  - id: golang/architecture/evalharness/grounding_test.go:TestCandidateWithNoCitationsHasNoDanglingReferences
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestCandidateWithNoCitationsHasNoDanglingReferences
+    package: evalharness
+    language: go
+    doc: "A candidate that cites nothing at all is not \"grounded\" by having no\ncitations to fail — but it is also not a dangling reference. It counts as\ngrounded here because nothing it says is unresolvable, and whether a\ncitation-free candidate should exist is a different question this metric does\nnot pretend to answer."
+  - id: golang/architecture/evalharness/grounding_test.go:TestEveryCitationLaneIsChecked
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestEveryCitationLaneIsChecked
+    package: evalharness
+    language: go
+    doc: "Each side is checked, so a fabrication in the refuting lane cannot hide behind\na well-grounded supporting lane."
+  - id: golang/architecture/evalharness/grounding_test.go:TestEverySiteFailingIsNotAPerfectRate
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestEverySiteFailingIsNotAPerfectRate
+    package: evalharness
+    language: go
+    doc: "The all-failed case is the one that must not read as success."
+  - id: golang/architecture/evalharness/grounding_test.go:TestGroundingRateIsReportedWithFailedSites
+    file: golang/architecture/evalharness/grounding_test.go
+    symbol: TestGroundingRateIsReportedWithFailedSites
+    package: evalharness
+    language: go
+    doc: "A site that did not compose contributes nothing to the grounding rate, so the\nrate must be reported with the count of such sites. Otherwise a run where\nevery site failed reads as \"0/0\" — indistinguishable from a run with no\ncandidates and no problems.\n\nThis matters specifically because Compose ends in Validate, which rejects a\ncandidate carrying a dangling reference and fails the whole site: the defect\nthis metric looks for shows up as a composition failure, never as an\nungrounded candidate."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
@@ -13364,6 +13423,36 @@ test_symbols:
     symbol: TestManifestRoundTrips
     package: identity
     language: go
+  - id: golang/architecture/inference/binding_digest_test.go:TestCommittedPremiseRemainsSupportedWithoutASourceDigest
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestCommittedPremiseRemainsSupportedWithoutASourceDigest
+    package: inference
+    language: go
+    doc: "And a committed revision still binds without any source digest at all."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithAMalformedDigestIsNotSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithAMalformedDigestIsNotSupported
+    package: inference
+    language: go
+    doc: "A malformed digest is not a digest either: accepting any non-empty string\nwould trade one unverifiable claim for another."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithARealDigestRemainsSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithARealDigestRemainsSupported
+    package: inference
+    language: go
+    doc: "The baseline: a real digest on an uncommitted tree IS a binding, and must\nstill support the claim — otherwise this check would simply refuse everything\nand pass for the wrong reason."
+  - id: golang/architecture/inference/binding_digest_test.go:TestUncommittedPremiseWithoutARealDigestIsNotSupported
+    file: golang/architecture/inference/binding_digest_test.go
+    symbol: TestUncommittedPremiseWithoutARealDigestIsNotSupported
+    package: inference
+    language: go
+    doc: "The status is not the evidence.\n\nA premise whose provenance claims a resolved source digest while carrying no\ndigest is pinned to nothing. architecture.ValidateFact accepts that shape, and\nmaintenance.VerifySourceReceipt — which reads the digest — calls the same fact\nunknown. This reader must not disagree with it and promote the claim to\nsupported on the strength of a status string."
+  - id: golang/architecture/inference/premise_binding_consistency_test.go:TestReadersAgreeOnWhetherAPremiseIsPinned
+    file: golang/architecture/inference/premise_binding_consistency_test.go
+    symbol: TestReadersAgreeOnWhetherAPremiseIsPinned
+    package: inference
+    language: go
+    doc: "TestReadersAgreeOnWhetherAPremiseIsPinned is the cross-projection form of the\nproperty behind this repair.\n\nThree readers decide something from the same provenance and each has its own\nvocabulary for it — maintenance produces a lane state, inference produces an\nepistemic status, and questiongen decides whether to suppress a question.\nTheir outputs are not comparable and are not meant to be. What must hold is\nthat none of them treats a premise as pinned when the authority — the digest\nthat pins the bytes — does not pin it.\n\nThe defect this replaces: architecture.ValidateFact accepts\nsource_digest_status: resolved carrying an empty or malformed digest, and\ninference read the status alone, so one reader called a fact bound while\nanother called the same fact unknown."
   - id: golang/architecture/inference/rules_test.go:TestBuildClaimDocumentIncludesOnlyUsedFactReceipts
     file: golang/architecture/inference/rules_test.go
     symbol: TestBuildClaimDocumentIncludesOnlyUsedFactReceipts

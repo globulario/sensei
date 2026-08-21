@@ -604,7 +604,6 @@ func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
 		for _, id := range c.PremiseFacts {
 			r, ok := receipts[id]
 			if !ok || r.Provenance.SourceKind != "source_file" ||
-				r.Provenance.SourceDigestStatus != architecture.SourceDigestResolved ||
 				strings.TrimSpace(r.Fact.Evidence.SourceFile) == "" {
 				return "", false
 			}
@@ -613,7 +612,10 @@ func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
 			// maintenance.VerifySourceReceipt correctly reads that as unknown —
 			// so a receipt claiming resolution without carrying one must not
 			// suppress a question. The digest itself has to be there.
-			if !isHexSHA256(strings.TrimSpace(r.Provenance.SourceDigest)) {
+			// Asked of the type that owns the field, so this reader and
+			// inference and maintenance cannot drift into disagreeing about
+			// whether one fact is pinned.
+			if !r.Provenance.SourceDigestPinsContent() {
 				return "", false
 			}
 			premises++
@@ -621,21 +623,6 @@ func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
 	}
 	return fmt.Sprintf("every one of the %d premise fact(s) behind this blocker's %d claim(s) is a source-backed observation with a resolved digest; the only evidence anyone could supply is the source the extractor already read",
 		premises, len(claims)), true
-}
-
-// isHexSHA256 reports whether a digest is present and well-formed, rather than
-// merely declared resolved.
-func isHexSHA256(s string) bool {
-	if len(s) != 64 {
-		return false
-	}
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
-			return false
-		}
-	}
-	return true
 }
 
 // evidenceBlockerCode is the claim-evidence template's blocker set, kept beside
