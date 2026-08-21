@@ -70,6 +70,21 @@ type CompositionSiteResult struct {
 	// here would report a finding the arm never made.
 	CandidateRefs []string `json:"candidate_refs" yaml:"candidate_refs"`
 
+	// GroundedCandidates is how many candidates cite only observation and
+	// evidence identities that exist in the documents they were composed from.
+	//
+	// #131 asks for candidate grounding precision and an unsupported-claim rate.
+	// The half of that which needs no adjudicator is referential: a candidate
+	// pointing at an observation or receipt that is not in the document is
+	// citing something that does not exist, and no reference set is needed to
+	// say so. Whether a grounded candidate is CORRECT is a separate question
+	// this does not answer.
+	GroundedCandidates int `json:"grounded_candidates" yaml:"grounded_candidates"`
+
+	// DanglingCandidateRefs names the identities that did not resolve, bounded
+	// and sorted. Empty is the expected result; a non-empty list is the finding.
+	DanglingCandidateRefs []string `json:"dangling_candidate_refs,omitempty" yaml:"dangling_candidate_refs,omitempty"`
+
 	// WhyUnavailable records that WHY investigation could not run for this
 	// mutant, TYPED rather than left as a zero candidate count. A missing WHY
 	// and a WHY that found nothing are different facts, and collapsing them
@@ -91,6 +106,20 @@ type CompositionReport struct {
 // candidate. Deliberately NOT called a detection rate: a candidate is a
 // proposal about the tree, and whether it matches the defect is a grading
 // judgement this package does not make.
+// CandidateGrounding totals referential grounding across every site.
+//
+// grounded and candidates are counts of candidates; dangling counts the
+// distinct unresolved references behind them, which is the number that says how
+// bad an ungrounded candidate is rather than merely that one exists.
+func (r CompositionReport) CandidateGrounding() (grounded, candidates, dangling int) {
+	for _, res := range r.Results {
+		grounded += res.GroundedCandidates
+		candidates += res.Candidates
+		dangling += len(res.DanglingCandidateRefs)
+	}
+	return grounded, candidates, dangling
+}
+
 func (r CompositionReport) CandidateRate() (produced, total int) {
 	for _, res := range r.Results {
 		total++
@@ -350,7 +379,55 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 	for _, c := range result.Candidates {
 		res.CandidateRefs = append(res.CandidateRefs, candidateText(c))
 	}
+	res.GroundedCandidates, res.DanglingCandidateRefs = groundingOfCandidates(result.Candidates, how, why)
 	return res, nil
+}
+
+// groundingOfCandidates checks each candidate's citations against the documents
+// it was composed from.
+//
+// Purely referential: it asks whether every observation and evidence identity a
+// candidate cites is present, never whether the candidate is right. A candidate
+// citing an identity that is not in the document is pointing at nothing, which
+// is checkable without a frozen reference set — unlike precision, which is not.
+func groundingOfCandidates(candidates []investigator.CandidateEnvelope, how, why investigation.Document) (int, []string) {
+	known := map[string]bool{}
+	for _, o := range how.Observations {
+		known[o.ID] = true
+	}
+	for _, e := range how.RawEvidence {
+		known[e.ID] = true
+	}
+	for _, e := range why.RawEvidence {
+		known[e.ID] = true
+	}
+	grounded := 0
+	dangling := map[string]bool{}
+	for _, c := range candidates {
+		ok := true
+		for _, refs := range [][]string{c.ObservationRefIDs, c.SupportingEvidenceRefIDs, c.RefutingEvidenceRefIDs} {
+			for _, id := range refs {
+				if id == "" || known[id] {
+					continue
+				}
+				ok = false
+				dangling[c.CandidateID+" -> "+id] = true
+			}
+		}
+		if ok {
+			grounded++
+		}
+	}
+	out := make([]string, 0, len(dangling))
+	for d := range dangling {
+		out = append(out, d)
+	}
+	sort.Strings(out)
+	const limit = 10
+	if len(out) > limit {
+		out = append(out[:limit:limit], fmt.Sprintf("… %d further dangling references not listed", len(dangling)-limit))
+	}
+	return grounded, out
 }
 
 // candidateText records what the envelope actually carries.
