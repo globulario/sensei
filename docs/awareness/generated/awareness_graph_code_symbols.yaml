@@ -6108,6 +6108,64 @@ test_symbols:
     symbol: TestVerifyWorktreeUncommittedEditVerifies
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestDuplicateWorldNameIsRefused
+    file: cmd/eval-arms/world_test.go
+    symbol: TestDuplicateWorldNameIsRefused
+    package: main
+    language: go
+  - id: cmd/eval-arms/world_test.go:TestEveryRequiredWorldIsAccountedFor
+    file: cmd/eval-arms/world_test.go
+    symbol: TestEveryRequiredWorldIsAccountedFor
+    package: main
+    language: go
+    doc: "Every world #131 defines appears in the index whether it ran or not."
+  - id: cmd/eval-arms/world_test.go:TestParseWorldSpecRejectsIncompleteSpec
+    file: cmd/eval-arms/world_test.go
+    symbol: TestParseWorldSpecRejectsIncompleteSpec
+    package: main
+    language: go
+  - id: cmd/eval-arms/world_test.go:TestRelocateRootRemovesCheckoutLocation
+    file: cmd/eval-arms/world_test.go
+    symbol: TestRelocateRootRemovesCheckoutLocation
+    package: main
+    language: go
+    doc: "A report naming this machine's checkout is not comparable with the same\nworld measured elsewhere."
+  - id: cmd/eval-arms/world_test.go:TestReservedArmNamesMatchTheArmsActuallyWritten
+    file: cmd/eval-arms/world_test.go
+    symbol: TestReservedArmNamesMatchTheArmsActuallyWritten
+    package: main
+    language: go
+    doc: "A world may not claim the name of an arm this command writes itself, or of\nanother world in the same run: the second report would overwrite the first\nafter its digest was already recorded in the index."
+  - id: cmd/eval-arms/world_test.go:TestWorldBindingCleanTreeBindsRevision
+    file: cmd/eval-arms/world_test.go
+    symbol: TestWorldBindingCleanTreeBindsRevision
+    package: main
+    language: go
+    doc: "A clean checkout is identified by the commit it actually is."
+  - id: cmd/eval-arms/world_test.go:TestWorldBindingDirtyTreeRefusesRevisionAndBindsTreeDigest
+    file: cmd/eval-arms/world_test.go
+    symbol: TestWorldBindingDirtyTreeRefusesRevisionAndBindsTreeDigest
+    package: main
+    language: go
+    doc: "A dirty checkout was not the commit HEAD names, so it must not claim to be:\nthe measurement binds to the tree that was read (#216)."
+  - id: cmd/eval-arms/world_test.go:TestWorldBindingLeavesRepositoryIndexAlone
+    file: cmd/eval-arms/world_test.go
+    symbol: TestWorldBindingLeavesRepositoryIndexAlone
+    package: main
+    language: go
+    doc: "Computing a dirty tree's identity must not disturb the repository it reads."
+  - id: cmd/eval-arms/world_test.go:TestWorldBindingRefusesAnIgnoredSemanticInput
+    file: cmd/eval-arms/world_test.go
+    symbol: TestWorldBindingRefusesAnIgnoredSemanticInput
+    package: main
+    language: go
+    doc: "An ignored .go file is still compiled into the semantic input. `git status`\ndoes not list it and `git add -A` skips it, so neither the revision nor the\ntree digest covers it: an identity that excludes part of its own input would\nlet the report change while claiming to be the same measurement."
+  - id: cmd/eval-arms/world_test.go:TestWorldBindingTreeDigestFollowsContent
+    file: cmd/eval-arms/world_test.go
+    symbol: TestWorldBindingTreeDigestFollowsContent
+    package: main
+    language: go
+    doc: "The digest must follow the content, or two different working trees would\nreport the same identity."
   - id: cmd/http-scan/main_test.go:TestScan_ExtractsRoutes
     file: cmd/http-scan/main_test.go
     symbol: TestScan_ExtractsRoutes
