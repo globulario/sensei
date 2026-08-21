@@ -71,9 +71,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # World 1 IS this checkout, so it runs here. Worlds 2 and 3 need
+          # external repositories the runner does not have and stay recorded as
+          # not_run — but a self-measurement that CI could make and does not is
+          # just a manual run with a line in the index.
           go run ./cmd/eval-arms \
             --out "${RUNNER_TEMP}/eval-arms" \
             --captured-at "${{ steps.capture.outputs.captured_at }}" \
+            --world "world1_sensei_self=github.com/globulario/sensei=${GITHUB_WORKSPACE}" \
             | tee "${RUNNER_TEMP}/eval-arms-summary.txt"
 
       - name: Prove the reports replay identically
@@ -85,7 +90,8 @@ jobs:
           # timestamp must produce byte-identical reports.
           go run ./cmd/eval-arms \
             --out "${RUNNER_TEMP}/eval-arms-replay" \
-            --captured-at "${{ steps.capture.outputs.captured_at }}" >/dev/null
+            --captured-at "${{ steps.capture.outputs.captured_at }}" \
+            --world "world1_sensei_self=github.com/globulario/sensei=${GITHUB_WORKSPACE}" >/dev/null
           # SEMANTIC reports only. run_envelope.json carries elapsed time and
           # memory, which must differ between runs — comparing it would turn
           # this check into a benchmark of the scheduler, which is exactly the
