@@ -1,0 +1,106 @@
+# Runs the landed evaluation arms of issue #131 at an exact revision and keeps
+# their reports as artifacts.
+#
+# The arms were reachable only from Go tests, which print to a log nobody can
+# compare. #131's completion evidence asks for reports that are reproducible and
+# content-addressed; this produces them at a pinned head, together with an index
+# naming every arm and world that did NOT run and why — an index listing only
+# what worked would read as a complete protocol.
+#
+# Deliberately manual and path-triggered rather than on every push: this is a
+# measurement, not a gate. It must never become a check that pressures anyone to
+# make a number go up.
+name: Evaluation arms
+
+on:
+  workflow_dispatch:
+    inputs:
+      captured_at:
+        description: Explicit RFC3339 capture timestamp for the reports
+        required: true
+        default: "2026-01-01T00:00:00Z"
+  push:
+    branches:
+      - main
+    paths:
+      - "golang/architecture/evalharness/**"
+      - "golang/architecture/evalmutant/**"
+      - "cmd/eval-arms/**"
+      - ".github/workflows/evaluation-arms.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  arms:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Resolve the capture timestamp
+        id: capture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The commit's own timestamp for a push, so a report is bound to the
+          # revision it measured rather than to when a runner happened to start.
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            captured="${{ inputs.captured_at }}"
+          else
+            captured="$(git show -s --format=%cI "${GITHUB_SHA}")"
+          fi
+          echo "captured_at=${captured}" >> "$GITHUB_OUTPUT"
+
+      - name: Run the landed evaluation arms
+        shell: bash
+        run: |
+          set -euo pipefail
+          go run ./cmd/eval-arms \
+            --out "${RUNNER_TEMP}/eval-arms" \
+            --captured-at "${{ steps.capture.outputs.captured_at }}" \
+            | tee "${RUNNER_TEMP}/eval-arms-summary.txt"
+
+      - name: Prove the reports replay identically
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Determinism is a completion criterion of #131, so it is checked here
+          # rather than asserted: the same revision and the same capture
+          # timestamp must produce byte-identical reports.
+          go run ./cmd/eval-arms \
+            --out "${RUNNER_TEMP}/eval-arms-replay" \
+            --captured-at "${{ steps.capture.outputs.captured_at }}" >/dev/null
+          for report in "${RUNNER_TEMP}"/eval-arms/*.json; do
+            name="$(basename "$report")"
+            if ! cmp -s "$report" "${RUNNER_TEMP}/eval-arms-replay/${name}"; then
+              echo "::error::${name} is not reproducible: a replay at the same revision produced different bytes"
+              exit 1
+            fi
+          done
+          echo "every report replayed byte-identically"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: evaluation-arms-reports
+          path: |
+            ${{ runner.temp }}/eval-arms/*.json
+            ${{ runner.temp }}/eval-arms-summary.txt
+          if-no-files-found: error
+
+      - name: Summary
+        shell: bash
+        run: |
+          {
+            echo "## Evaluation arms — issue #131"
+            echo
+            echo '```text'
+            cat "${RUNNER_TEMP}/eval-arms-summary.txt"
+            echo '```'
+            echo
+            echo "Reports are content-addressed; the index names every arm and world that did not run and why."
+          } >> "$GITHUB_STEP_SUMMARY"

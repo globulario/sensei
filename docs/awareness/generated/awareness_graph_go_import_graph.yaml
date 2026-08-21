@@ -318,6 +318,19 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.cmd.eval_arms
+    name: eval-arms
+    kind: service
+    assertion: inferred
+    source_files:
+      - cmd/eval-arms/main.go
+    depends_on:
+      - component.golang.architecture.evalharness
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.cmd.grpcweb_scan
     name: grpcweb-scan
     kind: service
