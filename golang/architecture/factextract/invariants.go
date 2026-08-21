@@ -523,12 +523,27 @@ func extractGeneratedAuthorityFacts(identity invariantRepositoryIdentity) []norm
 		// subject and object already carry the path, so dropping the anchor
 		// loses nothing, and the kind is recorded rather than left implicit in
 		// an empty field.
-		anchor, kind := rel, "file"
+		kind := "file"
 		if !info.Mode().IsRegular() {
-			anchor, kind = "", "directory"
+			kind = "directory"
 		}
-		facts = append(facts, invariantFact(identity, "generation_check", rel, "generated_artifact_exists", rel, anchor, "", 0, 0, "", "generated_artifact_extractor", 0.5,
-			map[string]string{"generated_artifact_kind": kind}))
+		fact := invariantFact(identity, "generation_check", rel, "generated_artifact_exists", rel, rel, "", 0, 0, "", "generated_artifact_extractor", 0.5,
+			map[string]string{"generated_artifact_kind": kind})
+		if kind == "directory" {
+			// Clear only the EVIDENCE anchor, and say why in the typed field the
+			// contract requires. A source-backed fact must carry a source file
+			// or an explicit unavailable status — an empty anchor with no reason
+			// is the silent absence this system exists to prevent, and the
+			// validator refuses it.
+			//
+			// Scope keeps the path: a fact scoped to nothing bypasses
+			// include/exclude filtering entirely, because compose only rejects
+			// an out-of-scope fact that still names a source file.
+			fact.Evidence.SourceFile = ""
+			fact.Evidence.EvidenceUnavailableStatus = "not_a_source_file"
+			fact.Evidence.EvidenceUnavailableReason = "the generated artifact is a directory, which carries no source line to anchor to"
+		}
+		facts = append(facts, fact)
 	}
 	for _, rel := range []string{".github/workflows/seed-rebuild.yml", ".github/workflows/awg-gate.yml", "Makefile"} {
 		path := filepath.Join(identity.Root, filepath.FromSlash(rel))
