@@ -1781,3 +1781,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_byte_comparison_re_admits_the_clock_that_the_semantic_dige
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    title: The replay-authority gate fails closed in text, json and yaml alike
+    protects:
+      failure_modes:
+        - failure.a_fail_closed_gate_applied_to_one_output_format_exempts_the

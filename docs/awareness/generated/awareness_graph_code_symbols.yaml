@@ -1687,6 +1687,12 @@ test_symbols:
     symbol: TestBenchmarkReconstructRequiresFrozenWorkspace
     package: main
     language: go
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    file: cmd/awg/cmd_benchmark_external_test.go
+    symbol: TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    package: main
+    language: go
+    doc: "TestBenchmarkStatusReplayGateAppliesToEveryFormat is the regression for a\ngate that guarded only human-readable output.\n\nThe fail-closed exit exists so a harness cannot scrape numbers from a replay\nthat ran under changed authority — and a harness is exactly the caller that\npasses --format json. Guarding only the text branch therefore exempted the\nsingle caller the gate was written to stop, while still reporting the\nguarantee as implemented."
   - id: cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusRequiresWorkspace
     file: cmd/awg/cmd_benchmark_external_test.go
     symbol: TestBenchmarkStatusRequiresWorkspace

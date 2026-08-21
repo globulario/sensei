@@ -1905,3 +1905,16 @@ failure_modes:
     evidence:
       - 'TestRepeatedRecordingNeitherDuplicatesNorOverwrites passed locally and failed in CI (run 32523698608, exit 5) because the two recordings straddled a wall-clock second. The digest exclusion was already documented in golang/architecture/candidateapply/digest.go with this exact hazard named: letting the clock into the identity would make an idempotent re-record look like a second, different record.'
     contract: Where a type defines a semantic identity that excludes a provenance field, every equality decision about that type must use the semantic identity. Comparing serialized bytes re-admits the excluded field and turns provenance back into identity.
+  - id: failure.a_fail_closed_gate_applied_to_one_output_format_exempts_the
+    title: A fail-closed gate applied to one output format exempts the caller it exists to stop
+    description: benchmark-status computed the replay-authority gate inside the --format text branch only. --format json and --format yaml returned the freeze data with exit 0 and no comparability verdict, so a drifted or unverifiable replay was machine-readable as though it were comparable — and --format json is precisely what a harness consumes, so the only caller the exit-3 refusal was written to stop was the one caller that never saw it.
+    protects:
+      files:
+        - cmd/awg/cmd_benchmark_external.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1) after the human-readable path had been tested and reported as implemented. The regression test fails without the shared gate with --format json exit = 0 and --format yaml exit = 0, want 3, while --format text passes — which is exactly how the hole stayed invisible.'
+    contract: A refusal that exists to stop a machine consumer must be enforced on the paths a machine consumer uses. Where a command emits several formats, the gate is computed before the format is chosen and returns the same verdict for every one of them.
