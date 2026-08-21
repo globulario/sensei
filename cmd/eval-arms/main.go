@@ -48,6 +48,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/client"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
 type armArtifact struct {
@@ -328,6 +329,33 @@ type publishedSurfaceReport struct {
 	Files         []string                `json:"pinned_files"`
 	Results       []publishedSurfaceEntry `json:"results"`
 	Limitations   []string                `json:"limitations"`
+
+	// RemoteAuthority is the authority of the SERVER that answered, which is a
+	// different subject from the index's local evaluator authority. This arm's
+	// measurements come from --addr, and that server may have been built from
+	// another revision and may serve another graph. Recording only the local
+	// checkout would let two runs against distinct remote authorities carry
+	// identical authority blocks and read as comparable.
+	RemoteAuthority *remoteAuthority `json:"remote_authority,omitempty"`
+}
+
+// remoteAuthority is what the answering server states about itself. It is the
+// server's own claim, carried verbatim: this harness cannot verify a remote
+// build, and must not present an unverified claim as if it were established.
+type remoteAuthority struct {
+	Observed         bool   `json:"observed"`
+	Reason           string `json:"reason,omitempty"`
+	Authoritative    bool   `json:"authoritative,omitempty"`
+	SourceRepoCommit string `json:"source_repo_commit,omitempty"`
+	GraphBuildCommit string `json:"graph_build_commit,omitempty"`
+	FreshnessState   string `json:"graph_freshness_state,omitempty"`
+	SeedState        string `json:"seed_state,omitempty"`
+	BuildProvenance  string `json:"build_provenance_state,omitempty"`
+	// The remote analogue of the local authority's seed identity: which
+	// compiled graph the answering server actually served.
+	EmbeddedSeedDigestSHA256   string `json:"embedded_seed_digest_sha256,omitempty"`
+	LiveStoreGraphDigestSHA256 string `json:"live_store_graph_digest_sha256,omitempty"`
+	LiveStoreGraphTripleCount  int64  `json:"live_store_graph_triple_count,omitempty"`
 }
 
 type publishedSurfaceEntry struct {
@@ -336,6 +364,28 @@ type publishedSurfaceEntry struct {
 	BriefingStatus  string `json:"briefing_status"`
 	BriefingRefused string `json:"briefing_refused,omitempty"`
 	ImpactRefused   string `json:"impact_refused,omitempty"`
+}
+
+// observedRemoteAuthority records what the answering server said about its own
+// authority. A response that carries none is recorded as unobserved with a
+// typed reason rather than omitted: a missing block must not read as a server
+// whose authority happened to match the local checkout.
+func observedRemoteAuthority(a *awarenesspb.GraphAuthority) *remoteAuthority {
+	if a == nil {
+		return &remoteAuthority{Observed: false, Reason: "the server returned no authority stamp"}
+	}
+	return &remoteAuthority{
+		Observed:                   true,
+		Authoritative:              a.GetAuthoritative(),
+		SourceRepoCommit:           a.GetSourceRepoCommit(),
+		GraphBuildCommit:           a.GetGraphBuildCommit(),
+		FreshnessState:             a.GetGraphFreshnessState().String(),
+		SeedState:                  a.GetSeedState().String(),
+		BuildProvenance:            a.GetBuildProvenanceState().String(),
+		EmbeddedSeedDigestSHA256:   a.GetEmbeddedSeedDigestSha256(),
+		LiveStoreGraphDigestSHA256: a.GetLiveStoreGraphDigestSha256(),
+		LiveStoreGraphTripleCount:  a.GetLiveStoreGraphTripleCount(),
+	}
 }
 
 // runPublishedSurfaces baselines briefing and impact over a published domain.
@@ -376,6 +426,9 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 			entry.ImpactNodes = len(resp.GetDirectInvariants()) + len(resp.GetDirectFailureModes()) +
 				len(resp.GetDirectIntents()) + len(resp.GetForbiddenFixes()) + len(resp.GetRequiredTests()) +
 				len(resp.GetDirectArchitecture())
+			if report.RemoteAuthority == nil {
+				report.RemoteAuthority = observedRemoteAuthority(resp.GetAuthority())
+			}
 		}
 		if resp, err := conn.Briefing(ctx, file, "", "standard", domain); err != nil {
 			entry.BriefingRefused = err.Error()
@@ -384,6 +437,9 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 		}
 		cancel()
 		report.Results = append(report.Results, entry)
+	}
+	if report.RemoteAuthority == nil {
+		report.RemoteAuthority = &remoteAuthority{Observed: false, Reason: "no impact response was obtained, so the answering server's authority was never seen"}
 	}
 	elapsed[armBriefingImpactSurfaces] = time.Since(start).Milliseconds()
 

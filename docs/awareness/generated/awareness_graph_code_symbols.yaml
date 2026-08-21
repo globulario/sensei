@@ -6185,6 +6185,12 @@ test_symbols:
     package: main
     language: go
     doc: "A positive result is not an absence claim and must not be audited as one."
+  - id: cmd/eval-arms/world_test.go:TestPublishedArmRecordsTheAnsweringServersAuthority
+    file: cmd/eval-arms/world_test.go
+    symbol: TestPublishedArmRecordsTheAnsweringServersAuthority
+    package: main
+    language: go
+    doc: "TestPublishedArmRecordsTheAnsweringServersAuthority: arm 4's measurements\ncome from the server at --addr, not from the local checkout, so binding only\nthe local evaluator would let two runs against DIFFERENT remote authorities\ncarry identical authority blocks and read as comparable.\n\nThe unobserved case is what this pins hardest: when no impact response is\nobtained, the report must say so rather than omit the block, because a\nmissing block would read as a server whose authority happened to match."
   - id: cmd/eval-arms/world_test.go:TestRelocateRootRemovesCheckoutLocation
     file: cmd/eval-arms/world_test.go
     symbol: TestRelocateRootRemovesCheckoutLocation

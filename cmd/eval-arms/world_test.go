@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -327,5 +328,46 @@ func TestIndexBindsTheEvaluatingAuthority(t *testing.T) {
 		}
 	default:
 		t.Errorf("authority capture state %q is outside the closed vocabulary", idx.Authority.CaptureState)
+	}
+}
+
+// TestPublishedArmRecordsTheAnsweringServersAuthority: arm 4's measurements
+// come from the server at --addr, not from the local checkout, so binding only
+// the local evaluator would let two runs against DIFFERENT remote authorities
+// carry identical authority blocks and read as comparable.
+//
+// The unobserved case is what this pins hardest: when no impact response is
+// obtained, the report must say so rather than omit the block, because a
+// missing block would read as a server whose authority happened to match.
+func TestPublishedArmRecordsTheAnsweringServersAuthority(t *testing.T) {
+	// No server is listening. gRPC dials lazily, so the arm proceeds and every
+	// call fails — which is exactly the case that must not silently omit the
+	// remote authority block.
+	out := t.TempDir()
+	runPublishedSurfaces(out, "127.0.0.1:1", "example.com/published", []string{"a.go"}, map[string]int64{})
+
+	data, err := os.ReadFile(filepath.Join(out, armBriefingImpactSurfaces+".json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var report publishedSurfaceReport
+	if err := json.Unmarshal(data, &report); err != nil {
+		t.Fatal(err)
+	}
+	if report.RemoteAuthority == nil {
+		t.Fatal("the published arm recorded no remote authority; its measurements come from --addr, not from the local checkout")
+	}
+	if report.RemoteAuthority.Observed {
+		t.Error("no server answered, yet the remote authority is recorded as observed")
+	}
+	if strings.TrimSpace(report.RemoteAuthority.Reason) == "" {
+		t.Error("an unobserved remote authority carries no typed reason")
+	}
+
+	// And the typed-absence contract at the unit that builds the block.
+	if got := observedRemoteAuthority(nil); got == nil || got.Observed {
+		t.Fatal("a response carrying no authority stamp must be recorded as unobserved, never omitted")
+	} else if strings.TrimSpace(got.Reason) == "" {
+		t.Error("an unobserved remote authority carries no typed reason")
 	}
 }
