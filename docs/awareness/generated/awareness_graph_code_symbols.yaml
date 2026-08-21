@@ -19747,6 +19747,24 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestResolveControlAndClosure_UsesGenerationDecisionNotPrepareTimeDecision\nis the direct regression test for a live review finding: once\nadvance-task has published a generation, ResolveControlAndClosure must\nresolve the admission decision from that generation's own\nadmission-decision.yaml, never the fixed prepare-time\ntaskDir/admission/decision.yaml -- admission.projectProof derives\nobligations from the CURRENT closure's RelevantNodes, so the two\ndecisions can genuinely diverge (e.g. an initial decision declaring zero\nproof obligations, superseded by a current one that declares real\nones). This test forces that divergence directly (rather than trying to\nengineer a real claims/closure change that would newly surface an\nobligation) by mutating the on-disk generation decision after\nadvance-task publishes it, and asserts ResolveControlAndClosure returns\nTHAT mutated decision, not the untouched prepare-time one."
+  - id: golang/architecture/tasksession/control_cache_disposition_test.go:TestAbsentLedgerIsNotTreatedAsStale
+    file: golang/architecture/tasksession/control_cache_disposition_test.go
+    symbol: TestAbsentLedgerIsNotTreatedAsStale
+    package: tasksession
+    language: go
+    doc: "A task with no ledger at all has no cached control state to serve either\n(control/latest.yaml cannot exist before the first advance), so an empty\nchain is not treated as staleness — it would rebuild anyway."
+  - id: golang/architecture/tasksession/control_cache_disposition_test.go:TestControlCacheIsNotServedAfterAGovernedDisposition
+    file: golang/architecture/tasksession/control_cache_disposition_test.go
+    symbol: TestControlCacheIsNotServedAfterAGovernedDisposition
+    package: tasksession
+    language: go
+    doc: "A cached control state was projected from the ledger as it stood when\nadvance-task last ran. A dismissal recorded since then is invisible to it, so\nserving the cache shows an operator a demand the authority already\nterminated — the #230 defect one layer out, where the projection is correct\nand an older copy of it is returned instead."
+  - id: golang/architecture/tasksession/control_cache_disposition_test.go:TestCorruptLedgerInvalidatesTheControlCache
+    file: golang/architecture/tasksession/control_cache_disposition_test.go
+    symbol: TestCorruptLedgerInvalidatesTheControlCache
+    package: tasksession
+    language: go
+    doc: "A ledger that exists but cannot be verified cannot prove the cache is\ncurrent. The two errors are not symmetric: a needless rebuild costs time,\nwhile a wrongly served cache shows an operator a demand the authority has\nalready terminated."
   - id: golang/architecture/tasksession/disposition_fold_test.go:TestGovernedDispositionsFailClosedWithoutALedger
     file: golang/architecture/tasksession/disposition_fold_test.go
     symbol: TestGovernedDispositionsFailClosedWithoutALedger
