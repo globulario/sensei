@@ -15755,12 +15755,24 @@ test_symbols:
     symbol: TestGenerateFromDeviationRoutesOnlyRepeatedPatterns
     package: questiongen
     language: go
+  - id: golang/architecture/questiongen/envelope_test.go:TestAQuestionAlreadyInsideTheEnvelopeIsNotRewrittenEachRun
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestAQuestionAlreadyInsideTheEnvelopeIsNotRewrittenEachRun
+    package: questiongen
+    language: go
+    doc: "A question already inside the envelope is left exactly as it is: churning a\nquestion per convergence iteration would be its own defect."
   - id: golang/architecture/questiongen/envelope_test.go:TestAQuestionEntirelyOutsideTheEnvelopeKeepsItsFiles
     file: golang/architecture/questiongen/envelope_test.go
     symbol: TestAQuestionEntirelyOutsideTheEnvelopeKeepsItsFiles
     package: questiongen
     language: go
     doc: "If every file is outside the envelope, the union stands: a question about no\nfiles at all says less than the honest breadth does."
+  - id: golang/architecture/questiongen/envelope_test.go:TestAWideExistingQuestionIsNarrowedInPlace
+    file: golang/architecture/questiongen/envelope_test.go
+    symbol: TestAWideExistingQuestionIsNarrowedInPlace
+    package: questiongen
+    language: go
+    doc: "The case the fix would otherwise miss: a task that ALREADY carries the wide\nquestion. Coverage alone leaves it standing, still naming files the task\nnever admitted.\n\nIt is narrowed IN PLACE, because it is the same question:\nStableOpenQuestionID derives identity from repository, domain, dimension,\ntext, claims, template, nodes and blockers — not from the file scope. So a\nre-scoped question has the same ID, and superseding it would invent a second\nquestion with the identity of the first."
   - id: golang/architecture/questiongen/envelope_test.go:TestAnEmptyEnvelopeBindsNothing
     file: golang/architecture/questiongen/envelope_test.go
     symbol: TestAnEmptyEnvelopeBindsNothing

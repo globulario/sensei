@@ -309,6 +309,22 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 		// this suppresses only questions not yet asked and the gap is filed
 		// rather than papered over.
 		if existing := coveringQuestion(dialogue.OpenQuestions, blocker); existing != "" {
+			// A question asked before this task's envelope was applied still
+			// names files the task never admitted, and coverage alone would
+			// leave it standing (#230 item 3).
+			//
+			// It is narrowed in place, because it is the same question:
+			// StableOpenQuestionID derives identity from the repository,
+			// domain, dimension, text, claims, template, nodes and blockers —
+			// NOT from the file scope. Superseding it would invent a second
+			// question with the same identity, and generating a replacement
+			// that collides with what it replaces is not a repair.
+			if narrowed := narrowExistingQuestion(dialogue.OpenQuestions, existing, ctx.Closure.ScopeReceipt.Files); narrowed {
+				report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing,
+					"questiongen.rescoped_to_envelope",
+					"existing question covers blocker; its scope named files this task never admitted and was narrowed to the task envelope"))
+				continue
+			}
 			report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing, "questiongen.existing_covers", "existing question covers blocker"))
 			continue
 		}
@@ -735,6 +751,39 @@ func questionScope(ctx Context, b closure.Blocker, claims []architecture.Claim, 
 	scope.Components = cleanStrings(scope.Components)
 	scope.Files, _ = boundToEnvelope(scope.Files, ctx.Closure.ScopeReceipt.Files)
 	return scope
+}
+
+// narrowExistingQuestion bounds an already-open question's file scope to the
+// task envelope, in place, and records what it removed. It reports whether it
+// changed anything.
+//
+// In place, and not by replacement, because the file scope is not part of a
+// question's identity: a narrowed question has the same StableOpenQuestionID as
+// the wide one it corrects. The lineage, the answers attached to it, and the
+// blockers it names all stay exactly where they were.
+//
+// It leaves the question alone when there is no envelope, when the question is
+// already inside it, or when narrowing would empty it — the same three
+// boundaries boundToEnvelope keeps, for the same reasons.
+func narrowExistingQuestion(questions []architecture.OpenQuestion, id string, envelope []string) bool {
+	if len(envelope) == 0 {
+		return false
+	}
+	for i := range questions {
+		if questions[i].ID != id || questions[i].Status == architecture.QuestionStatusSuperseded {
+			continue
+		}
+		bound, dropped := boundToEnvelope(questions[i].Scope.Files, envelope)
+		if dropped == 0 || len(bound) == len(questions[i].Scope.Files) {
+			return false
+		}
+		questions[i].Scope.Files = bound
+		questions[i].ReasonsOpen = cleanStrings(append(questions[i].ReasonsOpen,
+			fmt.Sprintf("scope bounded to this task's %d admitted file(s); the claims under this question also reach %d file(s) outside it",
+				len(envelope), dropped)))
+		return true
+	}
+	return false
 }
 
 // boundToEnvelope narrows a question's files to the ones the task actually
