@@ -9254,6 +9254,24 @@ test_symbols:
     symbol: TestValidateDirectionBootstrapApprovalRequiresTrustedApprovalRoot
     package: closure
     language: go
+  - id: golang/architecture/closure/reverse_protections_test.go:TestAnEmptySeedSetExpandsToNothing
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestAnEmptySeedSetExpandsToNothing
+    package: closure
+    language: go
+    doc: "A request naming a file the graph does not represent seeds nothing, and an\nexpansion that will visit nothing must not pay a full pass over the graph to\nindex it — the cost this change removes, in miniature."
+  - id: golang/architecture/closure/reverse_protections_test.go:TestExpansionStillReachesProtectorsThroughTheIndex
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestExpansionStillReachesProtectorsThroughTheIndex
+    package: closure
+    language: go
+    doc: "The expansion this feeds must still find the governance that points at a\nrequested file — the whole point of the change it accelerates."
+  - id: golang/architecture/closure/reverse_protections_test.go:TestReverseProtectionsAgreesWithTheDirectScan
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestReverseProtectionsAgreesWithTheDirectScan
+    package: closure
+    language: go
+    doc: "The index must resolve exactly what the single-node scan resolves, for every\nnode. An index that returned a different protector set would be a silent\nchange in what a scope contains rather than a visible failure — and scope\ndecides which governance a task is assessed against."
   - id: golang/architecture/closure/util_test.go:TestScopeExpansionFindsTheNodesThatProtectTheSeed
     file: golang/architecture/closure/util_test.go
     symbol: TestScopeExpansionFindsTheNodesThatProtectTheSeed
