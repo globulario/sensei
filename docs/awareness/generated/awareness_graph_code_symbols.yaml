@@ -15820,6 +15820,18 @@ test_symbols:
     symbol: TestStableDigestUsesSHA256
     package: questiongen
     language: go
+  - id: golang/architecture/questiongen/self_evidenced_test.go:TestAResolvedStatusWithoutADigestDoesNotSuppress
+    file: golang/architecture/questiongen/self_evidenced_test.go
+    symbol: TestAResolvedStatusWithoutADigestDoesNotSuppress
+    package: questiongen
+    language: go
+    doc: "The status is not the evidence. ValidateClaimDocument accepts\nsource_digest_status: resolved with an empty digest, while maintenance reads\nthat as unknown — a receipt claiming resolution without carrying one must not\nsuppress a question."
+  - id: golang/architecture/questiongen/self_evidenced_test.go:TestAnAlreadyOpenQuestionStillBlocks
+    file: golang/architecture/questiongen/self_evidenced_test.go
+    symbol: TestAnAlreadyOpenQuestionStillBlocks
+    package: questiongen
+    language: go
+    doc: "The gap this fix does NOT close, pinned so it stays visible: a question\nalready open for a self-evidenced blocker keeps blocking.\n\nRetiring it would be the better answer and cannot be given honestly yet. The\ndialogue vocabulary has no state for a question withdrawn as unanswerable:\n`superseded` requires a superseding question and there is none, `answered`\nand `resolved` would claim it was settled, and `accepted_unknown` is a human\naccepting a gap rather than a generator deciding one. Filed as a\ncontract_unknown; this test fails the day the vocabulary gains that state,\nwhich is the reminder to use it."
   - id: golang/architecture/questiongen/self_evidenced_test.go:TestOnlyEvidenceBlockersCanBeSelfEvidenced
     file: golang/architecture/questiongen/self_evidenced_test.go
     symbol: TestOnlyEvidenceBlockersCanBeSelfEvidenced

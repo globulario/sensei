@@ -297,6 +297,17 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 	currentBlockers := map[string]closure.Blocker{}
 	for _, blocker := range ctx.Closure.Blockers {
 		currentBlockers[blocker.ID] = blocker
+		// Existing coverage is still checked FIRST, and a question already open
+		// for a self-evidenced blocker keeps blocking.
+		//
+		// Retiring it would be the better answer and cannot be given honestly
+		// yet: the dialogue vocabulary has no state for a question withdrawn as
+		// unanswerable. `superseded` requires a superseding question and there
+		// is none; `answered` and `resolved` would claim it was settled;
+		// `accepted_unknown` is a human accepting a gap, not a generator
+		// deciding one. Every available status asserts something untrue, so
+		// this suppresses only questions not yet asked and the gap is filed
+		// rather than papered over.
 		if existing := coveringQuestion(dialogue.OpenQuestions, blocker); existing != "" {
 			report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing, "questiongen.existing_covers", "existing question covers blocker"))
 			continue
@@ -581,11 +592,34 @@ func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
 				strings.TrimSpace(r.Fact.Evidence.SourceFile) == "" {
 				return "", false
 			}
+			// The STATUS is not the evidence. ValidateClaimDocument accepts
+			// source_digest_status: resolved with an empty digest, while
+			// maintenance.VerifySourceReceipt correctly reads that as unknown —
+			// so a receipt claiming resolution without carrying one must not
+			// suppress a question. The digest itself has to be there.
+			if !isHexSHA256(strings.TrimSpace(r.Provenance.SourceDigest)) {
+				return "", false
+			}
 			premises++
 		}
 	}
 	return fmt.Sprintf("every one of the %d premise fact(s) behind this blocker's %d claim(s) is a source-backed observation with a resolved digest; the only evidence anyone could supply is the source the extractor already read",
 		premises, len(claims)), true
+}
+
+// isHexSHA256 reports whether a digest is present and well-formed, rather than
+// merely declared resolved.
+func isHexSHA256(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 // evidenceBlockerCode is the claim-evidence template's blocker set, kept beside

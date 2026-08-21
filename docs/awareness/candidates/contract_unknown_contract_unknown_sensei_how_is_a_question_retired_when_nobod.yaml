@@ -1,0 +1,10 @@
+contract_unknown:
+  - id: contract_unknown.sensei.how_is_a_question_retired_when_nobody_can_ever_answer_it
+    kind: contract_unknown
+    title: How is a question retired when nobody can ever answer it
+    description: 'PR #236 implements the half that can be done honestly: an evidence blocker whose claims are all derived observed claims with fully source-backed premises does not generate a NEW question. The already-open case is left blocking, with a test pinning that behaviour so the gap stays visible rather than being papered over with a status that asserts something untrue.'
+    proposed_contract: 'A generated question whose blocker is later shown to be self-evidenced should reach a terminal state that says WHY it stopped being asked, without asserting it was settled. None of the current dialogue statuses can carry that: superseded requires a superseding question and there is none; answered and resolved claim the question was settled; accepted_unknown is a human accepting a gap, not a generator deciding one. Either the vocabulary gains a withdrawn/unanswerable state whose author is the generator, or retirement stays a human act and the generator may only decline to ask NEW questions.'
+    evidence:
+      - 'globulario/sensei#230 and PR #236 review: suppressing the question only helps tasks that have not asked it yet. A task that already asked keeps an open question nobody can answer, and it keeps blocking closure — which is the downstream case in sensei-code#22.'
+      - 'Attempted the obvious repair and the schema refused it: setting Status=superseded fails validation with ''superseded question requires superseded_by_question''.'
+    domain: github.com/globulario/sensei
