@@ -123,7 +123,7 @@ func buildInvariantExtractionReport(ctx context.Context, root string, opts invar
 	var facts []normalizedInvariantFact
 	var limitations []architecture.Limitation
 	// One Go-AST pass produces both invariant facts and authority surfaces.
-	goFacts, authority, astStop, err := extractGoArchitecture(ctx, identity, opts)
+	goFacts, authority, surfaceFiles, astStop, err := extractGoArchitecture(ctx, identity, opts)
 	if err != nil {
 		return invariantExtractionReport{}, err
 	}
@@ -143,7 +143,10 @@ func buildInvariantExtractionReport(ctx context.Context, root string, opts invar
 	// authority surfaces, and nothing blocking (globulario/sensei#131 world 3).
 	// An evaluation calibrating against a repository like that would have been
 	// measuring the surface while believing it measured the reasoning.
-	if surfaceFiles, serr := invariantGoFiles(identity.Root); serr == nil && len(surfaceFiles) == 0 {
+	// surfaceFiles comes from the AST pass, which already walked the tree.
+	// Walking it again here would be a second unbounded pass over a large
+	// repository, and one that no deadline reaches.
+	if surfaceFiles == 0 {
 		limitations = append(limitations, architecture.Limitation{
 			Source:   "go_ast_extractor",
 			Scope:    "repository",
@@ -374,17 +377,17 @@ func extractGoFileFactsFromAST(identity invariantRepositoryIdentity, rel string,
 // as partial. Truncating silently would be worse than overrunning: it would
 // make "the graph has no facts about this file" indistinguishable from "the
 // clock ran out before that file was read".
-func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIdentity, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, *architecture.Limitation, error) {
+func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIdentity, opts invariantExtractOptions) ([]normalizedInvariantFact, []authoritySurfaceCandidate, int, *architecture.Limitation, error) {
 	files, err := invariantGoFiles(identity.Root)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, 0, nil, err
 	}
 	var facts []normalizedInvariantFact
 	var authority []authoritySurfaceCandidate
 	for i, path := range files {
 		if err := ctx.Err(); err != nil {
 			sort.SliceStable(authority, func(a, b int) bool { return authority[a].ID < authority[b].ID })
-			return facts, authority, &architecture.Limitation{
+			return facts, authority, len(files), &architecture.Limitation{
 				Source: "go_ast_extractor",
 				Scope:  "repository",
 				Reason: fmt.Sprintf("the Go AST pass stopped after %d of %d file(s): %v; facts from the remaining files are absent from this extraction, not absent from the repository",
@@ -395,7 +398,7 @@ func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIden
 		fset := token.NewFileSet()
 		file, perr := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if perr != nil {
-			return nil, nil, nil, fmt.Errorf("parse %s: %w", path, perr)
+			return nil, nil, 0, nil, fmt.Errorf("parse %s: %w", path, perr)
 		}
 		rel := invariantRel(identity.Root, path)
 		facts = append(facts, extractGoFileFactsFromAST(identity, rel, file, fset, opts)...)
@@ -406,7 +409,7 @@ func extractGoArchitecture(ctx context.Context, identity invariantRepositoryIden
 		}
 	}
 	sort.SliceStable(authority, func(i, j int) bool { return authority[i].ID < authority[j].ID })
-	return facts, authority, nil, nil
+	return facts, authority, len(files), nil, nil
 }
 
 // boundedSemanticExtract runs the semantic load under the caller's ceiling.
