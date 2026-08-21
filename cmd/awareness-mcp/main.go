@@ -2272,9 +2272,20 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	//    expose a source/build commit — without it a verdict cannot be tied to the
 	//    rule snapshot that produced it — so fail closed regardless of whether
 	//    expected_head was supplied. The commit is returned so it enters the
-	//    result digest. Compare it against expected_head only when the caller
-	//    pinned one; a divergence means the graph was compiled from a different
-	//    snapshot and its rules may not apply.
+	//    result digest.
+	//
+	//    It is deliberately NOT compared against expectedHead. The two name
+	//    different things: expectedHead is the commit in the repository being
+	//    audited, used to reconstruct pre-change bytes for modify hunks, while
+	//    this commit identifies the rule snapshot that supplied the
+	//    invariants/tests/contracts. In a multi-domain deployment they are
+	//    commits in different repositories, so requiring equality made every
+	//    modified-file audit impossible: omitting expected_head prevents base
+	//    reconstruction, and supplying it was rejected as a graph mismatch.
+	//
+	//    Both fail-closed rules that DO apply are kept and are independent:
+	//    a modified file still requires a caller-pinned repository base, and an
+	//    authoritative graph still requires an exact source/build commit.
 	graphCommit := resp.GetAuthority().GetSourceRepoCommit()
 	if graphCommit == "" {
 		graphCommit = resp.GetAuthority().GetGraphBuildCommit()
@@ -2282,12 +2293,6 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	if graphCommit == "" {
 		return nil, nil, nil, "", fmt.Errorf(
 			"graph claims authority but exposes no source/build commit identity to bind the audit to a rule snapshot",
-		)
-	}
-	if c.expectedHead != "" && graphCommit != c.expectedHead {
-		return nil, nil, nil, "", fmt.Errorf(
-			"graph authority commit %s does not match expected_head %s: the awareness graph was compiled from a different snapshot",
-			graphCommit, c.expectedHead,
 		)
 	}
 

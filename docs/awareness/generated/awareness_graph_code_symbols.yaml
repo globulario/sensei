@@ -512,6 +512,12 @@ test_symbols:
     symbol: TestMCPAdmissionToolsDoNotRequireProtoChanges
     package: main
     language: go
+  - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
+    file: cmd/awareness-mcp/audit_identity_separation_test.go
+    symbol: TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
+    package: main
+    language: go
+    doc: "A diff audit has two independent identities:\n\n 1. the commit in the repository being audited, used to reconstruct the\n    pre-change bytes for modify hunks; and\n 2. the commit carried by graph authority, which identifies the rule\n    snapshot that supplied invariants/tests/contracts.\n\nThey are not required to be commits in the same repository. In the\nmulti-domain deployment used by sensei-code, the graph authority snapshot is\nproduced by the awareness service while expected_head names the governed\nrepository's candidate base. Requiring equality makes every modified-file\naudit impossible: omitting expected_head prevents base reconstruction, while\nsupplying it is rejected as a graph-commit mismatch.\n\nThis is intentionally a red regression test on the branch that introduced\nit. The implementation must remove only the cross-identity equality check.\nIt must NOT weaken either independent fail-closed rule: modified files still\nrequire a caller-pinned repository base, and authoritative graph evidence\nstill requires an exact source/build commit so the rule snapshot enters the\naudit digest."
   - id: cmd/awareness-mcp/complete_task_test.go:TestCompleteTaskToolDelegatesRefusesWritesNothing
     file: cmd/awareness-mcp/complete_task_test.go
     symbol: TestCompleteTaskToolDelegatesRefusesWritesNothing
@@ -557,17 +563,24 @@ test_symbols:
     symbol: TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority
     package: main
     language: go
-  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_GraphCommitMismatch
-    file: cmd/awareness-mcp/main_test.go
-    symbol: TestAwarenessAuditDiffTool_GraphCommitMismatch
-    package: main
-    language: go
   - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed
     file: cmd/awareness-mcp/main_test.go
     symbol: TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed
     package: main
     language: go
     doc: "An authoritative graph that exposes no source/build commit identity cannot be\nbound to expected_head and must fail closed."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_IndependentGraphCommitIsNotAMismatch
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_IndependentGraphCommitIsNotAMismatch
+    package: main
+    language: go
+    doc: "A graph compiled from a commit other than expected_head is NOT a mismatch.\nThe two name different things — expected_head is the audited repository's\nbase, the graph commit is the rule snapshot that supplied the requirements —\nand in a multi-domain deployment they are commits in different repositories.\nRequiring equality made every modified-file audit impossible: omitting\nexpected_head prevents base reconstruction, supplying it was rejected here.\n\nThe independent fail-closed rules are covered separately and must keep\nholding: TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed and\nTestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify."
+  - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_ModifiedFileVerifiesWithIndependentGraphCommit
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestAwarenessAuditDiffTool_ModifiedFileVerifiesWithIndependentGraphCommit
+    package: main
+    language: go
+    doc: "The case that actually closed the loop: a MODIFIED file. Added files always\nescaped, because their new content reconstructs from the hunks alone, so an\nadd-only regression would not prove the defect fixed. A modification needs\nbase bytes, which need a pinned expected_head — the very input that used to\nbe rejected as a graph-commit mismatch.\n\nThe hunk is built from the real base bytes at HEAD so the test cannot rot as\nthe file's content changes."
   - id: cmd/awareness-mcp/main_test.go:TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify
     file: cmd/awareness-mcp/main_test.go
     symbol: TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify

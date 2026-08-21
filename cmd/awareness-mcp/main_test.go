@@ -991,7 +991,17 @@ new file mode 100644
 	}
 }
 
-func TestAwarenessAuditDiffTool_GraphCommitMismatch(t *testing.T) {
+// A graph compiled from a commit other than expected_head is NOT a mismatch.
+// The two name different things — expected_head is the audited repository's
+// base, the graph commit is the rule snapshot that supplied the requirements —
+// and in a multi-domain deployment they are commits in different repositories.
+// Requiring equality made every modified-file audit impossible: omitting
+// expected_head prevents base reconstruction, supplying it was rejected here.
+//
+// The independent fail-closed rules are covered separately and must keep
+// holding: TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed and
+// TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify.
+func TestAwarenessAuditDiffTool_IndependentGraphCommitIsNotAMismatch(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
@@ -1020,8 +1030,74 @@ new file mode 100644
 	if err != nil {
 		t.Fatalf("callTool failed: %v", err)
 	}
-	// Graph commit mismatch should cause cannot_verify
-	if !strings.Contains(res.Text, "cannot_verify") {
-		t.Fatalf("expected cannot_verify on graph commit mismatch, got text: %s", res.Text)
+	// An independent graph snapshot identity must not, by itself, refuse the
+	// audit. This diff adds a file, so no base reconstruction is required and
+	// nothing else here is unverifiable.
+	if strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("a graph snapshot commit independent of expected_head must not refuse the audit, got text: %s", res.Text)
 	}
+}
+
+// The case that actually closed the loop: a MODIFIED file. Added files always
+// escaped, because their new content reconstructs from the hunks alone, so an
+// add-only regression would not prove the defect fixed. A modification needs
+// base bytes, which need a pinned expected_head — the very input that used to
+// be rejected as a graph-commit mismatch.
+//
+// The hunk is built from the real base bytes at HEAD so the test cannot rot as
+// the file's content changes.
+func TestAwarenessAuditDiffTool_ModifiedFileVerifiesWithIndependentGraphCommit(t *testing.T) {
+	head := testGitHEAD(t)
+	graphCommit := strings.Repeat("a", len(head))
+	if graphCommit == strings.ToLower(head) {
+		graphCommit = strings.Repeat("b", len(head))
+	}
+
+	toplevel, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := strings.TrimSpace(string(toplevel))
+	const target = "go.mod"
+	baseBytes, err := gitShowAt(root, head, target)
+	if err != nil {
+		t.Fatalf("read base bytes for %s: %v", target, err)
+	}
+	firstLine := strings.SplitN(baseBytes, "\n", 2)[0]
+
+	fake := fakeClient{
+		editCheck: func(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			return &awarenesspb.EditCheckResponse{}, nil
+		},
+		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(graphCommit)}, nil
+		},
+	}
+	modifyDiff := "diff --git a/" + target + " b/" + target + "\n" +
+		"--- a/" + target + "\n" +
+		"+++ b/" + target + "\n" +
+		"@@ -1,1 +1,1 @@\n" +
+		"-" + firstLine + "\n" +
+		"+" + firstLine + " // audited\n"
+
+	res, err := testBridge(fake).callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          modifyDiff,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if strings.Contains(res.Text, "cannot_verify") {
+		t.Fatalf("a modified file with a pinned candidate base must verify even when the rule-snapshot commit differs; got: %s", res.Text)
+	}
+}
+
+func gitShowAt(root, commit, path string) (string, error) {
+	cmd := exec.Command("git", "show", commit+":"+path)
+	cmd.Dir = root
+	out, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return string(out), nil
 }
