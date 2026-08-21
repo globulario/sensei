@@ -71,3 +71,16 @@ func TestExpansionStillReachesProtectorsThroughTheIndex(t *testing.T) {
 		t.Error("expansion reached a node that protects nothing")
 	}
 }
+
+// A request naming a file the graph does not represent seeds nothing, and an
+// expansion that will visit nothing must not pay a full pass over the graph to
+// index it — the cost this change removes, in miniature.
+func TestAnEmptySeedSetExpandsToNothing(t *testing.T) {
+	got := expandRelevantNodes(protectionGraph(50), map[string]Node{})
+	if len(got) != 0 {
+		t.Fatalf("expansion from no seeds produced %d node(s)", len(got))
+	}
+	if got == nil {
+		t.Fatal("expansion returned a nil map where callers expect an empty one")
+	}
+}

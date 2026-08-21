@@ -9254,6 +9254,12 @@ test_symbols:
     symbol: TestValidateDirectionBootstrapApprovalRequiresTrustedApprovalRoot
     package: closure
     language: go
+  - id: golang/architecture/closure/reverse_protections_test.go:TestAnEmptySeedSetExpandsToNothing
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestAnEmptySeedSetExpandsToNothing
+    package: closure
+    language: go
+    doc: "A request naming a file the graph does not represent seeds nothing, and an\nexpansion that will visit nothing must not pay a full pass over the graph to\nindex it — the cost this change removes, in miniature."
   - id: golang/architecture/closure/reverse_protections_test.go:TestExpansionStillReachesProtectorsThroughTheIndex
     file: golang/architecture/closure/reverse_protections_test.go
     symbol: TestExpansionStillReachesProtectorsThroughTheIndex

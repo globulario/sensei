@@ -1438,6 +1438,13 @@ func sortedNodeMap(m map[string]Node) []Node {
 }
 
 func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Node {
+	if len(seeds) == 0 {
+		// Nothing to expand from. A request naming a file the graph does not
+		// represent lands here, and paying a full pass over the graph to build
+		// an index for an expansion that visits nothing is the cost this change
+		// exists to remove, in miniature.
+		return map[string]Node{}
+	}
 	// The reverse protection edges are indexed ONCE for this expansion.
 	//
 	// The scan below used to run per node, on the reasoning that expansion runs
