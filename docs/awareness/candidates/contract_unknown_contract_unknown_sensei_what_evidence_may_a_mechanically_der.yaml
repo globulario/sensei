@@ -1,0 +1,10 @@
+contract_unknown:
+  - id: contract_unknown.sensei.what_evidence_may_a_mechanically_derived_observed_claim_be_a
+    kind: contract_unknown
+    title: What evidence may a mechanically-derived observed claim be asked for
+    description: 'Items 2 and 3 of #230 are not defects with an obvious repair. Item 2 changes what counts as EVIDENCE for a derived observed claim; item 3 changes what a generated question may NAME. The wrong answer to item 2 manufactures support: treating a claim as supported by the extraction that produced it is either exactly right or exactly the laundering this system exists to prevent, and I cannot settle which from the code. Suppressing the question without settling it may also make matters worse, since a blocker with no question may present as a blocker with no available action.'
+    proposed_contract: A claim derived mechanically from source, on the observed plane, whose premise facts carry resolved source digests and line ranges, is evidenced BY THAT EXTRACTION. It should either be treated as supported by its own premises, or excluded from claim derivation, but never escalated to a human as an OpenQuestion demanding external evidence — because the only answer anyone can give is 'read the source the extractor already read', and an unanswered OpenQuestion blocks closure, which gates admission.
+    evidence:
+      - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on ''Next: provide_external_evidence question.050b25230c3764ad'' — a question asking which test or runtime observation establishes that thirteen functions each declare a local variable.'
+      - 'Item 1 (do not derive claims about unqualified identifiers) is fixed and merged in PR #233, which removes that example; the class remains for qualified subjects whose only possible evidence is the extraction that produced them.'
+    domain: github.com/globulario/sensei
