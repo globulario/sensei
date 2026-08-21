@@ -13,6 +13,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	"github.com/globulario/sensei/golang/architecture/probe"
+	"github.com/globulario/sensei/golang/architecture/probeexec"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 )
@@ -73,22 +74,58 @@ func TestNoProjectionAdvertisesADemandTheAuthorityTerminated(t *testing.T) {
 		t.Fatalf("task control suppressed a demand without naming the receipt: %q", basis)
 	}
 
+	// An evidence question normally HAS a probe — that is what makes it an
+	// evidence question — and the probe survives a dismissal, because
+	// probe.Generate regenerates it from the unchanged dialogue status. A
+	// fixture without one cannot see the demand come back through it.
+	probes := probe.ProbeDocument{Probes: []probe.EvidenceProbe{{
+		ID: "probe.one", QuestionID: env.questionID, ClosureBlockerIDs: []string{"blocker.evidence.aaaaaaaaaaaa"},
+		ProbeKind: probe.KindSourceReceiptVerification, SafetyClass: probe.SafetyStaticRead,
+		ApprovalGate: probe.GateNone, AutomaticExecutionAllowed: true, Status: probe.StatusProposed,
+	}}}
+
 	// 2. Convergence wait classes: no evidence wait.
 	report := closure.Report{Verdict: closure.VerdictOpen}
-	for _, w := range convergence.WaitClasses(report, dialogue, probe.ProbeDocument{}, decisions) {
+	for _, w := range convergence.WaitClasses(report, dialogue, probes, decisions) {
 		if w == convergence.WaitEvidence {
 			t.Fatal("convergence still waits on evidence for a dismissed question")
 		}
 	}
 
-	// 3. Convergence next actions: no evidence request.
-	for _, a := range convergence.NextActions(report, dialogue, probe.ProbeDocument{}, decisions) {
-		if a.Class == "provide_evidence" {
-			t.Fatalf("convergence still offers provide_evidence: %+v", a)
+	// 3. Convergence next actions: no evidence request, and none through the
+	// probe either.
+	for _, a := range convergence.NextActions(report, dialogue, probes, decisions) {
+		if a.Class == "provide_evidence" || a.Class == "execute_probe_externally" {
+			t.Fatalf("convergence still offers evidence work: %+v", a)
 		}
 	}
 
-	// 4. The cached control projection predates the receipt, so it may not be
+	// 4. Probe execution: the batch must not spend budget on a probe whose
+	// question was dismissed.
+	batch, err := probeexec.ExecuteBatch(probeexec.Context{
+		RepositoryRoot: env.repoRoot, Binding: dialogue.Binding, Probes: probes,
+		ProbeDocumentDigest: strings.Repeat("a", 64), Claims: architecture.ClaimDocument{Binding: dialogue.Binding},
+		ObservedAt: "2026-07-16T00:02:00Z", Budget: probeexec.Budget{MaxProbes: 8},
+		GovernedDecisions: decisions,
+	})
+	if err != nil {
+		t.Fatalf("execute batch: %v", err)
+	}
+	if batch.Metrics.ProbesExecuted != 0 {
+		t.Fatalf("executed %d probe(s) for a dismissed question", batch.Metrics.ProbesExecuted)
+	}
+	if len(batch.Decisions) != 1 || batch.Decisions[0].ReasonCode != probeexec.ReasonQuestionDismissed {
+		t.Fatalf("the skipped probe does not say why: %+v", batch.Decisions)
+	}
+
+	// 5. Replay identity: the decisions are an input, so recording one must
+	// change the convergence input digest. Otherwise Advance replays the
+	// previous iteration and no projection ever sees the decision.
+	if convergence.GovernedDispositionsDigest(decisions) == convergence.GovernedDispositionsDigest(nil) {
+		t.Fatal("a recorded decision left the convergence replay identity unchanged")
+	}
+
+	// 6. The cached control projection predates the receipt, so it may not be
 	// served: a correct projection returned from an older snapshot lies just as
 	// effectively as a wrong one.
 	if !taskHasGovernedDisposition(env.taskDir) {
@@ -105,8 +142,19 @@ func TestNoProjectionAdvertisesADemandTheAuthorityTerminated(t *testing.T) {
 	if base.NextAction.Kind != taskcontrol.ActionProvideExternalEvidence {
 		t.Fatalf("undisposed baseline does not demand evidence: %+v", base.NextAction)
 	}
-	if got := convergence.WaitClasses(report, dialogue, probe.ProbeDocument{}, nil); len(got) == 0 {
-		t.Fatal("undisposed baseline does not wait on anything")
+	if got := convergence.WaitClasses(report, dialogue, probes, nil); !containsString(got, convergence.WaitEvidence) {
+		t.Fatalf("undisposed baseline does not wait on evidence: %v", got)
+	}
+	baseBatch, err := probeexec.ExecuteBatch(probeexec.Context{
+		RepositoryRoot: env.repoRoot, Binding: dialogue.Binding, Probes: probes,
+		ProbeDocumentDigest: strings.Repeat("a", 64), Claims: architecture.ClaimDocument{Binding: dialogue.Binding},
+		ObservedAt: "2026-07-16T00:02:00Z", Budget: probeexec.Budget{MaxProbes: 8},
+	})
+	if err != nil {
+		t.Fatalf("execute baseline batch: %v", err)
+	}
+	if len(baseBatch.Decisions) != 1 || baseBatch.Decisions[0].ReasonCode == probeexec.ReasonQuestionDismissed {
+		t.Fatalf("undisposed baseline skipped the probe as dismissed: %+v", baseBatch.Decisions)
 	}
 }
 
@@ -140,6 +188,7 @@ func controlInputsFor(dialogue architecture.DialogueDocument, decisions map[stri
 
 type dismissedEnv struct {
 	taskDir    string
+	repoRoot   string
 	questionID string
 }
 
@@ -157,5 +206,5 @@ func seedDismissedQuestion(t *testing.T) dismissedEnv {
 	if _, err := qd.RecordDisposition(context.Background(), qd.RecordRequest{TaskDirectory: seeded.TaskDir, Candidate: cand}); err != nil {
 		t.Fatalf("record dismissal: %v", err)
 	}
-	return dismissedEnv{taskDir: seeded.TaskDir, questionID: questions[0].QuestionID}
+	return dismissedEnv{taskDir: seeded.TaskDir, repoRoot: seeded.Repo, questionID: questions[0].QuestionID}
 }

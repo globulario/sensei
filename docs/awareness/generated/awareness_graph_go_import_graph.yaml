@@ -1626,6 +1626,7 @@ components:
       - golang/architecture/probeexec/executor.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.dispositionsemantics
       - component.golang.architecture.maintenance
       - component.golang.architecture.probe
     uml:

@@ -179,6 +179,15 @@ type InputManifest struct {
 	RepositoryRevisionVerified     bool                              `json:"repository_revision_verified" yaml:"repository_revision_verified"`
 	GraphSnapshotDigestVerified    bool                              `json:"graph_snapshot_digest_verified" yaml:"graph_snapshot_digest_verified"`
 	OptionalProbeDocumentWasAbsent bool                              `json:"optional_probe_document_was_absent" yaml:"optional_probe_document_was_absent"`
+	// GovernedDispositionsDigestSHA256 binds the governed decisions this
+	// iteration was computed against.
+	//
+	// Without it a dismissal is invisible to replay: it changes no claim, no
+	// dialogue status, no probe and no graph, so the semantic input digest stays
+	// identical and Advance returns the previous iteration before the decision
+	// ever reaches a projection. The decisions are an input; they belong in the
+	// input identity.
+	GovernedDispositionsDigestSHA256 string `json:"governed_dispositions_digest_sha256,omitempty" yaml:"governed_dispositions_digest_sha256,omitempty"`
 }
 
 type StageReceipt struct {
@@ -428,18 +437,19 @@ func loadInputs(opts Options, policy Policy) (loadedInputs, error) {
 		return loadedInputs{}, err
 	}
 	manifest := InputManifest{
-		Binding:                        req.Binding,
-		ClosureRequestDigestSHA256:     Digest(requestBytes),
-		ClaimsDigestSHA256:             Digest(claimBytes),
-		DialogueDigestSHA256:           Digest(dialogueBytes),
-		EvidenceStateDigestSHA256:      Digest(evidenceBytes),
-		GraphSnapshotDigestSHA256:      graphReceipt.DigestSHA256,
-		ExistingProbesDigestSHA256:     probeDigest,
-		QuestionCreatedAt:              strings.TrimSpace(opts.QuestionCreatedAt),
-		RepositoryRevisionSHA:          repoRevision,
-		RepositoryRevisionVerified:     true,
-		GraphSnapshotDigestVerified:    true,
-		OptionalProbeDocumentWasAbsent: probeAbsent,
+		Binding:                          req.Binding,
+		ClosureRequestDigestSHA256:       Digest(requestBytes),
+		ClaimsDigestSHA256:               Digest(claimBytes),
+		DialogueDigestSHA256:             Digest(dialogueBytes),
+		EvidenceStateDigestSHA256:        Digest(evidenceBytes),
+		GraphSnapshotDigestSHA256:        graphReceipt.DigestSHA256,
+		ExistingProbesDigestSHA256:       probeDigest,
+		QuestionCreatedAt:                strings.TrimSpace(opts.QuestionCreatedAt),
+		RepositoryRevisionSHA:            repoRevision,
+		RepositoryRevisionVerified:       true,
+		GraphSnapshotDigestVerified:      true,
+		OptionalProbeDocumentWasAbsent:   probeAbsent,
+		GovernedDispositionsDigestSHA256: GovernedDispositionsDigest(opts.Dispositions),
 	}
 	manifest.SemanticInputDigestSHA256 = semanticInputDigest(manifest)
 	return loadedInputs{Request: req, Claims: claims, Dialogue: dialogue, Evidence: evidence, ExistingProbe: existing, Manifest: manifest, Policy: policy, RepoRevision: repoRevision, GraphReceipt: graphReceipt, GraphPath: opts.Paths.GraphNT, RepositoryRoot: opts.Paths.RepositoryRoot, Dispositions: opts.Dispositions}, nil
@@ -827,6 +837,9 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 		}
 	}
 	for _, p := range probes.Probes {
+		if probeAnswersADismissedQuestion(p, decisions) {
+			continue
+		}
 		if p.Status == probe.StatusProposed || p.Status == probe.StatusUnavailable {
 			seen[WaitEvidence] = true
 		}
@@ -837,6 +850,21 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 		}
 	}
 	return sortedKeys(seen)
+}
+
+// probeAnswersADismissedQuestion reports whether a probe exists only to satisfy
+// a question the architect has dismissed.
+//
+// Skipping the question is not enough on its own: its probe survives in the
+// probe document — probe.Generate preserves or regenerates it from the
+// unchanged dialogue status — and an unfiltered probe loop puts the evidence
+// demand straight back, through a different door. A probe with no question
+// stands on its own and is never filtered here.
+func probeAnswersADismissedQuestion(p probe.EvidenceProbe, decisions map[string]dispositionsemantics.Decision) bool {
+	if p.QuestionID == "" {
+		return false
+	}
+	return decisions[p.QuestionID].DismissesEvidenceDemand()
 }
 
 // NextActions lists what could be done next.
@@ -864,6 +892,9 @@ func NextActions(report closure.Report, dialogue architecture.DialogueDocument, 
 		}
 	}
 	for _, p := range probes.Probes {
+		if probeAnswersADismissedQuestion(p, decisions) {
+			continue
+		}
 		if p.Status == probe.StatusProposed {
 			out = append(out, NextAction{"execute_probe_externally", "medium", p.ID, "execute approved " + p.ID + " outside Sensei"})
 		}
@@ -1064,6 +1095,35 @@ func Digest(data []byte) string {
 }
 
 func emptyDigest() string { return Digest([]byte("canonical-empty")) }
+
+// GovernedDispositionsDigest is the deterministic identity of a set of governed
+// decisions, empty when there are none.
+//
+// Sorted by question id so map iteration order cannot make two identical
+// decision sets look different, which would defeat replay in the other
+// direction.
+func GovernedDispositionsDigest(decisions map[string]dispositionsemantics.Decision) string {
+	if len(decisions) == 0 {
+		return ""
+	}
+	ids := make([]string, 0, len(decisions))
+	for id := range decisions {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	type entry struct {
+		QuestionID string
+		State      string
+		Contested  bool
+		Receipt    string
+	}
+	entries := make([]entry, 0, len(ids))
+	for _, id := range ids {
+		d := decisions[id]
+		entries = append(entries, entry{id, string(d.State), d.Contested, d.ReceiptDigestSHA256})
+	}
+	return Digest(canonicalJSON(entries))
+}
 
 func semanticInputDigest(m InputManifest) string {
 	m.QuestionCreatedAt = ""

@@ -183,11 +183,17 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	if observedAt == "" {
 		observedAt = started.Format(time.RFC3339)
 	}
+	// Folded BEFORE the batch runs, not after: a probe belonging to a dismissed
+	// question must not be executed at all. Folding it only in time for the
+	// convergence call below would still spend the budget on evidence work the
+	// governed decision terminated.
+	decisions := governedDispositions(taskDir, dialogue)
 	probeStarted := now()
 	batch, err := probeexec.ExecuteBatch(probeexec.Context{
 		RepositoryRoot: repoRoot, Binding: baseSession.Binding, Probes: probes,
 		ProbeDocumentDigest: probeDigest, Claims: claims, ExistingResults: existingResults,
 		EvidenceState: evidence, ObservedAt: observedAt, Budget: opts.Budget,
+		GovernedDecisions: decisions,
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -238,7 +244,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 			ExistingProbes: paths.Probes,
 		},
 		QuestionCreatedAt: questionCreatedAt(dialogue), PolicyID: convergence.PolicyStrictV1, Session: existingSession,
-		Dispositions: governedDispositions(taskDir, dialogue),
+		Dispositions: decisions,
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
