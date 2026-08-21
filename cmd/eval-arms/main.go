@@ -42,6 +42,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/benchmark"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
@@ -97,6 +98,24 @@ type index struct {
 	// count into it would turn deterministic replay into a benchmark of the
 	// scheduler.
 	RunEnvelopeFile string `json:"run_envelope_file"`
+
+	// Authority identifies the SENSEI SIDE of the run: the evaluator's own
+	// revision and tree state, the seed and authored-corpus it consulted, the
+	// build transaction stamp, and the provenance of the executing binary.
+	//
+	// Revision above already binds the checkout (#216). That is not the same
+	// claim: a checkout can be advanced without rebuilding, and it says nothing
+	// about which compiled graph answered. #131 requires every run to bind
+	// "revision/tree, graph digest/status, policy/profile, provider versions",
+	// and this supplies the half a target-repository binding cannot.
+	//
+	// It lives in the index rather than in any arm report on purpose. The index
+	// carries no digest of its own, so recording it here cannot perturb the
+	// per-arm replay identity that CI compares. It can only ever REDUCE what a
+	// run claims — an unbound or drifted authority makes a run non-certifiable
+	// and never makes a measurement look better — which is why adding it does
+	// not violate the rule against benchmark-driven modification.
+	Authority *benchmark.AuthorityState `json:"authority,omitempty"`
 }
 
 // runEnvelope is the volatile half: what a run cost, never what it concluded.
@@ -147,14 +166,7 @@ func main() {
 			return path, os.MkdirAll(path, 0o755)
 		},
 	}
-	idx := index{
-		SchemaVersion: "sensei.eval_arms_index.v1",
-		GeneratedBy:   "sensei eval-arms",
-		Revision:      gitRevision(),
-		RevisionState: revisionState(),
-		CapturedAt:    *capturedAt,
-		Domain:        *domain,
-	}
+	idx := newIndex(*capturedAt, *domain)
 
 	armStart := time.Now()
 	if report, err := evalharness.RunDeterministicExtraction(opts); err != nil {
@@ -268,6 +280,12 @@ func main() {
 			line += "  (" + a.Reason + ")"
 		}
 		fmt.Println(line)
+	}
+	if idx.Authority != nil {
+		fmt.Printf("\nevaluating authority: %s\n", benchmark.AuthoritySummary(idx.Authority))
+		if idx.Authority.CaptureState != benchmark.AuthorityCaptureBound {
+			fmt.Printf("  this run is NOT certifiable against another: %s\n", idx.Authority.CaptureReason)
+		}
 	}
 	fmt.Printf("\nindex: %s\n", filepath.Join(*out, "index.json"))
 
@@ -890,6 +908,25 @@ func writeReport(dir, arm string, report any) armArtifact {
 		return armArtifact{Arm: arm, Status: statusFailed, Reason: err.Error()}
 	}
 	return armArtifact{Arm: arm, Status: statusRan, ReportFile: name, ReportDigest: sha256Hex(data)}
+}
+
+// newIndex builds the run index, binding BOTH halves of a run's identity: the
+// evaluator's checkout (#216) and the Sensei authority that answered (#254).
+//
+// The authority is captured here, before any arm writes into the working
+// directory, so the observation describes the tree the run started from rather
+// than the harness's own output.
+func newIndex(capturedAt, domain string) index {
+	authority := benchmark.CaptureAuthorityState(".")
+	return index{
+		SchemaVersion: "sensei.eval_arms_index.v1",
+		GeneratedBy:   "sensei eval-arms",
+		Revision:      gitRevision(),
+		RevisionState: revisionState(),
+		CapturedAt:    capturedAt,
+		Domain:        domain,
+		Authority:     &authority,
+	}
 }
 
 // gitRevision and revisionState bind the run to the tree it measured. A report

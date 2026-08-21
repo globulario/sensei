@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/benchmark"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
@@ -286,5 +287,45 @@ func TestEveryAbsenceStatusMustCarryAReason(t *testing.T) {
 		if got.Unexplained != 1 {
 			t.Fatalf("status %s without a reason went unreported: %+v", status, got)
 		}
+	}
+}
+
+// TestIndexBindsTheEvaluatingAuthority pins the Sensei-side half of a run's
+// identity into the index.
+//
+// index.Revision already binds the evaluator's checkout (#216), but a checkout
+// is a different claim from the authority that answered: it can be advanced
+// without rebuilding, and it names neither the compiled seed nor the authored
+// corpus consulted. #131 requires every run to bind "revision/tree, graph
+// digest/status, policy/profile, provider versions"; without this the eval
+// path recorded only the first.
+//
+// The block is asserted to live in the index, which carries no digest, so it
+// cannot perturb the per-arm replay identity CI compares.
+func TestIndexBindsTheEvaluatingAuthority(t *testing.T) {
+	idx := newIndex("2026-01-01T00:00:00Z", "example.com/eval")
+	if idx.Authority == nil {
+		t.Fatal("the index records no evaluating authority; a run bound only to a target repository cannot be certified against another")
+	}
+	switch idx.Authority.CaptureState {
+	case benchmark.AuthorityCaptureBound:
+		// A bound authority must actually carry the identities, not just the state.
+		for name, got := range map[string]string{
+			"sensei_revision":        idx.Authority.SenseiRevision,
+			"seed_digest":            idx.Authority.SeedDigestSHA256,
+			"authored_corpus_digest": idx.Authority.AuthoredCorpusDigestSHA256,
+			"transaction_stamp":      idx.Authority.TransactionStampSHA256,
+		} {
+			if strings.TrimSpace(got) == "" {
+				t.Errorf("authority reports %q but carries no %s", benchmark.AuthorityCaptureBound, name)
+			}
+		}
+	case benchmark.AuthorityCaptureUnavailable:
+		// Unavailable is a legitimate outcome, but never a silent one.
+		if strings.TrimSpace(idx.Authority.CaptureReason) == "" {
+			t.Error("an unavailable authority carries no typed reason")
+		}
+	default:
+		t.Errorf("authority capture state %q is outside the closed vocabulary", idx.Authority.CaptureState)
 	}
 }
