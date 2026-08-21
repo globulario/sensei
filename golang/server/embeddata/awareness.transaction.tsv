@@ -1,6 +1,6 @@
 format	v1
 seed	digest_sha256	674bc45a477b52ec519b765543b43ededf41cbd5bc1b37cc7fac3f2ff36695ee
 seed	triple_count	8862
-repo	awareness-graph	86a16fc352ca6dfffdd3a82c5036e1fd6157797e
+repo	awareness-graph	8a69aa10f8d18857d69b0c5a73e155528c905f0e
 repo	services	standalone
-tool	yaml2nt	73537d9129fd5883cde9a1693a84ed7556dca16a93b3d2f84f61f5fc9e3f03dc
+tool	yaml2nt	24070ba3f616098b1a68dba585d03e6333e2a1718e439eae8f64ebd9d85101b6

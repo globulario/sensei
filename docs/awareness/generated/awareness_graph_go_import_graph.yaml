@@ -326,6 +326,7 @@ components:
       - cmd/eval-arms/main.go
     depends_on:
       - component.golang.architecture.evalharness
+      - component.golang.client
     uml:
       kind: Component
       stereotype: service
