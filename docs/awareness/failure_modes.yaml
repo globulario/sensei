@@ -1879,3 +1879,107 @@ failure_modes:
       - 'Audit of the scope-receipt owner: howextract/compose.go filtered on Evidence.SourceFile only, guarded by SourceFile != "". The generated-artifact fact carries no anchor because a directory is not a source file, and names docs/awareness/generated solely in Scope.Files — so it survived an extraction excluding docs/, while the receipt reported the scope as enforced'
       - Reproduced on main at 57ec787e with an in-scope baseline that still produced observations, so the failure was attributable to the filter rather than to the fixture
     contract: A bounded extraction's receipt asserts that the declared scope was enforced. A fact records its location in both the evidence anchor and the scope, so a filter reading only one of them lets a fact whose location lives in the other survive a run that excluded it
+  - id: failure.a_frozen_benchmark_run_that_binds_only_target_code_is_replay
+    title: A frozen benchmark run that binds only target code is replayed under different authority and reported as comparable
+    description: FreezeReceipt bound the target repository (revisions, tree digests, history) and the freeze policy, but nothing about the authority that governed the run. Replaying a frozen workspace later re-ran whatever seed, authored corpus and Sensei revision happened to be installed then, against the same frozen code, and the numbers were reported as if the only variable was the system under test.
+    protects:
+      files:
+        - golang/architecture/benchmark/benchmark.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateDetectsEachDrift
+    evidence:
+      - 'R2 (#164) A0 came back INCOMPLETE: the R1 pilot environment (frozen R1 f8a4e7639071, B 9/9 vs E 5/9 across 9 pairs) could not be reproduced because the freeze captured code, not authority state. Capturing the real repo now shows the drift the receipt could not see: seed built at b2bd6b85 while HEAD is d1cb6bab, and a dirty tree that makes the recorded revision not identify the code that ran.'
+    contract: A benchmark freeze receipt must bind the Sensei authority that governed the run — revision, seed digest, authored-corpus digest, build-transaction stamp — and a replay may be reported as comparable only when an independently observed authority equals the bound one. Absence of a binding is a typed verdict, never a match.
+  - id: failure.a_byte_comparison_re_admits_the_clock_that_the_semantic_dige
+    title: A byte comparison re-admits the clock that the semantic digest deliberately excluded
+    description: VerificationRecordDigest excludes ObservedAt so an idempotent re-record is recognised as the same fact, but the synthesis-record-verification conflict check compared raw JSON bytes, which carry ObservedAt. Two recordings of identical evidence separated by one second were reported as exitRecordConflict with the message 'two different statements cannot both be what was observed'.
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_record_verification.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    required_tests:
+      - cmd/awg/cmd_synthesis_record_verification_test.go:TestRepeatedRecordingIsIdempotentAcrossAClockTick
+    evidence:
+      - 'TestRepeatedRecordingNeitherDuplicatesNorOverwrites passed locally and failed in CI (run 32523698608, exit 5) because the two recordings straddled a wall-clock second. The digest exclusion was already documented in golang/architecture/candidateapply/digest.go with this exact hazard named: letting the clock into the identity would make an idempotent re-record look like a second, different record.'
+    contract: Where a type defines a semantic identity that excludes a provenance field, every equality decision about that type must use the semantic identity. Comparing serialized bytes re-admits the excluded field and turns provenance back into identity.
+  - id: failure.a_fail_closed_gate_applied_to_one_output_format_exempts_the
+    title: A fail-closed gate applied to one output format exempts the caller it exists to stop
+    description: benchmark-status computed the replay-authority gate inside the --format text branch only. --format json and --format yaml returned the freeze data with exit 0 and no comparability verdict, so a drifted or unverifiable replay was machine-readable as though it were comparable — and --format json is precisely what a harness consumes, so the only caller the exit-3 refusal was written to stop was the one caller that never saw it.
+    protects:
+      files:
+        - cmd/awg/cmd_benchmark_external.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - cmd/awg/cmd_benchmark_external_test.go:TestBenchmarkStatusReplayGateAppliesToEveryFormat
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1) after the human-readable path had been tested and reported as implemented. The regression test fails without the shared gate with --format json exit = 0 and --format yaml exit = 0, want 3, while --format text passes — which is exactly how the hole stayed invisible.'
+    contract: A refusal that exists to stop a machine consumer must be enforced on the paths a machine consumer uses. Where a command emits several formats, the gate is computed before the format is chosen and returns the same verdict for every one of them.
+  - id: failure.an_idempotence_check_trusted_the_digest_a_stored_record_decl
+    title: An idempotence check trusted the digest a stored record declared about itself
+    description: The synthesis-record-verification idempotence check compared record_digest_sha256 as read from the stored record against the newly computed one. A record edited to say something else — a different admission verification status or binding — while retaining its original digest field was therefore accepted as an idempotent re-record, so the command reported success and left conflicting proof on disk.
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_record_verification.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    required_tests:
+      - cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1) in the very commit that fixed the byte-comparison defect, and against the invariant that commit''s own scar had cited. The regression test tampers with admission_verification_status while leaving record_digest_sha256 intact; without recomputation the command exits 0 instead of 5.'
+    contract: A digest read from a stored artifact is a value some earlier process wrote, not a fact about the bytes present now. Any decision that relies on it must recompute it from the artifact's current content first, and refuse when the declared and computed identities disagree.
+  - id: failure.an_environment_observation_taken_after_the_tool_changed_the
+    title: An environment observation taken after the tool changed the environment measures the tool
+    description: 'Freeze captured the governing authority AFTER creating its temporary workspace. The dirty-tree observation runs git status --porcelain, so when the workspace lived inside the Sensei checkout the freeze''s own untracked scratch files were observed as uncommitted changes: a clean checkout was recorded SenseiTreeDirty=true and every later replay of that run was rejected as incomparable for a change nobody made.'
+    protects:
+      files:
+        - golang/architecture/benchmark/benchmark.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P2). The regression test freezes into a workspace inside a clean fixture checkout; with capture ordered after workspace creation the recorded authority reports a dirty tree.'
+    contract: An observation that characterises the environment a run happened in must be taken before the run mutates that environment. Otherwise the record describes the tool's own side effects and attributes them to the subject.
+  - id: failure.a_failed_observation_was_recorded_as_a_negative_observation
+    title: A failed observation was recorded as a negative observation
+    description: CaptureAuthorityState ran git status --porcelain to record whether the governing checkout was clean and, when the command errored, left SenseiTreeDirty at its zero value while still reporting the capture bound. Two captures that had never established either tree's state could then compare equal and be reported as authority_match with Comparable=true.
+    protects:
+      files:
+        - golang/architecture/benchmark/authority_state.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1), in the file whose own doc comment states that absent authority must be a state a reader can see rather than a zero value it has to infer. The regression test makes git status fail via an invalid status.showUntrackedFiles setting while rev-parse and ls-files still work; without the fix the capture reports bound instead of unavailable.'
+    contract: Failing to observe a property and observing that property to be absent are different results and must be represented differently. A read that errors yields a typed unavailable state, never the falsy value the successful read would have produced.
+  - id: failure.a_safety_gate_was_opt_in_while_the_documented_workflow_omitt
+    title: A safety gate was opt-in while the documented workflow omitted the opt-in
+    description: benchmark-status verified replay authority only when --sensei-repo was supplied, and the workflow in the bundled sensei-benchmark skill invokes benchmark-status without it. The documented evaluation route therefore returned uncertifiable numbers with exit 0 and no comparability verdict, which is the same machine-consumer hole the gate had just been written to close.
+    protects:
+      files:
+        - cmd/awg/cmd_benchmark_external.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - cmd/awg/cmd_benchmark_external_test.go:TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1), citing the shipped skill''s own command line. Fixed by defaulting the flag to the current checkout so the gate is opt-out rather than opt-in; the regression fails with exit 0 instead of 3 when the default is empty.'
+    contract: A gate that exists to stop an unsafe consumption must be enforced by default. When the canonical documented workflow can invoke the command without enabling it, the protection is absent exactly where operators were told to look.
+  - id: failure.a_checkout_identity_was_recorded_as_proof_about_the_binary_t
+    title: A checkout identity was recorded as proof about the binary that actually ran
+    description: CaptureAuthorityState recorded the revision, authored-corpus digest and build-transaction stamp of whatever checkout --sensei-repo named, without establishing that this checkout produced the evaluator. A checkout advanced without rebuilding — the ordinary case — meant two captures could agree on every tree identity and be reported authority_match with Comparable=true while the runs executed different code.
+    protects:
+      files:
+        - golang/architecture/benchmark/authority_state.go
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestVerifyAuthorityStateRefusesABuildNotFromTheRecordedCheckout
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1). Demonstrated on the branch''s own end-to-end run: the binary built at 71f72c50 against a fixture checkout 753e2aad previously printed authority_match, and now reports executed_build_not_from_recorded_checkout. Go stamps vcs.revision into binaries built inside a repository; when that stamp is absent the state is recorded as unstamped and the replay is refused rather than assumed to match.'
+    contract: An identity recorded for a checkout characterises that tree, never the executable built from some other tree. A run may be certified reproducible only when the running evaluator's own build provenance ties it to the checkout being recorded; absent provenance is a refusal, not a pass.

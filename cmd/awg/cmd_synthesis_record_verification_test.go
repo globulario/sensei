@@ -193,6 +193,117 @@ func TestRecordRefusesWhenNoApplicationWasRecorded(t *testing.T) {
 	}
 }
 
+// TestRepeatedRecordingIsIdempotentAcrossAClockTick is the regression for a
+// flake that only appeared under load: the two recordings in
+// TestRepeatedRecordingNeitherDuplicatesNorOverwrites pass only while both land
+// inside the same wall-clock second.
+//
+// The record embeds ObservedAt (time.Now at second granularity), but
+// VerificationRecordDigest deliberately EXCLUDES ObservedAt, precisely so that
+// "recording the same verification against the same application at a different
+// moment is the same fact". The conflict check compared raw JSON bytes, which
+// do carry ObservedAt — so it re-admitted the clock the digest had excluded,
+// and identical evidence recorded one second later was reported as
+// exitRecordConflict: "two different statements cannot both be what was
+// observed", about evidence that was in fact the same statement.
+//
+// Rewriting the stored record's ObservedAt reproduces the straddled tick
+// deterministically, with no sleep and no clock injection.
+func TestRepeatedRecordingIsIdempotentAcrossAClockTick(t *testing.T) {
+	f := newApplyFixture(t)
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("apply exit = %d", code)
+	}
+	compliant := verificationFor(t, f, admission.VerificationScopeCompliant)
+	if code := f.record(t, compliant); code != exitVerificationRecorded {
+		t.Fatalf("first record exit = %d", code)
+	}
+
+	matches, _ := filepath.Glob(filepath.Join(f.storeDir, "*.o5b-verification-record.json"))
+	if len(matches) != 1 {
+		t.Fatalf("first record produced %d records, want 1", len(matches))
+	}
+	stored, err := os.ReadFile(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]interface{}
+	if err := json.Unmarshal(stored, &record); err != nil {
+		t.Fatal(err)
+	}
+	observed, _ := record["observed_at"].(string)
+	if observed == "" {
+		t.Fatal("stored record carries no observed_at; this test no longer reproduces the tick")
+	}
+	// Move only the clock. Every digest in the record stays valid, because
+	// ObservedAt is not part of the record's identity.
+	record["observed_at"] = "1999-12-31T23:59:59Z"
+	rewritten, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(matches[0], rewritten, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if code := f.record(t, compliant); code != exitVerificationRecorded {
+		t.Fatalf("re-recording identical evidence across a clock tick exit = %d, want %d (a no-op); "+
+			"the conflict check must compare the record digest, not raw bytes", code, exitVerificationRecorded)
+	}
+	if matches, _ := filepath.Glob(filepath.Join(f.storeDir, "*.o5b-verification-record.json")); len(matches) != 1 {
+		t.Fatalf("re-recording across a clock tick produced %d records, want 1", len(matches))
+	}
+}
+
+// TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt keeps the
+// idempotence check from trusting a self-declared digest.
+//
+// record_digest_sha256 is a value some earlier process WROTE into the file; it
+// is not a fact about the bytes on disk now. A record edited to say something
+// else — a different verification status, a different binding — while keeping
+// its original digest would be accepted as an idempotent re-record, and the
+// command would report success while leaving conflicting proof in place. The
+// package's own rule is that a declared digest must equal the computed one.
+func TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt(t *testing.T) {
+	f := newApplyFixture(t)
+	if code := f.apply(t); code != exitCandidateApplied {
+		t.Fatalf("apply exit = %d", code)
+	}
+	compliant := verificationFor(t, f, admission.VerificationScopeCompliant)
+	if code := f.record(t, compliant); code != exitVerificationRecorded {
+		t.Fatalf("first record exit = %d", code)
+	}
+
+	matches, _ := filepath.Glob(filepath.Join(f.storeDir, "*.o5b-verification-record.json"))
+	if len(matches) != 1 {
+		t.Fatalf("first record produced %d records, want 1", len(matches))
+	}
+	stored, err := os.ReadFile(matches[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	var record map[string]interface{}
+	if err := json.Unmarshal(stored, &record); err != nil {
+		t.Fatal(err)
+	}
+	// Change what the record SAYS while leaving its declared digest intact.
+	// Unlike observed_at, this field is inside the digest, so the stored
+	// digest no longer describes the stored content.
+	record["admission_verification_status"] = "tampered_status"
+	tampered, err := json.MarshalIndent(record, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(matches[0], tampered, 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if code := f.record(t, compliant); code != exitRecordConflict {
+		t.Fatalf("recording over a record whose digest does not describe it exit = %d, want %d; "+
+			"a self-declared digest must be recomputed before it is trusted", code, exitRecordConflict)
+	}
+}
+
 // Idempotence at the CLI: re-recording identical evidence is a no-op, and a
 // DIFFERENT verification of the same application is an additional record
 // rather than a replacement.

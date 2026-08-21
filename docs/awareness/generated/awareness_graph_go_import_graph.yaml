@@ -708,9 +708,12 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/benchmark/authority_state.go
       - golang/architecture/benchmark/benchmark.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.senseireport
+      - component.golang.seedmeta
     external_imports:
       - gopkg.in/yaml.v3
     uml:
