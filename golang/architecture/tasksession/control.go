@@ -438,6 +438,26 @@ func LoadTaskControl(path string) (taskcontrol.TaskControlState, error) {
 	return taskcontrol.UnmarshalYAML(data)
 }
 
+// taskHasGovernedDisposition reports whether the task ledger holds any question
+// disposition receipt at all.
+//
+// Deliberately coarse. It over-invalidates — any disposition, however old,
+// costs a rebuild — because the two errors are not symmetric: an unnecessary
+// rebuild costs time, while a wrongly served cache shows an operator a demand
+// the authority already terminated. A ledger that cannot be verified rebuilds
+// for the same reason: it cannot prove the cache is current.
+//
+// An ABSENT ledger is not staleness. It reads as an empty chain rather than an
+// error, and a task with no ledger has no control/latest.yaml to serve either,
+// so it rebuilds regardless.
+func taskHasGovernedDisposition(taskDir string) bool {
+	list, err := questiondisposition.ListRecordedDispositions(taskDir)
+	if err != nil {
+		return true
+	}
+	return len(list) > 0
+}
+
 // governedDispositions folds the verified disposition ledger into the form the
 // task-control projection reads.
 //
@@ -537,7 +557,12 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
 	verifyErrors := cleanStrings(append(loadErrors, verifySession(repoRoot, taskDir, session, ptr)...))
-	if len(verifyErrors) == 0 && latestState != nil {
+	// A cached control state was projected from the ledger as it stood when
+	// advance-task last ran. A disposition recorded since then is invisible to
+	// it, so serving the cache would keep demanding evidence for a question an
+	// architect has already dismissed — the same defect one layer out, where the
+	// projection is correct and a copy of an older one is returned instead.
+	if len(verifyErrors) == 0 && latestState != nil && !taskHasGovernedDisposition(taskDir) {
 		return *latestState, closure.Report{}, admission.Decision{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
