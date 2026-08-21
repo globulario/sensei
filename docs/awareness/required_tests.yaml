@@ -1736,3 +1736,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
+  - id: golang/architecture/questiongen/envelope_test.go:TestQuestionScopeIsBoundedToTheTaskEnvelope
+    title: A question names only the files its task admitted, and says what it left out
+    protects:
+      failure_modes:
+        - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
