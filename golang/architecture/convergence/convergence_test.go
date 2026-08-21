@@ -145,7 +145,7 @@ func TestQuestionTimestampOnlyDoesNotAffectSemanticInput(t *testing.T) {
 
 func TestArchitectRequiredQuestionAddsArchitectWait(t *testing.T) {
 	dialogue := architecture.DialogueDocument{OpenQuestions: []architecture.OpenQuestion{{ID: "question.one", ArchitectRequired: true, Status: architecture.QuestionStatusAwaitingArchitect}}}
-	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc())
+	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc(), nil)
 	if strings.Join(got, ",") != WaitArchitect {
 		t.Fatalf("wait classes=%v", got)
 	}
@@ -153,7 +153,7 @@ func TestArchitectRequiredQuestionAddsArchitectWait(t *testing.T) {
 
 func TestAwaitingEvidenceQuestionAddsEvidenceWait(t *testing.T) {
 	dialogue := architecture.DialogueDocument{OpenQuestions: []architecture.OpenQuestion{{ID: "question.one", Status: architecture.QuestionStatusAwaitingEvidence}}}
-	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc())
+	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc(), nil)
 	if strings.Join(got, ",") != WaitEvidence {
 		t.Fatalf("wait classes=%v", got)
 	}
@@ -161,7 +161,7 @@ func TestAwaitingEvidenceQuestionAddsEvidenceWait(t *testing.T) {
 
 func TestAcceptedAnswerWithoutGovernedKnowledgeAddsGovernanceWait(t *testing.T) {
 	dialogue := architecture.DialogueDocument{Answers: []architecture.ArchitectAnswer{{ID: "answer.one", GovernanceStatus: architecture.AnswerGovernanceAcceptedForQuestion}}}
-	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc())
+	got := WaitClasses(closure.Report{Verdict: closure.VerdictOpen}, dialogue, emptyProbeDoc(), nil)
 	if strings.Join(got, ",") != WaitGovernance {
 		t.Fatalf("wait classes=%v", got)
 	}
@@ -169,7 +169,7 @@ func TestAcceptedAnswerWithoutGovernedKnowledgeAddsGovernanceWait(t *testing.T) 
 
 func TestRepairBindingAddsMechanicalWait(t *testing.T) {
 	report := closure.Report{Verdict: closure.VerdictOpen, Blockers: []closure.Blocker{{ID: "blocker.one", RequiredNextAction: "repair_binding"}}}
-	got := WaitClasses(report, architecture.DialogueDocument{}, emptyProbeDoc())
+	got := WaitClasses(report, architecture.DialogueDocument{}, emptyProbeDoc(), nil)
 	if strings.Join(got, ",") != WaitMechanicalRepair {
 		t.Fatalf("wait classes=%v", got)
 	}

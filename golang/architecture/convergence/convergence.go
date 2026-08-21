@@ -17,6 +17,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 	"github.com/globulario/sensei/golang/architecture/graphsnapshot"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/plane"
@@ -113,6 +114,11 @@ type Options struct {
 	QuestionCreatedAt string
 	PolicyID          string
 	Session           *Session
+	// Dispositions is the governed decision about each question, keyed by
+	// question ID. A caller that holds a task directory folds it from the
+	// verified ledger; one that does not supplies nothing and every question
+	// stays exactly as open as its dialogue status says.
+	Dispositions map[string]dispositionsemantics.Decision
 }
 
 type Result struct {
@@ -261,6 +267,9 @@ type loadedInputs struct {
 	GraphReceipt   graphsnapshot.Receipt
 	GraphPath      string
 	RepositoryRoot string
+	// Dispositions is the governed decision about each question, folded from the
+	// verified task ledger by the caller. Absent entries decide nothing.
+	Dispositions map[string]dispositionsemantics.Decision
 }
 
 type stageOutputs struct {
@@ -433,7 +442,7 @@ func loadInputs(opts Options, policy Policy) (loadedInputs, error) {
 		OptionalProbeDocumentWasAbsent: probeAbsent,
 	}
 	manifest.SemanticInputDigestSHA256 = semanticInputDigest(manifest)
-	return loadedInputs{Request: req, Claims: claims, Dialogue: dialogue, Evidence: evidence, ExistingProbe: existing, Manifest: manifest, Policy: policy, RepoRevision: repoRevision, GraphReceipt: graphReceipt, GraphPath: opts.Paths.GraphNT, RepositoryRoot: opts.Paths.RepositoryRoot}, nil
+	return loadedInputs{Request: req, Claims: claims, Dialogue: dialogue, Evidence: evidence, ExistingProbe: existing, Manifest: manifest, Policy: policy, RepoRevision: repoRevision, GraphReceipt: graphReceipt, GraphPath: opts.Paths.GraphNT, RepositoryRoot: opts.Paths.RepositoryRoot, Dispositions: opts.Dispositions}, nil
 }
 
 func prepareSession(existing *Session, inputs loadedInputs, policy Policy) (Session, error) {
@@ -629,8 +638,8 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 		stageReceipt("plan_probes.report", "probe-generation.yaml", out.Bytes["probe-generation.yaml"], inputs.Manifest),
 	)
 	out.SemanticStateDigest = SemanticStateDigest(maint.Document, planeReport, after, dialogue, out.ProbeDocument, inputs.Evidence)
-	out.WaitClasses = WaitClasses(after, dialogue, out.ProbeDocument)
-	out.NextActions = NextActions(after, dialogue, out.ProbeDocument)
+	out.WaitClasses = WaitClasses(after, dialogue, out.ProbeDocument, inputs.Dispositions)
+	out.NextActions = NextActions(after, dialogue, out.ProbeDocument, inputs.Dispositions)
 	out.Limitations = collectLimitations(maint.Report.Limitations, planeReport.Limitations, before.Limitations, questionReport.Limitations, after.Limitations, out.ProbeReport.Limitations)
 	out.CriticalBlockerCount = countCritical(after.Blockers)
 	return out, nil
@@ -778,11 +787,32 @@ func SemanticStateDigest(claims architecture.ClaimDocument, planes plane.Report,
 	return Digest(canonicalJSON(snap))
 }
 
-func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument) []string {
+// WaitClasses reports what the session is waiting on.
+//
+// decisions carries the governed disposition of each question, folded from the
+// verified task ledger by the caller. A dismissal never reaches the dialogue
+// document's status field — dialogue_ops writes a status on answer and on
+// replacement, never on dismissal — so a projection that reads only q.Status
+// keeps advertising an evidence wait the architect already terminated (#230).
+// An absent entry is the zero Decision and changes nothing.
+func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument, decisions map[string]dispositionsemantics.Decision) []string {
 	seen := map[string]bool{}
 	for _, q := range dialogue.OpenQuestions {
+		decided := decisions[q.ID]
+		if decided.DismissesEvidenceDemand() {
+			// The architect decided no evidence will be sought. The blocker
+			// this question was about is untouched and still counts; what stops
+			// is advertising a wait nobody intends to satisfy.
+			continue
+		}
 		if q.ArchitectRequired && (q.Status == architecture.QuestionStatusOpen || q.Status == architecture.QuestionStatusAwaitingArchitect || q.Status == architecture.QuestionStatusAnswered) {
 			seen[WaitArchitect] = true
+		}
+		if decided.RequiresArchitectJudgement() {
+			// Deferral is a decision to wait for the architect, not to stop
+			// asking, so the wait moves rather than disappearing.
+			seen[WaitArchitect] = true
+			continue
 		}
 		if q.Status == architecture.QuestionStatusAwaitingEvidence {
 			seen[WaitEvidence] = true
@@ -809,9 +839,21 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 	return sortedKeys(seen)
 }
 
-func NextActions(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument) []NextAction {
+// NextActions lists what could be done next.
+//
+// decisions carries the governed disposition of each question; see WaitClasses
+// for why reading q.Status alone is not enough.
+func NextActions(report closure.Report, dialogue architecture.DialogueDocument, probes probe.ProbeDocument, decisions map[string]dispositionsemantics.Decision) []NextAction {
 	var out []NextAction
 	for _, q := range dialogue.OpenQuestions {
+		decided := decisions[q.ID]
+		if decided.DismissesEvidenceDemand() {
+			continue
+		}
+		if decided.RequiresArchitectJudgement() {
+			out = append(out, NextAction{"answer_question", q.Priority, q.ID, "answer " + q.ID})
+			continue
+		}
 		switch q.Status {
 		case architecture.QuestionStatusAwaitingArchitect, architecture.QuestionStatusOpen:
 			out = append(out, NextAction{"answer_question", q.Priority, q.ID, "answer " + q.ID})

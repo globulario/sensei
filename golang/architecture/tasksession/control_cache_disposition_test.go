@@ -47,7 +47,13 @@ func copyGovernedPolicyForCacheTest(t *testing.T, repo string) {
 // serving the cache shows an operator a demand the authority already
 // terminated — the #230 defect one layer out, where the projection is correct
 // and an older copy of it is returned instead.
-func TestControlCacheIsNotServedAfterAGovernedDisposition(t *testing.T) {
+// seedTaskWithArchitectQuestion builds a real task: a seeded result transition
+// carrying at least one architect question, the governed policy, and an
+// enrolled identity able to dispose of it. Everything below is exercised
+// against that, never against a hand-written fixture — the fixture is exactly
+// what a test like this must not be allowed to invent.
+func seedTaskWithArchitectQuestion(t *testing.T) (resulttestkit.Result, []qd.OpenQuestionRef) {
+	t.Helper()
 	seeded, err := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{
 		Direction:   "evolve",
 		Epoch:       time.Date(2026, 7, 16, 0, 0, 0, 0, time.UTC),
@@ -71,6 +77,11 @@ func TestControlCacheIsNotServedAfterAGovernedDisposition(t *testing.T) {
 	if err != nil || len(questions) == 0 {
 		t.Skipf("seeded transition carries no architect question: %v", err)
 	}
+	return seeded, questions
+}
+
+func TestControlCacheIsNotServedAfterAGovernedDisposition(t *testing.T) {
+	seeded, questions := seedTaskWithArchitectQuestion(t)
 
 	if taskHasGovernedDisposition(seeded.TaskDir) {
 		t.Fatal("no disposition has been recorded yet, but the cache is already treated as stale")

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
 )
 
 // exhaustedFixture is the state the issue describes: every static probe has run
@@ -34,8 +35,8 @@ func TestUndisposedQuestionStillDemandsEvidence(t *testing.T) {
 // action nobody intends to take.
 func TestDismissedQuestionStopsDemandingEvidence(t *testing.T) {
 	in := exhaustedFixture()
-	in.Dispositions = map[string]QuestionDisposition{
-		"question.one": {Disposition: "dismissed", ReceiptDigestSHA256: "receipt-digest"},
+	in.Dispositions = map[string]dispositionsemantics.Decision{
+		"question.one": {State: dispositionsemantics.Dismissed, ReceiptDigestSHA256: "receipt-digest"},
 	}
 	state, err := Project(in)
 	if err != nil {
@@ -60,7 +61,7 @@ func TestDismissedQuestionStopsDemandingEvidence(t *testing.T) {
 // work continues rather than reporting itself finished.
 func TestDismissedQuestionLeavesTheBlockerStanding(t *testing.T) {
 	in := exhaustedFixture()
-	in.Dispositions = map[string]QuestionDisposition{"question.one": {Disposition: "dismissed"}}
+	in.Dispositions = map[string]dispositionsemantics.Decision{"question.one": {State: dispositionsemantics.Dismissed}}
 	state, err := Project(in)
 	if err != nil {
 		t.Fatal(err)
@@ -76,8 +77,8 @@ func TestDismissedQuestionLeavesTheBlockerStanding(t *testing.T) {
 // Two conflicting receipts decide nothing.
 func TestContestedDispositionDoesNotSuppressTheQuestion(t *testing.T) {
 	in := exhaustedFixture()
-	in.Dispositions = map[string]QuestionDisposition{
-		"question.one": {Disposition: "dismissed", Contested: true},
+	in.Dispositions = map[string]dispositionsemantics.Decision{
+		"question.one": {State: dispositionsemantics.Dismissed, Contested: true},
 	}
 	state, err := Project(in)
 	if err != nil {
@@ -91,7 +92,7 @@ func TestContestedDispositionDoesNotSuppressTheQuestion(t *testing.T) {
 // Deferred is a decision to wait for the architect, not to stop asking.
 func TestDeferredQuestionWaitsForTheArchitect(t *testing.T) {
 	in := exhaustedFixture()
-	in.Dispositions = map[string]QuestionDisposition{"question.one": {Disposition: "deferred"}}
+	in.Dispositions = map[string]dispositionsemantics.Decision{"question.one": {State: dispositionsemantics.Deferred}}
 	state, err := Project(in)
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +111,7 @@ func TestDeferredQuestionWaitsForTheArchitect(t *testing.T) {
 func TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion(t *testing.T) {
 	for _, d := range []string{"answered", "task_local", "", "something_new"} {
 		in := exhaustedFixture()
-		in.Dispositions = map[string]QuestionDisposition{"question.one": {Disposition: d}}
+		in.Dispositions = map[string]dispositionsemantics.Decision{"question.one": {State: dispositionsemantics.State(d)}}
 		state, err := Project(in)
 		if err != nil {
 			t.Fatal(err)
@@ -126,7 +127,7 @@ func TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion(t *testing.T) {
 func TestResolvedQuestionIsUnaffectedByADisposition(t *testing.T) {
 	in := exhaustedFixture()
 	in.Dialogue.OpenQuestions[0].Status = architecture.QuestionStatusResolved
-	in.Dispositions = map[string]QuestionDisposition{"question.one": {Disposition: "dismissed"}}
+	in.Dispositions = map[string]dispositionsemantics.Decision{"question.one": {State: dispositionsemantics.Dismissed}}
 	state, err := Project(in)
 	if err != nil {
 		t.Fatal(err)
