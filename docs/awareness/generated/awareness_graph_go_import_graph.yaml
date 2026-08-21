@@ -326,6 +326,7 @@ components:
       - cmd/eval-arms/main.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.benchmark
       - component.golang.architecture.evalharness
       - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
