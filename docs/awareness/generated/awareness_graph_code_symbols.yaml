@@ -12553,6 +12553,12 @@ test_symbols:
     symbol: TestUnresolvedBoundaryProvenanceRegression
     package: gosemantics
     language: go
+  - id: golang/architecture/gosemantics/field_anchor_test.go:TestStructFieldObservationsAnchorToTheirOwnFile
+    file: golang/architecture/gosemantics/field_anchor_test.go
+    symbol: TestStructFieldObservationsAnchorToTheirOwnFile
+    package: gosemantics
+    language: go
+    doc: "A field is not necessarily declared where its struct is. An embedded field\nlives in another file, and anchoring it to the struct's file while taking the\nline from the field produces an anchor that can cite a line past the end of\nthe file it names.\n\nFound by measurement rather than by reading: the #131 evidence-resolvability\npass reported 74 observations from this extractor citing lines beyond EOF,\nincluding golang/architecture/authority/model.go — a 118-line file — cited at\nlines 126 to 140."
   - id: golang/architecture/governedimpact/codec_test.go:TestParseReportRejectsUnknownFieldAndTrailing
     file: golang/architecture/governedimpact/codec_test.go
     symbol: TestParseReportRejectsUnknownFieldAndTrailing
