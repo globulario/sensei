@@ -23,10 +23,21 @@ on:
     branches:
       - main
     paths:
+      # The harness itself...
       - "golang/architecture/evalharness/**"
       - "golang/architecture/evalmutant/**"
       - "cmd/eval-arms/**"
       - ".github/workflows/evaluation-arms.yml"
+      # ...and the evaluators it measures. A change to the extraction or
+      # composition path moves these numbers without touching a wrapper
+      # package, and a measurement that only re-runs when its own harness is
+      # edited would report yesterday's capability as today's.
+      - "golang/architecture/howextract/**"
+      - "golang/architecture/factextract/**"
+      - "golang/architecture/gosemantics/**"
+      - "golang/architecture/investigator/**"
+      - "golang/architecture/whyinvestigation/**"
+      - "golang/architecture/investigation/**"
 
 permissions:
   contents: read
@@ -101,6 +112,10 @@ jobs:
           path: |
             ${{ runner.temp }}/eval-arms/*.json
             ${{ runner.temp }}/eval-arms-summary.txt
+            # The trees the run measured, kept beside the reports describing
+            # them: a report about a subject nobody can inspect afterwards
+            # cannot be checked by the next reader.
+            ${{ runner.temp }}/eval-arms/mutants/**
           if-no-files-found: error
 
       - name: Summary

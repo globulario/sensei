@@ -220,7 +220,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	failures := 0
 	for _, a := range idx.Arms {
+		if a.Status == statusFailed {
+			failures++
+		}
 		line := fmt.Sprintf("%-34s %-18s %s", a.Arm, a.Subject, a.Status)
 		if a.SiteCoverage != "" {
 			line += "  site_coverage=" + a.SiteCoverage
@@ -237,6 +241,17 @@ func main() {
 		fmt.Println(line)
 	}
 	fmt.Printf("\nindex: %s\n", filepath.Join(*out, "index.json"))
+
+	// An arm that was SUPPOSED to run and did not is a broken evaluation, not a
+	// result. It exits non-zero so a CI run cannot publish an index of failures
+	// as though it were evidence — while not_run and
+	// unavailable_by_authority_model, which are findings, leave the exit code
+	// alone. The index is written first either way, because the artifact
+	// explaining the failure is the useful thing to keep.
+	if failures > 0 {
+		fmt.Fprintf(os.Stderr, "\nsensei eval-arms: %d arm(s) failed to run; the index records each failure\n", failures)
+		os.Exit(1)
+	}
 }
 
 // armBriefingImpactSurfaces is #131 section 5's fourth comparison: the EXISTING
