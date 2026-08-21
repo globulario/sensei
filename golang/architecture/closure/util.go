@@ -1438,6 +1438,19 @@ func sortedNodeMap(m map[string]Node) []Node {
 }
 
 func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Node {
+	// The reverse protection edges are indexed ONCE for this expansion.
+	//
+	// The scan below used to run per node, on the reasoning that expansion runs
+	// once per assessment. That holds for a file-scoped request and not for a
+	// domain_wide one, where resolveScope marks every node relevant and seeds
+	// the frontier with all of them — so the per-node scan became one full pass
+	// over the graph per node.
+	//
+	// This is not the second representation the scan was avoiding: it is built
+	// from the same edges at the moment of use and discarded with the
+	// expansion, so there is no window in which it can disagree with the graph
+	// it came from.
+	protectors := reverseProtections(graph)
 	if len(seeds) == 0 {
 		return map[string]Node{}
 	}
@@ -1474,7 +1487,7 @@ func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Nod
 			// governance sees an ungoverned region. closure.agent.required_test_unidentified
 			// asks for a required test and cannot be satisfied by adding one,
 			// because the test points at the file and the file points nowhere.
-			for _, protector := range protectorsOf(graph, node.ID) {
+			for _, protector := range protectors[node.ID] {
 				if _, seen := result[protector.ID]; seen {
 					continue
 				}
@@ -1487,12 +1500,36 @@ func expandRelevantNodes(graph GraphIndex, seeds map[string]Node) map[string]Nod
 	return result
 }
 
+// reverseProtections indexes every protects edge by the node it points AT, so
+// one expansion pays one pass over the graph instead of one per node.
+//
+// protectorsOf below stays as the definition this index must agree with; a test
+// holds the two to the same answer, because an index that resolved a different
+// protector set would be a silent change in what a scope contains rather than a
+// visible failure.
+func reverseProtections(idx GraphIndex) map[string][]Node {
+	out := map[string][]Node{}
+	for _, candidate := range idx.Nodes {
+		for _, protected := range candidate.Protects {
+			if strings.TrimSpace(protected) == "" {
+				continue
+			}
+			out[protected] = append(out[protected], candidate)
+		}
+	}
+	for id := range out {
+		nodes := out[id]
+		sort.SliceStable(nodes, func(i, j int) bool { return nodes[i].ID < nodes[j].ID })
+		out[id] = nodes
+	}
+	return out
+}
+
 // protectorsOf returns the nodes declaring that they protect the given node.
 //
-// It scans rather than consulting an index because GraphIndex holds no reverse
-// map, and building one here would be a second representation of the same
-// edges that could disagree with the first. Scope expansion runs once per
-// assessment over a bounded snapshot, so the scan is paid once.
+// Kept as the single-node definition reverseProtections must agree with. The
+// expansion path uses the index; this stays the readable statement of what
+// "protects" means, and the thing a test can compare against.
 func protectorsOf(idx GraphIndex, id string) []Node {
 	if strings.TrimSpace(id) == "" {
 		return nil

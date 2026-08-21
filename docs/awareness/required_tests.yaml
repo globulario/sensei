@@ -1741,3 +1741,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
+  - id: golang/architecture/closure/reverse_protections_test.go:TestReverseProtectionsAgreesWithTheDirectScan
+    title: The reverse protection index resolves exactly what the direct scan resolves
+    protects:
+      invariants:
+        - awareness.closure_is_revision_scope_and_task_bound

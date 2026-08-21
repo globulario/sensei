@@ -9254,6 +9254,30 @@ test_symbols:
     symbol: TestValidateDirectionBootstrapApprovalRequiresTrustedApprovalRoot
     package: closure
     language: go
+  - id: golang/architecture/closure/reverse_protections_test.go:TestExpansionStillReachesProtectorsThroughTheIndex
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestExpansionStillReachesProtectorsThroughTheIndex
+    package: closure
+    language: go
+    doc: "The expansion this feeds must still find the governance that points at a\nrequested file — the whole point of the change it accelerates."
+  - id: golang/architecture/closure/reverse_protections_test.go:TestReverseProtectionsAgreesWithTheDirectScan
+    file: golang/architecture/closure/reverse_protections_test.go
+    symbol: TestReverseProtectionsAgreesWithTheDirectScan
+    package: closure
+    language: go
+    doc: "The index must resolve exactly what the single-node scan resolves, for every\nnode. An index that returned a different protector set would be a silent\nchange in what a scope contains rather than a visible failure — and scope\ndecides which governance a task is assessed against."
+  - id: golang/architecture/closure/util_test.go:TestScopeExpansionFindsTheNodesThatProtectTheSeed
+    file: golang/architecture/closure/util_test.go
+    symbol: TestScopeExpansionFindsTheNodesThatProtectTheSeed
+    package: closure
+    language: go
+    doc: "A request naming a source file must find the governance that points at it.\n\nProtection is authored as an outbound edge on the governing node: an\ninvariant protects a file, a required test protects a file. Scope expansion\nfollowed edges forward only, so a scope seeded with the file resolved to\nexactly that file and nothing else, and every rule reading the scope for\ngovernance saw an ungoverned region.\n\nThe visible consequence was closure.agent.required_test_unidentified asking\nfor a required test and being unsatisfiable by adding one: three successive\ntask generations in globulario/sensei-code declared tests in the tree, then an\ninvariant protecting the file and requiring them, then the required tests as\ngoverned nodes anchored to the file, and the blocker stood through all three."
+  - id: golang/architecture/closure/util_test.go:TestScopeExpansionLeavesAnUngovernedSeedAlone
+    file: golang/architecture/closure/util_test.go
+    symbol: TestScopeExpansionLeavesAnUngovernedSeedAlone
+    package: closure
+    language: go
+    doc: "The seed's own outbound edges still expand, and a file protected by nothing\nstill resolves to itself rather than to an error."
   - id: golang/architecture/closureprotocol/canonical_test.go:TestAuthorityResolutionDigestIgnoresSetOrder
     file: golang/architecture/closureprotocol/canonical_test.go
     symbol: TestAuthorityResolutionDigestIgnoresSetOrder
