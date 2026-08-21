@@ -360,9 +360,16 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	return art
 }
 
-// requiredWorlds are the external worlds #131 defines. Each one is always
+// requiredWorlds are the evaluation worlds #131 defines. Each one is always
 // present in the index, whether it ran or not.
-var requiredWorlds = []string{"world2_globular", "world3_independent_calibration"}
+//
+// World 1 is this repository, and it is required for the same reason as the
+// other two: #131 asks for all worlds to run from exact pinned inputs, and a
+// self-measurement that only ever happened by hand is not pinned. It measures
+// the same extraction lane as worlds 2 and 3, which is what makes the three
+// comparable — the investigation-composition lane is measured separately by
+// the phase10_composition_* arms over the mutant suite.
+var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_independent_calibration"}
 
 // reservedArmNames are the arm names this command writes itself; a world may
 // not claim one and overwrite its report.
