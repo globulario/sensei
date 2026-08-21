@@ -1359,6 +1359,7 @@ components:
       - golang/architecture/inference/rule.go
       - golang/architecture/inference/rules.go
       - golang/architecture/inference/semantic_rules.go
+      - golang/architecture/inference/subject.go
       - golang/architecture/inference/util.go
     depends_on:
       - component.golang.architecture

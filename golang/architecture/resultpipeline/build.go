@@ -462,11 +462,23 @@ func inferredClaims(resultRoot string, resultBinding architecture.ClaimDocumentB
 	if err != nil {
 		return InferredClaimsBundle{}, err
 	}
-	infCtx := inference.Context{Binding: resultBinding, Facts: facts, Limitations: limitations}
-	apps, err := inference.NewEngine(rules).Apply(infCtx)
+	engine := inference.NewEngine(rules)
+	apps, err := engine.Apply(inference.Context{Binding: resultBinding, Facts: facts, Limitations: limitations})
 	if err != nil {
 		return InferredClaimsBundle{}, err
 	}
+	// Same as the CLI path: what the engine declined to claim is recorded, so a
+	// pipeline run that dropped thousands of subjects is distinguishable from
+	// one that derived none (#230).
+	if dropped := engine.DroppedNonArchitecturalSubjects(); dropped > 0 {
+		limitations = append(limitations, architecture.Limitation{
+			Source: "inference_engine", Scope: "claim_subjects",
+			Reason: fmt.Sprintf("%d derived claim(s) were not raised because their subject was an unqualified identifier, which names nothing the architecture can be asked about; their premise facts are unaffected and remain in this document",
+				dropped),
+			Blocking: false,
+		})
+	}
+	infCtx := inference.Context{Binding: resultBinding, Facts: facts, Limitations: limitations}
 	doc, err := inference.BuildClaimDocument(infCtx, apps)
 	if err != nil {
 		return InferredClaimsBundle{}, err

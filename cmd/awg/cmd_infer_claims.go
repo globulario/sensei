@@ -215,9 +215,23 @@ func buildInferClaimsResult(root string, opts inferClaimsOptions, reg *inference
 	if err != nil {
 		return inferClaimsBuildResult{}, err
 	}
-	apps, err := inference.NewEngine(rules).Apply(inference.Context{Binding: binding, Facts: facts, Limitations: limitations})
+	engine := inference.NewEngine(rules)
+	apps, err := engine.Apply(inference.Context{Binding: binding, Facts: facts, Limitations: limitations})
 	if err != nil {
 		return inferClaimsBuildResult{}, err
+	}
+	// A run that declined to claim anything about local identifiers and a run
+	// that never looked are different, and this is what distinguishes them
+	// (#230). Not blocking: the facts are all still here, and declining to
+	// promote one into a proposition is a bounded scope statement rather than
+	// an unknown.
+	if dropped := engine.DroppedNonArchitecturalSubjects(); dropped > 0 {
+		limitations = append(limitations, architecture.Limitation{
+			Source: "inference_engine", Scope: "claim_subjects",
+			Reason: fmt.Sprintf("%d derived claim(s) were not raised because their subject was an unqualified identifier, which names nothing the architecture can be asked about; their premise facts are unaffected and remain in this document",
+				dropped),
+			Blocking: false,
+		})
 	}
 	doc, err := inference.BuildClaimDocument(inference.Context{Binding: binding, Facts: facts, Limitations: limitations}, apps)
 	if err != nil {
