@@ -1698,6 +1698,12 @@ test_symbols:
     symbol: TestBenchmarkStatusRequiresWorkspace
     package: main
     language: go
+  - id: cmd/awg/cmd_benchmark_external_test.go:TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    file: cmd/awg/cmd_benchmark_external_test.go
+    symbol: TestBundledBenchmarkSkillDocumentsTheGatedStatusPath
+    package: main
+    language: go
+    doc: "The canonical workflow shipped in the bundled skill must invoke the gated\npath. If that command line loses --sensei-repo, or the flag stops defaulting\nto the current checkout, the documented evaluation route silently returns\nuncertifiable numbers with exit 0 again."
   - id: cmd/awg/cmd_benchmark_judge_test.go:TestBenchmarkMissingRequiredTests_AllowsFileOrSymbolCoverage
     file: cmd/awg/cmd_benchmark_judge_test.go
     symbol: TestBenchmarkMissingRequiredTests_AllowsFileOrSymbolCoverage
@@ -7665,12 +7671,24 @@ test_symbols:
     symbol: TestCaptureAuthorityStateBindsGoverningIdentity
     package: benchmark
     language: go
+  - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable
+    package: benchmark
+    language: go
+    doc: "TestCaptureAuthorityStateFailsClosedWhenTreeStateUnreadable: failing to\nOBSERVE whether the tree was clean is not the same as observing a clean tree.\nSwallowing the error would let two captures that never established either\ntree's state agree on authority_match and report Comparable=true."
   - id: golang/architecture/benchmark/authority_state_test.go:TestCaptureAuthorityStateUnavailableIsTyped
     file: golang/architecture/benchmark/authority_state_test.go
     symbol: TestCaptureAuthorityStateUnavailableIsTyped
     package: benchmark
     language: go
     doc: "TestCaptureAuthorityStateUnavailableIsTyped locks in that a capture which\ncannot complete reports a typed reason instead of an empty state. A silent\nempty here would let \"we never bound the authority\" be read downstream as\n\"the authority matched\"."
+  - id: golang/architecture/benchmark/authority_state_test.go:TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace
+    file: golang/architecture/benchmark/authority_state_test.go
+    symbol: TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace
+    package: benchmark
+    language: go
+    doc: "TestFreezeCheckDoesNotDirtyTheAuthorityWithAPriorWorkspace: ordering alone is\nnot enough. A re-freeze or a --check run reaches the capture while a PREVIOUS\nworkspace already exists inside the checkout and is reported as untracked."
   - id: golang/architecture/benchmark/authority_state_test.go:TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
     file: golang/architecture/benchmark/authority_state_test.go
     symbol: TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
