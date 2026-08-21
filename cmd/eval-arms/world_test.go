@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -140,5 +141,85 @@ func TestParseWorldSpecRejectsIncompleteSpec(t *testing.T) {
 	name, domain, path, err := parseWorldSpec("world2=github.com/x/y=/tmp/z")
 	if err != nil || name != "world2" || domain != "github.com/x/y" || path != "/tmp/z" {
 		t.Fatalf("parseWorldSpec = %q %q %q %v", name, domain, path, err)
+	}
+}
+
+// A world may not claim the name of an arm this command writes itself, or of
+// another world in the same run: the second report would overwrite the first
+// after its digest was already recorded in the index.
+func TestReservedArmNamesMatchTheArmsActuallyWritten(t *testing.T) {
+	for _, name := range []string{
+		"deterministic_extraction_without_composition",
+		"phase10_composition_model_disabled",
+		"phase10_composition_model_bound",
+		"briefing_and_impact_surfaces",
+	} {
+		if !reservedArmNames[name] {
+			t.Fatalf("arm %q is written by this command but not reserved against a world claiming it", name)
+		}
+	}
+}
+
+// Every world #131 defines appears in the index whether it ran or not.
+func TestEveryRequiredWorldIsAccountedFor(t *testing.T) {
+	arts := runWorlds(t.TempDir(), nil, "2026-01-01T00:00:00Z", map[string]int64{})
+	seen := map[string]string{}
+	for _, a := range arts {
+		seen[a.Arm] = a.Status
+	}
+	for _, name := range requiredWorlds {
+		if seen[name] != statusNotRun {
+			t.Fatalf("world %q status = %q, want %q", name, seen[name], statusNotRun)
+		}
+	}
+}
+
+func TestDuplicateWorldNameIsRefused(t *testing.T) {
+	dir := t.TempDir()
+	specs := []string{
+		"world3_independent_calibration=a/b=" + dir,
+		"world3_independent_calibration=c/d=" + dir,
+	}
+	arts := runWorlds(dir, specs, "2026-01-01T00:00:00Z", map[string]int64{})
+	failed := 0
+	for _, a := range arts {
+		if a.Status == statusFailed && strings.Contains(a.Reason, "collides") {
+			failed++
+		}
+	}
+	if failed != 1 {
+		t.Fatalf("duplicate world name was not refused exactly once: %+v", arts)
+	}
+}
+
+// An ignored .go file is still compiled into the semantic input. `git status`
+// does not list it and `git add -A` skips it, so neither the revision nor the
+// tree digest covers it: an identity that excludes part of its own input would
+// let the report change while claiming to be the same measurement.
+func TestWorldBindingRefusesAnIgnoredSemanticInput(t *testing.T) {
+	root := initRepo(t)
+	if err := os.WriteFile(filepath.Join(root, "kept.go"), []byte("package p\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, ".gitignore"), []byte("hidden.go\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"add", "-A"}, {"commit", "-q", "-m", "go"}} {
+		if out, err := exec.Command("git", append([]string{"-C", root}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v: %s", args, err, out)
+		}
+	}
+	if _, err := worldBinding(root, "example.test/clean"); err != nil {
+		t.Fatalf("a clean tree with no ignored input must bind: %v", err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "hidden.go"), []byte("package p\n\nconst X = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := worldBinding(root, "example.test/ignored")
+	if err == nil {
+		t.Fatal("an ignored semantic input was bound to an identity that does not cover it")
+	}
+	if !strings.Contains(err.Error(), "git-ignored") {
+		t.Fatalf("refusal does not name the reason: %v", err)
 	}
 }

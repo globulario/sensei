@@ -42,6 +42,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
+	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/client"
 )
@@ -359,6 +360,20 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	return art
 }
 
+// requiredWorlds are the external worlds #131 defines. Each one is always
+// present in the index, whether it ran or not.
+var requiredWorlds = []string{"world2_globular", "world3_independent_calibration"}
+
+// reservedArmNames are the arm names this command writes itself; a world may
+// not claim one and overwrite its report.
+var reservedArmNames = map[string]bool{
+	"deterministic_extraction_without_composition": true,
+	"phase10_composition_model_disabled":           true,
+	"phase10_composition_model_bound":              true,
+	"briefing_and_impact_surfaces":                 true,
+	"evaluation_world":                             true,
+}
+
 // worldReport is one evaluation world run over an external checkout.
 //
 // It deliberately records the repository DOMAIN and the binding, never the
@@ -391,13 +406,9 @@ type worldReport struct {
 // evidence this issue asks for, so they run here, bound the way any other
 // result is bound, or they are recorded as not run.
 func runWorlds(out string, specs []string, capturedAt string, elapsed map[string]int64) []armArtifact {
-	if len(specs) == 0 {
-		return []armArtifact{{
-			Arm: "evaluation_worlds", Subject: subjectPublishedDomain, Status: statusNotRun,
-			Reason: "no --world given; worlds 2 and 3 need an external checkout, which is not part of this repository",
-		}}
-	}
 	var arts []armArtifact
+	ran := map[string]bool{}
+	names := map[string]bool{}
 	for _, spec := range specs {
 		name, domain, path, err := parseWorldSpec(spec)
 		if err != nil {
@@ -405,6 +416,15 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 				Reason: err.Error()})
 			continue
 		}
+		// Two worlds under one name would overwrite each other's report after
+		// the first digest was already recorded, leaving an index whose digest
+		// does not describe the file it names.
+		if names[name] || reservedArmNames[name] {
+			arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusFailed,
+				Reason: "world name collides with another arm or world in this run; every arm writes its own report"})
+			continue
+		}
+		names[name] = true
 		start := time.Now()
 		report, err := runWorld(name, domain, path, capturedAt)
 		elapsed[name] = time.Since(start).Milliseconds()
@@ -419,6 +439,17 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 			art.Reason = "the repository holds no files in the Go observation surface; the empty result describes the surface, not the repository"
 		}
 		arts = append(arts, art)
+		ran[name] = true
+	}
+	// A world that was not supplied is recorded, not omitted. An index listing
+	// only the worlds somebody happened to have a checkout for would read as a
+	// complete protocol.
+	for _, name := range requiredWorlds {
+		if ran[name] || names[name] {
+			continue
+		}
+		arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusNotRun,
+			Reason: "no --world " + name + "=<domain>=<path> given; this world needs an external checkout, which is not part of this repository"})
 	}
 	return arts
 }
@@ -505,11 +536,45 @@ func worldBinding(root, domain string) (architecture.ClaimDocumentBinding, error
 	if status != architecture.RevisionResolved {
 		return binding, fmt.Errorf("%s: repository revision is %s; an evaluation world must identify the tree it read", domain, status)
 	}
+	// An ignored .go file is still compiled into the semantic input, so it can
+	// change the report while git reports nothing: `git status` does not list it
+	// and `git add -A` skips it, so neither the revision nor the tree digest
+	// below covers it. Neither identity would describe what was measured, so the
+	// world is refused rather than labelled with an identity that excludes part
+	// of its own input.
+	inputs, err := gosemantics.SemanticInputFiles(root)
+	if err != nil {
+		return binding, fmt.Errorf("%s: %w", domain, err)
+	}
+	// SemanticInputFiles returns absolute paths and UncommittedSourceFiles skips
+	// those, so the check silently passes on everything unless they are made
+	// repository-relative first.
+	rel := make([]string, 0, len(inputs))
+	for _, in := range inputs {
+		r, relErr := filepath.Rel(root, in)
+		if relErr != nil {
+			return binding, fmt.Errorf("%s: %w", domain, relErr)
+		}
+		rel = append(rel, filepath.ToSlash(r))
+	}
+	unbound, err := architecture.UncommittedSourceFiles(root, rev, rel)
+	if err != nil {
+		return binding, fmt.Errorf("%s: %w", domain, err)
+	}
+	if ignored, err := ignoredPaths(root, unbound); err != nil {
+		return binding, fmt.Errorf("%s: %w", domain, err)
+	} else if len(ignored) > 0 {
+		return binding, fmt.Errorf("%s: %d semantic input file(s) are git-ignored, so no revision or tree digest can identify what was read (%s)",
+			domain, len(ignored), strings.Join(truncate(ignored, 5), ", "))
+	}
+	// Cleanliness is judged over the whole worktree, not just the Go inputs: the
+	// composition reads non-Go files too (manifests, generated docs), and a tree
+	// whose Go files happen to be committed is still not the commit it names.
 	dirty, err := exec.Command("git", "-C", root, "status", "--porcelain").Output()
 	if err != nil {
 		return binding, fmt.Errorf("%s: %w", domain, err)
 	}
-	if strings.TrimSpace(string(dirty)) == "" {
+	if strings.TrimSpace(string(dirty)) == "" && len(unbound) == 0 {
 		binding.Revision = rev
 		binding.RevisionStatus = architecture.RevisionResolved
 		return binding, nil
@@ -521,6 +586,39 @@ func worldBinding(root, domain string) (architecture.ClaimDocumentBinding, error
 	binding.RevisionStatus = architecture.RevisionUnavailable
 	binding.TreeDigestSHA256 = digest
 	return binding, nil
+}
+
+// ignoredPaths returns the subset git refuses to track, which is therefore in
+// neither the commit nor any tree digest.
+func ignoredPaths(root string, paths []string) ([]string, error) {
+	if len(paths) == 0 {
+		return nil, nil
+	}
+	cmd := exec.Command("git", "-C", root, "check-ignore", "--stdin")
+	cmd.Stdin = strings.NewReader(strings.Join(paths, "\n") + "\n")
+	out, err := cmd.Output()
+	if err != nil {
+		// check-ignore exits 1 when nothing matched, which is not a failure.
+		if ee, ok := err.(*exec.ExitError); ok && ee.ExitCode() == 1 {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("git check-ignore: %w", err)
+	}
+	var ignored []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			ignored = append(ignored, line)
+		}
+	}
+	sort.Strings(ignored)
+	return ignored, nil
+}
+
+func truncate(in []string, n int) []string {
+	if len(in) <= n {
+		return in
+	}
+	return append(append([]string{}, in[:n]...), "…")
 }
 
 // worktreeTreeDigest is the canonical Sensei tree identity of a dirty working
