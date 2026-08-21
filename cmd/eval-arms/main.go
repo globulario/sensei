@@ -66,7 +66,12 @@ const (
 	// would lose the finding.
 	statusUnavailableByAuthority = "unavailable_by_authority_model"
 	statusNotRun                 = "not_run"
-	statusFailed                 = "failed"
+	// statusNotImplemented is not "not_run" either. not_run means the arm could
+	// run and this environment did not let it; this means the evaluated path
+	// has no such behaviour to measure, so running it would produce a column
+	// comparing a recorded label against a capability.
+	statusNotImplemented = "not_implemented_in_evaluated_path"
+	statusFailed         = "failed"
 )
 
 type index struct {
@@ -179,8 +184,8 @@ func main() {
 	idx.Arms = append(idx.Arms, runPublishedSurfaces(*out, *addr, *publishedDomain, publishedFiles, elapsed))
 
 	idx.Arms = append(idx.Arms,
-		armArtifact{Arm: "phase10_composition_model_bound", Subject: subjectMutantSuite, Status: statusNotRun,
-			Reason: "arm 3 requires an explicitly bound optional model; none is bound in this environment"},
+		armArtifact{Arm: "phase10_composition_model_bound", Subject: subjectMutantSuite, Status: statusNotImplemented,
+			Reason: "the investigation path carries a model binding but never invokes a model: investigator copies Binding.Model into the receipt and nothing else reads it, no model provider is reachable from howextract, investigator or investigation, and nothing in the tree sets ModelStatusResolved. Binding a model today would change one recorded field and no observation, so an arm-3 column would compare a label against a capability."},
 		armArtifact{Arm: "world2_globular", Subject: subjectPublishedDomain, Status: statusNotRun,
 			Reason: "requires an exact Globular checkout, which is not part of this repository"},
 		armArtifact{Arm: "world3_independent_calibration", Subject: subjectPublishedDomain, Status: statusNotRun,
