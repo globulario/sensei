@@ -1,0 +1,12 @@
+contract_unknown:
+  - id: contract_unknown.sensei.should_a_refusal_caused_by_a_governed_dismissal_be_reported
+    kind: contract_unknown
+    title: Should a refusal caused by a governed dismissal be reported as a stalled session
+    description: After an architect dismisses the last question a task was waiting on, convergence has no wait classes and an open blocker, so classifyStatus returns StatusStalled and admission refuses with ReasonSessionStalled. A deliberate governed retirement is reported in the vocabulary of processes that broke down.
+    proposed_contract: 'The refusal is truthful — the blocker stands and mutation must not be admitted — but the REASON is not: stalled sits beside oscillating and budget_exhausted, all describing a process that failed to progress, while this is authority deliberately closing one route. Either the refusal reason vocabulary gains a state that names the governed decision and carries its receipt digest, or stalled is redefined to mean ''no known next action'' regardless of cause, in which case the current behaviour is correct as it stands and should be documented as such.'
+    source_files:
+      - golang/architecture/admission/admission.go
+    evidence:
+      - 'globulario/sensei#245: TestDismissalLeavesTheSessionStalledNotWaiting characterizes the transition; classifyStatus returns StatusStalled once the last wait class is gone, and admission.go maps stalled+VerdictOpen to CapabilityRefused with ReasonSessionStalled'
+      - The capability outcome is identical to the waiting case — both block mutation — so nothing is admitted that was not admitted before and only the explanation differs
+    domain: github.com/globulario/sensei
