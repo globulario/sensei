@@ -1918,3 +1918,29 @@ failure_modes:
     evidence:
       - 'Found by the repository''s Codex PR review on PR #254 (P1) after the human-readable path had been tested and reported as implemented. The regression test fails without the shared gate with --format json exit = 0 and --format yaml exit = 0, want 3, while --format text passes — which is exactly how the hole stayed invisible.'
     contract: A refusal that exists to stop a machine consumer must be enforced on the paths a machine consumer uses. Where a command emits several formats, the gate is computed before the format is chosen and returns the same verdict for every one of them.
+  - id: failure.an_idempotence_check_trusted_the_digest_a_stored_record_decl
+    title: An idempotence check trusted the digest a stored record declared about itself
+    description: The synthesis-record-verification idempotence check compared record_digest_sha256 as read from the stored record against the newly computed one. A record edited to say something else — a different admission verification status or binding — while retaining its original digest field was therefore accepted as an idempotent re-record, so the command reported success and left conflicting proof on disk.
+    protects:
+      files:
+        - cmd/awg/cmd_synthesis_record_verification.go
+    related_invariants:
+      - invariant.synthesis.declared_digest_must_equal_computed_content_digest
+    required_tests:
+      - cmd/awg/cmd_synthesis_record_verification_test.go:TestRecordRefusesAStoredRecordWhoseDigestDoesNotDescribeIt
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P1) in the very commit that fixed the byte-comparison defect, and against the invariant that commit''s own scar had cited. The regression test tampers with admission_verification_status while leaving record_digest_sha256 intact; without recomputation the command exits 0 instead of 5.'
+    contract: A digest read from a stored artifact is a value some earlier process wrote, not a fact about the bytes present now. Any decision that relies on it must recompute it from the artifact's current content first, and refuse when the declared and computed identities disagree.
+  - id: failure.an_environment_observation_taken_after_the_tool_changed_the
+    title: An environment observation taken after the tool changed the environment measures the tool
+    description: 'Freeze captured the governing authority AFTER creating its temporary workspace. The dirty-tree observation runs git status --porcelain, so when the workspace lived inside the Sensei checkout the freeze''s own untracked scratch files were observed as uncommitted changes: a clean checkout was recorded SenseiTreeDirty=true and every later replay of that run was rejected as incomparable for a change nobody made.'
+    protects:
+      files:
+        - golang/architecture/benchmark/benchmark.go
+    related_invariants:
+      - invariant.workspace_drift_is_evidence_about_the_workspace_never_retroa
+    required_tests:
+      - golang/architecture/benchmark/authority_state_test.go:TestFreezeDoesNotDirtyTheAuthorityWithItsOwnWorkspace
+    evidence:
+      - 'Found by the repository''s Codex PR review on PR #254 (P2). The regression test freezes into a workspace inside a clean fixture checkout; with capture ordered after workspace creation the recorded authority reports a dirty tree.'
+    contract: An observation that characterises the environment a run happened in must be taken before the run mutates that environment. Otherwise the record describes the tool's own side effects and attributes them to the subject.
