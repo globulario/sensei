@@ -1811,3 +1811,16 @@ failure_modes:
       - cmd/awg/synthesis_run_addr_test.go:TestUnreachableGraphEndpointIsReportedAsUnreachable
     evidence:
       - 'globulario/sensei#231: sensei_workspace_status against the repository''s configured endpoint reported composition_state complete and COVERAGE_STATE_SUFFICIENT at the same moment synthesis-run reported EMPTY against a port nothing was serving.'
+  - id: failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
+    title: An unanswerable evidence question blocks closure on a self-evidenced claim
+    description: Question generation escalated evidence blockers regardless of whether anyone could answer them. For a mechanically derived observed claim whose every premise is a source-backed fact with a resolved digest and line range, the only possible answer is 'read the source the extractor already read' — and the unanswered question blocks closure, which gates admission. The task is then stopped by a demand that cannot be met.
+    protects:
+      files:
+        - golang/architecture/questiongen/questiongen.go
+    related_invariants:
+      - awareness.architecture_claims_non_authoritative_until_promoted
+    required_tests:
+      - golang/architecture/questiongen/self_evidenced_test.go:TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence
+    evidence:
+      - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on provide_external_evidence for a claim whose premises were already source-backed observations.'
+      - taskcontrol.selectNextAction falls through to advance_convergence when no question is available, so declining to raise one does not leave the task without an action — verified in golang/architecture/taskcontrol/project.go.
