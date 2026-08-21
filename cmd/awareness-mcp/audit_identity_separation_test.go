@@ -12,10 +12,10 @@ import (
 
 // A diff audit has two independent identities:
 //
-//   1. the commit in the repository being audited, used to reconstruct the
-//      pre-change bytes for modify hunks; and
-//   2. the commit carried by graph authority, which identifies the rule
-//      snapshot that supplied invariants/tests/contracts.
+//  1. the commit in the repository being audited, used to reconstruct the
+//     pre-change bytes for modify hunks; and
+//  2. the commit carried by graph authority, which identifies the rule
+//     snapshot that supplied invariants/tests/contracts.
 //
 // They are not required to be commits in the same repository. In the
 // multi-domain deployment used by sensei-code, the graph authority snapshot is
