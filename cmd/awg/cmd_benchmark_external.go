@@ -155,6 +155,31 @@ authority observed now, and reports whether a replay is comparable.
 		fmt.Fprintln(os.Stderr, "sensei benchmark-status: --workspace is required")
 		return 2
 	}
+	// The replay gate is computed BEFORE the output format is chosen, and its
+	// verdict gates every format identically. It previously guarded only the
+	// text branch, which inverted the point: --format json is precisely what a
+	// harness consumes, so the one caller the fail-closed exit exists to stop
+	// was the one caller that never saw it.
+	var drift benchmark.AuthorityDrift
+	gated := senseiRepo != ""
+	if gated {
+		var err error
+		drift, err = benchmark.VerifyWorkspaceAuthority(workspace, senseiRepo)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "sensei benchmark-status: %v\n", err)
+			return 1
+		}
+	}
+	// A replay that cannot be certified comparable is not a benchmark result.
+	// Exit non-zero so a harness cannot scrape the numbers and silently treat
+	// them as the original run's.
+	gateExit := func(code int) int {
+		if gated && !drift.Comparable {
+			return 3
+		}
+		return code
+	}
+
 	if format == "text" {
 		text, err := benchmark.Status(workspace, report)
 		if err != nil {
@@ -162,12 +187,7 @@ authority observed now, and reports whether a replay is comparable.
 			return 1
 		}
 		fmt.Print(text)
-		if senseiRepo != "" {
-			drift, err := benchmark.VerifyWorkspaceAuthority(workspace, senseiRepo)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "sensei benchmark-status: %v\n", err)
-				return 1
-			}
+		if gated {
 			fmt.Printf("Replay authority: %s\n", drift.Verdict)
 			fmt.Printf("Replay comparable: %s\n", yesNoText(drift.Comparable))
 			for _, r := range drift.Reasons {
@@ -177,21 +197,22 @@ authority observed now, and reports whether a replay is comparable.
 				}
 				fmt.Printf("  - %s\n", r.Code)
 			}
-			// A replay that cannot be certified comparable is not a benchmark
-			// result. Exit non-zero so a harness cannot scrape the numbers and
-			// silently treat them as the original run's.
-			if !drift.Comparable {
-				return 3
-			}
 		}
-		return 0
+		return gateExit(0)
 	}
 	freeze, contamination, err := benchmark.LoadWorkspaceFreeze(workspace)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-status: %v\n", err)
 		return 1
 	}
-	return printBenchmarkObject(map[string]interface{}{"freeze": freeze, "contamination": contamination}, format)
+	out := map[string]interface{}{"freeze": freeze, "contamination": contamination}
+	if gated {
+		out["replay_authority"] = drift
+	}
+	if code := printBenchmarkObject(out, format); code != 0 {
+		return code
+	}
+	return gateExit(0)
 }
 
 func printBenchmarkFreeze(receipt benchmark.FreezeReceipt, contamination benchmark.ContaminationReport, format string) int {
