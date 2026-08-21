@@ -1799,3 +1799,15 @@ failure_modes:
     evidence:
       - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on ''which evidence establishes: seen has_observed_writer_set <13 symbols>'' — seen being a local variable, with 13 unrelated files pulled into the scope.'
       - 'Measured in this repository''s own derived corpus: of 14,477 distinct claim subjects, 4,458 are bare unqualified names (scope, cred, digA, subParts, graphProj).'
+  - id: failure.sensei.an_unreachable_graph_endpoint_reported_as_an_empty_or_non_au
+    title: An unreachable graph endpoint reported as an empty or non-authoritative graph
+    description: 'synthesis-run composed workspace identity against a graph endpoint and, when nothing was serving it, reported the composed absence: workspace identity partial, COVERAGE_STATE_EMPTY, next step ''rebuild or reload the graph''. The graph was healthy and had simply never been asked, so the prescribed repair was a full republication that changes nothing. gRPC dials lazily, so the caller checking only the dial error saw no failure; the transport error arrives on the first RPC.'
+    protects:
+      files:
+        - cmd/awg/synthesis_run_identity.go
+    related_invariants:
+      - awareness.store_unavailable_explicit
+    required_tests:
+      - cmd/awg/synthesis_run_addr_test.go:TestUnreachableGraphEndpointIsReportedAsUnreachable
+    evidence:
+      - 'globulario/sensei#231: sensei_workspace_status against the repository''s configured endpoint reported composition_state complete and COVERAGE_STATE_SUFFICIENT at the same moment synthesis-run reported EMPTY against a port nothing was serving.'

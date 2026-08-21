@@ -28,12 +28,20 @@ import (
 // task directory by this point in its own flow, so taskDir is passed
 // directly rather than re-resolved through resolveWorkspaceTaskIdentity's
 // not_requested branch.
-func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir string) (workspacecontract.Identity, error) {
+// composeSynthesisRunIdentity composes the workspace identity, and reports
+// separately when the graph endpoint could not be reached at all.
+//
+// The distinction is not cosmetic. An unreachable endpoint composes exactly
+// like a graph that answered and had nothing — the same partial identity, the
+// same COVERAGE_STATE_EMPTY — and the caller then prescribed republishing a
+// graph that was healthy the whole time (#231). unreachable is empty whenever
+// the endpoint answered, whatever it answered.
+func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir string) (identity workspacecontract.Identity, unreachable string, err error) {
 	var limitations []workspacecontract.Limitation
 
 	domain, domainErr := repodomain.Configured(absRepo)
 	if domainErr != nil {
-		return workspacecontract.Identity{}, fmt.Errorf("repository domain configuration: %w", domainErr)
+		return workspacecontract.Identity{}, "", fmt.Errorf("repository domain configuration: %w", domainErr)
 	}
 	domainSource := workspacecontract.RepositoryDomainUnbound
 	if domain != "" {
@@ -66,6 +74,7 @@ func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir str
 	var graphAuthority *workspacecontract.GraphAuthority
 	coverageState := "COVERAGE_STATE_UNSPECIFIED"
 	if connErr != nil {
+		unreachable = connErr.Error()
 		limitations = append(limitations, workspacecontract.Limitation{
 			Source: "golang/server Metadata RPC", Scope: "graph_authority", Reason: connErr.Error(), Blocking: true,
 		})
@@ -73,6 +82,13 @@ func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir str
 		defer conn.Close()
 		metaResp, metaErr := conn.MetadataScoped(ctx, domain)
 		if metaErr != nil {
+			// gRPC dials lazily, so an endpoint nobody serves fails HERE rather
+			// than at connect. Only a transport failure counts as unreachable;
+			// a backend that answered and declined is a reachable graph
+			// refusing, which is a different repair.
+			if backendUnreachable(metaErr) {
+				unreachable = metaErr.Error()
+			}
 			limitations = append(limitations, workspacecontract.Limitation{
 				Source: "golang/server Metadata RPC", Scope: "graph_authority", Reason: metaErr.Error(), Blocking: true,
 			})
@@ -119,7 +135,7 @@ func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir str
 		CoverageState:     coverageState,
 		TaskIdentity:      taskIdentity,
 		Limitations:       limitations,
-	}), nil
+	}), unreachable, nil
 }
 
 // resolveSynthesisRunTaskIdentity mirrors workspace_tools.go's

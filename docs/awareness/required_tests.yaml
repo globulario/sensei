@@ -1726,3 +1726,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.derived_claims_about_unqualified_identifiers_become_unanswer
+  - id: cmd/awg/synthesis_run_addr_test.go:TestUnreachableGraphEndpointIsReportedAsUnreachable
+    title: An unreachable endpoint is reported as unreachable, with its own stop reason
+    protects:
+      failure_modes:
+        - failure.sensei.an_unreachable_graph_endpoint_reported_as_an_empty_or_non_a
