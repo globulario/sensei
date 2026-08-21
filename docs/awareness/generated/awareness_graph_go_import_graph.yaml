@@ -327,6 +327,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.evalharness
+      - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
       - component.golang.client
     uml:
