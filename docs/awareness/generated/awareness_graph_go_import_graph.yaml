@@ -325,7 +325,10 @@ components:
     source_files:
       - cmd/eval-arms/main.go
     depends_on:
+      - component.golang.architecture
       - component.golang.architecture.evalharness
+      - component.golang.architecture.gosemantics
+      - component.golang.architecture.howextract
       - component.golang.client
     uml:
       kind: Component
