@@ -12328,6 +12328,12 @@ test_symbols:
     package: factextract
     language: go
     doc: "A caller with no ceiling gets the old inline path, so nothing about the\nunbounded run changes — no goroutine, no abandonment, same observations."
+  - id: golang/architecture/factextract/generated_artifact_anchor_test.go:TestGeneratedArtifactFactsDoNotAnchorToADirectory
+    file: golang/architecture/factextract/generated_artifact_anchor_test.go
+    symbol: TestGeneratedArtifactFactsDoNotAnchorToADirectory
+    package: factextract
+    language: go
+    doc: "A generated artifact can be a directory, and observing that it exists is\nlegitimate. Anchoring that observation to the directory as though it were a\nsource file is not: source-digest capture reported \"is a directory\", and the\n#131 evidence-resolvability pass counted it as an anchor that does not\nresolve. The path is already the fact's subject and object, so the anchor\ncarries no information that dropping it loses."
   - id: golang/architecture/factextract/invariant_rules_test.go:TestAnyRuleToken_NegatedModal
     file: golang/architecture/factextract/invariant_rules_test.go
     symbol: TestAnyRuleToken_NegatedModal
