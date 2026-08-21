@@ -27,6 +27,10 @@ const (
 	DispositionInsufficientGrounding = "insufficient_grounding"
 	DispositionUnsupportedTemplate   = "unsupported_template"
 	DispositionNoLongerBacked        = "no_longer_backed"
+	// A claim whose every premise is already source-backed carries its own
+	// evidence, so asking a human for evidence has one possible answer: read
+	// the source the extractor already read (#230 item 2).
+	DispositionSelfEvidenced = "self_evidenced"
 )
 
 type TemplateDescriptor struct {
@@ -293,12 +297,27 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 	currentBlockers := map[string]closure.Blocker{}
 	for _, blocker := range ctx.Closure.Blockers {
 		currentBlockers[blocker.ID] = blocker
+		// Existing coverage is still checked FIRST, and a question already open
+		// for a self-evidenced blocker keeps blocking.
+		//
+		// Retiring it would be the better answer and cannot be given honestly
+		// yet: the dialogue vocabulary has no state for a question withdrawn as
+		// unanswerable. `superseded` requires a superseding question and there
+		// is none; `answered` and `resolved` would claim it was settled;
+		// `accepted_unknown` is a human accepting a gap, not a generator
+		// deciding one. Every available status asserts something untrue, so
+		// this suppresses only questions not yet asked and the gap is filed
+		// rather than papered over.
 		if existing := coveringQuestion(dialogue.OpenQuestions, blocker); existing != "" {
 			report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing, "questiongen.existing_covers", "existing question covers blocker"))
 			continue
 		}
 		if mechanical(blocker) {
 			report.Skipped = append(report.Skipped, item(blocker, DispositionSkippedMechanical, "", "", "questiongen.skipped_mechanical", "blocker requires mechanical input or repair"))
+			continue
+		}
+		if reason, ok := selfEvidenced(ctx, blocker); ok {
+			report.Skipped = append(report.Skipped, item(blocker, DispositionSelfEvidenced, "", "", "questiongen.self_evidenced", reason))
 			continue
 		}
 		tmpl, ok := registry.templateFor(blocker)
@@ -513,6 +532,107 @@ func mechanical(b closure.Blocker) bool {
 		return true
 	}
 	if b.RequiredNextAction == "answer_open_question" || strings.Contains(b.Code, "question_unresolved") || b.Code == "closure.question.accepted_unknown_blocks" {
+		return true
+	}
+	return false
+}
+
+// selfEvidenced reports whether asking a human for evidence about this blocker
+// has exactly one possible answer: read the source the extractor already read.
+//
+// It fires only for an EVIDENCE blocker whose claims are all mechanically
+// derived observations, every premise of which is a source-backed fact already
+// carrying a resolved digest and a line range. Such a claim's evidence is the
+// extraction that produced it; escalating it produces a question nobody can
+// answer, and an unanswered question blocks closure, which gates admission
+// (#230 item 2).
+//
+// Deliberately narrow, in four ways, because suppressing a real question is a
+// worse failure than asking an awkward one:
+//
+//   - only evidence-class blockers, never authority, contract, or direction
+//     questions, which ask a human for a decision rather than for a pointer;
+//   - only DERIVED claims — an authored claim is somebody's assertion and is
+//     answerable by them;
+//   - only the OBSERVED plane — an intended or desired claim is about what
+//     should be, which source cannot settle;
+//   - only when EVERY premise resolves to a source-backed receipt. One premise
+//     that does not is a claim reaching past the source, and it stays asked.
+//
+// A blocker with no question does not become actionless: taskcontrol falls
+// through to advance_convergence. And the skip is recorded with its own
+// disposition, so a suppressed question is visible in the report rather than
+// silently absent.
+func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
+	if !evidenceBlockerCode(b.Code) || len(b.ClaimIDs) == 0 {
+		return "", false
+	}
+	receipts := map[string]architecture.ClaimFactReceipt{}
+	for _, r := range ctx.Claims.FactReceipts {
+		receipts[r.Fact.ID] = r
+	}
+	claims := resolvedClaims(ctx.Claims, b.ClaimIDs)
+	if len(claims) != len(b.ClaimIDs) {
+		// A claim the document does not carry cannot be shown to be
+		// self-evidenced, so the blocker stays asked.
+		return "", false
+	}
+	premises := 0
+	for _, c := range claims {
+		if c.AssertionOrigin != architecture.OriginDerived || c.ArchitecturalPlane != architecture.PlaneObserved {
+			return "", false
+		}
+		if len(c.PremiseFacts) == 0 {
+			return "", false
+		}
+		for _, id := range c.PremiseFacts {
+			r, ok := receipts[id]
+			if !ok || r.Provenance.SourceKind != "source_file" ||
+				r.Provenance.SourceDigestStatus != architecture.SourceDigestResolved ||
+				strings.TrimSpace(r.Fact.Evidence.SourceFile) == "" {
+				return "", false
+			}
+			// The STATUS is not the evidence. ValidateClaimDocument accepts
+			// source_digest_status: resolved with an empty digest, while
+			// maintenance.VerifySourceReceipt correctly reads that as unknown —
+			// so a receipt claiming resolution without carrying one must not
+			// suppress a question. The digest itself has to be there.
+			if !isHexSHA256(strings.TrimSpace(r.Provenance.SourceDigest)) {
+				return "", false
+			}
+			premises++
+		}
+	}
+	return fmt.Sprintf("every one of the %d premise fact(s) behind this blocker's %d claim(s) is a source-backed observation with a resolved digest; the only evidence anyone could supply is the source the extractor already read",
+		premises, len(claims)), true
+}
+
+// isHexSHA256 reports whether a digest is present and well-formed, rather than
+// merely declared resolved.
+func isHexSHA256(s string) bool {
+	if len(s) != 64 {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if (c < '0' || c > '9') && (c < 'a' || c > 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+// evidenceBlockerCode is the claim-evidence template's blocker set, kept beside
+// selfEvidenced so the suppression can never widen past the questions that ask
+// for a POINTER. The authority, contract, direction, failure and scope
+// templates ask a human to DECIDE something, which no extraction answers.
+func evidenceBlockerCode(code string) bool {
+	switch code {
+	case "closure.question.missing_artifact", "closure.evidence.claim_unknown", "closure.evidence.claim_stale",
+		"closure.evidence.support_missing", "closure.evidence.required_test_missing",
+		"closure.evidence.current_test_or_evidence_missing", "closure.behavior.claim_unknown",
+		"closure.behavior.claim_stale", "closure.contract.required_test_missing",
+		"closure.agent.required_test_unidentified":
 		return true
 	}
 	return false
