@@ -54,6 +54,12 @@ type evidenceIdentity struct {
 	ID                   string `json:"id"`
 	DeclaredDigestSHA256 string `json:"declared_digest_sha256"`
 	ExcerptDigestSHA256  string `json:"excerpt_digest_sha256"`
+	// FilePath is part of the identity because it is part of what the model is
+	// shown AND what its output is allowed to claim: the adapter sends it in
+	// the prompt, and artifact scope is checked against it. The same excerpt
+	// attributed to a.go and to b.go is a different question with a different
+	// permitted answer, so it must not share one request identity.
+	FilePath string `json:"file_path"`
 }
 
 // RequestDigest content-addresses the exact question. It is computed BEFORE
@@ -89,6 +95,7 @@ func RequestDigest(r Request) (string, error) {
 			ID:                   e.ID,
 			DeclaredDigestSHA256: e.DigestSHA256,
 			ExcerptDigestSHA256:  hex.EncodeToString(sum[:]),
+			FilePath:             filepath.ToSlash(strings.TrimSpace(e.FilePath)),
 		})
 	}
 	sort.Slice(id.SuppliedEvidence, func(i, j int) bool { return id.SuppliedEvidence[i].ID < id.SuppliedEvidence[j].ID })

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -329,14 +330,16 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 	// baseline the report does, including the paths where WHY or composition
 	// failed: the model lane still ran, and its outcome is still a result.
 	var modelOutcome modelexec.Outcome
+	var composedDigest string
 	defer func() {
 		if modelOutcome.Binding.Status == "" {
 			return
 		}
 		res.ModelAcquisition = evalmodel.NewAcquisition(opts.CapturedAt, evalmodel.DeterministicBaseline{
-			DocumentDigestSHA256: res.DocumentDigest,
-			ObservationCount:     res.Observations,
-			CandidateCount:       res.Candidates,
+			DocumentDigestSHA256:       res.DocumentDigest,
+			ComposedResultDigestSHA256: composedDigest,
+			ObservationCount:           res.Observations,
+			CandidateCount:             res.Candidates,
 		}, modelOutcome)
 	}()
 
@@ -482,6 +485,10 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 		return res, nil
 	}
 
+	// The composed result's own content identity, so a baseline that changed
+	// what it produced without changing how much is a different baseline.
+	composedDigest = composedResultDigest(result)
+
 	res.Candidates = len(result.Candidates)
 	res.Challenges = len(result.Challenges)
 	res.EvidenceRequests = len(result.EvidenceRequests)
@@ -612,4 +619,17 @@ func modelResourceLabel(lane whyinvestigation.ModelLane) string {
 	default:
 		return "bound:" + lane.Config.ProviderID + ":" + lane.Config.ModelName
 	}
+}
+
+// composedResultDigest content-addresses what deterministic composition
+// produced. It hashes the result itself rather than a summary of it, because a
+// summary is exactly what fails to notice a changed candidate that kept the
+// count the same.
+func composedResultDigest(result investigator.Result) string {
+	data, err := json.Marshal(result)
+	if err != nil {
+		return ""
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }

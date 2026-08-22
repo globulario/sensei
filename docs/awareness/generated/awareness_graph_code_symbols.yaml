@@ -11607,12 +11607,30 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "The acquisition identity must cover everything that makes one measurement\ndifferent from another."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestAcquisitionItemOrderIsTotal
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestAcquisitionItemOrderIsTotal
+    package: evalmodel
+    language: go
+    doc: "Reordering an unchanged answer must not mint a new measurement."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestBaselineIdentityCoversTheComposedResultNotJustCounts
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestBaselineIdentityCoversTheComposedResultNotJustCounts
+    package: evalmodel
+    language: go
+    doc: "A baseline that changed WHAT it produced without changing HOW MUCH is a\ndifferent baseline. Counts are not an identity."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicAndModelCountsStaySeparate
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestDeterministicAndModelCountsStaySeparate
     package: evalmodel
     language: go
     doc: "Deterministic and model-derived counts must never be merged into one number."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDuplicateReferenceLabelsInvalidateTheSet
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDuplicateReferenceLabelsInvalidateTheSet
+    package: evalmodel
+    language: go
+    doc: "Two adjudicators disagreeing about one item is the signal the overlap sample\nexists to produce. Silently keeping the last verdict would erase it."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeyDistinguishesFileAttribution
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestItemKeyDistinguishesFileAttribution
@@ -11643,6 +11661,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A live re-acquisition that answers differently is a NEW measurement, not a\nreplay failure. This is the distinction the acquisition/scoring split exists\nto preserve."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestReferenceIdentityCoversTheProtocolConstituents
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestReferenceIdentityCoversTheProtocolConstituents
+    package: evalmodel
+    language: go
+    doc: "The recomputed identity must be the one the protocol defines, or two\ngenuinely different rulers can share an accepted identity."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerOverAFrozenBundleIsByteIdentical
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestScorerOverAFrozenBundleIsByteIdentical
@@ -14881,6 +14905,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "TestRequestIdentityCoversExcerptBytes: a caller-supplied digest is a CLAIM\nabout content, not the content. Changing an excerpt while leaving its ID and\ndeclared digest alone sends the model different material, so a request\nidentity blind to the bytes would content-address a request never sent."
+  - id: golang/architecture/modelexec/execute_test.go:TestRequestIdentityCoversSuppliedFilePaths
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestRequestIdentityCoversSuppliedFilePaths
+    package: modelexec
+    language: go
+    doc: "The adapter sends FilePath to the bridge, which puts it in the prompt and\nuses it to constrain valid attribution. The same excerpt attributed to a\ndifferent file is a different question with a different permitted answer."
   - id: golang/architecture/modelexec/execute_test.go:TestUnknownProviderIsUnavailableAndNeverInvoked
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestUnknownProviderIsUnavailableAndNeverInvoked

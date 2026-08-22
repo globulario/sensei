@@ -237,3 +237,87 @@ func TestLabelsWithoutAFrozenIdentityCannotScore(t *testing.T) {
 		t.Errorf("a frozen answer key did not score: %+v", s)
 	}
 }
+
+// A baseline that changed WHAT it produced without changing HOW MUCH is a
+// different baseline. Counts are not an identity.
+func TestBaselineIdentityCoversTheComposedResultNotJustCounts(t *testing.T) {
+	a := NewAcquisition("t", DeterministicBaseline{
+		DocumentDigestSHA256: sha, ComposedResultDigestSHA256: "composed-a", ObservationCount: 42, CandidateCount: 7,
+	}, resolvedOutcome("A calls B"))
+	b := NewAcquisition("t", DeterministicBaseline{
+		DocumentDigestSHA256: sha, ComposedResultDigestSHA256: "composed-b", ObservationCount: 42, CandidateCount: 7,
+	}, resolvedOutcome("A calls B"))
+	if a.AcquisitionDigestSHA256 == b.AcquisitionDigestSHA256 {
+		t.Error("two different composed baselines with equal counts share one acquisition identity")
+	}
+}
+
+// Reordering an unchanged answer must not mint a new measurement.
+func TestAcquisitionItemOrderIsTotal(t *testing.T) {
+	mk := func(cited, files []string) modelexec.ArtifactItem {
+		return modelexec.ArtifactItem{Kind: modelexec.ItemKindCandidateClaim, Text: "same words", CitedEvidenceIDs: cited, FilePaths: files}
+	}
+	one := mk([]string{"ev-1"}, []string{"a.go"})
+	two := mk([]string{"ev-2"}, []string{"b.go"})
+
+	forward := resolvedOutcome("ignored")
+	forward.Artifact.Items = []modelexec.ArtifactItem{one, two}
+	reversed := resolvedOutcome("ignored")
+	reversed.Artifact.Items = []modelexec.ArtifactItem{two, one}
+
+	if NewAcquisition("t", baseline(), forward).AcquisitionDigestSHA256 !=
+		NewAcquisition("t", baseline(), reversed).AcquisitionDigestSHA256 {
+		t.Error("reordering identical items produced a different acquisition identity; a reordered answer is not a new measurement")
+	}
+}
+
+// The recomputed identity must be the one the protocol defines, or two
+// genuinely different rulers can share an accepted identity.
+func TestReferenceIdentityCoversTheProtocolConstituents(t *testing.T) {
+	base := ReferenceSet{
+		SchemaVersion: "v1", ProtocolID: "phase10-reference-protocol-v1",
+		ProtocolDigestSHA256:       "proto-1",
+		SampleManifestDigestSHA256: "sample-1",
+		LabelFileDigestsSHA256:     []string{"labels-1"},
+		WorldBindingDigestsSHA256:  []string{"world-1"},
+		Labels:                     []ReferenceLabel{{ItemKey: "k", Verdict: VerdictSupported}},
+	}
+	for _, tc := range []struct {
+		name   string
+		mutate func(*ReferenceSet)
+	}{
+		{"a different sample manifest", func(r *ReferenceSet) { r.SampleManifestDigestSHA256 = "sample-2" }},
+		{"different label files", func(r *ReferenceSet) { r.LabelFileDigestsSHA256 = []string{"labels-2"} }},
+		{"a different world binding", func(r *ReferenceSet) { r.WorldBindingDigestsSHA256 = []string{"world-2"} }},
+		{"a different protocol digest", func(r *ReferenceSet) { r.ProtocolDigestSHA256 = "proto-2" }},
+		{"an adjudicator overlap manifest", func(r *ReferenceSet) { r.AdjudicatorOverlapDigestSHA256 = "overlap-1" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			other := base
+			tc.mutate(&other)
+			if ReferenceDigest(other) == ReferenceDigest(base) {
+				t.Errorf("two rulers differing in %s share one identity", tc.name)
+			}
+		})
+	}
+}
+
+// Two adjudicators disagreeing about one item is the signal the overlap sample
+// exists to produce. Silently keeping the last verdict would erase it.
+func TestDuplicateReferenceLabelsInvalidateTheSet(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	key := ItemKey(a.Items[0])
+	conflicted := ReferenceSet{Labels: []ReferenceLabel{
+		{ItemKey: key, Verdict: VerdictSupported},
+		{ItemKey: key, Verdict: VerdictUnsupported},
+	}}
+	conflicted.DigestSHA256 = ReferenceDigest(conflicted)
+
+	s := ScoreAcquisition(a, conflicted)
+	if s.Scored {
+		t.Fatal("a reference set labelling one item twice produced a score")
+	}
+	if s.Reason != ReasonReferenceSetConflicted {
+		t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetConflicted)
+	}
+}

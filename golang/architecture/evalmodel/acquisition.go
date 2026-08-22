@@ -38,9 +38,17 @@ const (
 // carried alongside the model result and never merged into it: a reader must
 // always be able to tell which lane produced which item.
 type DeterministicBaseline struct {
+	// DocumentDigestSHA256 is the upstream HOW document. It identifies the
+	// input the deterministic lane started from.
 	DocumentDigestSHA256 string `json:"document_digest_sha256"`
-	ObservationCount     int    `json:"observation_count"`
-	CandidateCount       int    `json:"candidate_count"`
+	// ComposedResultDigestSHA256 identifies what the deterministic lane
+	// actually PRODUCED. Counts are not an identity: composition can change
+	// which candidates it produced without changing how many, and a baseline
+	// described only by an upstream digest plus counts would then reuse one
+	// identity for two different results.
+	ComposedResultDigestSHA256 string `json:"composed_result_digest_sha256,omitempty"`
+	ObservationCount           int    `json:"observation_count"`
+	CandidateCount             int    `json:"candidate_count"`
 }
 
 // AcquiredItem is one model-derived proposal, recorded with its provenance.
@@ -90,11 +98,20 @@ func NewAcquisition(capturedAt string, baseline DeterministicBaseline, outcome m
 				FilePaths:        sortedCopy(item.FilePaths),
 			})
 		}
+		// A TOTAL order. Sorting on kind and text alone leaves items that differ
+		// only in citations or file paths in the provider's arrival order, so
+		// swapping two otherwise-identical set members would change the
+		// marshalled bytes and mint a new acquisition identity — a reordered
+		// answer reported as a new measurement. The full item key breaks every
+		// remaining tie.
 		sort.SliceStable(a.Items, func(i, j int) bool {
 			if a.Items[i].Kind != a.Items[j].Kind {
 				return a.Items[i].Kind < a.Items[j].Kind
 			}
-			return a.Items[i].Text < a.Items[j].Text
+			if a.Items[i].Text != a.Items[j].Text {
+				return a.Items[i].Text < a.Items[j].Text
+			}
+			return ItemKey(a.Items[i]) < ItemKey(a.Items[j])
 		})
 	}
 	a.AcquisitionDigestSHA256 = acquisitionDigest(a)

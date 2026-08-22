@@ -19,10 +19,26 @@ import (
 // It is identified by digest so a score always names the exact ruler it was
 // measured against, and a ruler that moved after the fact is detectable.
 type ReferenceSet struct {
-	SchemaVersion string           `json:"schema_version"`
-	ProtocolID    string           `json:"protocol_id"`
-	DigestSHA256  string           `json:"digest_sha256"`
-	Labels        []ReferenceLabel `json:"labels"`
+	SchemaVersion string `json:"schema_version"`
+	ProtocolID    string `json:"protocol_id"`
+
+	// The constituents section 17 of the protocol defines a reference-set
+	// release over. They are represented here so the recomputed identity is
+	// the identity the protocol specifies, not a reduced local imitation of
+	// it: hashing only a protocol name and flattened labels would give two
+	// genuinely different rulers — different samples, different adjudicators,
+	// different worlds — the same accepted identity whenever their verdicts
+	// happened to coincide. It would also make an externally computed release
+	// digest fail this check, pushing a release toward being recomputed
+	// locally rather than verified.
+	ProtocolDigestSHA256           string   `json:"protocol_digest_sha256,omitempty"`
+	SampleManifestDigestSHA256     string   `json:"sample_manifest_digest_sha256,omitempty"`
+	LabelFileDigestsSHA256         []string `json:"label_file_digests_sha256,omitempty"`
+	WorldBindingDigestsSHA256      []string `json:"world_binding_digests_sha256,omitempty"`
+	AdjudicatorOverlapDigestSHA256 string   `json:"adjudicator_overlap_digest_sha256,omitempty"`
+
+	DigestSHA256 string           `json:"digest_sha256"`
+	Labels       []ReferenceLabel `json:"labels"`
 }
 
 // ReferenceLabel is one adjudicated verdict. The vocabulary is the protocol's,
@@ -73,11 +89,12 @@ type Score struct {
 
 // Typed reasons a measurement produced no score.
 const (
-	ReasonReferenceSetAbsent   = "reference_set_absent"
-	ReasonModelDidNotResolve   = "model_did_not_resolve"
-	ReasonAcquisitionAltered   = "acquisition_contents_do_not_match_its_digest"
-	ReasonReferenceSetAltered  = "reference_set_contents_do_not_match_its_digest"
-	ReasonReferenceSetUnfrozen = "reference_set_carries_labels_but_no_frozen_identity"
+	ReasonReferenceSetAbsent     = "reference_set_absent"
+	ReasonModelDidNotResolve     = "model_did_not_resolve"
+	ReasonAcquisitionAltered     = "acquisition_contents_do_not_match_its_digest"
+	ReasonReferenceSetAltered    = "reference_set_contents_do_not_match_its_digest"
+	ReasonReferenceSetUnfrozen   = "reference_set_carries_labels_but_no_frozen_identity"
+	ReasonReferenceSetConflicted = "reference_set_labels_the_same_item_more_than_once"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -144,8 +161,17 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		return s
 	}
 
+	// Duplicate keys invalidate the set rather than silently resolving to the
+	// last one. Combined label files are exactly where two adjudicators'
+	// conflicting verdicts on one item meet, and the protocol requires that
+	// disagreement to stay explicit: overwriting it would erase the very
+	// signal the overlap sample exists to produce.
 	labels := map[string]string{}
 	for _, l := range ref.Labels {
+		if _, seen := labels[l.ItemKey]; seen {
+			s.Reason = ReasonReferenceSetConflicted
+			return s
+		}
 		labels[l.ItemKey] = l.Verdict
 	}
 	for _, item := range a.Items {
@@ -187,7 +213,14 @@ func ItemKey(item AcquiredItem) string {
 // exact ruler it used and a later edit is visible.
 func ReferenceDigest(ref ReferenceSet) string {
 	ref.DigestSHA256 = ""
-	sort.SliceStable(ref.Labels, func(i, j int) bool { return ref.Labels[i].ItemKey < ref.Labels[j].ItemKey })
+	sort.SliceStable(ref.Labels, func(i, j int) bool {
+		if ref.Labels[i].ItemKey != ref.Labels[j].ItemKey {
+			return ref.Labels[i].ItemKey < ref.Labels[j].ItemKey
+		}
+		return ref.Labels[i].Verdict < ref.Labels[j].Verdict
+	})
+	ref.LabelFileDigestsSHA256 = sortedCopy(ref.LabelFileDigestsSHA256)
+	ref.WorldBindingDigestsSHA256 = sortedCopy(ref.WorldBindingDigestsSHA256)
 	data, _ := json.Marshal(ref)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])

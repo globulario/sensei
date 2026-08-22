@@ -317,3 +317,22 @@ func TestArtifactCannotAttributeClaimsToUnshownFiles(t *testing.T) {
 		})
 	}
 }
+
+// The adapter sends FilePath to the bridge, which puts it in the prompt and
+// uses it to constrain valid attribution. The same excerpt attributed to a
+// different file is a different question with a different permitted answer.
+func TestRequestIdentityCoversSuppliedFilePaths(t *testing.T) {
+	before, err := RequestDigest(testRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := testRequest()
+	moved.SuppliedEvidence[0].FilePath = "internal/somewhere/else.go"
+	after, err := RequestDigest(moved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Error("moving supplied evidence to a different file did not change the request identity")
+	}
+}
