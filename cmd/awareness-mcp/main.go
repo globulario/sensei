@@ -79,6 +79,9 @@ type awarenessClient interface {
 }
 
 type bridge struct {
+	// client already carries the per-request budget: newBridge wraps it in a
+	// perRequestClient. Handlers therefore cannot reach a backend through an
+	// unbounded path, which is why none of them applies a deadline itself.
 	client awarenessClient
 	// timeout is the budget for ONE gRPC request.
 	timeout time.Duration
@@ -88,13 +91,88 @@ type bridge struct {
 	callTimeout time.Duration
 }
 
+// newBridge is the only way to build a bridge whose budgets are both real. It
+// wraps the client so --timeout bounds every individual request, and records
+// the whole-call ceiling that callTool applies.
+//
+// The wrapping lives here rather than at each call site because the first fix
+// for #260 put it at one call site and silently unbounded the eight others:
+// awareness_briefing, awareness_impact and the rest went from a 5s request to
+// the 2m whole-call ceiling. A budget a handler never has to remember is a
+// budget a handler cannot forget.
+func newBridge(client awarenessClient, timeout, callTimeout time.Duration) *bridge {
+	return &bridge{
+		client:      &perRequestClient{inner: client, timeout: timeout},
+		timeout:     timeout,
+		callTimeout: callTimeout,
+	}
+}
+
+// perRequestClient applies the per-request budget to every RPC the bridge
+// makes. It is a decorator over the whole awarenessClient surface so that a
+// method added to that interface later is bounded the moment it is routed
+// through here, without anyone remembering to bound it.
+type perRequestClient struct {
+	inner   awarenessClient
+	timeout time.Duration
+}
+
 // rpcContext derives the per-request budget from a call's context, so each
-// gRPC request gets the timeout the --timeout flag actually documents.
-func (b *bridge) rpcContext(parent context.Context) (context.Context, context.CancelFunc) {
-	if b.timeout <= 0 {
+// gRPC request gets the timeout the --timeout flag actually documents and
+// cancelling the whole call still cancels the request in flight.
+func (p *perRequestClient) rpcContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if p.timeout <= 0 {
 		return context.WithCancel(parent)
 	}
-	return context.WithTimeout(parent, b.timeout)
+	return context.WithTimeout(parent, p.timeout)
+}
+
+func (p *perRequestClient) Briefing(ctx context.Context, in *awarenesspb.BriefingRequest, opts ...grpc.CallOption) (*awarenesspb.BriefingResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Briefing(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Impact(ctx context.Context, in *awarenesspb.ImpactRequest, opts ...grpc.CallOption) (*awarenesspb.ImpactResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Impact(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Resolve(ctx context.Context, in *awarenesspb.ResolveRequest, opts ...grpc.CallOption) (*awarenesspb.ResolveResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Resolve(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Query(ctx context.Context, in *awarenesspb.QueryRequest, opts ...grpc.CallOption) (*awarenesspb.QueryResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Query(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Metadata(ctx context.Context, in *awarenesspb.MetadataRequest, opts ...grpc.CallOption) (*awarenesspb.MetadataResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Metadata(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Preflight(ctx context.Context, in *awarenesspb.PreflightRequest, opts ...grpc.CallOption) (*awarenesspb.PreflightResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Preflight(ctx, in, opts...)
+}
+
+func (p *perRequestClient) EditCheck(ctx context.Context, in *awarenesspb.EditCheckRequest, opts ...grpc.CallOption) (*awarenesspb.EditCheckResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.EditCheck(ctx, in, opts...)
+}
+
+func (p *perRequestClient) Propose(ctx context.Context, in *awarenesspb.ProposeRequest, opts ...grpc.CallOption) (*awarenesspb.ProposeResponse, error) {
+	ctx, cancel := p.rpcContext(ctx)
+	defer cancel()
+	return p.inner.Propose(ctx, in, opts...)
 }
 
 // callCeiling is the whole-call budget, falling back to a generous default so
@@ -2162,11 +2240,7 @@ func main() {
 		}
 	}()
 
-	br := &bridge{
-		client:      &failoverClient{entries: entries},
-		timeout:     *timeout,
-		callTimeout: *callTimeout,
-	}
+	br := newBridge(&failoverClient{entries: entries}, *timeout, *callTimeout)
 	if err := serveStdio(br, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "awareness-mcp: serve: %v\n", err)
 		os.Exit(1)
@@ -2242,8 +2316,6 @@ func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (s
 }
 
 func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
-	ctx, cancel := c.bridge.rpcContext(ctx)
-	defer cancel()
 	resp, err := c.bridge.client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
 		File:            file,
 		ProposedContent: content,
@@ -2292,8 +2364,6 @@ func requiredTestPathFromID(id string) string {
 }
 
 func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
-	ctx, cancel := c.bridge.rpcContext(ctx)
-	defer cancel()
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,

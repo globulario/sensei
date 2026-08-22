@@ -1841,3 +1841,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_per_request_budget_applied_to_a_whole_multi_request_call_f
+  - id: cmd/awareness-mcp/main_test.go:TestSingleRequestToolIsBoundedByTheRequestBudget
+    title: A single-request MCP tool gives up on the per-request budget, not the whole-call ceiling
+    protects:
+      failure_modes:
+        - failure.sensei.a_guarantee_relocated_to_one_call_site_silently_unbounds_its

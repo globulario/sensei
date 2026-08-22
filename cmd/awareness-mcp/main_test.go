@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -80,7 +81,7 @@ func (f fakeClient) Propose(ctx context.Context, in *awarenesspb.ProposeRequest,
 }
 
 func testBridge(c awarenessClient) *bridge {
-	return &bridge{client: c, timeout: 5 * time.Second}
+	return newBridge(c, 5*time.Second, 2*time.Minute)
 }
 
 func TestTaskControlToolsAreExposedWithTypedContracts(t *testing.T) {
@@ -1157,7 +1158,7 @@ new file mode 100644
 `
 	// A single file costs at most two RPCs here, so 250ms is ample for one and
 	// impossible for two.
-	br := &bridge{client: fake, timeout: 250 * time.Millisecond, callTimeout: 10 * time.Second}
+	br := newBridge(fake, 250*time.Millisecond, 10*time.Second)
 	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
 		"diff":          twoFiles,
 		"expected_head": head,
@@ -1177,9 +1178,9 @@ new file mode 100644
 // per-request budget still applies to each individual RPC, derived from the
 // call's own context so cancelling the call still cancels the request.
 func TestPerRequestBudgetStillBoundsOneRpc(t *testing.T) {
-	br := &bridge{timeout: 40 * time.Millisecond, callTimeout: 10 * time.Second}
+	p := &perRequestClient{timeout: 40 * time.Millisecond}
 
-	ctx, cancel := br.rpcContext(context.Background())
+	ctx, cancel := p.rpcContext(context.Background())
 	defer cancel()
 	start := time.Now()
 	<-ctx.Done()
@@ -1192,7 +1193,7 @@ func TestPerRequestBudgetStillBoundsOneRpc(t *testing.T) {
 
 	// Cancelling the whole call must still cancel an in-flight request.
 	parent, cancelParent := context.WithCancel(context.Background())
-	child, cancelChild := br.rpcContext(parent)
+	child, cancelChild := p.rpcContext(parent)
 	defer cancelChild()
 	cancelParent()
 	select {
@@ -1208,4 +1209,130 @@ func TestPerRequestBudgetStillBoundsOneRpc(t *testing.T) {
 	if got := (&bridge{}).callCeiling(); got <= 0 {
 		t.Errorf("a bridge with no budgets got a %s ceiling; that would refuse every call", got)
 	}
+}
+
+// TestEveryRpcCarriesThePerRequestBudget guards the regression the first #260
+// fix introduced: moving the budget to one call site left the other eight RPCs
+// bounded only by the 2m whole-call ceiling, so --timeout silently stopped
+// meaning what it documents for awareness_briefing, awareness_impact and the
+// rest.
+//
+// It walks the awarenessClient interface by reflection rather than listing the
+// methods, so a method added to that surface later is covered without anyone
+// remembering to add it here — the same reason the budget itself lives at the
+// client seam.
+func TestEveryRpcCarriesThePerRequestBudget(t *testing.T) {
+	const budget = 60 * time.Millisecond
+
+	// stalls forever unless its context is cancelled, so a bounded call returns
+	// promptly with DeadlineExceeded and an unbounded one hangs past the check.
+	inner := &stallingClient{}
+	client := &perRequestClient{inner: inner, timeout: budget}
+
+	iface := reflect.TypeOf((*awarenessClient)(nil)).Elem()
+	v := reflect.ValueOf(client)
+	if iface.NumMethod() == 0 {
+		t.Fatal("awarenessClient exposes no methods; this guard would prove nothing")
+	}
+	for i := 0; i < iface.NumMethod(); i++ {
+		m := iface.Method(i)
+		t.Run(m.Name, func(t *testing.T) {
+			method := v.MethodByName(m.Name)
+			if !method.IsValid() {
+				t.Fatalf("perRequestClient does not implement %s", m.Name)
+			}
+			// (ctx, in) — the request type is the method's second parameter.
+			args := []reflect.Value{
+				reflect.ValueOf(context.Background()),
+				reflect.New(m.Type.In(1).Elem()),
+			}
+			done := make(chan error, 1)
+			go func() {
+				out := method.Call(args)
+				err, _ := out[len(out)-1].Interface().(error)
+				done <- err
+			}()
+			select {
+			case err := <-done:
+				if !errors.Is(err, context.DeadlineExceeded) {
+					t.Errorf("%s returned %v, want the per-request budget to expire it", m.Name, err)
+				}
+			case <-time.After(5 * time.Second):
+				t.Errorf("%s outlived the %s per-request budget; --timeout does not bound it", m.Name, budget)
+			}
+		})
+	}
+}
+
+// TestSingleRequestToolIsBoundedByTheRequestBudget is the reproduction of the
+// regression itself, from the caller's side.
+//
+// The reflection guard above proves perRequestClient bounds every method; it
+// does NOT prove a tool handler reaches a backend through it. That distinction
+// is exactly where the first #260 fix went wrong — the machinery existed and
+// one call site used it, while awareness_briefing and its siblings went
+// straight to the client and inherited only the 2m whole-call ceiling.
+//
+// So this drives a real handler against a backend that never answers, and
+// requires it to give up on the per-request budget rather than the ceiling.
+func TestSingleRequestToolIsBoundedByTheRequestBudget(t *testing.T) {
+	const (
+		budget  = 80 * time.Millisecond
+		ceiling = 30 * time.Second
+	)
+	br := newBridge(stallingClient{}, budget, ceiling)
+
+	done := make(chan time.Duration, 1)
+	go func() {
+		start := time.Now()
+		_, _ = br.callTool(context.Background(), "awareness_briefing", map[string]interface{}{
+			"file": "cmd/awareness-mcp/main.go",
+		})
+		done <- time.Since(start)
+	}()
+
+	select {
+	case elapsed := <-done:
+		// Generous, but far below the ceiling: the point is which budget ended
+		// the call, not how tight the timer is on a loaded machine.
+		if elapsed > 5*time.Second {
+			t.Errorf("awareness_briefing took %s against a stalled backend; --timeout (%s) did not bound its request, the whole-call ceiling (%s) did", elapsed, budget, ceiling)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatalf("awareness_briefing never returned within 10s; the per-request budget of %s is not applied to it", budget)
+	}
+}
+
+// stallingClient blocks every RPC until the caller's context ends, so the only
+// thing that can return it is a deadline someone applied.
+type stallingClient struct{}
+
+func stall[T any](ctx context.Context) (*T, error) {
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+func (stallingClient) Briefing(ctx context.Context, _ *awarenesspb.BriefingRequest, _ ...grpc.CallOption) (*awarenesspb.BriefingResponse, error) {
+	return stall[awarenesspb.BriefingResponse](ctx)
+}
+func (stallingClient) Impact(ctx context.Context, _ *awarenesspb.ImpactRequest, _ ...grpc.CallOption) (*awarenesspb.ImpactResponse, error) {
+	return stall[awarenesspb.ImpactResponse](ctx)
+}
+func (stallingClient) Resolve(ctx context.Context, _ *awarenesspb.ResolveRequest, _ ...grpc.CallOption) (*awarenesspb.ResolveResponse, error) {
+	return stall[awarenesspb.ResolveResponse](ctx)
+}
+func (stallingClient) Query(ctx context.Context, _ *awarenesspb.QueryRequest, _ ...grpc.CallOption) (*awarenesspb.QueryResponse, error) {
+	return stall[awarenesspb.QueryResponse](ctx)
+}
+func (stallingClient) Metadata(ctx context.Context, _ *awarenesspb.MetadataRequest, _ ...grpc.CallOption) (*awarenesspb.MetadataResponse, error) {
+	return stall[awarenesspb.MetadataResponse](ctx)
+}
+func (stallingClient) Preflight(ctx context.Context, _ *awarenesspb.PreflightRequest, _ ...grpc.CallOption) (*awarenesspb.PreflightResponse, error) {
+	return stall[awarenesspb.PreflightResponse](ctx)
+}
+func (stallingClient) EditCheck(ctx context.Context, _ *awarenesspb.EditCheckRequest, _ ...grpc.CallOption) (*awarenesspb.EditCheckResponse, error) {
+	return stall[awarenesspb.EditCheckResponse](ctx)
+}
+func (stallingClient) Propose(ctx context.Context, _ *awarenesspb.ProposeRequest, _ ...grpc.CallOption) (*awarenesspb.ProposeResponse, error) {
+	return stall[awarenesspb.ProposeResponse](ctx)
 }

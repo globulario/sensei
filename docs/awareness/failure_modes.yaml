@@ -2009,3 +2009,14 @@ failure_modes:
     evidence:
       - 'Reported in issue #260 as a deterministic cannot_verify on a two-file diff where each file passed alone and each returned in about five seconds — five seconds being the timeout value itself rather than evidence against a timeout. Confirmed in code: br.timeout appeared in exactly one place, the whole-call deadline, and never on an individual request.'
     contract: A timeout documented as bounding one request must be applied to one request. Using it as the ceiling for a call that issues many requests makes the call fail as a function of how much work it was given, and the refusal describes the subject rather than the budget.
+  - id: failure.sensei.a_guarantee_relocated_to_one_call_site_silently_unbounds_its
+    title: A guarantee relocated to one call site silently unbounds its siblings
+    description: 'When a cross-cutting budget, check or guarantee is moved off a shared choke point onto one specific consumer, every other consumer of that choke point loses it with no signal at all — it compiles, it passes, and the loss is invisible until something stalls. Place the guarantee at the seam every consumer must pass through (here a client decorator applied in the constructor) so a consumer added later cannot forget what it never had to remember. Second recurrence of this class: see also the guarantee-verified-on-only-one-output-path scar from PR #254.'
+    protects:
+      files:
+        - cmd/awareness-mcp/main.go
+    required_tests:
+      - cmd/awareness-mcp/main_test.go:TestSingleRequestToolIsBoundedByTheRequestBudget
+    evidence:
+      - 'PR #261: --timeout was moved from the JSON-RPC loop into a per-request context consumed only by the diff-audit checker; the other eight MCP tools (awareness_briefing, awareness_impact, awareness_edit_check and the rest) then reached the backend with no per-request deadline at all, bounded only by the 2m whole-call ceiling. The first fix for #260 introduced a fresh instance of the very defect class it was fixing.'
+    contract: --timeout is a per-request gRPC budget that bounds EVERY individual request a tool makes, not merely the requests of whichever consumer the budget was last wired into; --call-timeout separately bounds one whole tools/call.
