@@ -20,6 +20,40 @@ The ordering is normative:
 
 The benchmark must never create, weaken, or redefine the production capability it measures.
 
+## Status of this relay
+
+This section records the decision actually taken during implementation, so the
+document and the code do not disagree.
+
+```text
+Stage A implementation and hermetic proof   complete
+Stage A successful live-model witness       outstanding
+                                            blocks #256 closure
+                                            does NOT block Stage B implementation
+Stage B implementation                      complete
+Real model measurement in #131              blocked until the live witness succeeds
+```
+
+The live witness was attempted and failed for a reason outside the
+architecture: the adapter reached the real model API over the network and the
+service answered `HTTP 400: credit balance too low`. That was recorded as a
+typed `errored` outcome rather than smoothed over, which is the behaviour the
+contract wanted — but it is not a model producing an artifact, so #256 stays
+open.
+
+Stage B was then explicitly authorised to proceed. The refinement matters and
+is deliberate: the ordering rule exists so that **the benchmark cannot create
+the capability it measures**. That risk is absent here, because the capability
+is real, hermetically proven, and reachable in production code; only an
+external billing condition blocks one supplementary proof. An external service
+must not get to decide whether an evaluator may be built, and it must equally
+not get to decide that a proof step was optional. So both halves are kept:
+Stage B proceeded, and #256 did not close.
+
+Sections B and D below are the ORIGINAL contract text and are left unedited on
+purpose. Where they say Stage B follows a fully green Stage A, read them
+against this status block.
+
 ## Current state after #257
 
 PR #257 established and mutation-tested the hard part of #256:
@@ -131,6 +165,11 @@ The real smoke proves reachability, not model correctness. Correctness belongs t
 
 ## B. Handoff into #131 only after A is proven
 
+> Refined during implementation — see "Status of this relay" above. Stage A's
+> implementation and hermetic proof are what gate Stage B; the supplementary
+> live-model witness gates #256's CLOSURE. The two were separated once the
+> witness turned out to be blocked on billing rather than on engineering.
+
 Once the production adapter exists and the independent proof above is green, `cmd/eval-arms` may stop reporting `not_implemented_in_evaluated_path`.
 
 Do not replace that string merely because #257 merged. The evaluated path must itself know how to request the now-existing capability.
@@ -228,6 +267,8 @@ Use this order. Do not collapse it for convenience.
 2. Re-run the existing #256 proof matrix and the pinned pre-model serialization fixture.
 3. Perform one supplementary real-model smoke and record only non-secret binding/digest evidence.
 4. At that point, update #256 with completion evidence and close it.
+   **Not yet done.** The live witness has not succeeded, so #256 remains open;
+   steps 5-7 proceeded under the refinement recorded in "Status of this relay".
 5. Add arm-3 provider configuration and call the **production** `OrchestrateWithModel` / `modelexec` path. Do not duplicate model execution in the evaluator.
 6. Add live-acquisition bundle serialization and deterministic frozen-bundle scoring.
 7. Change arm 3 from `not_implemented_in_evaluated_path` to `not_run` only when the harness really has a reachable provider path.
