@@ -2020,3 +2020,14 @@ failure_modes:
     evidence:
       - 'PR #261: --timeout was moved from the JSON-RPC loop into a per-request context consumed only by the diff-audit checker; the other eight MCP tools (awareness_briefing, awareness_impact, awareness_edit_check and the rest) then reached the backend with no per-request deadline at all, bounded only by the 2m whole-call ceiling. The first fix for #260 introduced a fresh instance of the very defect class it was fixing.'
     contract: --timeout is a per-request gRPC budget that bounds EVERY individual request a tool makes, not merely the requests of whichever consumer the budget was last wired into; --call-timeout separately bounds one whole tools/call.
+  - id: failure.sensei.a_mechanically_manufactured_evaluation_population_reads_as_a
+    title: A mechanically manufactured evaluation population reads as a real denominator
+    description: 'The failure is not the wrong predicate rule; it is a measuring instrument deciding, from the data it is grading, what counts as a case. Whether a predicate may hold one object is a statement about the ontology and belongs outside the sampler, like the recall unit inventory. Two absences must also stay distinguishable: ''nothing disagreed'' and ''nobody declared what disagreement would look like'' are different facts, and collapsing them lets an undeclared ontology read as a clean bill of health.'
+    protects:
+      files:
+        - golang/architecture/evalsample/candidates.go
+    required_tests:
+      - golang/architecture/evalsample/sample_test.go:TestAMultiValuedRelationIsNotADisagreement
+    evidence:
+      - 'PR for #131 step 9: the contradiction lane first treated every repeated (subject, predicate) carrying differing objects as a disagreement. Run against world 1 it produced 23,641 ''contradiction cases'', essentially all of them components legitimately depending on many things — a multi-valued relation, not a contradiction. The lane would have handed a human adjudicator thousands of non-questions while reporting a large, healthy-looking denominator.'
+    contract: An evaluation sampler may select items; it may not invent the population it selects from. Where deciding what belongs in a population requires an ontological judgement, that judgement is a caller-supplied declaration, and its absence is a TYPED undrawn lane rather than a clean empty one.

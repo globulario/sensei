@@ -1846,3 +1846,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_guarantee_relocated_to_one_call_site_silently_unbounds_its
+  - id: golang/architecture/evalsample/sample_test.go:TestAMultiValuedRelationIsNotADisagreement
+    title: A multi-valued relation does not open a contradiction case, and an undeclared ontology reads as undrawn
+    protects:
+      failure_modes:
+        - failure.sensei.a_mechanically_manufactured_evaluation_population_reads_as_a

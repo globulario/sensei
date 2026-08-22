@@ -324,11 +324,13 @@ components:
     assertion: inferred
     source_files:
       - cmd/eval-arms/main.go
+      - cmd/eval-arms/sample.go
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.benchmark
       - component.golang.architecture.evalharness
       - component.golang.architecture.evalmodel
+      - component.golang.architecture.evalsample
       - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
@@ -1160,6 +1162,22 @@ components:
       - golang/architecture/evalmutant/defects.go
       - golang/architecture/evalmutant/mutant.go
       - golang/architecture/evalmutant/repo.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.evalsample
+    name: evalsample
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/evalsample/candidates.go
+      - golang/architecture/evalsample/sample.go
+      - golang/architecture/evalsample/select.go
+    depends_on:
+      - component.golang.architecture
+      - component.golang.architecture.investigation
     uml:
       kind: Component
       stereotype: module

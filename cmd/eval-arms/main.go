@@ -45,6 +45,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/benchmark"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalmodel"
+	"github.com/globulario/sensei/golang/architecture/evalsample"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
@@ -159,6 +160,13 @@ func main() {
 	modelName := flag.String("model-name", "", "arm 3: model to request")
 	modelProviderPath := flag.String("model-provider-path", "", "arm 3: executable implementing the command bridge")
 	modelPromptContract := flag.String("model-prompt-contract", "", "arm 3: identity of the exact prompt/schema contract the bridge uses")
+	// The seed is COMMITTED before labels exist (protocol section 6.2). It is a
+	// required input rather than a defaulted one: a seed the runner chose
+	// silently is a seed nobody can be shown to have fixed in advance, and the
+	// freeze order is the only thing separating a sample from a re-draw taken
+	// after somebody saw a score.
+	selectionSeed := flag.String("selection-seed", "", "committed seed ordering the frozen sample manifest; required to draw a sample, and changing it creates a new sample version")
+	protocolFile := flag.String("protocol-file", protocolPath, "the frozen reference protocol the sample serves; its digest is recorded in the manifest")
 	referenceSetPath := flag.String("reference-set", "", "arm 3: frozen reference-set release manifest to score against; without one the scorer reports reference_set_absent")
 	flag.Var(&labelFiles, "label-file", "arm 3: a label file the release names; repeatable, and every named file must be supplied")
 	flag.Var(&modelProviderArgs, "model-provider-arg", "arm 3: argument for the bridge executable; repeatable, passed without a shell")
@@ -240,7 +248,13 @@ func main() {
 	// Arm 4 where it IS defined: an admitted, published domain.
 	idx.Arms = append(idx.Arms, runPublishedSurfaces(*out, *addr, *publishedDomain, publishedFiles, elapsed))
 
-	idx.Arms = append(idx.Arms, runWorlds(*out, worlds, *capturedAt, elapsed)...)
+	var sampledWorlds []evalsample.World
+	idx.Arms = append(idx.Arms, runWorlds(*out, worlds, *capturedAt, elapsed, &sampledWorlds)...)
+	// Step 9 of the #131 handoff: freeze the SELECTION from the worlds this run
+	// pinned, before any label exists. It is written from the same documents
+	// the reports above describe, so the sample and the measurement cannot
+	// describe two different extraction runs.
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,
@@ -731,7 +745,7 @@ const unresolvedExampleLimit = 10
 // that only exists as something somebody typed once is not the reproducible
 // evidence this issue asks for, so they run here, bound the way any other
 // result is bound, or they are recorded as not run.
-func runWorlds(out string, specs []string, capturedAt string, elapsed map[string]int64) []armArtifact {
+func runWorlds(out string, specs []string, capturedAt string, elapsed map[string]int64, sampled *[]evalsample.World) []armArtifact {
 	var arts []armArtifact
 	ran := map[string]bool{}
 	names := map[string]bool{}
@@ -752,7 +766,7 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 		}
 		names[name] = true
 		start := time.Now()
-		report, err := runWorld(name, domain, path, capturedAt)
+		report, doc, binding, err := runWorld(name, domain, path, capturedAt)
 		elapsed[name] = time.Since(start).Milliseconds()
 		if err != nil {
 			arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusFailed, Reason: err.Error()})
@@ -766,6 +780,24 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 		}
 		arts = append(arts, art)
 		ran[name] = true
+		if sampled != nil {
+			inventory, invErr := recallUnitInventory(path)
+			if invErr != nil {
+				// A world sampled with a silently empty recall inventory would
+				// report a recall lane that is honestly absent for a dishonest
+				// reason. The world still runs; only its sampling is refused.
+				arts = append(arts, armArtifact{Arm: name + "_sample", Subject: subjectPublishedDomain, Status: statusFailed,
+					Reason: "recall unit inventory: " + invErr.Error()})
+			} else {
+				*sampled = append(*sampled, evalsample.World{
+					Name: name, Binding: binding,
+					Observations:       doc.Observations,
+					Counterexamples:    doc.Counterexamples,
+					CandidateQuestions: doc.CandidateQuestions,
+					RecallInventory:    inventory,
+				})
+			}
+		}
 	}
 	// A world that was not supplied is recorded, not omitted. An index listing
 	// only the worlds somebody happened to have a checkout for would read as a
@@ -789,21 +821,21 @@ func parseWorldSpec(spec string) (name, domain, path string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-func runWorld(name, domain, path, capturedAt string) (worldReport, error) {
+func runWorld(name, domain, path, capturedAt string) (worldReport, investigation.Document, architecture.ClaimDocumentBinding, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return worldReport{}, err
+		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}
 	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
-		return worldReport{}, fmt.Errorf("%s: not a directory", path)
+		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, fmt.Errorf("%s: not a directory", path)
 	}
 	binding, err := worldBinding(abs, domain)
 	if err != nil {
-		return worldReport{}, err
+		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}
 	doc, err := howextract.Extract(abs, howextract.Options{CapturedAt: capturedAt, Repository: binding})
 	if err != nil {
-		return worldReport{}, err
+		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}
 	report := worldReport{
 		SchemaVersion: "sensei.eval_world.v1", World: name, CapturedAt: capturedAt, Domain: domain,
@@ -840,7 +872,7 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, error) {
 		}
 	}
 	sort.Strings(report.Limitations)
-	return report, nil
+	return report, doc, binding, nil
 }
 
 // worldBinding identifies the tree that was actually read.
