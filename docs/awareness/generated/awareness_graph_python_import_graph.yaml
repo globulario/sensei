@@ -9,6 +9,7 @@ components:
     source_files:
       - docs/article/build_art_of_software_architecture.py
       - docs/article/build_pdf.py
+      - docs/evaluation/phase10-v2-reference-set/make-adjudication-package.py
     external_imports:
       - markdown
       - weasyprint

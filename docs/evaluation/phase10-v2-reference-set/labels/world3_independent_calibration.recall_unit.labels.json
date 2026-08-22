@@ -1,0 +1,103 @@
+{
+ "item_count": 7,
+ "labelled_count": 0,
+ "labels": [
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:2cb6102931d3041d23f8c331d5b17c46",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:a0db52bd63c373dab65256b9bdbb6156",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:5a77ccccf21615c036b74be936cf8f68",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:84e71b3bd9b976e8ac47715ad096ca09",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:1e1af76a8bc19031835bf24cf3de2f80",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:3f9e1e8ae1e517ed2ebc012613cb844c",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  },
+  {
+   "adjudicated_at": null,
+   "adjudicated_at_source": null,
+   "adjudicator_id": null,
+   "blinded_at_decision_time": null,
+   "disagreement_resolution_ref": null,
+   "evidence_ids_inspected": [],
+   "item_key": "es1:5dc12d989cb9db83c95358e69360cd90",
+   "label": null,
+   "lane": "recall_unit",
+   "rationale": null,
+   "world": "world3_independent_calibration"
+  }
+ ],
+ "lane": "recall_unit",
+ "protocol_digest_sha256": "6afaf6ec1cebc73c72df43cb8c6e4842e2ea46356cc64ced61252a8ad620929d",
+ "protocol_id": "phase10-reference-protocol-v2",
+ "sample_manifest_digest_sha256": "1621f3e89e6829f2ab0efb330f04231177ece580b01a5c3f7cb32946bad29beb",
+ "schema_version": "sensei.eval_labels.v1",
+ "world": "world3_independent_calibration"
+}

@@ -1,0 +1,1691 @@
+[
+  {
+    "item_key": "es1:b368f9ae8a345d7d1f917ebe41fec1a2",
+    "lane": "precision",
+    "claim": "convergence.runStages crosses_package_boundary_to closure.Evaluate",
+    "evidence_ids": [
+      "golang/architecture/convergence/convergence.go:557-557"
+    ]
+  },
+  {
+    "item_key": "es1:2f6651c84b3760bac329e9e9ecd6f090",
+    "lane": "precision",
+    "claim": "main.onboardDraftWith crosses_package_boundary_to coldsource.DraftOnboardingCandidates",
+    "evidence_ids": [
+      "cmd/awg/cmd_onboard.go:280-280"
+    ]
+  },
+  {
+    "item_key": "es1:3a357e57ad9da7959b76aff68a44036a",
+    "lane": "precision",
+    "claim": "admissioncomposition.validateChain crosses_component_boundary_to synthesis.ReceiptDigest",
+    "evidence_ids": [
+      "golang/architecture/admissioncomposition/lineage.go:23-23"
+    ]
+  },
+  {
+    "item_key": "es1:d17e5b974efb529020f5daf2998dbbdc",
+    "lane": "precision",
+    "claim": "extractor.importRequiredTests crosses_package_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/extractor/yaml_import_phaseB.go:322-322"
+    ]
+  },
+  {
+    "item_key": "es1:f27860d1ec921615f77a3acaec1fd745",
+    "lane": "precision",
+    "claim": "certification.scopeLane crosses_component_boundary_to binding.ResultBindingEqual",
+    "evidence_ids": [
+      "golang/architecture/certification/lanes.go:178-178"
+    ]
+  },
+  {
+    "item_key": "es1:e076fff97cde950237fb40453e04173c",
+    "lane": "precision",
+    "claim": "synthesis.InterpretationDigest crosses_package_boundary_to closureprotocol.SemanticDigest",
+    "evidence_ids": [
+      "golang/architecture/synthesis/digest.go:24-24"
+    ]
+  },
+  {
+    "item_key": "es1:efe735cbdfba28fd3ddafb81aa2726dc",
+    "lane": "precision",
+    "claim": "resultpipeline.assembleBuildResult crosses_component_boundary_to admission.LoadEventProducedAt",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/build.go:103-103"
+    ]
+  },
+  {
+    "item_key": "es1:1f5d0c1480318a843e6d24d6e15c2f7a",
+    "lane": "precision",
+    "claim": "extractor.emitArchitectAnswer crosses_component_boundary_to rdf.MintIRI",
+    "evidence_ids": [
+      "golang/extractor/architecture_dialogue_yaml_import.go:132-132"
+    ]
+  },
+  {
+    "item_key": "es1:527a7c836f674652a0c73c893f9b1171",
+    "lane": "precision",
+    "claim": "extractor.importFailureModes crosses_component_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/extractor/yaml_import.go:291-291"
+    ]
+  },
+  {
+    "item_key": "es1:f405632df43a1723e1fed5aa1e75252f",
+    "lane": "precision",
+    "claim": "extractor.emitArchitectAnswer crosses_package_boundary_to rdf.Emitter.Triple",
+    "evidence_ids": [
+      "golang/extractor/architecture_dialogue_yaml_import.go:112-112"
+    ]
+  },
+  {
+    "item_key": "es1:843a4eccb363d7041260a14480ead085",
+    "lane": "precision",
+    "claim": "extractor.emitArchitectureClaim crosses_component_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/extractor/architecture_claim_yaml_import.go:71-71"
+    ]
+  },
+  {
+    "item_key": "es1:e770d47a4841b0f4a44ac2b9870fffc0",
+    "lane": "precision",
+    "claim": "admission.Evaluate crosses_component_boundary_to closure.LoadGraphIndex",
+    "evidence_ids": [
+      "golang/architecture/admission/admission.go:579-579"
+    ]
+  },
+  {
+    "item_key": "es1:ce95e74f9e5dc5ac026caff2975ff730",
+    "lane": "precision",
+    "claim": "main.buildPlanProbesOutput crosses_component_boundary_to plane.LoadReport",
+    "evidence_ids": [
+      "cmd/awg/cmd_plan_probes.go:298-298"
+    ]
+  },
+  {
+    "item_key": "es1:0c13802dd3ef1bbb7e5ac386d7ca67a1",
+    "lane": "precision",
+    "claim": "extractor.importComponents crosses_component_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/extractor/architecture_spine_yaml_import.go:149-149"
+    ]
+  },
+  {
+    "item_key": "es1:e91a2d55a97c1d1254d18f0cd65cf7b5",
+    "lane": "precision",
+    "claim": "agentcommand.generationProvider.Execute crosses_package_boundary_to synthesis.NormalizeAttempt",
+    "evidence_ids": [
+      "golang/architecture/agentcommand/provider.go:148-148"
+    ]
+  },
+  {
+    "item_key": "es1:f07072a062854322541250d621d76713",
+    "lane": "precision",
+    "claim": "governedmutation.existingEntryDigest crosses_package_boundary_to closureprotocol.SemanticDigest",
+    "evidence_ids": [
+      "golang/architecture/governedmutation/apply.go:231-231"
+    ]
+  },
+  {
+    "item_key": "es1:8a6b9328dbb0ba622c98b3bac0f0a500",
+    "lane": "precision",
+    "claim": "certification.recordDigest crosses_package_boundary_to closureprotocol.AuthorityResolutionDigest",
+    "evidence_ids": [
+      "golang/architecture/certification/source.go:262-262"
+    ]
+  },
+  {
+    "item_key": "es1:9769af663075c7cbbb8f51cba316056a",
+    "lane": "precision",
+    "claim": "extractor.emitAgentRun crosses_package_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/extractor/agent_run_jsonl_import.go:132-132"
+    ]
+  },
+  {
+    "item_key": "es1:c82aeea3715141dc40adc6cbaef276ce",
+    "lane": "precision",
+    "claim": "admission.LoadTaskBaseBinding crosses_component_boundary_to ledger.WithPayloadValidator",
+    "evidence_ids": [
+      "golang/architecture/admission/ledger_load.go:140-140"
+    ]
+  },
+  {
+    "item_key": "es1:c636ffc9fe2cc167a6c315c1992f1dc6",
+    "lane": "precision",
+    "claim": "main.validateDomain crosses_package_boundary_to repodomain.Validate",
+    "evidence_ids": [
+      "cmd/awg/repo_domain_binding.go:84-84"
+    ]
+  },
+  {
+    "item_key": "es1:031c57f757e34d265dd6ff9bc3c99842",
+    "lane": "precision",
+    "claim": "extractor.emitEvidenceProbe crosses_package_boundary_to rdf.MintIRI",
+    "evidence_ids": [
+      "golang/extractor/architecture_evidence_probe_yaml_import.go:64-64"
+    ]
+  },
+  {
+    "item_key": "es1:cf06572f6c9d6b85f45123cc459941a1",
+    "lane": "precision",
+    "claim": "tasksession.Prepare crosses_component_boundary_to admission.MarshalCanonicalRequestYAML",
+    "evidence_ids": [
+      "golang/architecture/tasksession/session.go:429-429"
+    ]
+  },
+  {
+    "item_key": "es1:80c6b16dca16be8496e983f74c791081",
+    "lane": "precision",
+    "claim": "extractor.emitSpineAnchors crosses_package_boundary_to rdf.Emitter.SourceFileIRI",
+    "evidence_ids": [
+      "golang/extractor/architecture_spine_yaml_import.go:59-59"
+    ]
+  },
+  {
+    "item_key": "es1:728c9078a06374e158111bb711ce6208",
+    "lane": "precision",
+    "claim": "providerport.payloadDigests crosses_package_boundary_to synthesis.AttemptDigest",
+    "evidence_ids": [
+      "golang/architecture/providerport/execution.go:319-319"
+    ]
+  },
+  {
+    "item_key": "es1:7920eb3c1916590460826120eb762a73",
+    "lane": "precision",
+    "claim": "extractor.importSourcePatterns crosses_component_boundary_to rdf.Lit",
+    "evidence_ids": [
+      "golang/extractor/file_annotations_yaml_import.go:173-173"
+    ]
+  },
+  {
+    "item_key": "es1:3b9df77ad999eb076cb15a473adddedd",
+    "lane": "precision",
+    "claim": "questionpromotion.triple crosses_component_boundary_to rdf.IRI",
+    "evidence_ids": [
+      "golang/architecture/questionpromotion/provenance.go:91-91"
+    ]
+  },
+  {
+    "item_key": "es1:5d34b9768e89f2d797151ebc92b0bc9d",
+    "lane": "precision",
+    "claim": "extractor.importCodeSymbols crosses_package_boundary_to rdf.Emitter.Triple",
+    "evidence_ids": [
+      "golang/extractor/code_symbols_import.go:175-175"
+    ]
+  },
+  {
+    "item_key": "es1:9a7094e36c5f47e5ff6fe03f35dc1ec6",
+    "lane": "precision",
+    "claim": "plane.GraphIndex.nodeByRef crosses_package_boundary_to rdf.MintIRI",
+    "evidence_ids": [
+      "golang/architecture/plane/assess.go:443-443"
+    ]
+  },
+  {
+    "item_key": "es1:a6344d76fe8b223cbec9c223b02fbf39",
+    "lane": "precision",
+    "claim": "main.storeControlStateProvider.ArtifactSourceBundle crosses_component_boundary_to controlstate.BuildArtifactIdentity",
+    "evidence_ids": [
+      "golang/server/controlstate_provider.go:529-529"
+    ]
+  },
+  {
+    "item_key": "es1:19660fc707eaa777b1e9cd632d9c1088",
+    "lane": "precision",
+    "claim": "extractor.importCodeSymbols crosses_package_boundary_to rdf.Emitter.Triple",
+    "evidence_ids": [
+      "golang/extractor/code_symbols_import.go:166-166"
+    ]
+  },
+  {
+    "item_key": "es1:510c03708a06af025907ed6b87de9eed",
+    "lane": "precision",
+    "claim": "synthesis.EvaluationRecordedEvent implements_interface synthesis.Event",
+    "evidence_ids": [
+      "golang/architecture/synthesis/events.go:55-55"
+    ]
+  },
+  {
+    "item_key": "es1:61289aeed293e7b0ca13a114edd59d2c",
+    "lane": "precision",
+    "claim": "main.embeddedSeedStore implements_interface main.domainLister",
+    "evidence_ids": [
+      "golang/server/seed_store.go:127-127"
+    ]
+  },
+  {
+    "item_key": "es1:6c09f0d902211971b5d819a3f2356530",
+    "lane": "precision",
+    "claim": "providerport.Observer exports_interface interface",
+    "evidence_ids": [
+      "golang/architecture/providerport/provider.go:50-50"
+    ]
+  },
+  {
+    "item_key": "es1:1fa5a37283ecffa1dfdd76659fe5aa82",
+    "lane": "precision",
+    "claim": "coldsource.CodexCLIClient implements_interface coldsource.LLMClient",
+    "evidence_ids": [
+      "golang/extractor/coldsource/codex_cli_client.go:23-23"
+    ]
+  },
+  {
+    "item_key": "es1:7ffd38d8ab66cf3aaa817806b556d5f1",
+    "lane": "precision",
+    "claim": "synthesis.RetryScheduledEvent implements_interface synthesis.Event",
+    "evidence_ids": [
+      "golang/architecture/synthesis/events.go:64-64"
+    ]
+  },
+  {
+    "item_key": "es1:731ffcc50a1e078bffe6630bd8a8c35a",
+    "lane": "precision",
+    "claim": "synthesis.ReplanScheduledEvent implements_interface synthesis.Event",
+    "evidence_ids": [
+      "golang/architecture/synthesis/events.go:72-72"
+    ]
+  },
+  {
+    "item_key": "es1:2592bac5669a698820c1f4722a523b32",
+    "lane": "precision",
+    "claim": "agentcommand.Agent exports_interface interface",
+    "evidence_ids": [
+      "golang/architecture/agentcommand/types.go:78-78"
+    ]
+  },
+  {
+    "item_key": "es1:698f7d80a166e288bd7ae7f2c14a5bf4",
+    "lane": "precision",
+    "claim": "synthesisdriver.InterpretationAuthorityFunc implements_interface synthesisdriver.InterpretationAuthority",
+    "evidence_ids": [
+      "golang/architecture/synthesisdriver/interpretation_authority.go:37-37"
+    ]
+  },
+  {
+    "item_key": "es1:cbd68c3b1ed6e24cbbee72a2554b6c39",
+    "lane": "precision",
+    "claim": "main.graphFreshnessProvider exports_interface interface",
+    "evidence_ids": [
+      "golang/server/graph_freshness.go:24-24"
+    ]
+  },
+  {
+    "item_key": "es1:6103cc78aaff9bea241c6a37d29f8dde",
+    "lane": "precision",
+    "claim": "seedmeta.MarkerDiscoverer exports_interface interface",
+    "evidence_ids": [
+      "golang/seedmeta/authority.go:90-90"
+    ]
+  },
+  {
+    "item_key": "es1:3eed5cc6d9b7203c9cdc26b6e6e82456",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.FSEvidenceSink implements_interface evaluatorcomposition.EvidenceResolver",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/command.go:249-249"
+    ]
+  },
+  {
+    "item_key": "es1:570b7b78a9f2338d2d7164d1d9b62639",
+    "lane": "precision",
+    "claim": "synthesis.StartPlanningCommand implements_interface synthesis.Command",
+    "evidence_ids": [
+      "golang/architecture/synthesis/commands.go:101-101"
+    ]
+  },
+  {
+    "item_key": "es1:db67e31f69d3a5c07e8e81aa5f721feb",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.MechanicalEvaluator implements_interface evaluatorcomposition.Evaluator",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/mechanical.go:28-28"
+    ]
+  },
+  {
+    "item_key": "es1:56e97ec0fadc86152a914fb714e2d2e6",
+    "lane": "precision",
+    "claim": "generatedartifact.proofObligationsProducer implements_interface generatedartifact.Producer",
+    "evidence_ids": [
+      "golang/architecture/generatedartifact/producers.go:31-31"
+    ]
+  },
+  {
+    "item_key": "es1:7b3760d39d3d44557a1538e543ed5351",
+    "lane": "precision",
+    "claim": "inference.InterfaceImplementationSurfaceRule implements_interface inference.Rule",
+    "evidence_ids": [
+      "golang/architecture/inference/semantic_rules.go:55-55"
+    ]
+  },
+  {
+    "item_key": "es1:de95b21294b7a118b44adcda2266faa3",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.MemoryEvidenceSink implements_interface evaluatorcomposition.EvidenceResolver",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/command.go:202-202"
+    ]
+  },
+  {
+    "item_key": "es1:1cf990797a2f97bfd6466335bb46fa60",
+    "lane": "precision",
+    "claim": "agentcommand.Factory implements_interface runnercomposition.GenerationProviderFactory",
+    "evidence_ids": [
+      "golang/architecture/agentcommand/provider.go:34-34"
+    ]
+  },
+  {
+    "item_key": "es1:186d02e14bee13c5540ffe6e02bba36b",
+    "lane": "precision",
+    "claim": "coldsource.Drafter exports_interface interface",
+    "evidence_ids": [
+      "golang/extractor/coldsource/draft_contract.go:29-29"
+    ]
+  },
+  {
+    "item_key": "es1:24a6e22565c003384883852041b5ba0a",
+    "lane": "precision",
+    "claim": "synthesisdriver.MemoryCheckpointStore implements_interface synthesisdriver.CheckpointStore",
+    "evidence_ids": [
+      "golang/architecture/synthesisdriver/checkpoint_store.go:65-65"
+    ]
+  },
+  {
+    "item_key": "es1:92575b35905caa7753947091ec050a1a",
+    "lane": "precision",
+    "claim": "oxigraph.Client implements_interface store.Store",
+    "evidence_ids": [
+      "golang/store/oxigraph/oxigraph.go:54-54"
+    ]
+  },
+  {
+    "item_key": "es1:4c845aa4691bca3b015cbc61b58d83f6",
+    "lane": "precision",
+    "claim": "main.storeControlStateProvider implements_interface main.ControlStateReadProvider",
+    "evidence_ids": [
+      "golang/server/controlstate_provider.go:80-80"
+    ]
+  },
+  {
+    "item_key": "es1:56844211f7334df848dde77a571491fc",
+    "lane": "precision",
+    "claim": "whyinvestigation.ScarsProvider implements_interface whyinvestigation.Provider",
+    "evidence_ids": [
+      "golang/architecture/whyinvestigation/scars.go:16-16"
+    ]
+  },
+  {
+    "item_key": "es1:c0620d5c34389886e563911decd187f7",
+    "lane": "precision",
+    "claim": "oxigraph.Client implements_interface main.typedNodeLister",
+    "evidence_ids": [
+      "golang/store/oxigraph/oxigraph.go:54-54"
+    ]
+  },
+  {
+    "item_key": "es1:6ba7d43a4d22c9eedbb1f79bfddb9334",
+    "lane": "precision",
+    "claim": "probeexec.Executor exports_interface interface",
+    "evidence_ids": [
+      "golang/architecture/probeexec/executor.go:91-91"
+    ]
+  },
+  {
+    "item_key": "es1:2b4bf934c8feb7be53a745c4b6708d68",
+    "lane": "precision",
+    "claim": "store.PackageAnchorStore exports_interface interface",
+    "evidence_ids": [
+      "golang/store/store.go:154-154"
+    ]
+  },
+  {
+    "item_key": "es1:524bb3c8a01106656941688475ba1802",
+    "lane": "precision",
+    "claim": "main.embeddedSeedStore implements_interface main.classDomainLister",
+    "evidence_ids": [
+      "golang/server/seed_store.go:127-127"
+    ]
+  },
+  {
+    "item_key": "es1:49389fa834a726beca089795343eac41",
+    "lane": "precision",
+    "claim": "oxigraph.Client implements_interface main.classDomainLister",
+    "evidence_ids": [
+      "golang/store/oxigraph/oxigraph.go:54-54"
+    ]
+  },
+  {
+    "item_key": "es1:fbb8b9bde6a899de53ae3a3e71474fc7",
+    "lane": "precision",
+    "claim": "synthesis.RecordPlanCommand implements_interface synthesis.Command",
+    "evidence_ids": [
+      "golang/architecture/synthesis/commands.go:107-107"
+    ]
+  },
+  {
+    "item_key": "es1:a8cd6ec3c020401d67e027c960c12a41",
+    "lane": "precision",
+    "claim": "coldsource.StdinDrafter implements_interface coldsource.Drafter",
+    "evidence_ids": [
+      "golang/extractor/coldsource/bundle_export.go:157-157"
+    ]
+  },
+  {
+    "item_key": "es1:4c16d36ff6df2b550e819888b58bd6d5",
+    "lane": "precision",
+    "claim": "synthesis.EvaluatorUnavailableCommand implements_interface synthesis.Command",
+    "evidence_ids": [
+      "golang/architecture/synthesis/commands.go:139-139"
+    ]
+  },
+  {
+    "item_key": "es1:beed910acebc363f60d5e2f9be25c006",
+    "lane": "precision",
+    "claim": "inference.Engine uses_data_shape_across_boundary inference.NewEngine",
+    "evidence_ids": [
+      "golang/architecture/inference/engine.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:29dc2aa51a749e423641c177f59aeb43",
+    "lane": "precision",
+    "claim": "closure.Subject uses_data_shape_across_boundary closure.ComputeClosureRoots",
+    "evidence_ids": [
+      "golang/closure/closure.go:218-218"
+    ]
+  },
+  {
+    "item_key": "es1:c43cfc72b562fa5ff922068981d95dcd",
+    "lane": "precision",
+    "claim": "controlstate.LifecycleAssessment.Vocabulary has_serialized_field vocabulary",
+    "evidence_ids": [
+      "golang/architecture/controlstate/types_closure.go:99-99"
+    ]
+  },
+  {
+    "item_key": "es1:9741db18485c7eceda290d74cf6e0422",
+    "lane": "precision",
+    "claim": "controlstate.ClassPolicy.Family has_serialized_field family",
+    "evidence_ids": [
+      "golang/architecture/controlstate/registry.go:53-53"
+    ]
+  },
+  {
+    "item_key": "es1:0551afe9dc443d1a1c8a3713e36a7160",
+    "lane": "precision",
+    "claim": "propose.Request uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/questionpromotion",
+    "evidence_ids": [
+      "golang/architecture/questionpromotion/matrix_test.go:246-246"
+    ]
+  },
+  {
+    "item_key": "es1:3a1e9bc4eec4e8299f3a3a7d4e4d002e",
+    "lane": "precision",
+    "claim": "plane.Report uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/convergence",
+    "evidence_ids": [
+      "golang/architecture/convergence/convergence.go:287-287"
+    ]
+  },
+  {
+    "item_key": "es1:52eb19821eae61b7d5c2393aa74e5457",
+    "lane": "precision",
+    "claim": "closure.Blocker uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/taskcontrol",
+    "evidence_ids": [
+      "golang/architecture/taskcontrol/project.go:327-327"
+    ]
+  },
+  {
+    "item_key": "es1:66c9d8203a248fad7d8a5d9bb951a40c",
+    "lane": "precision",
+    "claim": "maintenance.EvidenceStateDocument uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/probeexec",
+    "evidence_ids": [
+      "golang/architecture/probeexec/executor.go:280-280"
+    ]
+  },
+  {
+    "item_key": "es1:b277a555bc11295a6f93278706409fc3",
+    "lane": "precision",
+    "claim": "knowledgeadoption.contractFile declares_data_shape struct",
+    "evidence_ids": [
+      "golang/architecture/knowledgeadoption/output.go:134-134"
+    ]
+  },
+  {
+    "item_key": "es1:21ceca1cb7903ac8a7d01649c71fa9fe",
+    "lane": "precision",
+    "claim": "authority.AuthorityDomain.LegacyMustMutateVia has_field LegacyMustMutateVia",
+    "evidence_ids": [
+      "golang/architecture/authority/model.go:69-69"
+    ]
+  },
+  {
+    "item_key": "es1:6b0961a2074fca731dbedfadab042113",
+    "lane": "precision",
+    "claim": "architecture.OpenQuestion uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/probe",
+    "evidence_ids": [
+      "golang/architecture/probe/generate.go:358-358"
+    ]
+  },
+  {
+    "item_key": "es1:c9ec3168221c4a6466a181c1f0af82f7",
+    "lane": "precision",
+    "claim": "workspacecontract.GraphAuthority.EmbeddedTransactionStampPresent has_serialized_field embedded_transaction_stamp_present",
+    "evidence_ids": [
+      "golang/architecture/workspacecontract/types.go:115-115"
+    ]
+  },
+  {
+    "item_key": "es1:259f5159d6277a484455cd0f62540341",
+    "lane": "precision",
+    "claim": "maintenance.EvidenceStateDocument uses_data_shape_across_boundary package:github.com/globulario/sensei/cmd/awg",
+    "evidence_ids": [
+      "cmd/awg/cmd_assess_closure_test.go:205-205"
+    ]
+  },
+  {
+    "item_key": "es1:511ae83c7526b861c940169e91c491fc",
+    "lane": "precision",
+    "claim": "repoeval.Inputs.IntegrityWarns has_field IntegrityWarns",
+    "evidence_ids": [
+      "golang/repoeval/repoeval.go:12-12"
+    ]
+  },
+  {
+    "item_key": "es1:d00f05f17417edde70d00de28d66637f",
+    "lane": "precision",
+    "claim": "closureprotocol.ResultTransitionReceipt.ResultBindingDigestSHA256 has_serialized_field result_binding_digest_sha256",
+    "evidence_ids": [
+      "golang/architecture/closureprotocol/model.go:419-419"
+    ]
+  },
+  {
+    "item_key": "es1:34ec418d30f971cda7fbcae89dae27e9",
+    "lane": "precision",
+    "claim": "factextract.invariantCandidateEvidence declares_data_shape struct",
+    "evidence_ids": [
+      "golang/architecture/factextract/invariants.go:76-76"
+    ]
+  },
+  {
+    "item_key": "es1:feebe685f0772a9219c33fac70bc03ce",
+    "lane": "precision",
+    "claim": "compositionbinding.Resolution.Dimension has_serialized_field dimension",
+    "evidence_ids": [
+      "golang/architecture/compositionbinding/binding.go:80-80"
+    ]
+  },
+  {
+    "item_key": "es1:d72e0bd822fb2cf395012faac82a858f",
+    "lane": "precision",
+    "claim": "completion.ComponentVerification.Component has_serialized_field component",
+    "evidence_ids": [
+      "golang/architecture/completion/integration.go:40-40"
+    ]
+  },
+  {
+    "item_key": "es1:f44dd95e76688ba967e8c5412391dc23",
+    "lane": "precision",
+    "claim": "seedmeta.Verification uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/server",
+    "evidence_ids": [
+      "golang/server/main_test.go:1492-1492"
+    ]
+  },
+  {
+    "item_key": "es1:553ac551d8fff5d24880c4ac22214187",
+    "lane": "precision",
+    "claim": "closureprotocol.ChangePlan uses_data_shape_across_boundary closureprotocol.ValidateChangePlan",
+    "evidence_ids": [
+      "golang/architecture/closureprotocol/validate.go:214-214"
+    ]
+  },
+  {
+    "item_key": "es1:7f17182538e5594fc136e780d592e81b",
+    "lane": "precision",
+    "claim": "controlstate.indexCursor.SnapshotIdentity has_serialized_field snapshot",
+    "evidence_ids": [
+      "golang/architecture/controlstate/index.go:97-97"
+    ]
+  },
+  {
+    "item_key": "es1:8f67de46d5000e1a528a1c14eca7ae18",
+    "lane": "precision",
+    "claim": "store.Triple uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/server",
+    "evidence_ids": [
+      "golang/server/architecture_claim_server_test.go:51-51"
+    ]
+  },
+  {
+    "item_key": "es1:81dc75fbf922ced15a8457f1fa2cacbb",
+    "lane": "precision",
+    "claim": "cognitivecommand.Config.ObservedAt has_field ObservedAt",
+    "evidence_ids": [
+      "golang/architecture/cognitivecommand/types.go:38-38"
+    ]
+  },
+  {
+    "item_key": "es1:f3cd3e2c2f1116ad3b182f5ba7a86f90",
+    "lane": "precision",
+    "claim": "interpretationclosure.TruthFinding uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/providerport",
+    "evidence_ids": [
+      "golang/architecture/providerport/interpretation_closure_test.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:e893632339b365772de6ef8f8c74c811",
+    "lane": "precision",
+    "claim": "authority.ActorRole uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/admission",
+    "evidence_ids": [
+      "golang/architecture/admission/authority_resolution_test.go:17-17"
+    ]
+  },
+  {
+    "item_key": "es1:7ad7907bf6a305b88f5905e3e03c3063",
+    "lane": "precision",
+    "claim": "closureprotocol.LedgerPayloadRef uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/questiondisposition",
+    "evidence_ids": [
+      "golang/architecture/questiondisposition/prepare.go:409-409"
+    ]
+  },
+  {
+    "item_key": "es1:d6ad479becfa082daa45be45e1ec14b7",
+    "lane": "precision",
+    "claim": "synthesis.SessionState uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/providerport",
+    "evidence_ids": [
+      "golang/architecture/providerport/mapping_test.go:65-65"
+    ]
+  },
+  {
+    "item_key": "es1:28a6538b11228e663302e07c6835db63",
+    "lane": "precision",
+    "claim": "resultpipeline.PipelineArtifact.Receipt has_field Receipt",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/receipts.go:65-65"
+    ]
+  },
+  {
+    "item_key": "es1:77a6abf98fbf642c5759ffc4c6671d51",
+    "lane": "precision",
+    "claim": "questionpromotion.CandidateDescriptor uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/briefingfeedback",
+    "evidence_ids": [
+      "golang/architecture/briefingfeedback/build_test.go:743-743"
+    ]
+  },
+  {
+    "item_key": "es1:461f0a3f2e25f6f3bfa061ac69f30cb2",
+    "lane": "precision",
+    "claim": "investigation.Document uses_data_shape_across_boundary package:github.com/globulario/sensei/golang/architecture/whyinvestigation",
+    "evidence_ids": [
+      "golang/architecture/whyinvestigation/compose.go:110-110"
+    ]
+  },
+  {
+    "item_key": "es1:fbf50cb406b5074ef6c4f31b46a16b1f",
+    "lane": "precision",
+    "claim": "tasksession.BuildTaskBriefing entrypoint_reaches_symbol ledger.WithPayloadValidator",
+    "evidence_ids": [
+      "golang/architecture/tasksession/briefing.go:79-79"
+    ]
+  },
+  {
+    "item_key": "es1:608108e9a28109cc8f36d5c572a9e80b",
+    "lane": "precision",
+    "claim": "closure.NormalizeRequest entrypoint_reaches_symbol closure.PolicyForRisk",
+    "evidence_ids": [
+      "golang/architecture/closure/model.go:406-406"
+    ]
+  },
+  {
+    "item_key": "es1:34881eedc1251384147414effe3356dd",
+    "lane": "precision",
+    "claim": "evalharness.RunCompositionArm entrypoint_reaches_symbol factextract.factsByKindPredicate",
+    "evidence_ids": [
+      "golang/architecture/evalharness/composition.go:256-256"
+    ]
+  },
+  {
+    "item_key": "es1:2cc452f82145ea2c51b0d22115a94928",
+    "lane": "precision",
+    "claim": "completion.CompleteTask entrypoint_reaches_symbol closureprotocol.ValidateRoleAttestationReceipt",
+    "evidence_ids": [
+      "golang/architecture/completion/complete.go:70-70"
+    ]
+  },
+  {
+    "item_key": "es1:b6cde85e49ff72507ec76753edc52307",
+    "lane": "precision",
+    "claim": "packcustody.Derive entrypoint_reaches_symbol packcustody.RefuseSymlinkedAncestors",
+    "evidence_ids": [
+      "golang/architecture/packcustody/custody.go:114-114"
+    ]
+  },
+  {
+    "item_key": "es1:c02ecdf375091a21a60949d5315063be",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.TerminateEvaluationUnavailable entrypoint_reaches_symbol synthesis.transitionStartAttempt",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/complete.go:55-55"
+    ]
+  },
+  {
+    "item_key": "es1:2b0d5a92c637c40aae7741072ae8f9e8",
+    "lane": "precision",
+    "claim": "resultpipeline.PrepareTransition entrypoint_reaches_symbol architecture.claimSupersessionCycle",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/transition.go:53-53"
+    ]
+  },
+  {
+    "item_key": "es1:47438b6f682f9f17adc7f473693af16a",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.CompleteEvaluation entrypoint_reaches_symbol evaluatorcomposition.GovernedFailureClassMinimumRecommendationFor",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/complete.go:21-21"
+    ]
+  },
+  {
+    "item_key": "es1:c6725a87546fe4df3d2c16e50d063e7e",
+    "lane": "precision",
+    "claim": "questiongen.MarshalCanonicalReportYAML entrypoint_reaches_symbol questiongen.normalizeReport",
+    "evidence_ids": [
+      "golang/architecture/questiongen/questiongen.go:494-494"
+    ]
+  },
+  {
+    "item_key": "es1:d279212f8980867a5bd3a2fdcce06e1a",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.Run entrypoint_reaches_symbol evaluatorcomposition.newTerminalReceipt",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/run.go:50-50"
+    ]
+  },
+  {
+    "item_key": "es1:46013630861b87026bc9324923fc647d",
+    "lane": "precision",
+    "claim": "completion.ValidateCanonicalCompletionProjection entrypoint_reaches_symbol completion.validCompletionTerminalState",
+    "evidence_ids": [
+      "golang/architecture/completion/projection.go:147-147"
+    ]
+  },
+  {
+    "item_key": "es1:468bc131ce4196ec289cf59abeec88da",
+    "lane": "precision",
+    "claim": "admissioncomposition.ComposeRequest entrypoint_reaches_symbol runnercomposition.compileEmbeddedSchemas",
+    "evidence_ids": [
+      "golang/architecture/admissioncomposition/compose.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:823023cba07601c8db06e86be351f021",
+    "lane": "precision",
+    "claim": "investigation.Normalize entrypoint_reaches_symbol architecture.validateClaimScopePaths",
+    "evidence_ids": [
+      "golang/architecture/investigation/normalize.go:79-79"
+    ]
+  },
+  {
+    "item_key": "es1:c97651defc89b70da73ad5d598dd557d",
+    "lane": "precision",
+    "claim": "resultpipeline.Build entrypoint_reaches_symbol factextract.testAssertionFact",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/build.go:58-58"
+    ]
+  },
+  {
+    "item_key": "es1:213006d98c81626e7a34db510906a229",
+    "lane": "precision",
+    "claim": "senseireport.Build entrypoint_reaches_symbol closureprotocol.CertificationReceiptDigest",
+    "evidence_ids": [
+      "golang/architecture/senseireport/build.go:33-33"
+    ]
+  },
+  {
+    "item_key": "es1:32ad3b269bbbdb04a0ca553ea83c195f",
+    "lane": "precision",
+    "claim": "completion.ValidateCompletionPublication entrypoint_reaches_symbol completion.stringSlicesEqual",
+    "evidence_ids": [
+      "golang/architecture/completion/projection.go:494-494"
+    ]
+  },
+  {
+    "item_key": "es1:14b1e5d3be58e6a7f69aac75340223f2",
+    "lane": "precision",
+    "claim": "tasksession.AdvanceTask entrypoint_reaches_symbol convergence.collectLimitations",
+    "evidence_ids": [
+      "golang/architecture/tasksession/control.go:126-126"
+    ]
+  },
+  {
+    "item_key": "es1:c50f34933b130e0a46e2d91f2420d210",
+    "lane": "precision",
+    "claim": "admission.MarshalCanonicalVerificationYAML entrypoint_reaches_symbol admission.cleanPathStrings",
+    "evidence_ids": [
+      "golang/architecture/admission/admission.go:1283-1283"
+    ]
+  },
+  {
+    "item_key": "es1:41ae4663c9bb7651e5ff2b613483c2ac",
+    "lane": "precision",
+    "claim": "resultpipeline.Build entrypoint_reaches_symbol closure.cleanList",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/build.go:58-58"
+    ]
+  },
+  {
+    "item_key": "es1:abea10e844969fef718b62b989bcb66c",
+    "lane": "precision",
+    "claim": "resultpipeline.Build entrypoint_reaches_symbol maintenance.ValidateEvidenceStateDocument",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/build.go:58-58"
+    ]
+  },
+  {
+    "item_key": "es1:485ec60e8f8faf11bb1410e6c67f7821",
+    "lane": "precision",
+    "claim": "governedmutation.Plan entrypoint_reaches_symbol governedmutation.renderItem",
+    "evidence_ids": [
+      "golang/architecture/governedmutation/apply.go:39-39"
+    ]
+  },
+  {
+    "item_key": "es1:e0001d1d8da29c63088c542426cc53d2",
+    "lane": "precision",
+    "claim": "main.server.Preflight entrypoint_reaches_symbol main.applyCodeSymbolFact",
+    "evidence_ids": [
+      "golang/server/preflight.go:92-92"
+    ]
+  },
+  {
+    "item_key": "es1:6d5dc8fe3feaae8ef4355b6c03bb7327",
+    "lane": "precision",
+    "claim": "evalharness.RunDeterministicExtraction entrypoint_reaches_symbol gosemantics.extractor.extractDefinitionsAndInterfaces",
+    "evidence_ids": [
+      "golang/architecture/evalharness/baseline.go:144-144"
+    ]
+  },
+  {
+    "item_key": "es1:05362ac922309b082aa430c2c90c9cd5",
+    "lane": "precision",
+    "claim": "main.storeControlStateProvider.GraphAuthority entrypoint_reaches_symbol seedmeta.DiscoverLiveMarkers",
+    "evidence_ids": [
+      "golang/server/controlstate_provider.go:107-107"
+    ]
+  },
+  {
+    "item_key": "es1:890435b70146d00b6466e3dc62d7902f",
+    "lane": "precision",
+    "claim": "evalharness.RunCompositionArmWithModel entrypoint_reaches_symbol howextract.CalculatePlanDigest",
+    "evidence_ids": [
+      "golang/architecture/evalharness/composition.go:265-265"
+    ]
+  },
+  {
+    "item_key": "es1:7a4ebdf8403dce7e2f56631d2520e27a",
+    "lane": "precision",
+    "claim": "authority.VerifyActorBinding entrypoint_reaches_symbol closureprotocol.normalizeValue",
+    "evidence_ids": [
+      "golang/architecture/authority/actor.go:75-75"
+    ]
+  },
+  {
+    "item_key": "es1:42a9c8626fd69d439d8bb76566b52e6c",
+    "lane": "precision",
+    "claim": "admission.Evaluate entrypoint_reaches_symbol admission.LoadBundle",
+    "evidence_ids": [
+      "golang/architecture/admission/admission.go:551-551"
+    ]
+  },
+  {
+    "item_key": "es1:079948cf83233e6c4ec3c6e0fbfe38fd",
+    "lane": "precision",
+    "claim": "candidateapply.AttachVerification entrypoint_reaches_symbol closureprotocol.shouldOmit",
+    "evidence_ids": [
+      "golang/architecture/candidateapply/apply.go:173-173"
+    ]
+  },
+  {
+    "item_key": "es1:3b0002b4e661ca94bf809f57edb08872",
+    "lane": "precision",
+    "claim": "convergence.Advance entrypoint_reaches_symbol maintenance.MarshalCanonicalEvidenceStateYAML",
+    "evidence_ids": [
+      "golang/architecture/convergence/convergence.go:305-305"
+    ]
+  },
+  {
+    "item_key": "es1:1dacef59f8b02918e7cd276cb4f6031e",
+    "lane": "precision",
+    "claim": "questiongen.GenerateFromInvestigation entrypoint_reaches_symbol questiongen.evidenceReferences",
+    "evidence_ids": [
+      "golang/architecture/questiongen/investigation_questions.go:77-77"
+    ]
+  },
+  {
+    "item_key": "es1:2270c49b99844adb0bf18b2cad3b7172",
+    "lane": "precision",
+    "claim": "main.ParseSubjects writes AuthoredIn",
+    "evidence_ids": [
+      "cmd/awg/domain_closure.go:163-163"
+    ]
+  },
+  {
+    "item_key": "es1:1f7a54cc204c8dc31d59fafd9725dd28",
+    "lane": "precision",
+    "claim": "main.TestResolve_UnavailableWhenStoreNil reads Fatalf",
+    "evidence_ids": [
+      "golang/server/main_test.go:381-381",
+      "test:TestResolve_UnavailableWhenStoreNil"
+    ]
+  },
+  {
+    "item_key": "es1:24ff46f1e203f1dc15d1d964741a6b53",
+    "lane": "precision",
+    "claim": "briefingfeedback.TestBuild_EmptyDomainIsNotMalformed reads Availability",
+    "evidence_ids": [
+      "golang/architecture/briefingfeedback/build_test.go:382-382",
+      "test:TestBuild_EmptyDomainIsNotMalformed"
+    ]
+  },
+  {
+    "item_key": "es1:8f905086a5be5a85682a8a6b226ff3b7",
+    "lane": "precision",
+    "claim": "runnercomposition.TestCandidateEvidencePreviewMatchesCanonicalOwnersAndCloses writes err",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/evidence_preview_test.go:65-65",
+      "test:TestCandidateEvidencePreviewMatchesCanonicalOwnersAndCloses"
+    ]
+  },
+  {
+    "item_key": "es1:5c8282e6fbf80caaaef65c7e8ba91def",
+    "lane": "precision",
+    "claim": "investigator.Validate writes errs",
+    "evidence_ids": [
+      "golang/architecture/investigator/validate.go:132-132"
+    ]
+  },
+  {
+    "item_key": "es1:2c5a1c5d56bc8ac7672983325f3ca192",
+    "lane": "precision",
+    "claim": "main.mustManifest writes err",
+    "evidence_ids": [
+      "cmd/awg/cmd_runtime_test.go:48-48"
+    ]
+  },
+  {
+    "item_key": "es1:4b910ad3fa518c1e01ca4274cf9bb61f",
+    "lane": "precision",
+    "claim": "main.appendGovernanceFailureLog reads AppendActivationLog",
+    "evidence_ids": [
+      "cmd/awg/cmd_governance.go:787-787"
+    ]
+  },
+  {
+    "item_key": "es1:b58c3835df8bf96aec93088842509d01",
+    "lane": "precision",
+    "claim": "main.dispositionReceiptToProto reads ContestedPriorDigests",
+    "evidence_ids": [
+      "golang/server/controlstate_mutation_rpcs.go:147-147"
+    ]
+  },
+  {
+    "item_key": "es1:184cc1da807acc909d782506bad05fab",
+    "lane": "precision",
+    "claim": "admission.writeBootstrapDirectionConsumptionIfAbsent writes file",
+    "evidence_ids": [
+      "golang/architecture/admission/admission.go:2066-2066"
+    ]
+  },
+  {
+    "item_key": "es1:c11f99dd972ff164727cb1187ffa2960",
+    "lane": "precision",
+    "claim": "probe.ValidateProbe reads ParseClassQualifiedReference",
+    "evidence_ids": [
+      "golang/architecture/probe/model.go:305-305"
+    ]
+  },
+  {
+    "item_key": "es1:7acb399f7f68357415d4d56900415a51",
+    "lane": "precision",
+    "claim": "agentcommand.integrationRepo reads Join",
+    "evidence_ids": [
+      "golang/architecture/agentcommand/o3_integration_test.go:164-164"
+    ]
+  },
+  {
+    "item_key": "es1:b5da5e1fd15f03d1094b7a2e9cb4d75e",
+    "lane": "precision",
+    "claim": "runtimeboundarycompose.assess writes res",
+    "evidence_ids": [
+      "golang/architecture/runtimeboundarycompose/compose_test.go:101-102"
+    ]
+  },
+  {
+    "item_key": "es1:c5cc7ba2d40415a4149392025d840b62",
+    "lane": "precision",
+    "claim": "certification.seedTaskDir reads ScopeVerification",
+    "evidence_ids": [
+      "golang/architecture/certification/ledger_test.go:54-54"
+    ]
+  },
+  {
+    "item_key": "es1:4b64c7de7cbed45a855130332e5c4962",
+    "lane": "precision",
+    "claim": "runnercomposition.TestFetchBlobContentsAbortsPromptlyOnMissingObjectEvenUnderBackpressure writes root",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/snapshot_test.go:627-631",
+      "test:TestFetchBlobContentsAbortsPromptlyOnMissingObjectEvenUnderBackpressure"
+    ]
+  },
+  {
+    "item_key": "es1:7b17ed40b3cd47a080fac7b3c0ccf55c",
+    "lane": "precision",
+    "claim": "resultpipeline.TestCandidateRejectsBuildDigestMismatch writes BuildResultDigestSHA256",
+    "evidence_ids": [
+      "golang/architecture/resultpipeline/transition_test.go:170-170",
+      "test:TestCandidateRejectsBuildDigestMismatch"
+    ]
+  },
+  {
+    "item_key": "es1:40cc7f03a2e4ee95fbfbef7ecca8cd98",
+    "lane": "precision",
+    "claim": "main.renderCRFile reads WriteString",
+    "evidence_ids": [
+      "cmd/awg/cmd_promote_realization.go:229-229"
+    ]
+  },
+  {
+    "item_key": "es1:8559c67a627a8b77e5d59705be660263",
+    "lane": "precision",
+    "claim": "main.TestRunRebuild_FailsClosedWhenCombinedSeedLosesServicesRepo reads Join",
+    "evidence_ids": [
+      "cmd/awg/build_transaction_test.go:78-78",
+      "test:TestRunRebuild_FailsClosedWhenCombinedSeedLosesServicesRepo"
+    ]
+  },
+  {
+    "item_key": "es1:968a2eff3892249bdef8ba4fb271baec",
+    "lane": "precision",
+    "claim": "runnercomposition.ExtractSnapshot writes err",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/snapshot.go:164-164"
+    ]
+  },
+  {
+    "item_key": "es1:2358cc9bdd6cd0cf4dfd64c19411014f",
+    "lane": "precision",
+    "claim": "main.runAdvanceConvergence reads Options",
+    "evidence_ids": [
+      "cmd/awg/cmd_advance_convergence.go:86-86"
+    ]
+  },
+  {
+    "item_key": "es1:8de7d44fbfc76bd627510cbccc87fb44",
+    "lane": "precision",
+    "claim": "corpus.LoadEntry writes err",
+    "evidence_ids": [
+      "golang/extractor/corpus/corpus.go:373-373"
+    ]
+  },
+  {
+    "item_key": "es1:2f31cb7424ab30b2b71346e2533e1cfa",
+    "lane": "precision",
+    "claim": "fileinterpretation.finishResult reads ResultDigest",
+    "evidence_ids": [
+      "golang/architecture/synthesisdriver/fileinterpretation/provider.go:383-383"
+    ]
+  },
+  {
+    "item_key": "es1:5bc6a633dbef5b091d9eb5e9d5fde4f8",
+    "lane": "precision",
+    "claim": "main.capturePromote writes pw",
+    "evidence_ids": [
+      "cmd/awg/cmd_promote_answer_test.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:55bd0fc15bf45ba3e2cbded277dd3a27",
+    "lane": "precision",
+    "claim": "ledger.buildManualEntry reads Date",
+    "evidence_ids": [
+      "golang/architecture/ledger/store_test.go:143-143"
+    ]
+  },
+  {
+    "item_key": "es1:a501154b3f86993e576b87a0bd5bed87",
+    "lane": "precision",
+    "claim": "questiondisposition.resolveDispositionAuthority reads MustSemanticDigest",
+    "evidence_ids": [
+      "golang/architecture/questiondisposition/prepare.go:262-262"
+    ]
+  },
+  {
+    "item_key": "es1:ef84547b48923dc0c2b69cf6b1c48768",
+    "lane": "precision",
+    "claim": "main.structImpact reads GetAuthority",
+    "evidence_ids": [
+      "cmd/awareness-mcp/main.go:1634-1634"
+    ]
+  },
+  {
+    "item_key": "es1:db7476125efdaee3ab02ed47e7bbdbc8",
+    "lane": "precision",
+    "claim": "runnercomposition.TestFSCandidateWorkspaceSetModeRejectsSymlinkMode persists_via SetMode",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/workspace_test.go:116-116",
+      "test:TestFSCandidateWorkspaceSetModeRejectsSymlinkMode"
+    ]
+  },
+  {
+    "item_key": "es1:c5dc3376f250b93e4e6b80cbd8684b25",
+    "lane": "precision",
+    "claim": "tasksession.TestGovernanceScopeVerifiedIsNonMutableTerminal writes disp",
+    "evidence_ids": [
+      "golang/architecture/tasksession/governance_test.go:332-332",
+      "test:TestGovernanceScopeVerifiedIsNonMutableTerminal"
+    ]
+  },
+  {
+    "item_key": "es1:cce676b5009e28059bed379513220873",
+    "lane": "precision",
+    "claim": "providerport.TestRunUnsupportedCapabilityNeverCallsExecute reads TerminalOutcome",
+    "evidence_ids": [
+      "golang/architecture/providerport/execution_test.go:151-151",
+      "test:TestRunUnsupportedCapabilityNeverCallsExecute"
+    ]
+  },
+  {
+    "item_key": "es1:4455172f85ffef2cc98bc6624b53db53",
+    "lane": "precision",
+    "claim": "scipingest.Ingest reads GetLanguage",
+    "evidence_ids": [
+      "golang/scipingest/scipingest.go:81-81"
+    ]
+  },
+  {
+    "item_key": "es1:14e1605b3401e141246a777a915e8a3d",
+    "lane": "precision",
+    "claim": "closure.projectApplicableBehavioral writes component",
+    "evidence_ids": [
+      "golang/architecture/closure/util.go:963-963"
+    ]
+  },
+  {
+    "item_key": "es1:5d8fe29b6f3865f17ba4ab9b06bc6dfb",
+    "lane": "precision",
+    "claim": "main.TestCleanBriefing_DropsProvenanceKeepsKnowledge test_calls_symbol main.cleanBriefing",
+    "evidence_ids": [
+      "cmd/awg/cmd_demo_test.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:18efc6351994145202eb37e8e82dc7ee",
+    "lane": "precision",
+    "claim": "howextract.TestBudgetDroppedEvidenceIsNotReportedAsNoResult test_calls_symbol howextract.Extract",
+    "evidence_ids": [
+      "golang/architecture/howextract/budget_test.go:324-324"
+    ]
+  },
+  {
+    "item_key": "es1:3d81bf603168df34c8d442599da82b54",
+    "lane": "precision",
+    "claim": "protection.TestSemanticDigest_ChangesWhenCandidateBecomesNonProvisional test_calls_symbol protection.Derive",
+    "evidence_ids": [
+      "golang/architecture/protection/derive_test.go:190-190"
+    ]
+  },
+  {
+    "item_key": "es1:ced26b426e144e8caacdad363d02a41e",
+    "lane": "precision",
+    "claim": "main.TestStructuredFieldsAgreeWithTheProseLine test_calls_symbol main.changeAssessmentAction",
+    "evidence_ids": [
+      "golang/server/change_risk_fields_test.go:87-87"
+    ]
+  },
+  {
+    "item_key": "es1:0b39d0617115a7576b7f1e013c9b3909",
+    "lane": "precision",
+    "claim": "main.TestRunBuild_ScopedRepoUpdate_NonDestructive test_calls_symbol main.retainScopedGraph",
+    "evidence_ids": [
+      "cmd/awg/cmd_build_test.go:231-231"
+    ]
+  },
+  {
+    "item_key": "es1:1b758670d2f3c710b363ade884139f9d",
+    "lane": "precision",
+    "claim": "main.TestMCPQueryClassEvidenceProbe test_calls_symbol main.queryClassFromString",
+    "evidence_ids": [
+      "cmd/awareness-mcp/main_test.go:419-419"
+    ]
+  },
+  {
+    "item_key": "es1:3d4f1a31745164ce54b4e55524a76756",
+    "lane": "precision",
+    "claim": "extractor_test.TestAuthorityDomains_DetectedByTopLevelKey test_calls_symbol extractor.ImportReport.Skipped",
+    "evidence_ids": [
+      "golang/extractor/authority_domains_yaml_import_test.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:113388bebdc2d994cb9ddec956289e79",
+    "lane": "precision",
+    "claim": "resultrecording.TestMissingHeadRecovery test_calls_symbol resultrecording.RecordTransition",
+    "evidence_ids": [
+      "golang/architecture/resultrecording/matrix_test.go:100-100"
+    ]
+  },
+  {
+    "item_key": "es1:66606b240c48cb3b48950ee9328fa1bf",
+    "lane": "precision",
+    "claim": "main.TestWorkspaceStatus_CompleteReceipt test_calls_symbol main.bridge.callTool",
+    "evidence_ids": [
+      "cmd/awareness-mcp/workspace_tools_test.go:350-350"
+    ]
+  },
+  {
+    "item_key": "es1:78b18d8eadb311b8a8f4f6ef136fe12d",
+    "lane": "precision",
+    "claim": "completion.TestIdentityBoundary_AdversarialAreAllIdentityErrors test_calls_symbol completion.IsProjectionIdentityError",
+    "evidence_ids": [
+      "golang/architecture/completion/worldbinding_adversarial_test.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:60bc36f1658c121f0a2822b724c937d8",
+    "lane": "precision",
+    "claim": "howextract.TestAnchoredFactStillDecidedByItsAnchor test_calls_symbol extractbudget.Budget.Normalize",
+    "evidence_ids": [
+      "golang/architecture/howextract/scope_filter_test.go:126-126"
+    ]
+  },
+  {
+    "item_key": "es1:28eb51bc939062f38c7e3905f93da72d",
+    "lane": "precision",
+    "claim": "main.TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive test_calls_symbol main.runSeedStatus",
+    "evidence_ids": [
+      "cmd/awg/cmd_seed_status_test.go:33-33"
+    ]
+  },
+  {
+    "item_key": "es1:ad5b7b17f32a92e59dbb8e30557c74dc",
+    "lane": "precision",
+    "claim": "graphgeneration.TestAProofSetWithoutCountsRecordsNoExpectation test_calls_symbol graphgeneration.MaterialShortfall",
+    "evidence_ids": [
+      "golang/graphgeneration/domain_slice_count_test.go:118-118"
+    ]
+  },
+  {
+    "item_key": "es1:741c9c88cc8abf9b711fefe21f68cffb",
+    "lane": "precision",
+    "claim": "evaluatorcomposition.evaluatorResultForExecution test_calls_symbol evaluatorcomposition.EvaluatorResultDigest",
+    "evidence_ids": [
+      "golang/architecture/evaluatorcomposition/evaluator_test.go:78-78"
+    ]
+  },
+  {
+    "item_key": "es1:9ddca123129096b4816151d3661812f2",
+    "lane": "precision",
+    "claim": "main.TestSyncDefaultRuntimeMarkerFromLiveStore_RefreshesStaleMarker test_calls_symbol seedmeta.ReadMarkerFile",
+    "evidence_ids": [
+      "cmd/awg/cmd_serve_test.go:139-139"
+    ]
+  },
+  {
+    "item_key": "es1:d3851554552a67694d73f39bad2687b3",
+    "lane": "precision",
+    "claim": "controlstate.TestAttention_AllFamiliesConstructable test_calls_symbol controlstate.AttentionForForbiddenMove",
+    "evidence_ids": [
+      "golang/architecture/controlstate/attention_test.go:90-90"
+    ]
+  },
+  {
+    "item_key": "es1:156984e6f7df89d16298ae4ef02d513e",
+    "lane": "precision",
+    "claim": "scanner.TestSymbolID_LanguageSegment test_calls_symbol scanner.symbolID",
+    "evidence_ids": [
+      "golang/scanner/typescript_test.go:251-251"
+    ]
+  },
+  {
+    "item_key": "es1:d56c41df8a1aaa614397a9d9d2ea9d59",
+    "lane": "precision",
+    "claim": "investigationsurface.TestEvidenceSnapshotIsDeterministicAndTamperEvident test_calls_symbol investigationsurface.CaptureEvidence",
+    "evidence_ids": [
+      "golang/architecture/investigationsurface/surface_test.go:25-25"
+    ]
+  },
+  {
+    "item_key": "es1:47ba9dcc96a1b7c9f3231e10507ba5a3",
+    "lane": "precision",
+    "claim": "testobligation.TestGap_MovedTestIsMissingImplementationWithNonAuthoritativeHint test_calls_symbol testobligation.Verdict.Certifies",
+    "evidence_ids": [
+      "golang/architecture/testobligation/gotest_test.go:291-291"
+    ]
+  },
+  {
+    "item_key": "es1:d34abf1461ab834f420b8ab6fe3d8daa",
+    "lane": "precision",
+    "claim": "runnercomposition.newTestWorkspace test_calls_symbol runnercomposition.newFSCandidateWorkspace",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/workspace_test.go:22-22"
+    ]
+  },
+  {
+    "item_key": "es1:1b97a4a85bc62cedb478e21485d15eee",
+    "lane": "precision",
+    "claim": "admission.TestBootstrapPatchMismatchIsVerificationViolation test_calls_symbol admission.bootstrapMutationViolations",
+    "evidence_ids": [
+      "golang/architecture/admission/admission_test.go:444-444"
+    ]
+  },
+  {
+    "item_key": "es1:00bd303430bc4536f8abd01e8affef0e",
+    "lane": "precision",
+    "claim": "resultrecording.TestLedgerTamperPayloadRejected test_calls_symbol ledger.WithPayloadValidator",
+    "evidence_ids": [
+      "golang/architecture/resultrecording/matrix_test.go:215-215"
+    ]
+  },
+  {
+    "item_key": "es1:0532fe78a34c95138f4c211cc4a31205",
+    "lane": "precision",
+    "claim": "main.TestOwnership_AGEdgeRemoved_StillOwned test_calls_symbol main.classifySeedDiff",
+    "evidence_ids": [
+      "cmd/awg/seedfreshness_ownership_test.go:79-79"
+    ]
+  },
+  {
+    "item_key": "es1:0eb5e0bd8ad8987edcd0dfc8e8fbf37b",
+    "lane": "precision",
+    "claim": "synthesisdriver.groundedInterpretationProvider.Describe test_calls_symbol providerport.CapabilitiesDigest",
+    "evidence_ids": [
+      "golang/architecture/synthesisdriver/cognitive_o8_integration_test.go:52-52"
+    ]
+  },
+  {
+    "item_key": "es1:51076600eac29168f3e74302982682ef",
+    "lane": "precision",
+    "claim": "runnercomposition.TestGitChangeDigestDetectsContentChange test_calls_symbol runnercomposition.GitChangeDigest",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/changedigest_test.go:76-76"
+    ]
+  },
+  {
+    "item_key": "es1:55373d78ec39ffb3a372325d3fee5470",
+    "lane": "precision",
+    "claim": "runnercomposition.TestExtractSnapshotAndInitializeCandidateBufferProduceIdenticalManifests test_calls_symbol runnercomposition.ManifestDigest",
+    "evidence_ids": [
+      "golang/architecture/runnercomposition/snapshot_test.go:201-201"
+    ]
+  },
+  {
+    "item_key": "es1:07d96b5b7072f1dc41602a4b18a5700b",
+    "lane": "precision",
+    "claim": "extractor_test.TestMutationAndObservationPaths_EmitTypedFields test_calls_symbol rdf.MintIRI",
+    "evidence_ids": [
+      "golang/extractor/authority_policy_yaml_import_test.go:70-70"
+    ]
+  },
+  {
+    "item_key": "es1:b5209cf8da4796c4825e549a4d442437",
+    "lane": "precision",
+    "claim": "webcompscan.scanAll test_calls_symbol webcompscan.ScanFile",
+    "evidence_ids": [
+      "golang/extractor/webcompscan/webcompscan_test.go:29-29"
+    ]
+  },
+  {
+    "item_key": "es1:9fdaf076054188dae1f663ef14df162b",
+    "lane": "precision",
+    "claim": "investigator.TestComposeIgnoresUnregisteredObservationPredicates test_calls_symbol investigator.Compose",
+    "evidence_ids": [
+      "golang/architecture/investigator/composer_test.go:99-99"
+    ]
+  },
+  {
+    "item_key": "es1:cf89f564a73f0433ddd4c0f6c1f86b26",
+    "lane": "precision",
+    "claim": "main.preflightScenario test_calls_symbol main.newEmbeddedSeedStore",
+    "evidence_ids": [
+      "golang/server/final_form_golden_test.go:26-26"
+    ]
+  },
+  {
+    "item_key": "es1:70d199915b0799f61550fe6b8a9dbfd8",
+    "lane": "precision",
+    "claim": "closure defines_symbol closure.canonicalJSON",
+    "evidence_ids": [
+      "golang/architecture/closure/model.go:812-812"
+    ]
+  },
+  {
+    "item_key": "es1:a02a29f4fa571a9dc788a89f43714b0c",
+    "lane": "precision",
+    "claim": "generatedartifact.SelfProfileID exports_symbol constant",
+    "evidence_ids": [
+      "golang/architecture/generatedartifact/generatedartifact.go:32-32"
+    ]
+  },
+  {
+    "item_key": "es1:a832c96ca383fcb1388a842148d7c1ed",
+    "lane": "precision",
+    "claim": "investigation defines_symbol investigation.ModelStatusUnavailable",
+    "evidence_ids": [
+      "golang/architecture/investigation/binding.go:23-23"
+    ]
+  },
+  {
+    "item_key": "es1:03a260b45272e3931260e3ef7749bffe",
+    "lane": "precision",
+    "claim": "main defines_symbol main.draftCandidateInput",
+    "evidence_ids": [
+      "cmd/awg/cmd_draft_candidate.go:130-130"
+    ]
+  },
+  {
+    "item_key": "es1:7e20da428008a640462a7c7d04c17c73",
+    "lane": "precision",
+    "claim": "benchmark.ReconstructionContaminated exports_symbol constant",
+    "evidence_ids": [
+      "golang/architecture/benchmark/benchmark.go:55-55"
+    ]
+  },
+  {
+    "item_key": "es1:73e876d636a6dfe32f36dd57662382b7",
+    "lane": "precision",
+    "claim": "main defines_symbol main.checkStaleFileRefs",
+    "evidence_ids": [
+      "cmd/awg/cmd_audit.go:741-741"
+    ]
+  },
+  {
+    "item_key": "es1:46a53eb535fb0782a57fd73b93d9a762",
+    "lane": "precision",
+    "claim": "rdf.PropOrigin exports_symbol constant",
+    "evidence_ids": [
+      "golang/rdf/vocab.go:226-226"
+    ]
+  },
+  {
+    "item_key": "es1:5c661da101928eda5d8d27652c457e48",
+    "lane": "precision",
+    "claim": "skillimport.CandidateFileName exports_symbol function",
+    "evidence_ids": [
+      "golang/skillimport/render.go:106-106"
+    ]
+  },
+  {
+    "item_key": "es1:ea616881a3bbd7628abd66b6ae774ea4",
+    "lane": "precision",
+    "claim": "modelexec.CommandProvider defines_symbol modelexec.CommandProvider.Execute",
+    "evidence_ids": [
+      "golang/architecture/modelexec/command_provider.go:145-145"
+    ]
+  },
+  {
+    "item_key": "es1:791c5db4d901a9096743db1cf52703a7",
+    "lane": "precision",
+    "claim": "questionresolution.CertificateDigest exports_symbol function",
+    "evidence_ids": [
+      "golang/architecture/questionresolution/model.go:168-168"
+    ]
+  },
+  {
+    "item_key": "es1:fa60cbb10c1fc5c6846dbe3dc0a5ae5f",
+    "lane": "precision",
+    "claim": "questiondisposition defines_symbol questiondisposition.CodeAuthorityUnresolved",
+    "evidence_ids": [
+      "golang/architecture/questiondisposition/errors.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:3e6683ee83e44799c1768973ae42d8e0",
+    "lane": "precision",
+    "claim": "investigator defines_symbol investigator.DefaultComposerRulesetVersion",
+    "evidence_ids": [
+      "golang/architecture/investigator/model.go:51-51"
+    ]
+  },
+  {
+    "item_key": "es1:35d44cfeb4a0f969fc64f67065a9bc37",
+    "lane": "precision",
+    "claim": "netcfg.DefaultOxigraphBind exports_symbol constant",
+    "evidence_ids": [
+      "golang/netcfg/netcfg.go:38-38"
+    ]
+  },
+  {
+    "item_key": "es1:8c9eedc5bae555ed2a40be741a038a01",
+    "lane": "precision",
+    "claim": "controlstate.NavigationDescriptorSchema exports_symbol constant",
+    "evidence_ids": [
+      "golang/architecture/controlstate/registry.go:38-38"
+    ]
+  },
+  {
+    "item_key": "es1:504eabc09fdbd3ca929bc9132b179030",
+    "lane": "precision",
+    "claim": "component.golang.architecture.protection component_depends_on_component component.golang.extractor.openapiscan",
+    "evidence_ids": [
+      "golang/architecture/protection/structural.go:11-11"
+    ]
+  },
+  {
+    "item_key": "es1:d7914fbade8b9d938f9ee9fdcdc13a46",
+    "lane": "precision",
+    "claim": "extractor defines_symbol extractor.importEvidence",
+    "evidence_ids": [
+      "golang/extractor/architecture_spine_yaml_import.go:335-335"
+    ]
+  },
+  {
+    "item_key": "es1:816e6a6f148fce2b84fe132f954ad28b",
+    "lane": "precision",
+    "claim": "tasksession.AdvanceNextNone exports_symbol constant",
+    "evidence_ids": [
+      "golang/architecture/tasksession/advance_result.go:73-73"
+    ]
+  },
+  {
+    "item_key": "es1:75e101c84bcbb809b14f6a8d2946a808",
+    "lane": "precision",
+    "claim": "main defines_symbol main.runProtectionStatus",
+    "evidence_ids": [
+      "cmd/awg/cmd_protection.go:17-17"
+    ]
+  },
+  {
+    "item_key": "es1:d06764e85947f12fbd7dd21c1c3eac4f",
+    "lane": "precision",
+    "claim": "main defines_symbol main.repoDomainConfigPath",
+    "evidence_ids": [
+      "cmd/awg/repo_domain_binding.go:37-37"
+    ]
+  },
+  {
+    "item_key": "es1:f0aaf29d78c046b07ee167d942e3001d",
+    "lane": "precision",
+    "claim": "closure defines_symbol closure.reverseProtections",
+    "evidence_ids": [
+      "golang/architecture/closure/util.go:1517-1517"
+    ]
+  },
+  {
+    "item_key": "es1:7a3e9c9c7a33ff57b939240334903c83",
+    "lane": "precision",
+    "claim": "coldsource defines_symbol coldsource.Triangulate",
+    "evidence_ids": [
+      "golang/extractor/coldsource/triangulate.go:50-50"
+    ]
+  },
+  {
+    "item_key": "es1:92a1acb31899f95a592db349a3224161",
+    "lane": "precision",
+    "claim": "rdf.PropMustReadVia exports_symbol constant",
+    "evidence_ids": [
+      "golang/rdf/vocab.go:349-349"
+    ]
+  },
+  {
+    "item_key": "es1:1b7471944b237464c380c04f6afecd9e",
+    "lane": "precision",
+    "claim": "main.bridge defines_symbol main.bridge.callWorkspaceVerifyAdmission",
+    "evidence_ids": [
+      "cmd/awareness-mcp/workspace_tools.go:283-283"
+    ]
+  },
+  {
+    "item_key": "es1:ffc8786e0268588367b2a6791457ea7b",
+    "lane": "precision",
+    "claim": "questionpromotion.Refusal defines_symbol questionpromotion.Refusal.Error",
+    "evidence_ids": [
+      "golang/architecture/questionpromotion/promote.go:83-83"
+    ]
+  },
+  {
+    "item_key": "es1:ed6dbc315db0236edfde008beb2e1def",
+    "lane": "precision",
+    "claim": "admission defines_symbol admission.joinGraphReasons",
+    "evidence_ids": [
+      "golang/architecture/admission/admission.go:2383-2383"
+    ]
+  },
+  {
+    "item_key": "es1:a4a391cf20c3e61ab45d9333f093d165",
+    "lane": "precision",
+    "claim": "testobligation.Report defines_symbol testobligation.Report.Blocking",
+    "evidence_ids": [
+      "golang/architecture/testobligation/obligation.go:151-151"
+    ]
+  },
+  {
+    "item_key": "es1:5d7844bbc675d50e119bbe6d8b067a65",
+    "lane": "precision",
+    "claim": "main defines_symbol main.injectFailure",
+    "evidence_ids": [
+      "cmd/awg/cmd_import.go:567-567"
+    ]
+  },
+  {
+    "item_key": "es1:b93544ab1a5d9498bf1742afb34fb7fc",
+    "lane": "precision",
+    "claim": "main.multiFlag defines_symbol main.multiFlag.String",
+    "evidence_ids": [
+      "cmd/yaml2nt/main.go:65-65"
+    ]
+  },
+  {
+    "item_key": "es1:9cf28e986816005af3adb22adec51042",
+    "lane": "precision",
+    "claim": "governancepack.ErrCompatibilityBlocked exports_symbol variable",
+    "evidence_ids": [
+      "golang/governancepack/verify.go:45-45"
+    ]
+  },
+  {
+    "item_key": "es1:480a1ba1a4bc6c58c6aaf33af0df0a34",
+    "lane": "precision",
+    "claim": "closureprotocol.TerminalStatuses exports_symbol variable",
+    "evidence_ids": [
+      "golang/architecture/closureprotocol/vocabulary.go:148-148"
+    ]
+  }
+]

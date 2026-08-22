@@ -1,0 +1,146 @@
+[
+  {
+    "item_key": "es1:0aa7097ae86f18a5b8cf446103c684a3",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "authority_split/evidence_17a524142b59bf9f",
+      "authority_split/evidence_4e661c94a4f87b42",
+      "authority_split/evidence_64c20c85d61333cc",
+      "authority_split/fact.86f4b9e50453",
+      "authority_split/api/api.go"
+    ]
+  },
+  {
+    "item_key": "es1:3ac4c285cc66de34ff7149b3f2c17971",
+    "lane": "challenge",
+    "claim": "[candidate_claim] service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "implementation_repetition/evidence_1a7831bfd24ff9b4",
+      "implementation_repetition/evidence_3015325c5ecb3c73",
+      "implementation_repetition/evidence_a74f2e4b696e43d8",
+      "implementation_repetition/fact.3fda5481f23d",
+      "implementation_repetition/service/service.go"
+    ]
+  },
+  {
+    "item_key": "es1:dbdc5b228636dc04f4dfe24055014e6e",
+    "lane": "challenge",
+    "claim": "[candidate_claim] service.Allow crosses_component_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "baseline/evidence_1a7831bfd24ff9b4",
+      "baseline/evidence_a74f2e4b696e43d8",
+      "baseline/fact.5f88b9be8534",
+      "baseline/service/service.go"
+    ]
+  },
+  {
+    "item_key": "es1:1f17861cd2662bfece365422ecbecde2",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "misleading_commit_message/evidence_2a507c2d3122d89b",
+      "misleading_commit_message/evidence_7ce3101105e769dc",
+      "misleading_commit_message/evidence_f758193f5a1a9b2a",
+      "misleading_commit_message/fact.4c5ead38e0ef",
+      "misleading_commit_message/api/api.go"
+    ]
+  },
+  {
+    "item_key": "es1:96312215d04b610edaa9b2e31b31f573",
+    "lane": "challenge",
+    "claim": "[candidate_claim] userID candidate_owner_is storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/evidence_256fadb4aa4e0b19",
+      "misleading_commit_message/evidence_2a507c2d3122d89b",
+      "misleading_commit_message/evidence_afe74d5ca4cd4f76",
+      "misleading_commit_message/evidence_bd8b0d6be0ccb3d2",
+      "misleading_commit_message/fact.86dc1d2044b7",
+      "misleading_commit_message/storage/storage.go"
+    ]
+  },
+  {
+    "item_key": "es1:fbd32dabcfdb365be0df8c3db8ca6c83",
+    "lane": "challenge",
+    "claim": "[candidate_claim] shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "stale_documentation/evidence_1b8329896b313be0",
+      "stale_documentation/evidence_4b49eb1d9698e537",
+      "stale_documentation/evidence_db22480b51f9ad37",
+      "stale_documentation/fact.636c6ad23713",
+      "stale_documentation/shipping/shipping.go"
+    ]
+  },
+  {
+    "item_key": "es1:626bbcec178c8e23836e612066db0060",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/evidence_7ce3101105e769dc",
+      "cross_domain_symbol_leakage/evidence_e0cc1a80164e7c96",
+      "cross_domain_symbol_leakage/evidence_f758193f5a1a9b2a",
+      "cross_domain_symbol_leakage/fact.80b9cd2199af",
+      "cross_domain_symbol_leakage/api/api.go"
+    ]
+  },
+  {
+    "item_key": "es1:0d25431d4a2dd0b9eb6456d3c4da50e8",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "generated_file_contamination/evidence_4c03cae64870c35d",
+      "generated_file_contamination/evidence_7ce3101105e769dc",
+      "generated_file_contamination/evidence_f758193f5a1a9b2a",
+      "generated_file_contamination/fact.4c5ead38e0ef",
+      "generated_file_contamination/api/api.go"
+    ]
+  },
+  {
+    "item_key": "es1:1e4ba7053fb9b9295a6dab2f77c93d03",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/evidence_2110f85ba7ff6006",
+      "incomplete_proof_discharge/evidence_7ce3101105e769dc",
+      "incomplete_proof_discharge/evidence_f758193f5a1a9b2a",
+      "incomplete_proof_discharge/fact.80b9cd2199af",
+      "incomplete_proof_discharge/api/api.go"
+    ]
+  },
+  {
+    "item_key": "es1:4b15057f8d6efe5286505581ec97cb66",
+    "lane": "challenge",
+    "claim": "[candidate_claim] shipping.Ship crosses_component_boundary_to billing.Quote",
+    "evidence_ids": [
+      "incomplete_proof_discharge/evidence_2110f85ba7ff6006",
+      "incomplete_proof_discharge/evidence_4b49eb1d9698e537",
+      "incomplete_proof_discharge/evidence_db22480b51f9ad37",
+      "incomplete_proof_discharge/fact.6f0938cf32d6",
+      "incomplete_proof_discharge/shipping/shipping.go"
+    ]
+  },
+  {
+    "item_key": "es1:d744e0bc6642934874cbbf1b6725f811",
+    "lane": "challenge",
+    "claim": "[candidate_claim] shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "incomplete_proof_discharge/evidence_2110f85ba7ff6006",
+      "incomplete_proof_discharge/evidence_4b49eb1d9698e537",
+      "incomplete_proof_discharge/evidence_db22480b51f9ad37",
+      "incomplete_proof_discharge/fact.636c6ad23713",
+      "incomplete_proof_discharge/shipping/shipping.go"
+    ]
+  },
+  {
+    "item_key": "es1:8549ef97514e08244e0fb45949657df6",
+    "lane": "challenge",
+    "claim": "[candidate_claim] api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/evidence_7ce3101105e769dc",
+      "cross_domain_symbol_leakage/evidence_e0cc1a80164e7c96",
+      "cross_domain_symbol_leakage/evidence_f758193f5a1a9b2a",
+      "cross_domain_symbol_leakage/fact.4c5ead38e0ef",
+      "cross_domain_symbol_leakage/api/api.go"
+    ]
+  }
+]

@@ -1,0 +1,62 @@
+[
+  {
+    "item_key": "es1:ae7108ab48f7c010929c0dc0ad2b69fd",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/compositionbinding"
+  },
+  {
+    "item_key": "es1:094f6270b89c1c533220e07fa7456760",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/runtimeprobe"
+  },
+  {
+    "item_key": "es1:d79c3e1af577d9c829343087cc50ddfb",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/providerport"
+  },
+  {
+    "item_key": "es1:e2e15ff5fdf6b2e038bf889d8d71d991",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/taskcontrol"
+  },
+  {
+    "item_key": "es1:253c94717ea070d103efe72b8d04b40b",
+    "lane": "recall_unit",
+    "unit": "golang/store"
+  },
+  {
+    "item_key": "es1:9125570a378742de7f2679afba9b2340",
+    "lane": "recall_unit",
+    "unit": "github-app/internal/github"
+  },
+  {
+    "item_key": "es1:8719404c56c8ab4260fdf0f25cafa7ef",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/runtimeprobe/probesource"
+  },
+  {
+    "item_key": "es1:b59b0691aa2b8d1635446bec53bfd255",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/modelexec"
+  },
+  {
+    "item_key": "es1:0264b11b90642941f36f79730ca347eb",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/repodomain"
+  },
+  {
+    "item_key": "es1:a271dd7a7faf8febda23f356094b5a32",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/generatedartifact"
+  },
+  {
+    "item_key": "es1:fd1c7b3b91b419c0dfd7ec2c718e2e69",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/rigor"
+  },
+  {
+    "item_key": "es1:6e1d3ee8707d2985aead460eb526e370",
+    "lane": "recall_unit",
+    "unit": "golang/architecture/changebindingconsumer"
+  }
+]

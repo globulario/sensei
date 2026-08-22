@@ -1,0 +1,62 @@
+[
+  {
+    "item_key": "es1:10ecdef164738dad9e1076e552132825",
+    "lane": "recall_unit",
+    "unit": "incomplete_proof_discharge/evidence/rate_limit_test_report.txt"
+  },
+  {
+    "item_key": "es1:26b17b579e9473f9789d034b4f53d851",
+    "lane": "recall_unit",
+    "unit": "implementation_repetition/service/service.go"
+  },
+  {
+    "item_key": "es1:b3029b69454148a25cb4c6abe574a495",
+    "lane": "recall_unit",
+    "unit": "misleading_commit_message/storage/storage.go"
+  },
+  {
+    "item_key": "es1:b13c6fc694b681af908a590dfe3f8693",
+    "lane": "recall_unit",
+    "unit": "implementation_repetition/api/api.go"
+  },
+  {
+    "item_key": "es1:32e78a6550fe9578eb3958517352f9f2",
+    "lane": "recall_unit",
+    "unit": "cross_domain_symbol_leakage/shipping/shipping.go"
+  },
+  {
+    "item_key": "es1:e27da77ca8f671d6924e622f18e4ce69",
+    "lane": "recall_unit",
+    "unit": "generated_file_contamination/docs/generated/inventory.md"
+  },
+  {
+    "item_key": "es1:317d4887b3f25fa80c81ad930e379de6",
+    "lane": "recall_unit",
+    "unit": "implementation_repetition/storage/storage.go"
+  },
+  {
+    "item_key": "es1:7f6bc58b46d131794e46e91282b8c5d4",
+    "lane": "recall_unit",
+    "unit": "stale_documentation/docs/ARCHITECTURE.md"
+  },
+  {
+    "item_key": "es1:a5936f185e99b826bd49bf156e1a9ca1",
+    "lane": "recall_unit",
+    "unit": "stale_documentation/service/service.go"
+  },
+  {
+    "item_key": "es1:4fee652fa3c99cd23c1976d90da83a54",
+    "lane": "recall_unit",
+    "unit": "forbidden_dependency_direction/storage/storage.go"
+  },
+  {
+    "item_key": "es1:148bd5e347301a2bdbc1daf145c14756",
+    "lane": "recall_unit",
+    "unit": "missing_evidence_provider/evidence/rate_limit_test_report.txt"
+  },
+  {
+    "item_key": "es1:753be80396eafbc9d6a21c9fb7a05d45",
+    "lane": "recall_unit",
+    "unit": "authority_split/api/api.go"
+  }
+]
