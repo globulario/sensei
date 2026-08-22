@@ -2186,3 +2186,24 @@ invariants:
     required_tests:
       - golang/architecture/evalmodel/acquisition_test.go:TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
     contract: Any field that identifies something — a digest, a model name, an arm name, a status, a baseline count — must be computed or derived from that exact thing at the moment it is recorded. A value carried alongside the subject, chosen from configuration, read from a neighbouring field, or captured before the subject reached its final state is a CLAIM about identity, not identity, and must be recomputed or re-derived before anything relies on it.
+  - id: invariant.a_blinded_adjudication_view_must_not_carry_provenance_the_ma
+    title: A blinded adjudication view must not carry provenance the manifest already binds
+    status: active
+    description: 'Sampled items exist in two renderings: the sample manifest, which binds provenance (provider_id, subject_id) for scoring, and the blinded view, which is what a human adjudicator reads. Provenance that the manifest already binds must be absent from the view. Blinding remains an anti-bias tool and never a reason to strip the claim or its evidence anchors, which stay visible because they are what makes an item judgeable.'
+    protects:
+      files:
+        - cmd/eval-arms/sample.go
+        - golang/architecture/evalsample/candidates.go
+    required_tests:
+      - cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
+    contract: 'Phase 10.8 reference protocol section 12: the adjudicator is not told the producing extractor/provider or lane during first-pass labeling where the artifact format allows hiding it without losing required provenance'
+  - id: invariant.a_compiled_protocol_identity_must_be_bound_to_the_document_i
+    title: A compiled protocol identity must be bound to the document it identifies in both directions
+    status: active
+    description: protocolVersion carries DigestSHA256 and Revisions. A test comparing those constants only to each other passes while both have drifted from the document at Path. Every enforced revision pin must be stated by the document, and every revision the document states must be enforced, so neither side can move alone. A stale digest means the binary refuses the very document the protocol is.
+    protects:
+      files:
+        - cmd/eval-arms/protocol.go
+    required_tests:
+      - cmd/eval-arms/protocol_test.go:TestCompiledProtocolIdentitiesMatchTheirDocuments
+    contract: 'A registered protocol''s compiled digest and pinned revisions are enforcement of the document, not an independent authority: the document states, the binary enforces, and the two may not move apart'

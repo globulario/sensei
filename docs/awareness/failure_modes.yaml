@@ -2031,3 +2031,15 @@ failure_modes:
     evidence:
       - 'PR for #131 step 9: the contradiction lane first treated every repeated (subject, predicate) carrying differing objects as a disagreement. Run against world 1 it produced 23,641 ''contradiction cases'', essentially all of them components legitimately depending on many things — a multi-valued relation, not a contradiction. The lane would have handed a human adjudicator thousands of non-questions while reporting a large, healthy-looking denominator.'
     contract: An evaluation sampler may select items; it may not invent the population it selects from. Where deciding what belongs in a population requires an ontological judgement, that judgement is a caller-supplied declaration, and its absence is a TYPED undrawn lane rather than a clean empty one.
+  - id: failure.composed_claim_baked_its_lane_into_the_description_the_blind
+    title: Composed claim baked its lane into the description the blinded view renders
+    description: composedClaim formatted the counterexample Description as '[lane kind] text'. evalsample renders that Description verbatim as the blinded view's claim. The lane was already in the counterexample ID and therefore in the manifest subject_id, so revealing it in the view bought nothing and biased first-pass labeling. Found while assembling the Step 10 package, before the reference set was frozen, which is what kept it from becoming a section 2 correction that invalidates downstream scores.
+    protects:
+      files:
+        - cmd/eval-arms/sample.go
+    related_invariants:
+      - invariant.a_blinded_adjudication_view_must_not_carry_provenance_the_ma
+    required_tests:
+      - cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
+    evidence:
+      - every sampled challenge item opened '[deterministic candidate_claim] ...' in sample/blind/world4_mutant_suite.challenge.json, so the adjudicator was told the producing lane before assigning a support label or usefulness rating
