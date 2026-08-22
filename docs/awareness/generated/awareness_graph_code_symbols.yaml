@@ -26862,6 +26862,36 @@ test_symbols:
     package: main
     language: go
     doc: "Resolve honours domain scope: a foreign repo node is invisible (found=false)\nwhen resolved under another domain, but visible in its own domain."
+  - id: golang/server/query_paging_test.go:TestQuery_ByClass_OffsetRefusedWhenStoreCannotPage
+    file: golang/server/query_paging_test.go
+    symbol: TestQuery_ByClass_OffsetRefusedWhenStoreCannotPage
+    package: main
+    language: go
+    doc: "A store that cannot page refuses an offset instead of serving page 0 again.\nSilently returning rows the caller has already seen, as though they were\nnew, is worse than refusing."
+  - id: golang/server/query_paging_test.go:TestQuery_ByClass_PagesToCompletion
+    file: golang/server/query_paging_test.go
+    symbol: TestQuery_ByClass_PagesToCompletion
+    package: main
+    language: go
+    doc: "A class larger than one page can be walked to completion. Before the offset\nexisted the rows past the cap were unreachable by any request, so a caller\ncould not enumerate a class at all."
+  - id: golang/server/query_paging_test.go:TestQuery_ByClass_PerPageCapStillApplies
+    file: golang/server/query_paging_test.go
+    symbol: TestQuery_ByClass_PerPageCapStillApplies
+    package: main
+    language: go
+    doc: "The per-page cap is unchanged; paging is how a caller gets past it."
+  - id: golang/server/query_paging_test.go:TestQuery_ByClass_TruncatedMarksOnlyIncompletePages
+    file: golang/server/query_paging_test.go
+    symbol: TestQuery_ByClass_TruncatedMarksOnlyIncompletePages
+    package: main
+    language: go
+    doc: "The last page says so. A caller that cannot tell a complete answer from a\ncapped one reports the cap as the population, which is the whole defect."
+  - id: golang/server/query_paging_test.go:TestQuery_ByClass_UnknownTotalIsNotZero
+    file: golang/server/query_paging_test.go
+    symbol: TestQuery_ByClass_UnknownTotalIsNotZero
+    package: main
+    language: go
+    doc: "An unknown total must not be reported as a total of zero. Conflating the two\nis the same class of bug as silent truncation: it reads as a definite fact\nabout the graph."
   - id: golang/server/query_related_bidirectional_test.go:TestQueryRelated_SourceFileSurfacesInboundSymbols
     file: golang/server/query_related_bidirectional_test.go
     symbol: TestQueryRelated_SourceFileSurfacesInboundSymbols
