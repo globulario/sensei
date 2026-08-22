@@ -613,6 +613,12 @@ test_symbols:
     symbol: TestBriefingTool_ValidatesMissingFile
     package: main
     language: go
+  - id: cmd/awareness-mcp/main_test.go:TestEveryRpcCarriesThePerRequestBudget
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestEveryRpcCarriesThePerRequestBudget
+    package: main
+    language: go
+    doc: "TestEveryRpcCarriesThePerRequestBudget guards the regression the first #260\nfix introduced: moving the budget to one call site left the other eight RPCs\nbounded only by the 2m whole-call ceiling, so --timeout silently stopped\nmeaning what it documents for awareness_briefing, awareness_impact and the\nrest.\n\nIt walks the awarenessClient interface by reflection rather than listing the\nmethods, so a method added to that surface later is covered without anyone\nremembering to add it here — the same reason the budget itself lives at the\nclient seam."
   - id: cmd/awareness-mcp/main_test.go:TestFailoverClient_RetriesTransportFailures
     file: cmd/awareness-mcp/main_test.go
     symbol: TestFailoverClient_RetriesTransportFailures
@@ -663,6 +669,18 @@ test_symbols:
     symbol: TestMetadataTool_MarksStaleGraphNonAuthoritative
     package: main
     language: go
+  - id: cmd/awareness-mcp/main_test.go:TestMultiFileAuditIsNotStarvedByThePerRequestBudget
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestMultiFileAuditIsNotStarvedByThePerRequestBudget
+    package: main
+    language: go
+    doc: "TestMultiFileAuditIsNotStarvedByThePerRequestBudget reproduces issue #260's\nsecond finding.\n\n--timeout is documented as a PER-REQUEST gRPC budget but was applied as the\ndeadline for the whole tools/call. awareness_audit_diff issues several gRPC\ncalls per file, so a one-file diff fitted inside one request's budget and a\ntwo-file diff did not — deterministically, returning after exactly the\ntimeout, with each file passing when audited alone.\n\nThe symptom was evaluator_unavailable with no cause, which from the outside\nis indistinguishable from the change being bad."
+  - id: cmd/awareness-mcp/main_test.go:TestPerRequestBudgetStillBoundsOneRpc
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestPerRequestBudgetStillBoundsOneRpc
+    package: main
+    language: go
+    doc: "Separating the two budgets must not mean an unbounded request. The\nper-request budget still applies to each individual RPC, derived from the\ncall's own context so cancelling the call still cancels the request."
   - id: cmd/awareness-mcp/main_test.go:TestPreflightTool_MapsRequestAndFormatsVerdict
     file: cmd/awareness-mcp/main_test.go
     symbol: TestPreflightTool_MapsRequestAndFormatsVerdict
@@ -719,6 +737,12 @@ test_symbols:
     symbol: TestServeStdio_SupportsContentLengthFraming
     package: main
     language: go
+  - id: cmd/awareness-mcp/main_test.go:TestSingleRequestToolIsBoundedByTheRequestBudget
+    file: cmd/awareness-mcp/main_test.go
+    symbol: TestSingleRequestToolIsBoundedByTheRequestBudget
+    package: main
+    language: go
+    doc: "TestSingleRequestToolIsBoundedByTheRequestBudget is the reproduction of the\nregression itself, from the caller's side.\n\nThe reflection guard above proves perRequestClient bounds every method; it\ndoes NOT prove a tool handler reaches a backend through it. That distinction\nis exactly where the first #260 fix went wrong — the machinery existed and\none call site used it, while awareness_briefing and its siblings went\nstraight to the client and inherited only the 2m whole-call ceiling.\n\nSo this drives a real handler against a backend that never answers, and\nrequires it to give up on the per-request budget rather than the ceiling."
   - id: cmd/awareness-mcp/main_test.go:TestTaskControlToolsAreExposedWithTypedContracts
     file: cmd/awareness-mcp/main_test.go
     symbol: TestTaskControlToolsAreExposedWithTypedContracts
@@ -11458,6 +11482,12 @@ test_symbols:
     symbol: TestEvaluateDiff_PassesCleanDiff
     package: diffaudit
     language: go
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluatorFailureCarriesItsCause
+    file: golang/architecture/diffaudit/evaluator_test.go
+    symbol: TestEvaluatorFailureCarriesItsCause
+    package: diffaudit
+    language: go
+    doc: "TestEvaluatorFailureCarriesItsCause is issue #260's first finding.\n\nEvery other failure path in EvaluateDiff records why it failed. The\nCheckFile path recorded only the reason CODE, so a caller saw\n\"cannot_verify / evaluator_unavailable / limitations: none\" and could not\ntell an unreachable graph from a rejected RPC from a panicking rule.\n\nThat mattered beyond tidiness: with the cause carried, the second defect in\n#260 would have reported itself instead of taking twenty minutes to corner."
   - id: golang/architecture/diffaudit/model_test.go:TestAuditResult_ComputeDigest_Deterministic
     file: golang/architecture/diffaudit/model_test.go
     symbol: TestAuditResult_ComputeDigest_Deterministic
