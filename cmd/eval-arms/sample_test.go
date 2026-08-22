@@ -5,6 +5,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,7 +80,7 @@ func TestASeedlessRunIsNotRunRatherThanFailed(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), protocolPath, protocolID, true, nil, worlds, "", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), protocolPath, protocolID, "deadbeef", nil, true, nil, worlds, "", "2026-08-22T05:00:00Z")
 	if art.Status != statusNotRun {
 		t.Errorf("a seedless run reported status %q, want %q", art.Status, statusNotRun)
 	}
@@ -97,7 +98,7 @@ func TestAMissingProtocolIsAnActionableRefusal(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), protocolID, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), protocolID, "", errors.New("no such file"), false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusFailed {
 		t.Fatalf("an unreadable protocol produced status %q, want %q", art.Status, statusFailed)
 	}
@@ -117,7 +118,7 @@ func TestTheSampleIsWrittenWhereTheIndexSaysItIs(t *testing.T) {
 		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
 		RecallInventory: []string{"pkg/a"},
 	}}
-	art := writeSample(out, protocolFileForTest(t), protocolID, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(out, protocolFileForTest(t), protocolID, "deadbeef", nil, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusRan {
 		t.Fatalf("writeSample: %s — %s", art.Status, art.Reason)
 	}
@@ -176,7 +177,7 @@ func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
 		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
 		RecallInventory: []string{"pkg/a"},
 	}}
-	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, true,
+	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true,
 		[]string{"world3_independent_calibration"}, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusNotRun {
 		t.Fatalf("a sample was drawn under the default protocol with a world missing: %s", art.Status)
@@ -187,7 +188,7 @@ func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
 
 	// A protocol the operator bound explicitly is theirs to define, so the
 	// same subset is allowed once they say which protocol governs it.
-	art = writeSample(t.TempDir(), protocolFileForTest(t), "operator-protocol-v2", false,
+	art = writeSample(t.TempDir(), protocolFileForTest(t), "operator-protocol-v2", "deadbeef", nil, false,
 		[]string{"world3_independent_calibration"}, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusRan {
 		t.Fatalf("an explicitly bound protocol was refused a subset it may define: %s — %s", art.Status, art.Reason)
@@ -196,12 +197,15 @@ func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
 
 // TestMissingRequiredWorldsNamesWhatDidNotRun keeps the refusal's input honest.
 func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
-	got := missingRequiredWorlds([]evalsample.World{{Name: "world1_sensei_self"}})
+	bound := func(name string) evalsample.World {
+		return evalsample.World{Name: name, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: requiredWorldDomains[name]}}
+	}
+	got := missingRequiredWorlds([]evalsample.World{bound("world1_sensei_self")})
 	if len(got) != 2 || got[0] != "world2_globular" || got[1] != "world3_independent_calibration" {
 		t.Fatalf("missingRequiredWorlds = %v, want the two worlds that did not run", got)
 	}
 	if len(missingRequiredWorlds([]evalsample.World{
-		{Name: "world1_sensei_self"}, {Name: "world2_globular"}, {Name: "world3_independent_calibration"},
+		bound("world1_sensei_self"), bound("world2_globular"), bound("world3_independent_calibration"),
 	})) != 0 {
 		t.Error("a complete world set reported something missing")
 	}
@@ -270,5 +274,69 @@ func TestTheMutantSuiteCountsTowardV1Completeness(t *testing.T) {
 	withoutModel = append(withoutModel, armArtifact{Arm: armCompositionModelBound, Subject: subjectMutantSuite, Status: statusNotRun})
 	if got := incompleteMutantSuite(withoutModel); len(got) != 0 {
 		t.Errorf("an unbound optional model arm was treated as incompleteness: %v", got)
+	}
+}
+
+// TestAWorldsNameIsNotItsIdentity.
+//
+// A name is a label the caller chose. A direct caller could point three
+// arbitrary Go checkouts at the required names and the completeness check
+// would have seen a full v1 world set, so a v1 sample could be drawn over
+// repositories the protocol never named.
+func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
+	impostors := []evalsample.World{
+		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "example.com/not-sensei"}},
+		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
+		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+	}
+	missing := missingRequiredWorlds(impostors)
+	if len(missing) != 1 || !strings.Contains(missing[0], "world1_sensei_self") {
+		t.Fatalf("a world bound to the wrong repository passed completeness: %v", missing)
+	}
+	if !strings.Contains(missing[0], "example.com/not-sensei") {
+		t.Errorf("the report does not say what it was actually bound to: %q", missing[0])
+	}
+
+	honest := []evalsample.World{
+		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/sensei"}},
+		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
+		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+	}
+	if got := missingRequiredWorlds(honest); len(got) != 0 {
+		t.Errorf("correctly bound worlds reported missing: %v", got)
+	}
+}
+
+// TestTheProtocolDigestIsTheOneValidated.
+//
+// Validating the pair at startup and re-reading the file when the sample is
+// written leaves a window across the arms' runtime. A file edited in between
+// would be validated as one document and recorded as another — the identity
+// split the pair check exists to prevent.
+func TestTheProtocolDigestIsTheOneValidated(t *testing.T) {
+	out := t.TempDir()
+	path := protocolFileForTest(t)
+	worlds := []evalsample.World{{
+		Name:            "w",
+		Binding:         architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
+		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
+		RecallInventory: []string{"pkg/a"},
+	}}
+
+	const validated = "the-digest-checked-at-startup"
+	// The file changes after validation, exactly as it could while the arms run.
+	if err := os.WriteFile(path, []byte("# a different protocol entirely\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	art := writeSample(out, path, "operator-v2", validated, nil, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
+	if art.Status != statusRan {
+		t.Fatalf("writeSample: %s — %s", art.Status, art.Reason)
+	}
+	data, err := os.ReadFile(filepath.Join(out, art.ReportFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), validated) {
+		t.Error("the manifest recorded a digest re-read from disk rather than the one validated at startup")
 	}
 }

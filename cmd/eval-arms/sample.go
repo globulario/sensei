@@ -89,7 +89,7 @@ func recallUnitInventory(root string) ([]string, error) {
 // The manifest is written even when a lane is empty. Step 9 of the handoff
 // produces the SELECTION; whether a lane had anything to select is one of the
 // facts the selection is supposed to record.
-func writeSample(out, protocolFile, protocolIDArg string, isDefaultProtocol bool, missingWorlds []string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
+func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protocolErr error, isDefaultProtocol bool, missingWorlds []string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
 	art := armArtifact{Arm: "frozen_sample_manifest", Subject: subjectPublishedDomain}
 	if strings.TrimSpace(seed) == "" {
 		// not_run, not failed. A run that only wanted the arms is a legitimate
@@ -120,12 +120,16 @@ func writeSample(out, protocolFile, protocolIDArg string, isDefaultProtocol bool
 		art.Reason = "no protocol id given; a manifest that does not name the protocol it obeys cannot be checked against one"
 		return art
 	}
-	digest, err := fileDigest(protocolFile)
-	if err != nil {
+	// The digest is the one validated at startup, not a fresh read. Re-reading
+	// here would leave a window across the arms' runtime in which the file could
+	// change, so the pair checked at startup and the digest recorded in the
+	// manifest could describe different documents.
+	if protocolErr != nil {
 		art.Status = statusFailed
-		art.Reason = fmt.Sprintf("cannot read the frozen protocol at %s: %v — a sample that cannot name the protocol it serves cannot be shown to obey it; pass --protocol-file", protocolFile, err)
+		art.Reason = fmt.Sprintf("cannot read the frozen protocol at %s: %v — a sample that cannot name the protocol it serves cannot be shown to obey it; pass --protocol-file", protocolFile, protocolErr)
 		return art
 	}
+	digest := protocolDigest
 
 	manifest, blind, err := evalsample.Build(worlds, evalsample.Options{
 		ProtocolID:           protocolIDArg,

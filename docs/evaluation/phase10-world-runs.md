@@ -100,7 +100,22 @@ that defines the reduced set with --protocol-file and --protocol-id.)
 
 The refusal lives in `eval-arms`, not in the wrapper script, because a rule enforced only by a wrapper is a rule a direct caller does not have. The same applies to `--protocol-id` and `--protocol-file`: the tool refuses either one alone, since an identity beside another protocol's digest is a ruler that misstates itself.
 
-To draw a v1 sample, run every v1 world. To sample a reduced set, bind a protocol that defines it.
+### A v1 sample cannot currently be drawn at all
+
+Beyond world 3, there is a second reason, and it is worth stating plainly rather than discovering later.
+
+The protocol consumes the **mutant suite** as its fourth world. `eval-arms` now checks that the suite's arms ran — but checking their status is not the same as sampling them, and nothing puts the suite's material into `evalsample.Build`. The sampler draws only from checkout worlds. So a v1 manifest would carry three worlds while claiming a protocol that defines four.
+
+That is typed as a blocker rather than quietly omitted. Wiring the suite's observations into the sampler is real work and belongs in its own change. Until then:
+
+- **to draw a v1 sample**, that work has to land, and every v1 world has to run;
+- **to sample a reduced set now**, bind a protocol that defines it with `PROTOCOL_FILE` and `PROTOCOL_ID`.
+
+The capability is not lost. What is refused is the claim that a three-world sample obeys a four-world protocol.
+
+### Names are not identities
+
+Completeness compares each required world's **repository domain** against the domain the protocol names, not just its label. A caller could otherwise point three arbitrary Go checkouts at `world1_sensei_self`, `world2_globular` and `world3_independent_calibration` and satisfy the check with repositories the protocol never named. "You did not run it" and "you ran something else and called it that" are reported as different problems, because they need different corrections.
 
 ## Reproducibility
 

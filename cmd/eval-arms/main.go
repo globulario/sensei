@@ -195,7 +195,13 @@ func main() {
 	// This pins the pair this binary knows. It cannot validate that some other
 	// id belongs to some other document — nothing here could — but it can
 	// refuse to let either known default move without its counterpart.
-	defaultFile := isDefaultProtocolDocument(*protocolFile)
+	// Read ONCE, here, and carry the bytes' digest forward. Validating the pair
+	// now and re-reading the file in writeSample leaves a window: the arms run
+	// for minutes, and a file edited in between would be validated as one
+	// document and recorded as another — reproducing the identity split this
+	// check exists to prevent.
+	protocolDigest, protocolErr := fileDigest(*protocolFile)
+	defaultFile := isDefaultProtocolDocument(*protocolFile, protocolDigest, protocolErr)
 	defaultID := *protocolIDFlag == protocolID
 	if defaultFile != defaultID {
 		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-file and --protocol-id disagree about which protocol this is.")
@@ -298,8 +304,19 @@ func main() {
 	// incomplete v1 evaluation — the same omission defect one level out, in the
 	// world that does not look like a world.
 	missing = append(missing, incompleteMutantSuite(idx.Arms)...)
+	// Gating on the mutant arms' STATUS is not the same as sampling them. The
+	// protocol consumes the mutant suite as its fourth world, and nothing here
+	// puts that world's observations into evalsample.Build — sampledWorlds is
+	// populated only from checkouts. So a v1 manifest would carry three worlds
+	// while claiming a protocol that defines four.
+	//
+	// Typed as a blocker rather than quietly omitted. Wiring the suite's
+	// material into the sampler is real work and belongs in its own change;
+	// until then a v1 sample cannot honestly be drawn, and an operator who
+	// wants a reduced set can bind a protocol that defines one.
+	missing = append(missing, "mutant suite (its material is not represented in the sample manifest; the sampler draws only from checkout worlds)")
 	sort.Strings(missing)
-	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, defaultID, missing, sampledWorlds, *selectionSeed, *capturedAt))
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, protocolDigest, protocolErr, defaultID, missing, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,
@@ -554,9 +571,8 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 // Falls back to comparing resolved paths when the default cannot be read, so a
 // run from outside the repository root degrades to the older, weaker check
 // rather than silently deciding every document is custom.
-func isDefaultProtocolDocument(path string) bool {
+func isDefaultProtocolDocument(path, got string, gotErr error) bool {
 	want, wantErr := fileDigest(protocolPath)
-	got, gotErr := fileDigest(path)
 	if wantErr == nil && gotErr == nil {
 		return want == got
 	}
@@ -611,14 +627,22 @@ func orNotRun(s string) string {
 // missingRequiredWorlds names the worlds the default protocol consumes that
 // this run did not measure. Sorted so a refusal reads the same way twice.
 func missingRequiredWorlds(ran []evalsample.World) []string {
-	seen := map[string]bool{}
+	seen := map[string]string{}
 	for _, w := range ran {
-		seen[w.Name] = true
+		seen[w.Name] = w.Binding.RepositoryDomain
 	}
 	var missing []string
 	for _, name := range requiredWorlds {
-		if !seen[name] {
+		domain, ok := seen[name]
+		if !ok {
 			missing = append(missing, name)
+			continue
+		}
+		// Present under the right name but bound to something else. Reported
+		// as a distinct problem, because "you did not run it" and "you ran
+		// something else and called it that" need different corrections.
+		if want := requiredWorldDomains[name]; want != "" && domain != want {
+			missing = append(missing, fmt.Sprintf("%s (bound to %s, protocol names %s)", name, domain, want))
 		}
 	}
 	sort.Strings(missing)
@@ -635,6 +659,19 @@ func missingRequiredWorlds(ran []evalsample.World) []string {
 // comparable — the investigation-composition lane is measured separately by
 // the phase10_composition_* arms over the mutant suite.
 var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_independent_calibration"}
+
+// requiredWorldDomains is what each required world must actually BE.
+//
+// A name is a label the caller chose; it is not proof of identity. A direct
+// caller could point three arbitrary Go checkouts at these names and the
+// completeness check would have seen a full v1 world set. The protocol binds
+// specific repositories, so completeness compares the domain the world reports
+// against the domain the protocol names.
+var requiredWorldDomains = map[string]string{
+	"world1_sensei_self":             "github.com/globulario/sensei",
+	"world2_globular":                "github.com/globulario/Globular",
+	"world3_independent_calibration": "sqlite.org/sqlite",
+}
 
 // reservedArmNames are the arm names this command writes itself; a world may
 // not claim one and overwrite its report.
