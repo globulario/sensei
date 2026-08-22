@@ -1,0 +1,114 @@
+{
+  "schema_version": "sensei.eval_world.v1",
+  "world": "world3_independent_calibration",
+  "captured_at": "2026-08-22T15:00:00Z",
+  "repository_domain": "github.com/gin-gonic/gin",
+  "revision": "34dac209ffb6ef85cc78c5d217bbb7ad001d68fd",
+  "revision_status": "resolved",
+  "observations": 16504,
+  "evidence_receipts": 16504,
+  "files_cited": 97,
+  "observations_by_provider": {
+    "boundary_extractor": 55,
+    "contract_extractor": 66,
+    "data_shape_extractor": 229,
+    "flow_extractor": 1459,
+    "state_extractor": 11397,
+    "test_extractor": 2076,
+    "topology_extractor": 1222
+  },
+  "observations_by_predicate": {
+    "component_depends_on_component": 28,
+    "crosses_component_boundary_to": 11,
+    "crosses_package_boundary_to": 44,
+    "declares_data_shape": 37,
+    "defines_symbol": 702,
+    "entrypoint_reaches_symbol": 1459,
+    "exports_interface": 14,
+    "exports_symbol": 492,
+    "has_field": 112,
+    "has_serialized_field": 14,
+    "implements_interface": 52,
+    "persists_via": 888,
+    "reads": 7025,
+    "test_calls_symbol": 2076,
+    "uses_data_shape_across_boundary": 66,
+    "writes": 3484
+  },
+  "coverage_status_counts": {
+    "searched_supporting": 7
+  },
+  "absence_integrity": {
+    "absence_claims": 0,
+    "unexplained": 0,
+    "searched_no_result_without_snapshot": 0
+  },
+  "evidence_resolution_by_provider": {
+    "boundary_extractor": {
+      "resolved": 55,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "contract_extractor": {
+      "resolved": 66,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "data_shape_extractor": {
+      "resolved": 229,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "flow_extractor": {
+      "resolved": 1459,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "state_extractor": {
+      "resolved": 11397,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "test_extractor": {
+      "resolved": 2076,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    },
+    "topology_extractor": {
+      "resolved": 1222,
+      "missing_file": 0,
+      "not_a_regular_file": 0,
+      "line_out_of_range": 0,
+      "no_anchor": 0
+    }
+  },
+  "evidence_resolution_totals": {
+    "resolved": 16504,
+    "missing_file": 0,
+    "not_a_regular_file": 0,
+    "line_out_of_range": 0,
+    "no_anchor": 0
+  },
+  "evidence_resolution_by_target": {
+    "resolved": 97,
+    "missing_file": 0,
+    "not_a_regular_file": 0,
+    "line_out_of_range": 0,
+    "no_anchor": 0
+  },
+  "limitations": null,
+  "blocking_limitations": 0,
+  "outside_observation_surface": false
+}

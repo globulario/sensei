@@ -1,0 +1,1700 @@
+[
+  {
+    "item_key": "es1:f8204eb20c6e49f92d14cd141f37904a",
+    "lane": "precision",
+    "claim": "render.WriteString crosses_component_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/text.go:39-39"
+    ]
+  },
+  {
+    "item_key": "es1:1a5bd4940428e304cd3b5df6ec979d6a",
+    "lane": "precision",
+    "claim": "ginS.LoadHTMLGlob crosses_package_boundary_to gin.Engine.LoadHTMLGlob",
+    "evidence_ids": [
+      "ginS/gins.go:21-21"
+    ]
+  },
+  {
+    "item_key": "es1:48c0cfefd10908f44ce3469a24b243c3",
+    "lane": "precision",
+    "claim": "ginS.GET crosses_package_boundary_to gin.RouterGroup.GET",
+    "evidence_ids": [
+      "ginS/gins.go:67-67"
+    ]
+  },
+  {
+    "item_key": "es1:59d04e97291f139c89918ebb9412e531",
+    "lane": "precision",
+    "claim": "gin.authPairs.searchCredential crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "auth.go:37-37"
+    ]
+  },
+  {
+    "item_key": "es1:e67c9cb8b37173f953d5acb3e031e38c",
+    "lane": "precision",
+    "claim": "ginS.SetHTMLTemplate crosses_package_boundary_to gin.Engine.SetHTMLTemplate",
+    "evidence_ids": [
+      "ginS/gins.go:36-36"
+    ]
+  },
+  {
+    "item_key": "es1:80f1151f3b28271b51fc7d9a2f50ddce",
+    "lane": "precision",
+    "claim": "gin.node.addRoute crosses_package_boundary_to bytesconv.BytesToString",
+    "evidence_ids": [
+      "tree.go:170-170"
+    ]
+  },
+  {
+    "item_key": "es1:e97a4cdfc8926be5ad8dacae027d6f88",
+    "lane": "precision",
+    "claim": "ginS.LoadHTMLFS crosses_package_boundary_to gin.Engine.LoadHTMLFS",
+    "evidence_ids": [
+      "ginS/gins.go:31-31"
+    ]
+  },
+  {
+    "item_key": "es1:c9806e53fec095549419c8ce9e2d9f90",
+    "lane": "precision",
+    "claim": "ginS.NoRoute crosses_package_boundary_to gin.Engine.NoRoute",
+    "evidence_ids": [
+      "ginS/gins.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:c0831f7160a751dc518d4825b5412bca",
+    "lane": "precision",
+    "claim": "ginS.Routes crosses_package_boundary_to gin.Engine.Routes",
+    "evidence_ids": [
+      "ginS/gins.go:130-130"
+    ]
+  },
+  {
+    "item_key": "es1:872cf150e75afc7b9f331802507ed974",
+    "lane": "precision",
+    "claim": "binding.setWithProperType crosses_component_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "binding/form_mapping.go:376-376"
+    ]
+  },
+  {
+    "item_key": "es1:f2c292283444550176f48eba9f4ba85d",
+    "lane": "precision",
+    "claim": "render.SecureJSON.Render crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:101-101"
+    ]
+  },
+  {
+    "item_key": "es1:b43dd6cdb2e07764af4434277c435b77",
+    "lane": "precision",
+    "claim": "render.JsonpJSON.Render crosses_component_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:130-130"
+    ]
+  },
+  {
+    "item_key": "es1:97d094117938ee73317dd97e675269ca",
+    "lane": "precision",
+    "claim": "ginS.Handle crosses_package_boundary_to gin.RouterGroup.Handle",
+    "evidence_ids": [
+      "ginS/gins.go:57-57"
+    ]
+  },
+  {
+    "item_key": "es1:d8ca651e5900ad6c200da9031cf56810",
+    "lane": "precision",
+    "claim": "binding.decodePlain crosses_package_boundary_to bytesconv.BytesToString",
+    "evidence_ids": [
+      "binding/plain.go:46-46"
+    ]
+  },
+  {
+    "item_key": "es1:ab31c636a0e7ab194cf9edeea7d38108",
+    "lane": "precision",
+    "claim": "gin.node.addRoute crosses_package_boundary_to bytesconv.BytesToString",
+    "evidence_ids": [
+      "tree.go:203-203"
+    ]
+  },
+  {
+    "item_key": "es1:9e4d28d8030d8145e4c7a6c4641cc51e",
+    "lane": "precision",
+    "claim": "gin.Context.ShouldBind crosses_package_boundary_to binding.Default",
+    "evidence_ids": [
+      "context.go:862-862"
+    ]
+  },
+  {
+    "item_key": "es1:2790aa84208f90337fd2940bae44df44",
+    "lane": "precision",
+    "claim": "gin.authorizationHeader crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "auth.go:93-93"
+    ]
+  },
+  {
+    "item_key": "es1:d7b3c30bf2968210ff5f2205317aa6cd",
+    "lane": "precision",
+    "claim": "gin.redirectFixedPath crosses_package_boundary_to bytesconv.BytesToString",
+    "evidence_ids": [
+      "gin.go:813-813"
+    ]
+  },
+  {
+    "item_key": "es1:d149828421141c1b96d20b87db151a53",
+    "lane": "precision",
+    "claim": "ginS.StaticFS crosses_package_boundary_to gin.RouterGroup.StaticFS",
+    "evidence_ids": [
+      "ginS/gins.go:118-118"
+    ]
+  },
+  {
+    "item_key": "es1:69d6abb97f2bcc5a19ff8b8968c1ccd9",
+    "lane": "precision",
+    "claim": "ginS.Static crosses_package_boundary_to gin.RouterGroup.Static",
+    "evidence_ids": [
+      "ginS/gins.go:113-113"
+    ]
+  },
+  {
+    "item_key": "es1:ed71b84d4db41fa16316e2e8e79fdc33",
+    "lane": "precision",
+    "claim": "render.SecureJSON.Render crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:102-102"
+    ]
+  },
+  {
+    "item_key": "es1:b5f4ee2e2d4660e4637418e1b6370f5b",
+    "lane": "precision",
+    "claim": "ginS.PATCH crosses_package_boundary_to gin.RouterGroup.PATCH",
+    "evidence_ids": [
+      "ginS/gins.go:77-77"
+    ]
+  },
+  {
+    "item_key": "es1:92ec945c2e8f194616f9ce417e8f4e8d",
+    "lane": "precision",
+    "claim": "render.SecureJSON.Render crosses_component_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:102-102"
+    ]
+  },
+  {
+    "item_key": "es1:3e98df0056d50dc591f55a69ad0ea8d0",
+    "lane": "precision",
+    "claim": "render.JsonpJSON.Render crosses_component_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:142-142"
+    ]
+  },
+  {
+    "item_key": "es1:e098035540d389fc3ec539fdeb36d331",
+    "lane": "precision",
+    "claim": "ginS.StaticFile crosses_package_boundary_to gin.RouterGroup.StaticFile",
+    "evidence_ids": [
+      "ginS/gins.go:102-102"
+    ]
+  },
+  {
+    "item_key": "es1:22a36b8544f3796220b1c410dc47afc5",
+    "lane": "precision",
+    "claim": "binding.setWithProperType crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "binding/form_mapping.go:376-376"
+    ]
+  },
+  {
+    "item_key": "es1:b7a037fd2637d1dff64bdadc74636852",
+    "lane": "precision",
+    "claim": "ginS.OPTIONS crosses_package_boundary_to gin.RouterGroup.OPTIONS",
+    "evidence_ids": [
+      "ginS/gins.go:87-87"
+    ]
+  },
+  {
+    "item_key": "es1:c953ac636dc8366935a6c5dfb762f978",
+    "lane": "precision",
+    "claim": "render.JsonpJSON.Render crosses_package_boundary_to bytesconv.StringToBytes",
+    "evidence_ids": [
+      "render/json.go:142-142"
+    ]
+  },
+  {
+    "item_key": "es1:e5100f7fd81221d487d5178a532c9180",
+    "lane": "precision",
+    "claim": "gin.Context.Bind crosses_package_boundary_to binding.Default",
+    "evidence_ids": [
+      "context.go:781-781"
+    ]
+  },
+  {
+    "item_key": "es1:61ab2888b54b8b039c6e7800f5a85077",
+    "lane": "precision",
+    "claim": "ginS.POST crosses_package_boundary_to gin.RouterGroup.POST",
+    "evidence_ids": [
+      "ginS/gins.go:62-62"
+    ]
+  },
+  {
+    "item_key": "es1:b5a2d5c8bdb7a827034f79e458f00908",
+    "lane": "precision",
+    "claim": "binding.xmlBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/xml.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:42c16d66142fd02096be2fb1a0bd0f8b",
+    "lane": "precision",
+    "claim": "render.BSON implements_interface render.Render",
+    "evidence_ids": [
+      "render/bson.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:b57d4a946eb3d051387c06aea4dfcd1a",
+    "lane": "precision",
+    "claim": "render.HTMLProduction implements_interface render.HTMLRender",
+    "evidence_ids": [
+      "render/html.go:29-29"
+    ]
+  },
+  {
+    "item_key": "es1:c0e4e40468287da27075b5d3664570bc",
+    "lane": "precision",
+    "claim": "render.JSON implements_interface render.Render",
+    "evidence_ids": [
+      "render/json.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:fbba8ae4a9bedfd91e0ebf3a20a17cc5",
+    "lane": "precision",
+    "claim": "binding.headerBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/header.go:13-13"
+    ]
+  },
+  {
+    "item_key": "es1:fd6c177287ee106eeac7f2c9744b3198",
+    "lane": "precision",
+    "claim": "render.HTMLRender exports_interface interface",
+    "evidence_ids": [
+      "render/html.go:23-23"
+    ]
+  },
+  {
+    "item_key": "es1:6c23a76223de5925328c983487a3fd78",
+    "lane": "precision",
+    "claim": "render.XML implements_interface render.Render",
+    "evidence_ids": [
+      "render/xml.go:13-13"
+    ]
+  },
+  {
+    "item_key": "es1:a55630134245ca8de680d535b43406c8",
+    "lane": "precision",
+    "claim": "binding.setter exports_interface interface",
+    "evidence_ids": [
+      "binding/form_mapping.go:66-66"
+    ]
+  },
+  {
+    "item_key": "es1:43380a2cc809d726c11b4eaa47e9a372",
+    "lane": "precision",
+    "claim": "render.ProtoBuf implements_interface render.Render",
+    "evidence_ids": [
+      "render/protobuf.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:756dc80e5d15071b4f9bc99719c78208",
+    "lane": "precision",
+    "claim": "binding.plainBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/plain.go:12-12"
+    ]
+  },
+  {
+    "item_key": "es1:c8c11cf4435b2262232d19ff539b75a3",
+    "lane": "precision",
+    "claim": "gin.IRouter exports_interface interface",
+    "evidence_ids": [
+      "routergroup.go:27-27"
+    ]
+  },
+  {
+    "item_key": "es1:5944a5075e66e49af78ef49600011fa7",
+    "lane": "precision",
+    "claim": "binding.bsonBinding implements_interface binding.BindingBody",
+    "evidence_ids": [
+      "binding/bson.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:182f3fcfdcaaccf45bf482aa451c2958",
+    "lane": "precision",
+    "claim": "binding.defaultValidator implements_interface binding.StructValidator",
+    "evidence_ids": [
+      "binding/default_validator.go:16-16"
+    ]
+  },
+  {
+    "item_key": "es1:9a4b4a693697de6af6e35ff815fdb5cb",
+    "lane": "precision",
+    "claim": "binding.formPostBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/form.go:16-16"
+    ]
+  },
+  {
+    "item_key": "es1:9c6fbd1781ef078e94969c7be9d47c4b",
+    "lane": "precision",
+    "claim": "binding.uriBinding implements_interface binding.BindingUri",
+    "evidence_ids": [
+      "binding/uri.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:b70ee9a5eff1d01ad1ab92443be5e90a",
+    "lane": "precision",
+    "claim": "json.Encoder exports_interface interface",
+    "evidence_ids": [
+      "codec/json/api.go:22-22"
+    ]
+  },
+  {
+    "item_key": "es1:0974ff1f5fc3b97e4860720b42a03b31",
+    "lane": "precision",
+    "claim": "gin.IRoutes exports_interface interface",
+    "evidence_ids": [
+      "routergroup.go:33-33"
+    ]
+  },
+  {
+    "item_key": "es1:0f6c7cacdb44b3748f8c158b17039031",
+    "lane": "precision",
+    "claim": "binding.formSource implements_interface binding.setter",
+    "evidence_ids": [
+      "binding/form_mapping.go:70-70"
+    ]
+  },
+  {
+    "item_key": "es1:96f71fcfdbb344c8af40048f9a6e121f",
+    "lane": "precision",
+    "claim": "binding.msgpackBinding implements_interface binding.BindingBody",
+    "evidence_ids": [
+      "binding/msgpack.go:17-17"
+    ]
+  },
+  {
+    "item_key": "es1:101e587c87d459f5d377669d3618b61f",
+    "lane": "precision",
+    "claim": "gin.responseWriter implements_interface gin.ResponseWriter",
+    "evidence_ids": [
+      "response_writer.go:49-49"
+    ]
+  },
+  {
+    "item_key": "es1:81fee83aaa04d6ba8f6e69a3096cd694",
+    "lane": "precision",
+    "claim": "render.Render exports_interface interface",
+    "evidence_ids": [
+      "render/render.go:10-10"
+    ]
+  },
+  {
+    "item_key": "es1:34502b28eceb020cb155a40bf0c8c245",
+    "lane": "precision",
+    "claim": "binding.BindingUri exports_interface interface",
+    "evidence_ids": [
+      "binding/binding.go:46-46"
+    ]
+  },
+  {
+    "item_key": "es1:79f48059243c39dc91c9904837f2ebb1",
+    "lane": "precision",
+    "claim": "render.IndentedJSON implements_interface render.Render",
+    "evidence_ids": [
+      "render/json.go:24-24"
+    ]
+  },
+  {
+    "item_key": "es1:717eee7d9af2f35dc120e2759e7e211d",
+    "lane": "precision",
+    "claim": "binding.bsonBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/bson.go:14-14"
+    ]
+  },
+  {
+    "item_key": "es1:99cea2e31b03b0f628facc3e92a6c0f3",
+    "lane": "precision",
+    "claim": "render.PureJSON implements_interface render.Render",
+    "evidence_ids": [
+      "render/json.go:46-46"
+    ]
+  },
+  {
+    "item_key": "es1:89abecb35d9914751fd1090ff6d60dfd",
+    "lane": "precision",
+    "claim": "binding.msgpackBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/msgpack.go:17-17"
+    ]
+  },
+  {
+    "item_key": "es1:498ac90bf19eaba9aadb9982818eb9f8",
+    "lane": "precision",
+    "claim": "render.HTML implements_interface render.Render",
+    "evidence_ids": [
+      "render/html.go:45-45"
+    ]
+  },
+  {
+    "item_key": "es1:f889740aaf128be0d9053d91200bb2ff",
+    "lane": "precision",
+    "claim": "render.Data implements_interface render.Render",
+    "evidence_ids": [
+      "render/data.go:13-13"
+    ]
+  },
+  {
+    "item_key": "es1:992553a40ff1ab24e42b6e6f864961d2",
+    "lane": "precision",
+    "claim": "binding.tomlBinding implements_interface binding.Binding",
+    "evidence_ids": [
+      "binding/toml.go:15-15"
+    ]
+  },
+  {
+    "item_key": "es1:5e38dfc19afa22abfa3da11331d24fd6",
+    "lane": "precision",
+    "claim": "json.Decoder exports_interface interface",
+    "evidence_ids": [
+      "codec/json/api.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:e19502d1cb663228ecece7274b731e87",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.root has_field root",
+    "evidence_ids": [
+      "routergroup.go:59-59"
+    ]
+  },
+  {
+    "item_key": "es1:d74b16217190ba70ac5b1f4c228b9974",
+    "lane": "precision",
+    "claim": "render.AsciiJSON uses_data_shape_across_boundary package:github.com/gin-gonic/gin",
+    "evidence_ids": [
+      "context.go:1262-1262"
+    ]
+  },
+  {
+    "item_key": "es1:12188c1309a85c41bed1c3d4ff8e49f7",
+    "lane": "precision",
+    "claim": "render.BSON uses_data_shape_across_boundary package:github.com/gin-gonic/gin",
+    "evidence_ids": [
+      "context.go:1300-1300"
+    ]
+  },
+  {
+    "item_key": "es1:b2b45772716359d061e70f8e0e91f1af",
+    "lane": "precision",
+    "claim": "gin.Error uses_data_shape_across_boundary gin.Error.SetMeta",
+    "evidence_ids": [
+      "errors.go:49-49"
+    ]
+  },
+  {
+    "item_key": "es1:be4cb5fc11c59570d33bbc8bcbb04c95",
+    "lane": "precision",
+    "claim": "render.AsciiJSON declares_data_shape struct",
+    "evidence_ids": [
+      "render/json.go:41-41"
+    ]
+  },
+  {
+    "item_key": "es1:fffd9cb59a77016e6a40b22cd8fd07ed",
+    "lane": "precision",
+    "claim": "gin.Error uses_data_shape_across_boundary gin.Context.Error",
+    "evidence_ids": [
+      "context.go:262-262"
+    ]
+  },
+  {
+    "item_key": "es1:dd591fd3caae15e2fd8eba947b7e78b4",
+    "lane": "precision",
+    "claim": "binding.FooDefaultBarStruct declares_data_shape struct",
+    "evidence_ids": [
+      "binding/binding_test.go:57-57"
+    ]
+  },
+  {
+    "item_key": "es1:34bc738cfbc1e3f073ff687238e83d7e",
+    "lane": "precision",
+    "claim": "render.Redirect.Location has_field Location",
+    "evidence_ids": [
+      "render/redirect.go:16-16"
+    ]
+  },
+  {
+    "item_key": "es1:935436ea67562c8638ef54c57eeb0e3f",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary package:github.com/gin-gonic/gin/ginS",
+    "evidence_ids": [
+      "ginS/gins_test.go:87-87"
+    ]
+  },
+  {
+    "item_key": "es1:cbecffa66e56198ef5aec2c042ab344d",
+    "lane": "precision",
+    "claim": "gin.Context.queryCache has_field queryCache",
+    "evidence_ids": [
+      "context.go:88-88"
+    ]
+  },
+  {
+    "item_key": "es1:bdca87ccfbe280402999c52498626387",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary package:github.com/gin-gonic/gin/ginS",
+    "evidence_ids": [
+      "ginS/gins_test.go:125-125"
+    ]
+  },
+  {
+    "item_key": "es1:00ae1c67cbcc7e727f70efcbc2fb3b51",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary package:github.com/gin-gonic/gin/ginS",
+    "evidence_ids": [
+      "ginS/gins_test.go:112-112"
+    ]
+  },
+  {
+    "item_key": "es1:aa5fd005ad93016aee196aaa03dbd616",
+    "lane": "precision",
+    "claim": "gin.TestResponseRecorder.closeChannel has_field closeChannel",
+    "evidence_ids": [
+      "context_test.go:3173-3173"
+    ]
+  },
+  {
+    "item_key": "es1:39fb5f490c8024716e8bfc25e5f816ab",
+    "lane": "precision",
+    "claim": "render.AsciiJSON.Data has_field Data",
+    "evidence_ids": [
+      "render/json.go:42-42"
+    ]
+  },
+  {
+    "item_key": "es1:7f7985bbd71574d67efbbd0dc2dae6c2",
+    "lane": "precision",
+    "claim": "gin.Engine declares_data_shape struct",
+    "evidence_ids": [
+      "gin.go:92-92"
+    ]
+  },
+  {
+    "item_key": "es1:f3b7187f75937e916aa3d8751d208e7d",
+    "lane": "precision",
+    "claim": "render.SecureJSON.Prefix has_field Prefix",
+    "evidence_ids": [
+      "render/json.go:30-30"
+    ]
+  },
+  {
+    "item_key": "es1:91c465a0a093290fbdcf1cf481841745",
+    "lane": "precision",
+    "claim": "gin.Engine.UnescapePathValues has_field UnescapePathValues",
+    "evidence_ids": [
+      "gin.go:149-149"
+    ]
+  },
+  {
+    "item_key": "es1:4ef10ec318a576bbfed38302398aa39a",
+    "lane": "precision",
+    "claim": "binding.FooStruct.Foo has_serialized_field foo",
+    "evidence_ids": [
+      "binding/binding_test.go:39-39"
+    ]
+  },
+  {
+    "item_key": "es1:e0b71a96664953c243125201f928e15f",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary gin.Context.Copy",
+    "evidence_ids": [
+      "context.go:122-122"
+    ]
+  },
+  {
+    "item_key": "es1:3afa87f76098cd885fabb7e479d165c5",
+    "lane": "precision",
+    "claim": "binding.customReq.TimeEmpty has_serialized_field time_empty",
+    "evidence_ids": [
+      "binding/json_test.go:66-66"
+    ]
+  },
+  {
+    "item_key": "es1:5e4715665b76db3313d1ba5ab8995f85",
+    "lane": "precision",
+    "claim": "binding.FooBarStruct declares_data_shape struct",
+    "evidence_ids": [
+      "binding/binding_test.go:42-42"
+    ]
+  },
+  {
+    "item_key": "es1:de89aa314b81234bb93afad9da1d0892",
+    "lane": "precision",
+    "claim": "binding.appkey.Appkey has_serialized_field appkey",
+    "evidence_ids": [
+      "binding/binding_test.go:29-29"
+    ]
+  },
+  {
+    "item_key": "es1:2bd303e11a764d170c39ec44f02f7ea6",
+    "lane": "precision",
+    "claim": "gin.Engine.ForwardedByClientIP has_field ForwardedByClientIP",
+    "evidence_ids": [
+      "gin.go:129-129"
+    ]
+  },
+  {
+    "item_key": "es1:4ffac481956e6aee09ea4cb1de7d108c",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary package:github.com/gin-gonic/gin/ginS",
+    "evidence_ids": [
+      "ginS/gins_test.go:100-100"
+    ]
+  },
+  {
+    "item_key": "es1:3095f9216c8ad9ad4611fedd4acb4f11",
+    "lane": "precision",
+    "claim": "gin.Context.Params has_field Params",
+    "evidence_ids": [
+      "context.go:66-66"
+    ]
+  },
+  {
+    "item_key": "es1:c5fcc790d6666972c5eeea5c453db7e5",
+    "lane": "precision",
+    "claim": "gin.Engine.routeTreesUpdated has_field routeTreesUpdated",
+    "evidence_ids": [
+      "gin.go:97-97"
+    ]
+  },
+  {
+    "item_key": "es1:87523303de3b5ed4dde22e4dc5a45682",
+    "lane": "precision",
+    "claim": "gin.Context uses_data_shape_across_boundary package:github.com/gin-gonic/gin/ginS",
+    "evidence_ids": [
+      "ginS/gins_test.go:139-139"
+    ]
+  },
+  {
+    "item_key": "es1:c7e64fcabc4468c0a5510d78f414b6d7",
+    "lane": "precision",
+    "claim": "gin.Negotiate.YAMLData has_field YAMLData",
+    "evidence_ids": [
+      "context.go:1406-1406"
+    ]
+  },
+  {
+    "item_key": "es1:2e471f2bc3a455ffcc85678be5122912",
+    "lane": "precision",
+    "claim": "gin.Engine uses_data_shape_across_boundary gin.CreateTestContext",
+    "evidence_ids": [
+      "test_helpers.go:17-17"
+    ]
+  },
+  {
+    "item_key": "es1:2784b20591e1877939d56d8ac85d907a",
+    "lane": "precision",
+    "claim": "gin.Negotiate uses_data_shape_across_boundary gin.Context.Negotiate",
+    "evidence_ids": [
+      "context.go:1414-1414"
+    ]
+  },
+  {
+    "item_key": "es1:00971cc766b62022a26a426006fef55f",
+    "lane": "precision",
+    "claim": "gin.Context.SSEvent entrypoint_reaches_symbol gin.Context.Render",
+    "evidence_ids": [
+      "context.go:1369-1369"
+    ]
+  },
+  {
+    "item_key": "es1:e62c36178474d4cdf7da24001a60630e",
+    "lane": "precision",
+    "claim": "ginS.PATCH entrypoint_reaches_symbol gin.joinPaths",
+    "evidence_ids": [
+      "ginS/gins.go:76-76"
+    ]
+  },
+  {
+    "item_key": "es1:5730bbb7c26ea77cc35fc60a69887d23",
+    "lane": "precision",
+    "claim": "gin.Context.BindJSON entrypoint_reaches_symbol gin.Context.MustBindWith",
+    "evidence_ids": [
+      "context.go:786-786"
+    ]
+  },
+  {
+    "item_key": "es1:bb24deea21fb24189edc4026fbfa2a5b",
+    "lane": "precision",
+    "claim": "gin.CreateTestContextOnly entrypoint_reaches_symbol gin.Engine.allocateContext",
+    "evidence_ids": [
+      "test_helpers.go:30-30"
+    ]
+  },
+  {
+    "item_key": "es1:ae23abda94c86d7a501edc0fbd1bbb4c",
+    "lane": "precision",
+    "claim": "ginS.Static entrypoint_reaches_symbol gin.RouterGroup.StaticFS",
+    "evidence_ids": [
+      "ginS/gins.go:112-112"
+    ]
+  },
+  {
+    "item_key": "es1:8f740b6f8b7cf1a769afd18308641b01",
+    "lane": "precision",
+    "claim": "binding.headerBinding.Bind entrypoint_reaches_symbol binding.head",
+    "evidence_ids": [
+      "binding/header.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:1de77d741aea7c45a8635aea93a0e45e",
+    "lane": "precision",
+    "claim": "ginS.LoadHTMLGlob entrypoint_reaches_symbol gin.Engine.SetHTMLTemplate",
+    "evidence_ids": [
+      "ginS/gins.go:20-20"
+    ]
+  },
+  {
+    "item_key": "es1:7cc853f4f959852a70d424896a35cd98",
+    "lane": "precision",
+    "claim": "ginS.StaticFS entrypoint_reaches_symbol gin.node.addChild",
+    "evidence_ids": [
+      "ginS/gins.go:117-117"
+    ]
+  },
+  {
+    "item_key": "es1:8b5f7bd494f9bebcb0fe389bf5530057",
+    "lane": "precision",
+    "claim": "gin.Context.XML entrypoint_reaches_symbol gin.Context.Error",
+    "evidence_ids": [
+      "context.go:1273-1273"
+    ]
+  },
+  {
+    "item_key": "es1:60abaa76162465ced5ebd808f1e80f6f",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.PUT entrypoint_reaches_symbol gin.node.addChild",
+    "evidence_ids": [
+      "routergroup.go:131-131"
+    ]
+  },
+  {
+    "item_key": "es1:55fe7f8b81c88056d5be959030b56b0c",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.POST entrypoint_reaches_symbol gin.RouterGroup.handle",
+    "evidence_ids": [
+      "routergroup.go:111-111"
+    ]
+  },
+  {
+    "item_key": "es1:2caec4397e7675697baeec1e7dfc4b0b",
+    "lane": "precision",
+    "claim": "binding.formBinding.Bind entrypoint_reaches_symbol binding.head",
+    "evidence_ids": [
+      "binding/form.go:24-24"
+    ]
+  },
+  {
+    "item_key": "es1:54596f428877ffa84b21e3af951e335b",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.Static entrypoint_reaches_symbol gin.RouterGroup.combineHandlers",
+    "evidence_ids": [
+      "routergroup.go:197-197"
+    ]
+  },
+  {
+    "item_key": "es1:cb3d0508aab79a674423b5d4ad7dadab",
+    "lane": "precision",
+    "claim": "ginS.DELETE entrypoint_reaches_symbol gin.node.addChild",
+    "evidence_ids": [
+      "ginS/gins.go:71-71"
+    ]
+  },
+  {
+    "item_key": "es1:c529b7c7b9fb9e500ea274615fd032a4",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.Handle entrypoint_reaches_symbol gin.HandlersChain.Last",
+    "evidence_ids": [
+      "routergroup.go:103-103"
+    ]
+  },
+  {
+    "item_key": "es1:cf5d9838c565f5e027464477ad987404",
+    "lane": "precision",
+    "claim": "gin.Context.MustGet entrypoint_reaches_symbol gin.Context.Get",
+    "evidence_ids": [
+      "context.go:306-306"
+    ]
+  },
+  {
+    "item_key": "es1:b12328148b3d21f389b99f6152bda13f",
+    "lane": "precision",
+    "claim": "gin.Context.PDF entrypoint_reaches_symbol gin.Context.Status",
+    "evidence_ids": [
+      "context.go:1279-1279"
+    ]
+  },
+  {
+    "item_key": "es1:50aaf6a607e3d037c8a0c47b66fa3469",
+    "lane": "precision",
+    "claim": "ginS.HEAD entrypoint_reaches_symbol gin.IsDebugging",
+    "evidence_ids": [
+      "ginS/gins.go:91-91"
+    ]
+  },
+  {
+    "item_key": "es1:c235aa762731e46dcad82c51f9425897",
+    "lane": "precision",
+    "claim": "ginS.Group entrypoint_reaches_symbol gin.RouterGroup.Group",
+    "evidence_ids": [
+      "ginS/gins.go:51-51"
+    ]
+  },
+  {
+    "item_key": "es1:7b7327ab2afc23742e8ddd7ba25b8b10",
+    "lane": "precision",
+    "claim": "gin.Engine.RunFd entrypoint_reaches_symbol gin.debugPrint",
+    "evidence_ids": [
+      "gin.go:607-607"
+    ]
+  },
+  {
+    "item_key": "es1:0d757d942ebd849908e6a140b2516203",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.StaticFile entrypoint_reaches_symbol gin.RouterGroup.HEAD",
+    "evidence_ids": [
+      "routergroup.go:166-166"
+    ]
+  },
+  {
+    "item_key": "es1:b190764a84e883c99158930ac0f45d0a",
+    "lane": "precision",
+    "claim": "ginS.POST entrypoint_reaches_symbol gin.countSections",
+    "evidence_ids": [
+      "ginS/gins.go:61-61"
+    ]
+  },
+  {
+    "item_key": "es1:91993c6228ee2777319f36ffcec4490c",
+    "lane": "precision",
+    "claim": "binding.formMultipartBinding.Bind entrypoint_reaches_symbol binding.validate",
+    "evidence_ids": [
+      "binding/form.go:55-55"
+    ]
+  },
+  {
+    "item_key": "es1:783f7d0030ee107c1b70380c063d4ecb",
+    "lane": "precision",
+    "claim": "ginS.Handle entrypoint_reaches_symbol gin.Engine.addRoute",
+    "evidence_ids": [
+      "ginS/gins.go:56-56"
+    ]
+  },
+  {
+    "item_key": "es1:f22690affeb1522b00cedf43d0af219c",
+    "lane": "precision",
+    "claim": "ginS.Use entrypoint_reaches_symbol gin.RouterGroup.combineHandlers",
+    "evidence_ids": [
+      "ginS/gins.go:124-124"
+    ]
+  },
+  {
+    "item_key": "es1:e0b17d0ae58258d6e09cec714a16a9a7",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.StaticFileFS entrypoint_reaches_symbol gin.RouterGroup.HEAD",
+    "evidence_ids": [
+      "routergroup.go:175-175"
+    ]
+  },
+  {
+    "item_key": "es1:6fc21485067a347ec0c9ac59b2ddc27c",
+    "lane": "precision",
+    "claim": "gin.Context.Bind entrypoint_reaches_symbol gin.Context.Abort",
+    "evidence_ids": [
+      "context.go:780-780"
+    ]
+  },
+  {
+    "item_key": "es1:39a826f4ce3bacf230dd6dc36cdc9d69",
+    "lane": "precision",
+    "claim": "ginS.StaticFS entrypoint_reaches_symbol gin.RouterGroup.StaticFS",
+    "evidence_ids": [
+      "ginS/gins.go:117-117"
+    ]
+  },
+  {
+    "item_key": "es1:dbeca32b588b5ea15ec008d7bb8798a5",
+    "lane": "precision",
+    "claim": "ginS.Static entrypoint_reaches_symbol gin.Dir",
+    "evidence_ids": [
+      "ginS/gins.go:112-112"
+    ]
+  },
+  {
+    "item_key": "es1:d10fe66ba406a25e88698fbd0495e1db",
+    "lane": "precision",
+    "claim": "gin.RouterGroup.Handle entrypoint_reaches_symbol gin.node.insertChild",
+    "evidence_ids": [
+      "routergroup.go:103-103"
+    ]
+  },
+  {
+    "item_key": "es1:8f9a6b81817862eaa63d41c2d13528f5",
+    "lane": "precision",
+    "claim": "binding.testQueryBinding reads MethodPost",
+    "evidence_ids": [
+      "binding/binding_test.go:1182-1182"
+    ]
+  },
+  {
+    "item_key": "es1:3dc204c690fdf9e0f9bf0586cbdd781b",
+    "lane": "precision",
+    "claim": "gin.TestContextGetStringMapStringSlice reads Equal",
+    "evidence_ids": [
+      "context_test.go:708-708",
+      "test:TestContextGetStringMapStringSlice"
+    ]
+  },
+  {
+    "item_key": "es1:a888eb6cd87b3b6d25bf0e08e654d8d9",
+    "lane": "precision",
+    "claim": "gin.TestLogger persists_via Reset",
+    "evidence_ids": [
+      "logger_test.go:79-79",
+      "test:TestLogger"
+    ]
+  },
+  {
+    "item_key": "es1:c0d4b2057bac8fec5f25db8dfc0619c4",
+    "lane": "precision",
+    "claim": "gin.debugPrintRoute writes handlerName",
+    "evidence_ids": [
+      "debug.go:35-35"
+    ]
+  },
+  {
+    "item_key": "es1:f694b8671f4b91a4f3ecbf3f62887d82",
+    "lane": "precision",
+    "claim": "gin.TestContextShouldBindHeader reads Header",
+    "evidence_ids": [
+      "context_test.go:2506-2506",
+      "test:TestContextShouldBindHeader"
+    ]
+  },
+  {
+    "item_key": "es1:dc0b080a88807ba48248afa461310976",
+    "lane": "precision",
+    "claim": "gin.TestCreateTestContextWithRouteParams reads HandleContext",
+    "evidence_ids": [
+      "context_test.go:3510-3510",
+      "test:TestCreateTestContextWithRouteParams"
+    ]
+  },
+  {
+    "item_key": "es1:5c333762f8adbc92ab37f163a96a8491",
+    "lane": "precision",
+    "claim": "gin.TestMiddlewareCalledOnceByRouterStaticFSNotFound reads Use",
+    "evidence_ids": [
+      "routes_test.go:665-665",
+      "test:TestMiddlewareCalledOnceByRouterStaticFSNotFound"
+    ]
+  },
+  {
+    "item_key": "es1:839d08866ecfaac205941a86ca11c04c",
+    "lane": "precision",
+    "claim": "render.TestRenderReader reads Itoa",
+    "evidence_ids": [
+      "render/render_test.go:768-768",
+      "test:TestRenderReader"
+    ]
+  },
+  {
+    "item_key": "es1:de8f7573bbf75bf32a4641a2c7419044",
+    "lane": "precision",
+    "claim": "gin.TestDebugPrintWARNINGNew persists_via SetMode",
+    "evidence_ids": [
+      "debug_test.go:131-131",
+      "test:TestDebugPrintWARNINGNew"
+    ]
+  },
+  {
+    "item_key": "es1:2012f3de704d61ece083e31a1a4ac7b9",
+    "lane": "precision",
+    "claim": "gin.TestInterceptedHeader writes Request",
+    "evidence_ids": [
+      "context_test.go:3545-3545",
+      "test:TestInterceptedHeader"
+    ]
+  },
+  {
+    "item_key": "es1:bb47fdad4bab4769d2b2f50f5e965c8d",
+    "lane": "precision",
+    "claim": "gin.performRequestInGroup reads DELETE",
+    "evidence_ids": [
+      "routergroup_test.go:73-73"
+    ]
+  },
+  {
+    "item_key": "es1:23b103a49daf2b7f664ecd3d6defffc9",
+    "lane": "precision",
+    "claim": "gin.TestRecoveryWithWriterWithCustomRecovery reads MethodGet",
+    "evidence_ids": [
+      "recovery_test.go:282-282",
+      "test:TestRecoveryWithWriterWithCustomRecovery"
+    ]
+  },
+  {
+    "item_key": "es1:d543a3aafc76c6773bf1d9afe80731f7",
+    "lane": "precision",
+    "claim": "gin.TestContextPostFormMultipart reads Array",
+    "evidence_ids": [
+      "context_test.go:1023-1023",
+      "test:TestContextPostFormMultipart"
+    ]
+  },
+  {
+    "item_key": "es1:03655fa8f04c0a5b2bf691ecc8bc7aef",
+    "lane": "precision",
+    "claim": "gin.CloseNotify reads ResponseWriter",
+    "evidence_ids": [
+      "response_writer.go:129-129"
+    ]
+  },
+  {
+    "item_key": "es1:da355689f32953000416c42be48b300a",
+    "lane": "precision",
+    "claim": "binding.UnmarshalText writes oid",
+    "evidence_ids": [
+      "binding/form_mapping_test.go:926-926"
+    ]
+  },
+  {
+    "item_key": "es1:45d23191e4c3d2cbf9fbfbcf9332a442",
+    "lane": "precision",
+    "claim": "gin.TestPusher reads NoError",
+    "evidence_ids": [
+      "gin_integration_test.go:194-194",
+      "test:TestPusher"
+    ]
+  },
+  {
+    "item_key": "es1:9d381e0dc31beefa13d624991754f9c8",
+    "lane": "precision",
+    "claim": "binding.TestBindingProtoBufFail writes test",
+    "evidence_ids": [
+      "binding/binding_test.go:727-729",
+      "test:TestBindingProtoBufFail"
+    ]
+  },
+  {
+    "item_key": "es1:85f12e15d701babac1f358262631401e",
+    "lane": "precision",
+    "claim": "gin.Negotiate reads Data",
+    "evidence_ids": [
+      "context.go:1417-1417"
+    ]
+  },
+  {
+    "item_key": "es1:67edaa5c3c6645338d7745e2ea1617dc",
+    "lane": "precision",
+    "claim": "render.Write reads ResponseRecorder",
+    "evidence_ids": [
+      "render/render_test.go:167-167"
+    ]
+  },
+  {
+    "item_key": "es1:fcd05647a3a520ac11ac04264a25b6f4",
+    "lane": "precision",
+    "claim": "gin.TestContextAbortWithStatusPureJSON reads True",
+    "evidence_ids": [
+      "context_test.go:1990-1990",
+      "test:TestContextAbortWithStatusPureJSON"
+    ]
+  },
+  {
+    "item_key": "es1:f1e4bf9679abb2698943676c6fe85731",
+    "lane": "precision",
+    "claim": "gin.insertChild writes wildChild",
+    "evidence_ids": [
+      "tree.go:320-320"
+    ]
+  },
+  {
+    "item_key": "es1:398b6447ce81298db62e96947bc3752f",
+    "lane": "precision",
+    "claim": "gin.TestContextRenderIndentedJSON reads Equal",
+    "evidence_ids": [
+      "context_test.go:1235-1235",
+      "test:TestContextRenderIndentedJSON"
+    ]
+  },
+  {
+    "item_key": "es1:dfcff35bc2b86409ebd631b9d714147a",
+    "lane": "precision",
+    "claim": "gin.GetRawData reads Body",
+    "evidence_ids": [
+      "context.go:1145-1145"
+    ]
+  },
+  {
+    "item_key": "es1:34b4defdbc2d20fe7510f4fb7e46d97b",
+    "lane": "precision",
+    "claim": "gin.TestContextShouldBindBodyWith reads Equal",
+    "evidence_ids": [
+      "context_test.go:2651-2651",
+      "test:TestContextShouldBindBodyWith"
+    ]
+  },
+  {
+    "item_key": "es1:60c7d95edad312cba7136b4870413e8b",
+    "lane": "precision",
+    "claim": "gin.TestContextResetInHandler writes c",
+    "evidence_ids": [
+      "context_test.go:3230-3230",
+      "test:TestContextResetInHandler"
+    ]
+  },
+  {
+    "item_key": "es1:26c3fc7169d7731afd1cac3f61814b0a",
+    "lane": "precision",
+    "claim": "gin.GetHeader reads requestHeader",
+    "evidence_ids": [
+      "context.go:1140-1140"
+    ]
+  },
+  {
+    "item_key": "es1:3855a8729ff454973a6900edc0df852a",
+    "lane": "precision",
+    "claim": "gin.TestEngineHandleContextUseEscapedPathOverride reads GET",
+    "evidence_ids": [
+      "gin_test.go:856-856",
+      "test:TestEngineHandleContextUseEscapedPathOverride"
+    ]
+  },
+  {
+    "item_key": "es1:cffaeae1d3a10c272bbc10b1d36607eb",
+    "lane": "precision",
+    "claim": "gin.Bind reads Ptr",
+    "evidence_ids": [
+      "utils.go:31-31"
+    ]
+  },
+  {
+    "item_key": "es1:9b48907500b16f74c07878f2655fe6b3",
+    "lane": "precision",
+    "claim": "binding.createFormFilesMultipartRequest reads NoError",
+    "evidence_ids": [
+      "binding/binding_test.go:537-537"
+    ]
+  },
+  {
+    "item_key": "es1:db15b8b3bc031c286c6baeb94cb462fb",
+    "lane": "precision",
+    "claim": "gin.TestPanicWithBrokenPipe reads Builder",
+    "evidence_ids": [
+      "recovery_test.go:109-109",
+      "test:TestPanicWithBrokenPipe"
+    ]
+  },
+  {
+    "item_key": "es1:2bfb34b987b6ed632771db14a9028e75",
+    "lane": "precision",
+    "claim": "gin.TestContextGetInt64 test_calls_symbol gin.Context.Set",
+    "evidence_ids": [
+      "context_test.go:497-497"
+    ]
+  },
+  {
+    "item_key": "es1:95d6caea015f99fa036e9bd614c5bce1",
+    "lane": "precision",
+    "claim": "gin.TestEngineHandleContext test_calls_symbol gin.RouterGroup.GET",
+    "evidence_ids": [
+      "gin_test.go:656-656"
+    ]
+  },
+  {
+    "item_key": "es1:417eb46b43733d86ae1ea3974a10298a",
+    "lane": "precision",
+    "claim": "gin.TestErrorSlice test_calls_symbol gin.errorMsgs.ByType",
+    "evidence_ids": [
+      "errors_test.go:75-75"
+    ]
+  },
+  {
+    "item_key": "es1:0b465d61c256d81c70b52a1285714544",
+    "lane": "precision",
+    "claim": "gin.TestContextSetCookieData test_calls_symbol gin.Context.SetCookieData",
+    "evidence_ids": [
+      "context_test.go:3614-3614"
+    ]
+  },
+  {
+    "item_key": "es1:4e29e2e5d2bdca8b1df0573d14f69655",
+    "lane": "precision",
+    "claim": "gin.TestContextCopyCopiesErrors test_calls_symbol gin.Error.Error",
+    "evidence_ids": [
+      "context_test.go:745-745"
+    ]
+  },
+  {
+    "item_key": "es1:f8754d792c231ec6f761143dcddce1ae",
+    "lane": "precision",
+    "claim": "gin.TestDebugPrintWARNINGNew test_calls_symbol gin.SetMode",
+    "evidence_ids": [
+      "debug_test.go:129-129"
+    ]
+  },
+  {
+    "item_key": "es1:598fcf0b55674e415dc2ed54b2c8868c",
+    "lane": "precision",
+    "claim": "gin.TestContextGetStringMapStringSlice test_calls_symbol gin.Context.GetStringMapStringSlice",
+    "evidence_ids": [
+      "context_test.go:709-709"
+    ]
+  },
+  {
+    "item_key": "es1:dbdbddb46e4e4d391b6e3605e875be04",
+    "lane": "precision",
+    "claim": "gin.TestContextRenderIndentedJSON test_calls_symbol gin.Context.IndentedJSON",
+    "evidence_ids": [
+      "context_test.go:1233-1233"
+    ]
+  },
+  {
+    "item_key": "es1:764135cd0edbf0083103ed23a179dd1c",
+    "lane": "precision",
+    "claim": "gin.TestContextGetError test_calls_symbol gin.Context.Set",
+    "evidence_ids": [
+      "context_test.go:568-568"
+    ]
+  },
+  {
+    "item_key": "es1:dbc47b55cb77b140cc259449d1880bf9",
+    "lane": "precision",
+    "claim": "gin.TestContextNegotiationFormatWithWildcardAccept test_calls_symbol gin.Context.NegotiateFormat",
+    "evidence_ids": [
+      "context_test.go:1888-1888"
+    ]
+  },
+  {
+    "item_key": "es1:e35e3161823adc7476e75e988055e878",
+    "lane": "precision",
+    "claim": "ginS.TestHEAD test_calls_symbol gin.Engine.ServeHTTP",
+    "evidence_ids": [
+      "ginS/gins_test.go:106-106"
+    ]
+  },
+  {
+    "item_key": "es1:d0d4f6148b5ea119be4472ea80fa8736",
+    "lane": "precision",
+    "claim": "gin.TestSafeUint16 test_calls_symbol gin.safeUint16",
+    "evidence_ids": [
+      "utils_test.go:171-171"
+    ]
+  },
+  {
+    "item_key": "es1:41bb8bf06246f2cbd939540a46b496bb",
+    "lane": "precision",
+    "claim": "gin.TestContextSetGetValues test_calls_symbol gin.Context.Set",
+    "evidence_ids": [
+      "context_test.go:424-424"
+    ]
+  },
+  {
+    "item_key": "es1:2c3c70cd8b937a7466ad90ba8b78a1be",
+    "lane": "precision",
+    "claim": "binding.TestMappingTime test_calls_symbol binding.mapForm",
+    "evidence_ids": [
+      "binding/form_mapping_test.go:219-219"
+    ]
+  },
+  {
+    "item_key": "es1:a2e5983649324a6a79b9d14fbfe09b3b",
+    "lane": "precision",
+    "claim": "gin.TestBadTrustedCIDRs test_calls_symbol gin.Engine.SetTrustedProxies",
+    "evidence_ids": [
+      "gin_integration_test.go:84-84"
+    ]
+  },
+  {
+    "item_key": "es1:8b9ede36e15b902c78adfccad69168e5",
+    "lane": "precision",
+    "claim": "gin.TestLoggerWithConfigSkipper test_calls_symbol gin.New",
+    "evidence_ids": [
+      "logger_test.go:438-438"
+    ]
+  },
+  {
+    "item_key": "es1:49de474e5c83f4df3d49bbfbeeaa19aa",
+    "lane": "precision",
+    "claim": "gin.TestBasicAuthSearchCredential test_calls_symbol gin.authPairs.searchCredential",
+    "evidence_ids": [
+      "auth_test.go:67-67"
+    ]
+  },
+  {
+    "item_key": "es1:36605b80d35336b5483d0202cb61886f",
+    "lane": "precision",
+    "claim": "gin.TestEngineHandleContextNoRouteWithEngineMiddleware test_calls_symbol gin.Context.Next",
+    "evidence_ids": [
+      "gin_test.go:795-795"
+    ]
+  },
+  {
+    "item_key": "es1:38588423fd04a9e510562a83584afa96",
+    "lane": "precision",
+    "claim": "gin.TestError test_calls_symbol gin.Error.JSON",
+    "evidence_ids": [
+      "errors_test.go:34-34"
+    ]
+  },
+  {
+    "item_key": "es1:78e70c10c6750909bc01204d574f5108",
+    "lane": "precision",
+    "claim": "gin.TestRaceContextCopy test_calls_symbol gin.Context.String",
+    "evidence_ids": [
+      "githubapi_test.go:361-361"
+    ]
+  },
+  {
+    "item_key": "es1:8ece65a831ddbec05dba5e85ef42177c",
+    "lane": "precision",
+    "claim": "gin.TestContextCopyShouldNotCancel test_calls_symbol gin.RouterGroup.GET",
+    "evidence_ids": [
+      "context_test.go:3438-3438"
+    ]
+  },
+  {
+    "item_key": "es1:aa53ea9376fced5fae9cfd48a4350f12",
+    "lane": "precision",
+    "claim": "gin.TestContextGetFloat64Slice test_calls_symbol gin.CreateTestContext",
+    "evidence_ids": [
+      "context_test.go:661-661"
+    ]
+  },
+  {
+    "item_key": "es1:9feab8b3d7c8aba0d1ffee07d714aa79",
+    "lane": "precision",
+    "claim": "gin.TestListOfRoutes test_calls_symbol gin.RouterGroup.GET",
+    "evidence_ids": [
+      "gin_test.go:615-615"
+    ]
+  },
+  {
+    "item_key": "es1:83db395b808233e9c8f25fc5e7e6b081",
+    "lane": "precision",
+    "claim": "gin.TestContextClientIP test_calls_symbol gin.Context.ClientIP",
+    "evidence_ids": [
+      "context_test.go:2185-2185"
+    ]
+  },
+  {
+    "item_key": "es1:a893302cb9ce1fb5a122a13aebefe25a",
+    "lane": "precision",
+    "claim": "gin.TestIsOutputColor test_calls_symbol gin.LogFormatterParams.IsOutputColor",
+    "evidence_ids": [
+      "logger_test.go:364-364"
+    ]
+  },
+  {
+    "item_key": "es1:eaec099228ed915cbef14bc065f16687",
+    "lane": "precision",
+    "claim": "gin.TestContextGetUint16Slice test_calls_symbol gin.Context.GetUint16Slice",
+    "evidence_ids": [
+      "context_test.go:633-633"
+    ]
+  },
+  {
+    "item_key": "es1:cb0c7e864bf89b3aa7d005f4bd17fd95",
+    "lane": "precision",
+    "claim": "gin.BenchmarkRecoveryMiddleware test_calls_symbol gin.New",
+    "evidence_ids": [
+      "benchmarks_test.go:21-21"
+    ]
+  },
+  {
+    "item_key": "es1:727cc5f696cd7e9cda487b1379499cd1",
+    "lane": "precision",
+    "claim": "render.TestRenderJsonpJSONError2 test_calls_symbol render.JsonpJSON.WriteContentType",
+    "evidence_ids": [
+      "render/render_test.go:224-224"
+    ]
+  },
+  {
+    "item_key": "es1:6e00d8f771fc3338eea6876599e2a809",
+    "lane": "precision",
+    "claim": "gin.TestLoadHTMLFilesDebugMode test_calls_symbol gin.Engine.LoadHTMLFiles",
+    "evidence_ids": [
+      "gin_test.go:247-247"
+    ]
+  },
+  {
+    "item_key": "es1:910d0c0c17e2de34fc1bd00068564a6f",
+    "lane": "precision",
+    "claim": "gin.TestBasicAuthSucceed test_calls_symbol gin.Context.String",
+    "evidence_ids": [
+      "auth_test.go:89-89"
+    ]
+  },
+  {
+    "item_key": "es1:83c9558f137930443a60d88653e28292",
+    "lane": "precision",
+    "claim": "gin.Bind exports_symbol function",
+    "evidence_ids": [
+      "utils.go:29-29"
+    ]
+  },
+  {
+    "item_key": "es1:392255b742f22afc75669d077a641b84",
+    "lane": "precision",
+    "claim": "gin.CustomRecoveryWithWriter exports_symbol function",
+    "evidence_ids": [
+      "recovery.go:53-53"
+    ]
+  },
+  {
+    "item_key": "es1:96eed528342ce9bf152f5b60925c1aef",
+    "lane": "precision",
+    "claim": "render.XML.WriteContentType exports_symbol method",
+    "evidence_ids": [
+      "render/xml.go:26-26"
+    ]
+  },
+  {
+    "item_key": "es1:7a4db4142c867745b0851b2c17fa8d4d",
+    "lane": "precision",
+    "claim": "render.HTML.WriteContentType exports_symbol method",
+    "evidence_ids": [
+      "render/html.go:99-99"
+    ]
+  },
+  {
+    "item_key": "es1:a484526aa3f92be744e6b4cdbf16c58d",
+    "lane": "precision",
+    "claim": "gin.Engine.Routes exports_symbol method",
+    "evidence_ids": [
+      "gin.go:390-390"
+    ]
+  },
+  {
+    "item_key": "es1:e0de5f65fafd758c40768cc640b82cf7",
+    "lane": "precision",
+    "claim": "gin.Engine defines_symbol gin.Engine.Routes",
+    "evidence_ids": [
+      "gin.go:390-390"
+    ]
+  },
+  {
+    "item_key": "es1:4b8b0ce016a26f227071bedd1987a0d5",
+    "lane": "precision",
+    "claim": "binding.jsonBinding.BindBody exports_symbol method",
+    "evidence_ids": [
+      "binding/json.go:40-40"
+    ]
+  },
+  {
+    "item_key": "es1:7117125392ca9a9dd44cd3490d201e42",
+    "lane": "precision",
+    "claim": "binding.protobufBinding.Bind exports_symbol method",
+    "evidence_ids": [
+      "binding/protobuf.go:21-21"
+    ]
+  },
+  {
+    "item_key": "es1:dd74b6bb3f7596c3283a8ad15dd03ffc",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.ErrorTypeAny",
+    "evidence_ids": [
+      "errors.go:28-28"
+    ]
+  },
+  {
+    "item_key": "es1:34e9e646d95602ad2582346a3a53a4a0",
+    "lane": "precision",
+    "claim": "render.TOML.WriteContentType exports_symbol method",
+    "evidence_ids": [
+      "render/toml.go:34-34"
+    ]
+  },
+  {
+    "item_key": "es1:3c5a7f59d61ab94eaf83f4cc16dd4252",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.MIMEJSON",
+    "evidence_ids": [
+      "context.go:32-32"
+    ]
+  },
+  {
+    "item_key": "es1:cf30c3e8a5f80921131a447d42cdacc1",
+    "lane": "precision",
+    "claim": "render.MsgPack exports_symbol type",
+    "evidence_ids": [
+      "render/msgpack.go:22-22"
+    ]
+  },
+  {
+    "item_key": "es1:80f5afd978422095795dd739cc837668",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.param",
+    "evidence_ids": [
+      "tree.go:95-95"
+    ]
+  },
+  {
+    "item_key": "es1:abc5814aba20c264e68cfa0adfcddf51",
+    "lane": "precision",
+    "claim": "gin.Context defines_symbol gin.Context.GetDuration",
+    "evidence_ids": [
+      "context.go:396-396"
+    ]
+  },
+  {
+    "item_key": "es1:99297e3cba98bf1fc5987d5d986218f4",
+    "lane": "precision",
+    "claim": "render.String.Render exports_symbol method",
+    "evidence_ids": [
+      "render/text.go:23-23"
+    ]
+  },
+  {
+    "item_key": "es1:68f822b51754fc8c44a308ea56ef6417",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.regEnLetter",
+    "evidence_ids": [
+      "routergroup.go:16-16"
+    ]
+  },
+  {
+    "item_key": "es1:2d3ee6ee7e9b9a424dbb8679f06eaae9",
+    "lane": "precision",
+    "claim": "binding defines_symbol binding.headerBinding",
+    "evidence_ids": [
+      "binding/header.go:13-13"
+    ]
+  },
+  {
+    "item_key": "es1:92e4f7e95f3b08a92cefbe9348722ad4",
+    "lane": "precision",
+    "claim": "binding.Header exports_symbol variable",
+    "evidence_ids": [
+      "binding/binding.go:87-87"
+    ]
+  },
+  {
+    "item_key": "es1:5147d8e980293e724791239479b706f2",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.ForceConsoleColor",
+    "evidence_ids": [
+      "logger.go:202-202"
+    ]
+  },
+  {
+    "item_key": "es1:30d2d6ef10b6193de1b3fd4c7e80f296",
+    "lane": "precision",
+    "claim": "gin.Context defines_symbol gin.Context.GetInt64",
+    "evidence_ids": [
+      "context.go:351-351"
+    ]
+  },
+  {
+    "item_key": "es1:e2d87ca96e856542c2ddbd64445dbef2",
+    "lane": "precision",
+    "claim": "binding defines_symbol binding.jsonBinding",
+    "evidence_ids": [
+      "binding/json.go:27-27"
+    ]
+  },
+  {
+    "item_key": "es1:b59f8992146ad7f5e8dee490d98df4e4",
+    "lane": "precision",
+    "claim": "ginS defines_symbol ginS.StaticFile",
+    "evidence_ids": [
+      "ginS/gins.go:101-101"
+    ]
+  },
+  {
+    "item_key": "es1:65c6721dade3072c86f60b04bd50deda",
+    "lane": "precision",
+    "claim": "gin defines_symbol gin.joinPaths",
+    "evidence_ids": [
+      "utils.go:135-135"
+    ]
+  },
+  {
+    "item_key": "es1:09ff2a3cd182c3a668112d27bbd536b2",
+    "lane": "precision",
+    "claim": "render defines_symbol render.plainContentType",
+    "evidence_ids": [
+      "render/text.go:20-20"
+    ]
+  },
+  {
+    "item_key": "es1:670ce22dc1055c1ad4a8e022af4f5d40",
+    "lane": "precision",
+    "claim": "gin.Context.MultipartForm exports_symbol method",
+    "evidence_ids": [
+      "context.go:723-723"
+    ]
+  },
+  {
+    "item_key": "es1:11234da850eac8cd75f420155db6e5da",
+    "lane": "precision",
+    "claim": "binding.MIMETOML exports_symbol constant",
+    "evidence_ids": [
+      "binding/binding.go:25-25"
+    ]
+  },
+  {
+    "item_key": "es1:1fd89fbf7297472093b9fcf1d0698b51",
+    "lane": "precision",
+    "claim": "gin.Context defines_symbol gin.Context.Param",
+    "evidence_ids": [
+      "context.go:513-513"
+    ]
+  },
+  {
+    "item_key": "es1:fa1485762f8317403496d6e85c95368b",
+    "lane": "precision",
+    "claim": "gin.HandlersChain exports_symbol type",
+    "evidence_ids": [
+      "gin.go:57-57"
+    ]
+  },
+  {
+    "item_key": "es1:c7331b59f6bf379c46680bc109d0def0",
+    "lane": "precision",
+    "claim": "binding.msgpackBinding.BindBody exports_symbol method",
+    "evidence_ids": [
+      "binding/msgpack.go:27-27"
+    ]
+  },
+  {
+    "item_key": "es1:f95a62d7bf73669b7f998d30a852ca55",
+    "lane": "precision",
+    "claim": "ginS.RunFd exports_symbol function",
+    "evidence_ids": [
+      "ginS/gins.go:157-157"
+    ]
+  }
+]

@@ -1,0 +1,37 @@
+[
+  {
+    "item_key": "es1:2cb6102931d3041d23f8c331d5b17c46",
+    "lane": "recall_unit",
+    "unit": "codec/json"
+  },
+  {
+    "item_key": "es1:a0db52bd63c373dab65256b9bdbb6156",
+    "lane": "recall_unit",
+    "unit": "render"
+  },
+  {
+    "item_key": "es1:5a77ccccf21615c036b74be936cf8f68",
+    "lane": "recall_unit",
+    "unit": "ginS"
+  },
+  {
+    "item_key": "es1:84e71b3bd9b976e8ac47715ad096ca09",
+    "lane": "recall_unit",
+    "unit": "internal/bytesconv"
+  },
+  {
+    "item_key": "es1:1e1af76a8bc19031835bf24cf3de2f80",
+    "lane": "recall_unit",
+    "unit": "internal/fs"
+  },
+  {
+    "item_key": "es1:3f9e1e8ae1e517ed2ebc012613cb844c",
+    "lane": "recall_unit",
+    "unit": "."
+  },
+  {
+    "item_key": "es1:5dc12d989cb9db83c95358e69360cd90",
+    "lane": "recall_unit",
+    "unit": "binding"
+  }
+]

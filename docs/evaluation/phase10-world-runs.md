@@ -148,19 +148,25 @@ Nothing about precision, recall, grounding quality, or whether any observation i
 
 ## Run under protocol v2 (2026-08-22)
 
+> **Superseded figures below this line have been replaced.** An earlier v2 run
+> at a pre-merge head reported world 1 at 242,512 observations and manifest
+> digest `21b503c184f9d379…`. That run is not the frozen one: world 1 is this
+> repository, so merging changed its tree and therefore its binding. The frozen
+> reference set is the one recorded here, at `ee3fda0a`.
+
 World 3 is now the independent **gin** calibration, bound to
 `github.com/gin-gonic/gin` at `34dac209ffb6ef85cc78c5d217bbb7ad001d68fd`.
 
 ```bash
-SENSEI_REV=$(git rev-parse HEAD) \
-GLOBULAR_SRC=<checkout> GLOBULAR_REV=48784d096039 \
+SENSEI_REV=ee3fda0a9dd853337b4edd987c7a9346b31ca3d7 \
+GLOBULAR_SRC=<checkout> GLOBULAR_REV=48784d0960392df0 \
 GIN_SRC=<checkout> \
   scripts/eval-phase10-worlds.sh <out-dir> 2026-08-22T15:00:00Z phase10-v2-pass1
 ```
 
 | world | binding | status | observations |
 |---|---|---|---|
-| 1 sensei | `github.com/globulario/sensei` @ `SENSEI_REV` | resolved | 242,512 |
+| 1 sensei | `github.com/globulario/sensei` @ `ee3fda0a9dd8` | resolved | 242,548 |
 | 2 Globular | `github.com/globulario/Globular` @ `48784d096039` | resolved | 20,168 |
 | 3 **gin** | `github.com/gin-gonic/gin` @ `34dac209ffb6` | resolved | **16,504** |
 | 4 mutant suite | composed tree digest | synthetic | 347 over 12 sites |
@@ -172,8 +178,13 @@ produced under v1. That is the whole point of the amendment.
 
 - protocol: `phase10-reference-protocol-v2`, digest `6afaf6ec1cebc73c…`
 - selection seed: `phase10-v2-pass1`
-- manifest digest: `21b503c184f9d379…`
+- manifest **declared identity**: `1621f3e89e6829f2…` — the manifest's own
+  `digest_sha256`, what every label file binds to and what §17 means
+- manifest **file digest**: `04e74ffd08c1301f…` — sha256 of the bytes on disk
 - **805 items across 37 strata**
+
+The two digests are not interchangeable. Quote the declared identity when
+recording what a score consumed.
 
 | world | precision | recall_unit | challenge |
 |---|---|---|---|
@@ -184,10 +195,34 @@ produced under v1. That is the whole point of the amendment.
 
 ### Replay identity
 
-Two runs from identical pinned inputs produce **byte-identical** artifacts:
-all 16 world reports, arm reports, the sample manifest and every blinded view.
+Two runs from identical pinned inputs at `ee3fda0a` produce **byte-identical**
+artifacts: all 17 protocol artifacts — four world reports, the run index, both
+composition arm reports, the sample manifest and all nine blinded views.
 
 `run_envelope.json` is the one file that differs, by design — it records what a
 run *cost* (wall clock, per-arm elapsed, heap), never what it concluded. The
 difference was checked rather than assumed: nothing but timings and allocation
 counters moves.
+
+### Where the frozen reference set lives
+
+`docs/evaluation/phase10-v2-reference-set/`, committed so it is frozen in a way
+a third party can verify rather than merely asserted. Every file is listed with
+its sha256 in `DIGESTS.txt`; `sha256sum -c DIGESTS.txt` verifies the set.
+
+It holds the sample manifest, the nine blinded views a human adjudicator reads,
+nine empty label containers, the section 13 second-adjudicator overlap subset,
+the four world reports, and the script that regenerates the containers from the
+manifest.
+
+**It contains no labels.** Every judgment field is null and `labelled_count` is
+0 in all nine containers: section 14 reserves support labels, expected recall
+facts, usefulness ratings and disagreement resolutions for a human.
+
+Two metrics are recorded as not computable rather than left to surface during
+scoring. The section 18 model delta has no second population — all 12 sampled
+challenge items came from the deterministic lane and no model provider was
+bound — so it is unavailable, not zero. The section 17 reference-set digest is
+deliberately not computed, because it content-addresses over label file digests
+that do not exist until the labels do; computing it now would content-address a
+set of empty containers.

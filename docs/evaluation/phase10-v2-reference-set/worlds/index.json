@@ -1,0 +1,97 @@
+{
+  "schema_version": "sensei.eval_arms_index.v1",
+  "generated_by": "sensei eval-arms",
+  "revision": "ee3fda0a9dd853337b4edd987c7a9346b31ca3d7",
+  "revision_status": "resolved",
+  "captured_at": "2026-08-22T15:00:00Z",
+  "repository_domain": "example.com/eval",
+  "arms": [
+    {
+      "arm": "deterministic_extraction_without_composition",
+      "subject": "mutant_suite",
+      "status": "ran",
+      "report_file": "deterministic_extraction_without_composition.json",
+      "report_digest_sha256": "53c14fe90bafc2a6a892f0042788b5df0b921c859d8a99ff9d9450f2917bfbd0",
+      "site_coverage": "6/9"
+    },
+    {
+      "arm": "phase10_composition_model_disabled",
+      "subject": "mutant_suite",
+      "status": "ran",
+      "report_file": "phase10_composition_model_disabled.json",
+      "report_digest_sha256": "57460588aaaaef75a5c95f66a6e0188b405e58cc2842c96037f56d2c6c28c439",
+      "candidate_rate": "9/9",
+      "candidate_grounding": "60/60 post-validation"
+    },
+    {
+      "arm": "briefing_and_impact_surfaces",
+      "subject": "mutant_suite",
+      "status": "unavailable_by_authority_model",
+      "reason": "the operational surfaces require an admitted, current, published graph: reads fail closed on graph freshness, and publishing a synthetic mutant domain is refused by registry admission. Neither wall was weakened to obtain a number."
+    },
+    {
+      "arm": "briefing_and_impact_surfaces",
+      "subject": "published_domain",
+      "status": "not_run",
+      "reason": "no --published-domain and --published-file given; the operational surfaces are only defined over an admitted, published graph, so there is nothing to baseline"
+    },
+    {
+      "arm": "world1_sensei_self",
+      "subject": "published_domain",
+      "status": "ran",
+      "report_file": "world1_sensei_self.json",
+      "report_digest_sha256": "43738e7d06729cf564470c4c177e2e2f3be75a8bf0968c6bab21f5db57e6b61d",
+      "site_coverage": "242548 obs"
+    },
+    {
+      "arm": "world2_globular",
+      "subject": "published_domain",
+      "status": "ran",
+      "report_file": "world2_globular.json",
+      "report_digest_sha256": "a660f56836baf824deb35db88b5f606550725b1322b9a4c23f6d1d0b297a5af5",
+      "site_coverage": "20168 obs"
+    },
+    {
+      "arm": "world3_independent_calibration",
+      "subject": "published_domain",
+      "status": "ran",
+      "report_file": "world3_independent_calibration.json",
+      "report_digest_sha256": "03d439a086b4d7443733b4d4f6f3789a7d2d40373dab73bf4b225642dcf0a3eb",
+      "site_coverage": "16504 obs"
+    },
+    {
+      "arm": "world4_mutant_suite",
+      "subject": "mutant_suite",
+      "status": "ran",
+      "site_coverage": "347 obs across 12 site(s)"
+    },
+    {
+      "arm": "frozen_sample_manifest",
+      "subject": "published_domain",
+      "status": "ran",
+      "report_file": "sample/sample-manifest.json",
+      "report_digest_sha256": "04e74ffd08c1301f83a89632b8c757877b29882ea82e2de6e7a5b3c99f985871",
+      "site_coverage": "805 item(s) across 37 stratum/strata",
+      "sample_manifest_digest_sha256": "1621f3e89e6829f2ab0efb330f04231177ece580b01a5c3f7cb32946bad29beb"
+    },
+    {
+      "arm": "phase10_composition_model_bound",
+      "subject": "mutant_suite",
+      "status": "not_run",
+      "reason": "optional model capability is available; this run did not bind a provider (supply --model-provider-id, --model-provider-path and --model-name to measure it)"
+    }
+  ],
+  "run_envelope_file": "run_envelope.json",
+  "authority": {
+    "capture_state": "bound",
+    "sensei_revision": "ee3fda0a9dd853337b4edd987c7a9346b31ca3d7",
+    "seed_digest_sha256": "f4abf32d590db99791db917aa832a511ddf14f5a80500e136de5dc80ba3a8826",
+    "seed_triple_count": "9087",
+    "authored_corpus_digest_sha256": "4a298a704085e626e0c69c05bb4b3877689c162530f75c8da4225614e5ea0a62",
+    "graph_build_commit": "9bfe5dc9511013c1bb6573b418c362542811334b",
+    "paired_repo_commit": "standalone",
+    "transaction_stamp_sha256": "0c9f0a4640aadc0065b0c4f1f00324b5fb5a49040e07935b247e0499a1be08fc",
+    "executed_build_state": "stamped",
+    "executed_build_revision": "ee3fda0a9dd853337b4edd987c7a9346b31ca3d7"
+  }
+}

@@ -1,0 +1,962 @@
+[
+  {
+    "item_key": "es1:1c1498e7acb7d337e4d5fe031fba2ab0",
+    "lane": "precision",
+    "claim": "api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "stale_documentation/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:cca6bd0b39136683ba2b2e89ddfcd6f9",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:a4cb1eb1270e06e26f1ea02d14567d5c",
+    "lane": "precision",
+    "claim": "service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:b00dc79b3404cb1da16ce8f9f36c4d0f",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "misleading_commit_message/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:6096ae064db99cf54fdf4e5793c9babb",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "authority_split/api/api.go:22-22"
+    ]
+  },
+  {
+    "item_key": "es1:70eb111792a404d64a6b0932469490d7",
+    "lane": "precision",
+    "claim": "api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "missing_evidence_provider/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:f758e0005fcdbc7508c3c194a16953c5",
+    "lane": "precision",
+    "claim": "service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "baseline/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:02442c8ecd07c834aef799854f793455",
+    "lane": "precision",
+    "claim": "service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:be0c3b993a9897f80ad6fb5bd7dff5b1",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "baseline/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:a5a8231dec5cf1871f3b97e42001612c",
+    "lane": "precision",
+    "claim": "api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:d3dce6f4c9a7de484c6f104a52b44353",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:1e99ac1c6c041c4bd1e6c2d1cca2d8fd",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "forbidden_dependency_direction/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:db6253ee8f2e6f9e0916fa6cf067e73c",
+    "lane": "precision",
+    "claim": "service.Allow crosses_component_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "missing_evidence_provider/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:88bb19eae6a487d34006c3c83fff91cf",
+    "lane": "precision",
+    "claim": "service.Allow crosses_component_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "incomplete_proof_discharge/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:b61a1faf94a6c4076f16564e2d468c69",
+    "lane": "precision",
+    "claim": "service.Allow crosses_component_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:c474f24c00944d71a1732f641833d897",
+    "lane": "precision",
+    "claim": "api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:bb9eace17fa98d4861392eec437523d5",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "implementation_repetition/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:932be869b816ad6d4bd32834e7b6ee16",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_component_boundary_to billing.Quote",
+    "evidence_ids": [
+      "implementation_repetition/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:bb37be53a6c8a711998b7587f5784761",
+    "lane": "precision",
+    "claim": "service.Allow crosses_component_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "baseline/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:4e18ec0e299c4c4409450eadfbd6925a",
+    "lane": "precision",
+    "claim": "api.Handle crosses_component_boundary_to service.Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:05c2603c6f2b6f10023fa764923d375d",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_component_boundary_to billing.Quote",
+    "evidence_ids": [
+      "misleading_commit_message/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:f8e1dd53e50b9b326e87c08631f701dc",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "missing_evidence_provider/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:97e3c0276c99b0da3f62468bb35e9a05",
+    "lane": "precision",
+    "claim": "service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "implementation_repetition/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:0fb82aa63a4b809e36ecedb358234f0d",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_package_boundary_to billing.Charge",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:a062cf4fe126496757aeee2ec2b2cc22",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "implementation_repetition/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:6dea0079ec43d178ac3a16d6aef9be65",
+    "lane": "precision",
+    "claim": "service.Allow crosses_package_boundary_to storage.TierOf",
+    "evidence_ids": [
+      "missing_evidence_provider/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:fce9dd26bc0d4abd1a4c8110cb9a2f76",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_package_boundary_to billing.Quote",
+    "evidence_ids": [
+      "stale_documentation/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:c9a67cb78e391293f286b1f3c4f2f952",
+    "lane": "precision",
+    "claim": "api.Handle crosses_package_boundary_to service.Allow",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:fff7d9c9a0ceae06de697435a04c41ba",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_component_boundary_to billing.Quote",
+    "evidence_ids": [
+      "forbidden_dependency_direction/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:a1b478b6de7ff2991ab50f6688cf48a5",
+    "lane": "precision",
+    "claim": "shipping.Ship crosses_component_boundary_to billing.Quote",
+    "evidence_ids": [
+      "missing_evidence_provider/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:e84999b7bc7b6a010e77ebf4dcb9ed47",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:75c2c854c349f4c7549ea5e194e8a8fd",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "generated_file_contamination/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:9863c330a290be6069b7b071bdd0239e",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "stale_documentation/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:3e3fbe616c68eff5c9e5de1ceeb742db",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "authority_split/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:e714ec381aa60c67352b8bbd19cb61ae",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:1d6ea071c1ff1fd79fafa4298aa97215",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:191e8ebc80d78d4cb1829e4203209912",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:6a0f4069f0ffd6d74c43d052bad0b93f",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol api.localLimit",
+    "evidence_ids": [
+      "authority_split/api/api.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:ba15f8720514de7f318bfce213450347",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "baseline/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:34b7ba284816f75b7d4ca57efee38e0a",
+    "lane": "precision",
+    "claim": "service.Allow entrypoint_reaches_symbol storage.TierOf",
+    "evidence_ids": [
+      "implementation_repetition/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:6cb4664b2678eb040d81c995a2995c1a",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "implementation_repetition/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:ea1203619d00ec88b206d79f6a7266c3",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:c3433a3ac6ae69630ccfcf489e085352",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "missing_evidence_provider/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:1791bd183dcbe75b22d34e99bbecde51",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "authority_split/api/api.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:2ceb35309de408f001c782f6821e5e96",
+    "lane": "precision",
+    "claim": "billing.Quote entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "authority_split/billing/surface.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:9f53f4fcf07ebec0d47f1534c161529c",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Quote",
+    "evidence_ids": [
+      "generated_file_contamination/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:be076b867e907cf6ece3a3780a5f2e29",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "authority_split/api/api.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:56a09c924a55e6eaced055e371e6edeb",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "misleading_commit_message/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:f9d2f024db6cda0d997eead2782f6788",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol storage.TierOf",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:bb2d48220cc711077eab6f8648409184",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "stale_documentation/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:61c6c326835dfea9af30df8d50002c2b",
+    "lane": "precision",
+    "claim": "service.Allow entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "incomplete_proof_discharge/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:0096eced8015ed24eecbd9d60f9a1242",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol storage.TierOf",
+    "evidence_ids": [
+      "stale_documentation/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:0ecf76e35adbfccf98c737b86d611876",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "generated_file_contamination/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:68e77e654cb9a75a4795107dfe06e11b",
+    "lane": "precision",
+    "claim": "api.Handle entrypoint_reaches_symbol service.Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:8ab5d13c68b67504ae973997580e0815",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Quote",
+    "evidence_ids": [
+      "stale_documentation/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:f5f57a6bb48feee277def5130bcac1ea",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Quote",
+    "evidence_ids": [
+      "incomplete_proof_discharge/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:103c1a51de5b665ac2efc06c267dc09b",
+    "lane": "precision",
+    "claim": "service.Allow entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "missing_evidence_provider/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:df56134a7f04f3394a35f40e7e56e07b",
+    "lane": "precision",
+    "claim": "service.Allow entrypoint_reaches_symbol storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:291705595cc864c1336c65104df44b0c",
+    "lane": "precision",
+    "claim": "service.Allow entrypoint_reaches_symbol service.RateLimit",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:be5b9d3e711c992f665d665cb1677639",
+    "lane": "precision",
+    "claim": "shipping.Ship entrypoint_reaches_symbol billing.Charge",
+    "evidence_ids": [
+      "baseline/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:d3d3f6e0678af62bf068d4046c92190a",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "incomplete_proof_discharge/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:843fb25b9228a02a9080bdee208e87e9",
+    "lane": "precision",
+    "claim": "service.Allow writes tier",
+    "evidence_ids": [
+      "forbidden_dependency_direction/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:18eb20061ee9b40a91b9028fb3418e3f",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:73361c47b100e995094c600ccae1d06c",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "implementation_repetition/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:1070fd483f52e1b5da571b6c7f0d5641",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:96d6bb29bb4614a32d7b3033cc958a4c",
+    "lane": "precision",
+    "claim": "storage.TierOf writes userID",
+    "evidence_ids": [
+      "misleading_commit_message/storage/storage.go:5-5"
+    ]
+  },
+  {
+    "item_key": "es1:ef7233e6c91c33b24cfb405ddbb38937",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "authority_split/api/api.go:22-22"
+    ]
+  },
+  {
+    "item_key": "es1:a4f1e1e9c193c531f3a1314550b6dd48",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "forbidden_dependency_direction/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:d9cdca53884583c11beb49e6bc64eb82",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:7fd88b7bc20e4002403c3b071de562e2",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "baseline/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:b933a447b91a6406aba167c1605bef81",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "incomplete_proof_discharge/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:ccaffa0b70735812b64648d1f984d235",
+    "lane": "precision",
+    "claim": "service.Allow writes tier",
+    "evidence_ids": [
+      "incomplete_proof_discharge/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:1a83726ad8b151af4e37de96434d5c63",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "stale_documentation/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:6688f8fb5d718d2c6d8a38a0a51b9c27",
+    "lane": "precision",
+    "claim": "storage.TierOf reads RateLimit",
+    "evidence_ids": [
+      "forbidden_dependency_direction/storage/storage.go:10-10"
+    ]
+  },
+  {
+    "item_key": "es1:fa803c53076209ffdbc9a96d8b41f08d",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "missing_evidence_provider/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:5e1433032aa95cc2d5f440e7f6ede398",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "implementation_repetition/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:a0c0cf9d508a7fcc18c2b0dbe5b6f063",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "baseline/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:0cfffd69ef95417d2601786301fe2f3b",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "stale_documentation/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:23cb1df1bbb2c557c9bd39d04049c1bd",
+    "lane": "precision",
+    "claim": "service.Allow writes tier",
+    "evidence_ids": [
+      "baseline/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:fb2b803db1b141cbd124a00f2338cea6",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "missing_evidence_provider/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:7c6a2df54902d6099ded9ef929179a6a",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "misleading_commit_message/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:e7f24fd7224cf3bec11989463968eed2",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "authority_split/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:73e24ea74dec2d96003827d51c69493d",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "generated_file_contamination/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:2a2b731cdf61116090529356c0ab7142",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "stale_documentation/service/service.go:20-20"
+    ]
+  },
+  {
+    "item_key": "es1:7411f715ef54f640839c5f343624d241",
+    "lane": "precision",
+    "claim": "api.Handle reads Allow",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:db20c9c37a0b0f716f9284d1f7f9e5a4",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:55af1e63eaa4aa822b34f0a023aa2582",
+    "lane": "precision",
+    "claim": "service.Allow writes tier",
+    "evidence_ids": [
+      "stale_documentation/service/service.go:20-20"
+    ]
+  },
+  {
+    "item_key": "es1:54a991b796d29d5c261d22c1791e4644",
+    "lane": "precision",
+    "claim": "service.Allow writes tier",
+    "evidence_ids": [
+      "generated_file_contamination/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:ee994d3bda771530b79f3680e5400a5d",
+    "lane": "precision",
+    "claim": "service.Allow reads TierOf",
+    "evidence_ids": [
+      "forbidden_dependency_direction/service/service.go:19-19"
+    ]
+  },
+  {
+    "item_key": "es1:a65d54d78f5ae3090b0372e75b2c379f",
+    "lane": "precision",
+    "claim": "shipping.Ship reads Quote",
+    "evidence_ids": [
+      "generated_file_contamination/shipping/shipping.go:7-7"
+    ]
+  },
+  {
+    "item_key": "es1:d361c3827aa57a13280e0a9797a32f78",
+    "lane": "precision",
+    "claim": "component.service component_depends_on_component component.storage",
+    "evidence_ids": [
+      "implementation_repetition/service/service.go:3-3"
+    ]
+  },
+  {
+    "item_key": "es1:05115e9596ee684969445c95da10b212",
+    "lane": "precision",
+    "claim": "billing defines_symbol billing.Charge",
+    "evidence_ids": [
+      "misleading_commit_message/billing/billing.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:3018d91574a43a8c6c3041087bdaa695",
+    "lane": "precision",
+    "claim": "api defines_symbol api.Handle",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:473e535993ecc37f3700c703232e885d",
+    "lane": "precision",
+    "claim": "storage defines_symbol storage.TierOf",
+    "evidence_ids": [
+      "misleading_commit_message/storage/storage.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:c11b87007fa562cf4d3f69c5eca3cc1f",
+    "lane": "precision",
+    "claim": "storage defines_symbol storage.TierOf",
+    "evidence_ids": [
+      "authority_split/storage/storage.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:05158459c964b0eca88a9fbf4ff46c28",
+    "lane": "precision",
+    "claim": "api defines_symbol api.Handle",
+    "evidence_ids": [
+      "baseline/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:e8d082d5c234e44526196e97a599b865",
+    "lane": "precision",
+    "claim": "service defines_symbol service.Allow",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:fa173b0ad52a6d196e3adbc3443e301a",
+    "lane": "precision",
+    "claim": "service.RateLimit exports_symbol function",
+    "evidence_ids": [
+      "authority_split/service/service.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:2e74cceb9ea47121d2b16f5376c8120f",
+    "lane": "precision",
+    "claim": "api.Handle exports_symbol function",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:1a614fa4461493d03254e61a5256e3b1",
+    "lane": "precision",
+    "claim": "billing.Quote exports_symbol function",
+    "evidence_ids": [
+      "incomplete_proof_discharge/billing/surface.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:c3575d6d21c162181de0d021ae56abfe",
+    "lane": "precision",
+    "claim": "component.shipping component_depends_on_component component.billing",
+    "evidence_ids": [
+      "stale_documentation/shipping/shipping.go:3-3"
+    ]
+  },
+  {
+    "item_key": "es1:d4a0874bc170b618c63d06c022add286",
+    "lane": "precision",
+    "claim": "billing defines_symbol billing.Quote",
+    "evidence_ids": [
+      "baseline/billing/surface.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:2e9bb343ac9de24c922f5cc05e28d887",
+    "lane": "precision",
+    "claim": "service defines_symbol service.Allow",
+    "evidence_ids": [
+      "incomplete_proof_discharge/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:2fd8de4fc93f1841b18d522ac5c60f09",
+    "lane": "precision",
+    "claim": "component.api component_depends_on_component component.service",
+    "evidence_ids": [
+      "misleading_commit_message/api/api.go:3-3"
+    ]
+  },
+  {
+    "item_key": "es1:bb337c6c3d3d5a41683d25afb277e7e2",
+    "lane": "precision",
+    "claim": "api defines_symbol api.Handle",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:0444521adf5c1396fd27be77a9c18f10",
+    "lane": "precision",
+    "claim": "component.shipping component_depends_on_component component.billing",
+    "evidence_ids": [
+      "missing_evidence_provider/shipping/shipping.go:3-3"
+    ]
+  },
+  {
+    "item_key": "es1:d9845924661fd94501a1022026bf03f6",
+    "lane": "precision",
+    "claim": "storage.TierOf exports_symbol function",
+    "evidence_ids": [
+      "misleading_commit_message/storage/storage.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:2be3de3eb4c0eca34fda86acdb19de8c",
+    "lane": "precision",
+    "claim": "storage.TierOf exports_symbol function",
+    "evidence_ids": [
+      "missing_evidence_provider/storage/storage.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:50d92dc232cb315def8cc34ee8021894",
+    "lane": "precision",
+    "claim": "api.Handle exports_symbol function",
+    "evidence_ids": [
+      "incomplete_proof_discharge/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:f758e1b0dd00f6c7860b220595249cdd",
+    "lane": "precision",
+    "claim": "service.RateLimit exports_symbol function",
+    "evidence_ids": [
+      "misleading_commit_message/service/service.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:ab53b7a88e73c478b34f185a7b26ada2",
+    "lane": "precision",
+    "claim": "billing.Quote exports_symbol function",
+    "evidence_ids": [
+      "misleading_commit_message/billing/surface.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:f006e7be2be0c4be6a74813c7e978159",
+    "lane": "precision",
+    "claim": "storage.TierOf exports_symbol function",
+    "evidence_ids": [
+      "forbidden_dependency_direction/storage/storage.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:5068281cd732a85b54e1c56f1ff84430",
+    "lane": "precision",
+    "claim": "service defines_symbol service.Allow",
+    "evidence_ids": [
+      "generated_file_contamination/service/service.go:18-18"
+    ]
+  },
+  {
+    "item_key": "es1:63ea050ee2bb3ff4187a342689d6ce16",
+    "lane": "precision",
+    "claim": "shipping defines_symbol shipping.Ship",
+    "evidence_ids": [
+      "authority_split/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:d33dc4f1e8828cf820773b999a8241d3",
+    "lane": "precision",
+    "claim": "api.Handle exports_symbol function",
+    "evidence_ids": [
+      "implementation_repetition/api/api.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:c32971bd5c222ea67a725ca60797385b",
+    "lane": "precision",
+    "claim": "storage.TierOf exports_symbol function",
+    "evidence_ids": [
+      "generated_file_contamination/storage/storage.go:4-4"
+    ]
+  },
+  {
+    "item_key": "es1:ab06751aacb9a80b6ceae67bd3f918d9",
+    "lane": "precision",
+    "claim": "service defines_symbol service.RateLimit",
+    "evidence_ids": [
+      "implementation_repetition/service/service.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:60f1d05831f5b0a3d4e4f2d707627538",
+    "lane": "precision",
+    "claim": "shipping defines_symbol shipping.Ship",
+    "evidence_ids": [
+      "generated_file_contamination/shipping/shipping.go:6-6"
+    ]
+  },
+  {
+    "item_key": "es1:34ab9df498aa0577c8c8f47562db018a",
+    "lane": "precision",
+    "claim": "component.api component_depends_on_component component.service",
+    "evidence_ids": [
+      "cross_domain_symbol_leakage/api/api.go:3-3"
+    ]
+  },
+  {
+    "item_key": "es1:1a8ad529f147d6437cf8762580765b94",
+    "lane": "precision",
+    "claim": "billing defines_symbol billing.Charge",
+    "evidence_ids": [
+      "baseline/billing/billing.go:4-4"
+    ]
+  }
+]
