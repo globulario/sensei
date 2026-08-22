@@ -6169,6 +6169,66 @@ test_symbols:
     symbol: TestVerifyWorktreeUncommittedEditVerifies
     package: main
     language: go
+  - id: cmd/eval-arms/protocol_test.go:TestAGinCheckoutCannotSatisfyV1
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestAGinCheckoutCannotSatisfyV1
+    package: main
+    language: go
+    doc: "TestAGinCheckoutCannotSatisfyV1 is the alias the amendment forbids, from the\ngin side. Section 0 of v2 is explicit that a run accepting this substitution\nwould produce a manifest claiming a compliance it does not have."
+  - id: cmd/eval-arms/protocol_test.go:TestChangingTheWorldBindingChangesTheExperimentIdentity
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestChangingTheWorldBindingChangesTheExperimentIdentity
+    package: main
+    language: go
+    doc: "TestChangingTheWorldBindingChangesTheExperimentIdentity.\n\nThe two protocols must not be interchangeable at the level the sample\nmanifest records. If v1 and v2 agreed on World 3, a score computed under one\ncould be read as evidence about the other, which section 0 forbids."
+  - id: cmd/eval-arms/protocol_test.go:TestCompiledProtocolIdentitiesMatchTheirDocuments
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestCompiledProtocolIdentitiesMatchTheirDocuments
+    package: main
+    language: go
+    doc: "TestCompiledProtocolIdentitiesMatchTheirDocuments closes the gap the test\nabove leaves open.\n\nTestProtocolIDAndDigestCannotDriftIndependently compares the compiled\nconstants to EACH OTHER; it would still pass if both had drifted away from\nthe documents they claim to identify. But the constants are the whole basis\non which resolveProtocol decides that some bytes are \"the v2 protocol\", so a\nconstant that no longer hashes the file at Path means the binary is enforcing\nan identity nothing on disk carries.\n\nThe revision check is the same defect one level down, and the more dangerous\nhalf: the DOCUMENT is the authority, the compiled pin is only the enforcement\nof it. Editing section 3's revision without editing Revisions (or the\nreverse) would have the evaluator refuse every checkout except one the\nprotocol never named, while stamping a digest of a document that says\notherwise. Bound in BOTH directions so neither side can move alone."
+  - id: cmd/eval-arms/protocol_test.go:TestEachProtocolWorldHasARegisteredBinding
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestEachProtocolWorldHasARegisteredBinding
+    package: main
+    language: go
+    doc: "TestEachProtocolWorldHasARegisteredBinding. A world listed in Worlds but\nabsent from Remotes fails closed at run time by design, which is safe but\narrives as a run-time refusal rather than a build-time error. Since the\nbindings are now per-protocol, a future protocol that adds a world and\nforgets its binding should fail here instead."
+  - id: cmd/eval-arms/protocol_test.go:TestProtocolIDAndDigestCannotDriftIndependently
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestProtocolIDAndDigestCannotDriftIndependently
+    package: main
+    language: go
+    doc: "TestProtocolIDAndDigestCannotDriftIndependently.\n\nEach row is a way the pair could lie. A registered document under another\nidentity is how a gin run would come to be filed as v1; a registered identity\nover other bytes is the same lie reversed; a registered identity with an\nunreadable document is an identity with nothing behind it."
+  - id: cmd/eval-arms/protocol_test.go:TestSQLiteCannotSatisfyV2
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestSQLiteCannotSatisfyV2
+    package: main
+    language: go
+    doc: "TestSQLiteCannotSatisfyV2 is the same alias from the other side."
+  - id: cmd/eval-arms/protocol_test.go:TestTheExactPinnedGinSucceeds
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestTheExactPinnedGinSucceeds
+    package: main
+    language: go
+    doc: "TestTheExactPinnedGinSucceeds is the positive case. Without it the four\nrefusals above could all be satisfied by a check that refuses everything."
+  - id: cmd/eval-arms/protocol_test.go:TestTheWrongGinRevisionIsRefused
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestTheWrongGinRevisionIsRefused
+    package: main
+    language: go
+    doc: "TestTheWrongGinRevisionIsRefused. Right repository, wrong commit — which\npasses every remote check and is still a different experiment, because v2\npins the revision as part of its identity."
+  - id: cmd/eval-arms/protocol_test.go:TestV1StillNamesSQLite
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestV1StillNamesSQLite
+    package: main
+    language: go
+    doc: "TestV1StillNamesSQLite. v1 is historical evidence. If it silently became gin\nthe record of what was measured under it would be false, and the negative\nSQLite result that motivated v2 would be unreproducible."
+  - id: cmd/eval-arms/protocol_test.go:TestV2IdentifiesGinAtTheExactPinnedRevision
+    file: cmd/eval-arms/protocol_test.go
+    symbol: TestV2IdentifiesGinAtTheExactPinnedRevision
+    package: main
+    language: go
+    doc: "TestV2IdentifiesGinAtTheExactPinnedRevision."
   - id: cmd/eval-arms/sample_test.go:TestAMissingProtocolIsAnActionableRefusal
     file: cmd/eval-arms/sample_test.go
     symbol: TestAMissingProtocolIsAnActionableRefusal
@@ -6211,12 +6271,30 @@ test_symbols:
     package: main
     language: go
     doc: "TestAnImpostorCheckoutIsRefusedForANamedWorld.\n\nA world's name and its domain come from the same caller-supplied --world\nstring, so neither is evidence about the tree. The remote is at least a\nproperty of the checkout. This defeats mislabelling rather than a determined\nforger — a local path has no unforgeable link upstream — and mislabelling is\nthe failure an evaluation harness actually suffers."
+  - id: cmd/eval-arms/sample_test.go:TestComposedClaimCitationsAreNamespaced
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestComposedClaimCitationsAreNamespaced
+    package: main
+    language: go
+    doc: "TestComposedClaimCitationsAreNamespaced covers the second half of the same\ndefect: eb72fb3e namespaced a claim's file paths and left its cited receipt\nids bare."
   - id: cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
     file: cmd/eval-arms/sample_test.go
     symbol: TestComposedClaimsReachTheSample
     package: main
     language: go
     doc: "TestComposedClaimsReachTheSample.\n\nWithout this the frozen manifest held no item key and no blinded payload for\nany composed candidate, so a reference set derived from it left every one\nunlabelled — and the protocol's unsupported-claim rate (§9) and model delta\n(§18) are computed over exactly those claims. The world carried the\nobservations and silently dropped the propositions."
+  - id: cmd/eval-arms/sample_test.go:TestDocumentClaimsAreNamespacedLikeObservations
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestDocumentClaimsAreNamespacedLikeObservations
+    package: main
+    language: go
+    doc: "TestDocumentClaimsAreNamespacedLikeObservations.\n\nFound by an adversarial read of eb72fb3e — the #265 commit that merged\nwithout a bot review. Observations were namespaced by site; the document's\nown questions and counterexamples, appended two lines below, were not. Their\nidentities are repo-relative to one mutant's tree, so two mutants emitting\nthe same id collapsed to a single identity in evalsample's challenge lane\nand a label could attach to the wrong site."
+  - id: cmd/eval-arms/sample_test.go:TestEveryRegisteredProtocolDigestMatchesItsDocument
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestEveryRegisteredProtocolDigestMatchesItsDocument
+    package: main
+    language: go
+    doc: "TestEveryRegisteredProtocolDigestMatchesItsDocument is the drift guard for\nthe compiled digests that let this binary recognise a protocol without a\nworking directory.\n\nIt covers EVERY registered protocol, not just the default. A stale v1 digest\nwould be as bad as a stale v2 one: v1 is enforced so that a non-SQLite\ncheckout cannot be filed under it, and a digest that no longer matches its\ndocument silently turns that enforcement off."
   - id: cmd/eval-arms/sample_test.go:TestMissingRequiredWorldsNamesWhatDidNotRun
     file: cmd/eval-arms/sample_test.go
     symbol: TestMissingRequiredWorldsNamesWhatDidNotRun
@@ -6247,12 +6325,6 @@ test_symbols:
     package: main
     language: go
     doc: "TestResolveUpstreamFollowsACloneBackToItsRepository.\n\nThe worlds are measured from clones, so a clone's origin is the local path it\nwas made from rather than the upstream repository. The first version of this\ncheck compared that local path against the expected repository and refused\nevery legitimate run — the guard rejected exactly the trees it was meant to\nadmit."
-  - id: cmd/eval-arms/sample_test.go:TestTheCompiledProtocolDigestMatchesTheDocument
-    file: cmd/eval-arms/sample_test.go
-    symbol: TestTheCompiledProtocolDigestMatchesTheDocument
-    package: main
-    language: go
-    doc: "TestTheCompiledProtocolDigestMatchesTheDocument is the drift guard for the\nconstant that lets an installed binary recognise the default protocol\nwithout a working directory. If the document changes and the constant does\nnot, every caller passing the real v1 document would be told it is custom."
   - id: cmd/eval-arms/sample_test.go:TestTheDefaultProtocolRefusesAPartialWorldSet
     file: cmd/eval-arms/sample_test.go
     symbol: TestTheDefaultProtocolRefusesAPartialWorldSet
