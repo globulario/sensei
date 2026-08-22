@@ -6211,12 +6211,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestAnImpostorCheckoutIsRefusedForANamedWorld.\n\nA world's name and its domain come from the same caller-supplied --world\nstring, so neither is evidence about the tree. The remote is at least a\nproperty of the checkout. This defeats mislabelling rather than a determined\nforger — a local path has no unforgeable link upstream — and mislabelling is\nthe failure an evaluation harness actually suffers."
+  - id: cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestComposedClaimsReachTheSample
+    package: main
+    language: go
+    doc: "TestComposedClaimsReachTheSample.\n\nWithout this the frozen manifest held no item key and no blinded payload for\nany composed candidate, so a reference set derived from it left every one\nunlabelled — and the protocol's unsupported-claim rate (§9) and model delta\n(§18) are computed over exactly those claims. The world carried the\nobservations and silently dropped the propositions."
   - id: cmd/eval-arms/sample_test.go:TestMissingRequiredWorldsNamesWhatDidNotRun
     file: cmd/eval-arms/sample_test.go
     symbol: TestMissingRequiredWorldsNamesWhatDidNotRun
     package: main
     language: go
     doc: "TestMissingRequiredWorldsNamesWhatDidNotRun keeps the refusal's input honest."
+  - id: cmd/eval-arms/sample_test.go:TestMutantObservationsCarryTheirSiteIdentity
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestMutantObservationsCarryTheirSiteIdentity
+    package: main
+    language: go
+    doc: "TestMutantObservationsCarryTheirSiteIdentity.\n\nEach mutant site is extracted from its own tree, so its anchors are\nrepo-relative inside THAT tree: \"a.go:1-2\" in one mutant and \"a.go:1-2\" in\nanother are different files sharing a name. Appended unchanged they\ncollapsed to one identity under evalsample's content hash, so a precision\nlabel could attach to the wrong source and an adjudicator had no way to know\nwhich tree held the evidence."
   - id: cmd/eval-arms/sample_test.go:TestNormalizeRemoteComparesTheRepositoryNotTheURLForm
     file: cmd/eval-arms/sample_test.go
     symbol: TestNormalizeRemoteComparesTheRepositoryNotTheURLForm
@@ -6253,6 +6265,18 @@ test_symbols:
     package: main
     language: go
     doc: "TestTheMutantSuiteCountsTowardV1Completeness.\n\nThe protocol consumes four worlds and the fourth is the mutant suite, which\nis not a checkout and so never appeared in requiredWorlds. A run whose mutant\narms failed would otherwise have written a v1 sample over an incomplete v1\nevaluation — the same omission defect, in the world that does not look like\na world."
+  - id: cmd/eval-arms/sample_test.go:TestTheMutantWorldNameCannotBeSuppliedExternally
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheMutantWorldNameCannotBeSuppliedExternally
+    package: main
+    language: go
+    doc: "TestTheMutantWorldNameCannotBeSuppliedExternally.\n\nWorld 4 is produced internally. Without reserving the name, a caller could\npass --world for it: runWorlds would add an arbitrary checkout under that\nname while main added the real synthetic world under the same one."
+  - id: cmd/eval-arms/sample_test.go:TestTheMutantWorldNamespacesThroughItsBuilder
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheMutantWorldNamespacesThroughItsBuilder
+    package: main
+    language: go
+    doc: "TestTheMutantWorldNamespacesThroughItsBuilder covers the CALL SITE, not the\nhelper. Removing the namespacing call leaves the helper's own test green —\nthe same \"verified the machinery, not the consumer\" gap that this session\nhit twice already — so the property is asserted where it is actually used."
   - id: cmd/eval-arms/sample_test.go:TestTheProtocolDigestIsTheOneValidated
     file: cmd/eval-arms/sample_test.go
     symbol: TestTheProtocolDigestIsTheOneValidated
@@ -6271,6 +6295,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestTheSampleIsWrittenWhereTheIndexSaysItIs. An index naming a file that is\nnot there, or naming a digest that does not describe the bytes on disk, is\nworse than no index."
+  - id: cmd/eval-arms/sample_test.go:TestTheSuiteBindingIsTheTreeNotTheRunTimestamp
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheSuiteBindingIsTheTreeNotTheRunTimestamp
+    package: main
+    language: go
+    doc: "TestTheSuiteBindingIsTheTreeNotTheRunTimestamp.\n\nThe document digest covers receipt and evidence timestamps, so it changes\nwith --captured-at even when the tree is byte-identical. evalsample's\nselection key hashes the world binding, so deriving the binding from\ndocument digests meant the same committed seed could draw different claims\nfrom an unchanged suite — which is the one property the frozen sample\ndepends on."
   - id: cmd/eval-arms/world_test.go:TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten
     file: cmd/eval-arms/world_test.go
     symbol: TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten
