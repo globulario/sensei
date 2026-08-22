@@ -6491,6 +6491,65 @@ test_symbols:
     package: main
     language: go
     doc: "The digest must follow the content, or two different working trees would\nreport the same identity."
+  - id: cmd/eval-prospective/corpus_test.go:TestAComposedStatementMayNotQuoteFileOrTestRelations
+    file: cmd/eval-prospective/corpus_test.go
+    symbol: TestAComposedStatementMayNotQuoteFileOrTestRelations
+    package: main
+    language: go
+    doc: "A composed statement may quote the law an item hangs off, never where that\nlaw applies. source_file and test rows are the graph's account of WHERE an\nitem governs, and putting them in front of an adjudicator hands over the\nanswer key by another route — the blinding rule is about the information,\nnot about the field it arrives in."
+  - id: cmd/eval-prospective/corpus_test.go:TestHumanizeSlugKeepsTheIdentifiersMeaning
+    file: cmd/eval-prospective/corpus_test.go
+    symbol: TestHumanizeSlugKeepsTheIdentifiersMeaning
+    package: main
+    language: go
+    doc: "The slug is graph content; humanizing only changes how it reads."
+  - id: cmd/eval-prospective/corpus_test.go:TestResolveUsesTheClassNameProductionAccepts
+    file: cmd/eval-prospective/corpus_test.go
+    symbol: TestResolveUsesTheClassNameProductionAccepts
+    package: main
+    language: go
+    doc: "resolve takes the class name production accepts, which is the snake_case one\nby_class already returned. Translating to the CamelCase the help text\nadvertises made every multi-word class resolve at 0% while the single-word\nones worked, so it read as a graph with no detail."
+  - id: cmd/eval-prospective/gitworld_test.go:TestANewPathIsRecordedAsNewAtItsOwnMoment
+    file: cmd/eval-prospective/gitworld_test.go
+    symbol: TestANewPathIsRecordedAsNewAtItsOwnMoment
+    package: main
+    language: go
+    doc: "A new file is a new seam whatever git calls the operation. Existence is read\nfrom the status letter for the pair, never from the tree as it stands today."
+  - id: cmd/eval-prospective/gitworld_test.go:TestContentLookupReturnsTheFrozenDiff
+    file: cmd/eval-prospective/gitworld_test.go
+    symbol: TestContentLookupReturnsTheFrozenDiff
+    package: main
+    language: go
+    doc: "The content lookup returns the exact diff the inventory froze, so the\npackage a human reads is the change the sample names."
+  - id: cmd/eval-prospective/gitworld_test.go:TestEnumerationIsCompleteDeterministicAndCountsItsExclusions
+    file: cmd/eval-prospective/gitworld_test.go
+    symbol: TestEnumerationIsCompleteDeterministicAndCountsItsExclusions
+    package: main
+    language: go
+    doc: "The population is enumerated from git, not from a supplied list. Whoever\ngets to decide what enters the denominator decides the score, so the\nenumeration has to be mechanical and complete over the pinned revision."
+  - id: cmd/eval-prospective/protocol_test.go:TestAMissingProtocolIsRefused
+    file: cmd/eval-prospective/protocol_test.go
+    symbol: TestAMissingProtocolIsRefused
+    package: main
+    language: go
+    doc: "A missing document is refused too. Defaulting to \"no document, no check\"\nwould make the digest binding advisory exactly when it matters."
+  - id: cmd/eval-prospective/protocol_test.go:TestAnEditedProtocolIsRefused
+    file: cmd/eval-prospective/protocol_test.go
+    symbol: TestAnEditedProtocolIsRefused
+    package: main
+    language: go
+    doc: "The protocol document is the ruler. A run against an edited ruler that still\nreported the unedited ruler's name would produce a number nobody could trace\nback to a rule, and the mismatch would surface only when somebody tried to\nreproduce it."
+  - id: cmd/eval-prospective/protocol_test.go:TestAnUnregisteredProtocolIsRefused
+    file: cmd/eval-prospective/protocol_test.go
+    symbol: TestAnUnregisteredProtocolIsRefused
+    package: main
+    language: go
+  - id: cmd/eval-prospective/protocol_test.go:TestTheRegisteredDigestMatchesTheRepository
+    file: cmd/eval-prospective/protocol_test.go
+    symbol: TestTheRegisteredDigestMatchesTheRepository
+    package: main
+    language: go
+    doc: "The real repository must satisfy its own registered digest, or the constant\nin this binary has drifted from the merged document."
   - id: cmd/http-scan/main_test.go:TestScan_ExtractsRoutes
     file: cmd/http-scan/main_test.go
     symbol: TestScan_ExtractsRoutes
@@ -16143,6 +16202,102 @@ test_symbols:
     package: proofrequirements
     language: go
     doc: "An unresolvable relevant-node receipt is skipped, not fabricated."
+  - id: golang/architecture/prospective/prospective_test.go:TestAAndBAreNeverMerged
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestAAndBAreNeverMerged
+    package: prospective
+    language: go
+    doc: "A and B answer different questions — creation-time context versus missing\nanchors generally — and the protocol's whole interpretation table rests on\ntheir being separate. Nothing may merge them."
+  - id: golang/architecture/prospective/prospective_test.go:TestASmallStratumReportsItsRealDenominator
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestASmallStratumReportsItsRealDenominator
+    package: prospective
+    language: go
+    doc: "A stratum smaller than the target reports its true denominator rather than\nborrowing from another stratum to reach a round number."
+  - id: golang/architecture/prospective/prospective_test.go:TestAnUnreadableItemMayNotBoundTheDenominator
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestAnUnreadableItemMayNotBoundTheDenominator
+    package: prospective
+    language: go
+    doc: "Every item in the corpus must be judgeable. An item a human cannot read\ncannot be marked applicable, so admitting one would advertise a denominator\nlarger than the set anybody could actually adjudicate."
+  - id: golang/architecture/prospective/prospective_test.go:TestAnchorIndexIsDerivedFromTheFrozenCorpus
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestAnchorIndexIsDerivedFromTheFrozenCorpus
+    package: prospective
+    language: go
+    doc: "The anchored set and the eligible corpus must describe the same graph state.\nTwo independent reads can disagree; one read cannot."
+  - id: golang/architecture/prospective/prospective_test.go:TestAnchorsThatNeverMeetThePopulationAreRefused
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestAnchorsThatNeverMeetThePopulationAreRefused
+    package: prospective
+    language: go
+    doc: "A corpus whose anchors never meet the population is a path-form mismatch, not\nan unanchored world. Classifying on it reports empty anchored strata as a\nfinding about the repository — which is how a query's blind spot becomes a\nresult."
+  - id: golang/architecture/prospective/prospective_test.go:TestBuildRefusesIncompleteInputs
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestBuildRefusesIncompleteInputs
+    package: prospective
+    language: go
+    doc: "Missing inputs fail closed rather than defaulting to something permissive."
+  - id: golang/architecture/prospective/prospective_test.go:TestContentThatDoesNotMatchTheFrozenDigestIsRefused
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestContentThatDoesNotMatchTheFrozenDigestIsRefused
+    package: prospective
+    language: go
+    doc: "Contents are bound to the digest the inventory froze. Otherwise the sample\nnames one change while the adjudicator reads another, and every label\ncollected is attached to the wrong question."
+  - id: golang/architecture/prospective/prospective_test.go:TestCorpusAccountingDoesNotReachTheAdjudicator
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestCorpusAccountingDoesNotReachTheAdjudicator
+    package: prospective
+    language: go
+    doc: "The blind package still carries no anchors, and now also no accounting: what\nthe graph could not materialize is a statement about the graph, not evidence\nan adjudicator needs."
+  - id: golang/architecture/prospective/prospective_test.go:TestDriftIsRefusedAndNamed
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestDriftIsRefusedAndNamed
+    package: prospective
+    language: go
+    doc: "A world binding is an identity, not a label. A checkout that has drifted off\nthe pinned revision must refuse and NAME the drift: a run that reported an\nempty inventory instead is indistinguishable from a world with nothing in it."
+  - id: golang/architecture/prospective/prospective_test.go:TestExcludedCorpusItemsAreCountedAndReconciled
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestExcludedCorpusItemsAreCountedAndReconciled
+    package: prospective
+    language: go
+    doc: "What could not be materialized is excluded with a stable reason and counted,\nand the accounting reconciles the graph's own total against what a capped\nenumeration could see. Without an independent total a capped enumeration\nreports its cap as the population."
+  - id: golang/architecture/prospective/prospective_test.go:TestExclusionsAreCountedWithReasons
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestExclusionsAreCountedWithReasons
+    package: prospective
+    language: go
+    doc: "An exclusion is a counted row with a reason. A change that simply failed to\nappear reads as a population that never contained it, and a shrinking\ndenominator is the cheapest available way to raise a recall figure."
+  - id: golang/architecture/prospective/prospective_test.go:TestOverlapSubsetIsDeterministicAndIndependentOfLabels
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestOverlapSubsetIsDeterministicAndIndependentOfLabels
+    package: prospective
+    language: go
+    doc: "The overlap subset is fixed before either adjudicator's labels exist, and\ndepends only on the seed and the item keys. Selecting it later would let it\nbe chosen where the two humans happened to agree."
+  - id: golang/architecture/prospective/prospective_test.go:TestSelectionIsSeededAndReproducible
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestSelectionIsSeededAndReproducible
+    package: prospective
+    language: go
+    doc: "The draw is a pure function of the committed seed and the change identity.\nA seed recorded in the manifest but never reaching the draw would mint a new\nsample identity over an unchanged sample."
+  - id: golang/architecture/prospective/prospective_test.go:TestStratumAssignmentIsTotalAndSingleValued
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestStratumAssignmentIsTotalAndSingleValued
+    package: prospective
+    language: go
+    doc: "Every change lands in exactly one stratum. A change that landed in none\nwould leave every denominator while still appearing in the population."
+  - id: golang/architecture/prospective/prospective_test.go:TestTheAdjudicationPackageLeaksNothingSenseiKnows
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestTheAdjudicationPackageLeaksNothingSenseiKnows
+    package: prospective
+    language: go
+    doc: "The package a human adjudicates must carry no Sensei retrieval output and no\nstatement about what Sensei knows. Asserted against the serialized bytes,\nbecause a type can grow a field faster than a reviewer can notice one."
+  - id: golang/architecture/prospective/prospective_test.go:TestTheManifestBindsEveryIdentityItDependsOn
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestTheManifestBindsEveryIdentityItDependsOn
+    package: prospective
+    language: go
+    doc: "The manifest is the artifact a later reader defends the score with. Every\nidentity it depends on has to be in it."
   - id: golang/architecture/protection/derive_test.go:TestClassifyFile_EscapingPathFailsTyped
     file: golang/architecture/protection/derive_test.go
     symbol: TestClassifyFile_EscapingPathFailsTyped
