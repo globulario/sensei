@@ -1831,3 +1831,13 @@ required_tests:
     protects:
       invariants:
         - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+  - id: cmd/awareness-mcp/main_test.go:TestMultiFileAuditIsNotStarvedByThePerRequestBudget
+    title: A multi-file audit is not refused merely for having more than one file
+    protects:
+      failure_modes:
+        - failure.a_per_request_budget_applied_to_a_whole_multi_request_call_f
+  - id: golang/architecture/diffaudit/evaluator_test.go:TestEvaluatorFailureCarriesItsCause
+    title: An evaluator_unavailable refusal carries the error that caused it
+    protects:
+      failure_modes:
+        - failure.a_per_request_budget_applied_to_a_whole_multi_request_call_f

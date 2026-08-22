@@ -1996,3 +1996,16 @@ failure_modes:
     evidence:
       - 'Observed on the #256 implementation branch: the deterministic-preservation test passed BECAUSE the model outcome was ignored, and only the model-assisted assertion (model digest absence empty on a resolved run) exposed it. Both the model binding and the nondeterminism declaration had to be rewired by line position after the pattern-based edit reported success.'
     contract: 'Threading a value into a composer is not the same as the composer using it. Where a parameter replaces a previously hardcoded value, a test must observe the parameter changing the output, because the compiler will not: an unused function parameter is legal Go.'
+  - id: failure.a_per_request_budget_applied_to_a_whole_multi_request_call_f
+    title: A per-request budget applied to a whole multi-request call fails as a function of workload size
+    description: awareness-mcp's --timeout is documented as a per-request gRPC timeout but was applied as the deadline for an entire tools/call. awareness_audit_diff issues an Impact and an EditCheck per file, so a one-file diff fitted inside a single request's budget and a two-file diff did not. The refusal surfaced as evaluator_unavailable, which from outside is indistinguishable from the change being bad, and a governed run that correctly refuses to accept over a Sensei refusal therefore ended on a defect in the harness.
+    protects:
+      files:
+        - cmd/awareness-mcp/main.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - cmd/awareness-mcp/main_test.go:TestMultiFileAuditIsNotStarvedByThePerRequestBudget
+    evidence:
+      - 'Reported in issue #260 as a deterministic cannot_verify on a two-file diff where each file passed alone and each returned in about five seconds — five seconds being the timeout value itself rather than evidence against a timeout. Confirmed in code: br.timeout appeared in exactly one place, the whole-call deadline, and never on an individual request.'
+    contract: A timeout documented as bounding one request must be applied to one request. Using it as the ceiling for a call that issues many requests makes the call fail as a function of how much work it was given, and the refusal describes the subject rather than the budget.

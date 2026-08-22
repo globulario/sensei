@@ -79,8 +79,35 @@ type awarenessClient interface {
 }
 
 type bridge struct {
-	client  awarenessClient
+	client awarenessClient
+	// timeout is the budget for ONE gRPC request.
 	timeout time.Duration
+	// callTimeout is the ceiling for one whole tools/call, which may issue many
+	// requests. Keeping these separate is what stops a multi-file tool from
+	// being starved by a single-request number (#260).
+	callTimeout time.Duration
+}
+
+// rpcContext derives the per-request budget from a call's context, so each
+// gRPC request gets the timeout the --timeout flag actually documents.
+func (b *bridge) rpcContext(parent context.Context) (context.Context, context.CancelFunc) {
+	if b.timeout <= 0 {
+		return context.WithCancel(parent)
+	}
+	return context.WithTimeout(parent, b.timeout)
+}
+
+// callCeiling is the whole-call budget, falling back to a generous default so
+// a bridge constructed without one (tests, embedders) is not silently given a
+// zero deadline.
+func (b *bridge) callCeiling() time.Duration {
+	if b.callTimeout > 0 {
+		return b.callTimeout
+	}
+	if b.timeout > 0 {
+		return 24 * b.timeout
+	}
+	return 2 * time.Minute
 }
 
 type clientEntry struct {
@@ -473,6 +500,14 @@ func stringArg(args map[string]interface{}, key string) (string, error) {
 }
 
 func (b *bridge) callTool(ctx context.Context, name string, args map[string]interface{}) (*toolResult, error) {
+	// The whole-call ceiling is applied HERE, not only in the JSON-RPC loop, so
+	// it is a property of the call rather than of one transport. It also means
+	// a test exercising callTool directly exercises the real budget: while this
+	// lived only in the message loop, a direct caller silently got no deadline
+	// at all, and a test could not tell the two budgets apart.
+	ctx, cancel := context.WithTimeout(ctx, b.callCeiling())
+	defer cancel()
+
 	switch name {
 	case "awareness_briefing":
 		file, _ := args["file"].(string)
@@ -2051,7 +2086,9 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 				}
 				continue
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), br.timeout)
+			// callTool applies the whole-call ceiling itself; this loop only
+			// supplies a cancellable parent.
+			ctx, cancel := context.WithCancel(context.Background())
 			res, err := br.callTool(ctx, params.Name, params.Arguments)
 			cancel()
 			if err != nil {
@@ -2095,7 +2132,8 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 // @awareness relates_to=globular.awareness_graph:intent.awareness.mcp_tools_use_gateway_client_pool
 func main() {
 	awarenessAddr := flag.String("awareness-addr", netcfg.ServiceAddr(), "awareness-graph gRPC address (or comma-separated fallback list; honors $SENSEI_ADDR, then legacy $AWG_ADDR)")
-	timeout := flag.Duration("timeout", 5*time.Second, "per-request gRPC timeout")
+	timeout := flag.Duration("timeout", 5*time.Second, "per-request gRPC timeout, applied to each individual call a tool makes")
+	callTimeout := flag.Duration("call-timeout", 2*time.Minute, "ceiling for one whole tools/call, which may make many gRPC requests")
 	flag.Parse()
 
 	addrs := awarenessAddrs(*awarenessAddr)
@@ -2125,8 +2163,9 @@ func main() {
 	}()
 
 	br := &bridge{
-		client:  &failoverClient{entries: entries},
-		timeout: *timeout,
+		client:      &failoverClient{entries: entries},
+		timeout:     *timeout,
+		callTimeout: *callTimeout,
 	}
 	if err := serveStdio(br, os.Stdin, os.Stdout); err != nil {
 		fmt.Fprintf(os.Stderr, "awareness-mcp: serve: %v\n", err)
@@ -2203,6 +2242,8 @@ func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (s
 }
 
 func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
+	ctx, cancel := c.bridge.rpcContext(ctx)
+	defer cancel()
 	resp, err := c.bridge.client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
 		File:            file,
 		ProposedContent: content,
@@ -2251,6 +2292,8 @@ func requiredTestPathFromID(id string) string {
 }
 
 func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
+	ctx, cancel := c.bridge.rpcContext(ctx)
+	defer cancel()
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,

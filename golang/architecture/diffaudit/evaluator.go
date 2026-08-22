@@ -216,6 +216,13 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 				if err != nil {
 					result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
 					result.Availability = AvailabilityCannotVerify
+					// Record WHY, as every sibling failure path in this
+					// function does. A reason code names the category; without
+					// the error a caller cannot tell an unreachable graph from
+					// a rejected RPC from oversized content from a panicking
+					// rule — and cannot_verify then looks indistinguishable
+					// from the change being bad.
+					result.Limitations = append(result.Limitations, fmt.Sprintf("evaluator failed for %s: %v", patch.Path, err))
 				} else {
 					result.Findings = append(result.Findings, fileFindings...)
 				}

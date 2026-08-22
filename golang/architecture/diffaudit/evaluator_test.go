@@ -4,6 +4,8 @@ package diffaudit
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -251,4 +253,52 @@ deleted file mode 100644
 	if len(res.Findings) == 0 || res.Findings[0].RecordID != "contract.auth" {
 		t.Errorf("expected contract.auth block finding, got %+v", res.Findings)
 	}
+}
+
+// TestEvaluatorFailureCarriesItsCause is issue #260's first finding.
+//
+// Every other failure path in EvaluateDiff records why it failed. The
+// CheckFile path recorded only the reason CODE, so a caller saw
+// "cannot_verify / evaluator_unavailable / limitations: none" and could not
+// tell an unreachable graph from a rejected RPC from a panicking rule.
+//
+// That mattered beyond tidiness: with the cause carried, the second defect in
+// #260 would have reported itself instead of taking twenty minutes to corner.
+func TestEvaluatorFailureCarriesItsCause(t *testing.T) {
+	parsed, err := ParseDiff(sampleValidDiff, DefaultParseOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	checker := &fakeChecker{
+		checkFileFunc: func(context.Context, string, string, string) ([]AuditFinding, error) {
+			return nil, errors.New("graph store refused the request: connection reset")
+		},
+	}
+
+	result, err := EvaluateDiff(context.Background(), parsed, checker, AuditOptions{Domain: "example.com/repo"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Availability != AvailabilityCannotVerify {
+		t.Fatalf("availability = %v, want %v", result.Availability, AvailabilityCannotVerify)
+	}
+	if !hasReason(result.ReasonCodes, ReasonEvaluatorUnavailable) {
+		t.Fatalf("reason codes %v do not include %v", result.ReasonCodes, ReasonEvaluatorUnavailable)
+	}
+	if len(result.Limitations) == 0 {
+		t.Fatal("evaluator_unavailable carries no limitation; the cause was discarded and the refusal is undiagnosable")
+	}
+	joined := strings.Join(result.Limitations, "; ")
+	if !strings.Contains(joined, "connection reset") {
+		t.Errorf("limitations %q do not carry the evaluator's own error", joined)
+	}
+}
+
+func hasReason(codes []ReasonCode, want ReasonCode) bool {
+	for _, c := range codes {
+		if c == want {
+			return true
+		}
+	}
+	return false
 }

@@ -1101,3 +1101,111 @@ func gitShowAt(root, commit, path string) (string, error) {
 	}
 	return string(out), nil
 }
+
+// TestMultiFileAuditIsNotStarvedByThePerRequestBudget reproduces issue #260's
+// second finding.
+//
+// --timeout is documented as a PER-REQUEST gRPC budget but was applied as the
+// deadline for the whole tools/call. awareness_audit_diff issues several gRPC
+// calls per file, so a one-file diff fitted inside one request's budget and a
+// two-file diff did not — deterministically, returning after exactly the
+// timeout, with each file passing when audited alone.
+//
+// The symptom was evaluator_unavailable with no cause, which from the outside
+// is indistinguishable from the change being bad.
+func TestMultiFileAuditIsNotStarvedByThePerRequestBudget(t *testing.T) {
+	head := testGitHEAD(t)
+	// Each RPC costs a little. Well inside a per-request budget; fatal if the
+	// whole call has to fit in that same budget.
+	// Sized so ONE file's RPCs fit comfortably inside the per-request budget
+	// and TWO files decisively do not. Loose margins here would let the test
+	// pass with the budgets still shared, which is the defect itself.
+	const perCall = 100 * time.Millisecond
+	fake := fakeClient{
+		editCheck: func(ctx context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
+			select {
+			case <-time.After(perCall):
+				return &awarenesspb.EditCheckResponse{}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+		impact: func(ctx context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			select {
+			case <-time.After(perCall):
+				return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		},
+	}
+
+	twoFiles := `diff --git a/one.go b/one.go
+new file mode 100644
+--- /dev/null
++++ b/one.go
+@@ -0,0 +1,2 @@
++package one
++func One() {}
+diff --git a/two.go b/two.go
+new file mode 100644
+--- /dev/null
++++ b/two.go
+@@ -0,0 +1,2 @@
++package two
++func Two() {}
+`
+	// A single file costs at most two RPCs here, so 250ms is ample for one and
+	// impossible for two.
+	br := &bridge{client: fake, timeout: 250 * time.Millisecond, callTimeout: 10 * time.Second}
+	res, err := br.callTool(context.Background(), "awareness_audit_diff", map[string]interface{}{
+		"diff":          twoFiles,
+		"expected_head": head,
+	})
+	if err != nil {
+		t.Fatalf("callTool failed: %v", err)
+	}
+	if strings.Contains(res.Text, "evaluator_unavailable") {
+		t.Errorf("a two-file diff was refused as evaluator_unavailable while each file fits the per-request budget:\n%s", res.Text)
+	}
+	if strings.Contains(res.Text, "cannot_verify") {
+		t.Errorf("a two-file diff could not be verified purely because of file count:\n%s", res.Text)
+	}
+}
+
+// Separating the two budgets must not mean an unbounded request. The
+// per-request budget still applies to each individual RPC, derived from the
+// call's own context so cancelling the call still cancels the request.
+func TestPerRequestBudgetStillBoundsOneRpc(t *testing.T) {
+	br := &bridge{timeout: 40 * time.Millisecond, callTimeout: 10 * time.Second}
+
+	ctx, cancel := br.rpcContext(context.Background())
+	defer cancel()
+	start := time.Now()
+	<-ctx.Done()
+	if elapsed := time.Since(start); elapsed > 2*time.Second {
+		t.Errorf("the per-request context ran for %s; --timeout no longer bounds one request", elapsed)
+	}
+	if got := ctx.Err(); got != context.DeadlineExceeded {
+		t.Errorf("per-request context ended with %v, want %v", got, context.DeadlineExceeded)
+	}
+
+	// Cancelling the whole call must still cancel an in-flight request.
+	parent, cancelParent := context.WithCancel(context.Background())
+	child, cancelChild := br.rpcContext(parent)
+	defer cancelChild()
+	cancelParent()
+	select {
+	case <-child.Done():
+	case <-time.After(2 * time.Second):
+		t.Error("cancelling the call did not cancel its in-flight request")
+	}
+
+	// A bridge with no explicit ceiling gets a generous one, never zero.
+	if got := (&bridge{timeout: time.Second}).callCeiling(); got <= time.Second {
+		t.Errorf("derived call ceiling = %s, want more than one request budget", got)
+	}
+	if got := (&bridge{}).callCeiling(); got <= 0 {
+		t.Errorf("a bridge with no budgets got a %s ceiling; that would refuse every call", got)
+	}
+}
