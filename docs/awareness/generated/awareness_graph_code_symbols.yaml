@@ -14624,6 +14624,81 @@ test_symbols:
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
     language: go
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeMapsAModelAnswerToAnArtifact
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeMapsAModelAnswerToAnArtifact
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgePreservesRefusal
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgePreservesRefusal
+    package: modelexec
+    language: go
+    doc: "A policy decline must arrive as a refusal, not an outage."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeReportsApiFailureAsErrored
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeReportsApiFailureAsErrored
+    package: modelexec
+    language: go
+    doc: "An API failure is errored, and the credential must not reach the diagnostic."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestAdapterSendsOnlyBoundedRequestMaterial
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestAdapterSendsOnlyBoundedRequestMaterial
+    package: modelexec
+    language: go
+    doc: "The adapter must not introduce material the request identity does not cover.\nThe envelope is compared field-by-field against the request that produced it."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestArgvIsPassedWithoutShellInterpretation
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestArgvIsPassedWithoutShellInterpretation
+    package: modelexec
+    language: go
+    doc: "Argv reaches the process verbatim: no shell means no expansion, so a value\nthat a shell would rewrite arrives unchanged."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCancellationTerminatesTheInvocation
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCancellationTerminatesTheInvocation
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderMalformedStdoutIsNeverResolved
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderMalformedStdoutIsNeverResolved
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderProcessFailureIsErrored
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderProcessFailureIsErrored
+    package: modelexec
+    language: go
+    doc: "A non-zero exit is transport failure, and must not be mistaken for a refusal."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderRefusalStaysRefused
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderRefusalStaysRefused
+    package: modelexec
+    language: go
+    doc: "A structured refusal stays a refusal across the process boundary."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderRequiresExplicitIdentity
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderRequiresExplicitIdentity
+    package: modelexec
+    language: go
+    doc: "Provider identity is a semantic assertion, never inferred from a filename."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderSuccessEarnsResolvedThroughExecute
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderSuccessEarnsResolvedThroughExecute
+    package: modelexec
+    language: go
+    doc: "A fixture success must earn resolved through Execute's existing validation,\nnot because a transport said so."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestDisabledAndNotRequestedNeverLaunchAProcess
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestDisabledAndNotRequestedNeverLaunchAProcess
+    package: modelexec
+    language: go
+    doc: "Disabled and not-requested must never launch a process at all. A sentinel\npath that cannot exist proves it: reaching exec would fail loudly."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestStderrCannotAlterArtifactIdentity
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestStderrCannotAlterArtifactIdentity
+    package: modelexec
+    language: go
+    doc: "stderr is diagnostic. Two runs differing only in stderr must produce the same\naccepted artifact identity, or stderr would be smuggled into semantic truth."
   - id: golang/architecture/modelexec/execute_test.go:TestArtifactCannotAttributeClaimsToUnshownFiles
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestArtifactCannotAttributeClaimsToUnshownFiles
@@ -14697,6 +14772,12 @@ test_symbols:
     symbol: TestValidArtifactResolvesWithFullIdentity
     package: modelexec
     language: go
+  - id: golang/architecture/modelexec/real_provider_smoke_test.go:TestRealProviderSmoke
+    file: golang/architecture/modelexec/real_provider_smoke_test.go
+    symbol: TestRealProviderSmoke
+    package: modelexec
+    language: go
+    doc: "TestRealProviderSmoke invokes an ACTUAL model through the command adapter.\n\nIt is supplementary and skips unless SENSEI_MODEL_BRIDGE names an executable\nand a credential is present in the environment. CI must never depend on it:\nthe hermetic fake-provider matrix is the merge proof, and an external service\nmust not be able to decide whether Sensei's authority contract holds.\n\nWhat it proves is narrow and worth stating: that the capability crosses a\nreal process and network boundary into a real model, and that what comes back\nstill has to earn resolved through the same validation everything else does.\nIt proves reachability, not model correctness — correctness belongs to #131.\n\nNothing secret is asserted on, printed, or returned. The evidence this test\nproduces is a status and two digests."
   - id: golang/architecture/packcustody/custody_test.go:TestAdoptionReceiptProvesSharedProjection
     file: golang/architecture/packcustody/custody_test.go
     symbol: TestAdoptionReceiptProvesSharedProjection

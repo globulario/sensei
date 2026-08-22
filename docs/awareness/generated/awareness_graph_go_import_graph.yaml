@@ -1568,6 +1568,7 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/modelexec/artifact.go
+      - golang/architecture/modelexec/command_provider.go
       - golang/architecture/modelexec/execute.go
       - golang/architecture/modelexec/port.go
       - golang/architecture/modelexec/request.go
