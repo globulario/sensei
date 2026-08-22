@@ -78,7 +78,7 @@ func TestASeedlessRunIsNotRunRatherThanFailed(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), protocolPath, worlds, "", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), protocolPath, protocolID, worlds, "", "2026-08-22T05:00:00Z")
 	if art.Status != statusNotRun {
 		t.Errorf("a seedless run reported status %q, want %q", art.Status, statusNotRun)
 	}
@@ -96,7 +96,7 @@ func TestAMissingProtocolIsAnActionableRefusal(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), protocolID, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusFailed {
 		t.Fatalf("an unreadable protocol produced status %q, want %q", art.Status, statusFailed)
 	}
@@ -116,7 +116,7 @@ func TestTheSampleIsWrittenWhereTheIndexSaysItIs(t *testing.T) {
 		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
 		RecallInventory: []string{"pkg/a"},
 	}}
-	art := writeSample(out, protocolFileForTest(t), worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(out, protocolFileForTest(t), protocolID, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusRan {
 		t.Fatalf("writeSample: %s — %s", art.Status, art.Reason)
 	}

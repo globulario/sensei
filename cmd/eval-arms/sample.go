@@ -21,6 +21,10 @@ import (
 // as though it obeyed another.
 const protocolPath = "docs/evaluation/phase10-reference-protocol-v1.md"
 
+// protocolID is the DEFAULT identity, paired with protocolPath above. It is
+// overridable for the same reason the file is: a manifest that named one
+// protocol while carrying another's digest would corrupt the very identity a
+// reference-set release is supposed to pin.
 const protocolID = "phase10-reference-protocol-v1"
 
 // recallUnitInventory is the INDEPENDENT unit inventory of section 7.
@@ -85,7 +89,7 @@ func recallUnitInventory(root string) ([]string, error) {
 // The manifest is written even when a lane is empty. Step 9 of the handoff
 // produces the SELECTION; whether a lane had anything to select is one of the
 // facts the selection is supposed to record.
-func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
+func writeSample(out, protocolFile, protocolIDArg string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
 	art := armArtifact{Arm: "frozen_sample_manifest", Subject: subjectPublishedDomain}
 	if strings.TrimSpace(seed) == "" {
 		// not_run, not failed. A run that only wanted the arms is a legitimate
@@ -100,6 +104,11 @@ func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capt
 		art.Reason = "no evaluation world ran, so there is nothing to sample; supply --world"
 		return art
 	}
+	if strings.TrimSpace(protocolIDArg) == "" {
+		art.Status = statusFailed
+		art.Reason = "no protocol id given; a manifest that does not name the protocol it obeys cannot be checked against one"
+		return art
+	}
 	digest, err := fileDigest(protocolFile)
 	if err != nil {
 		art.Status = statusFailed
@@ -108,7 +117,7 @@ func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capt
 	}
 
 	manifest, blind, err := evalsample.Build(worlds, evalsample.Options{
-		ProtocolID:           protocolID,
+		ProtocolID:           protocolIDArg,
 		ProtocolDigestSHA256: digest,
 		Seed:                 seed,
 		GeneratedAt:          capturedAt,

@@ -15,13 +15,17 @@ GLOBULAR_SRC=<checkout> GLOBULAR_REV=<commit> \
 
 Worlds 2 and 3 had previously only ever been run by hand. A measurement that exists only as something somebody typed once is not the reproducible evidence #131 asks for, so the invocation lives in the script.
 
-### Four things the script refuses
+### Six things the script refuses
 
 **An output directory inside this checkout.** `eval-arms` materializes synthetic Go mutant repositories under `<out>/mutants`, and world 1 measures this repository by recursively scanning its `.go` files. An output directory inside the tree feeds the harness's own generated mutants into the self-evaluation and dirties the very tree world 1 is trying to bind. Refused rather than silently relocated: a run that quietly writes somewhere other than where it was told is its own defect.
 
 **An external world with no pinned revision.** `git clone` alone takes whatever the source HEAD happens to name, so the same command with the same seed would silently evaluate a different world once that checkout advanced. Recording the revision afterwards does not make it a pinned input — it only makes the drift legible after the fact. The revision is required, checked out, and verified against what `HEAD` resolved to.
 
 **A revision the source does not contain.** Fails loudly rather than falling back to HEAD.
+
+**A non-empty output directory.** `eval-arms` writes what this run produced and leaves whatever a previous run left, so a rerun without a seed keeps the old `sample/` tree beside an index recording the sample as `not_run`, and a rerun omitting a world keeps that world's stale report beside the new one. An operator could then adjudicate blinded views this command never produced, against an index that does not describe them — and nothing in the artifacts would say so.
+
+**An output path that only looks external.** The containment check canonicalizes with `pwd -P`: a logical path keeps a symlink intact, so a directory symlinked back into the checkout would have passed the test and then had mutants written through it into the tree world 1 scans.
 
 **A sample drawn over an operator-bound world under the default protocol.** See world 3 below.
 
@@ -51,6 +55,8 @@ Candidate replacements are not interchangeable:
 An operator who has made that decision can bind a world explicitly with `WORLD3_SRC`, `WORLD3_REV`, `WORLD3_DOMAIN` and `WORLD3_NAME`. The default name is `world3_operator_bound`, which deliberately does **not** claim the v1 world-3 slot.
 
 Renaming alone would not have been enough, and an earlier version of this script stopped there. `eval-arms` samples every world that ran and stamps the protocol digest into the manifest, so a bound replacement would still have been sampled under a protocol specifying a different world — the name only tells a reader, while the digest is what the artifact asserts. So binding a world **and** drawing a sample now requires `PROTOCOL_FILE` to name the protocol that governs it. The script cannot check that a protocol's text says what its binder believes, but it can refuse to stamp v1 over a world v1 does not define.
+
+`PROTOCOL_ID` travels with it, and neither moves alone. The manifest records both the identity and the digest; forwarding a new document under the old identity would produce a manifest naming v1 while carrying another protocol's digest — a ruler that misstates what it is, which is worse than one that refuses to be built.
 
 ## Run of 2026-08-22
 

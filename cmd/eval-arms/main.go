@@ -172,6 +172,11 @@ func main() {
 	// after somebody saw a score.
 	selectionSeed := flag.String("selection-seed", "", "committed seed ordering the frozen sample manifest; required to draw a sample, and changing it creates a new sample version")
 	protocolFile := flag.String("protocol-file", protocolPath, "the frozen reference protocol the sample serves; its digest is recorded in the manifest")
+	// The ID travels WITH the file. Forwarding a different protocol document
+	// while the identity stayed hard-coded would produce a manifest naming v1
+	// and carrying another protocol's digest — a ruler whose identity is a lie
+	// about itself, which is worse than one that refuses to be built.
+	protocolIDFlag := flag.String("protocol-id", protocolID, "identity of the protocol named by --protocol-file; change both together or neither")
 	referenceSetPath := flag.String("reference-set", "", "arm 3: frozen reference-set release manifest to score against; without one the scorer reports reference_set_absent")
 	flag.Var(&labelFiles, "label-file", "arm 3: a label file the release names; repeatable, and every named file must be supplied")
 	flag.Var(&modelProviderArgs, "model-provider-arg", "arm 3: argument for the bridge executable; repeatable, passed without a shell")
@@ -259,7 +264,7 @@ func main() {
 	// pinned, before any label exists. It is written from the same documents
 	// the reports above describe, so the sample and the measurement cannot
 	// describe two different extraction runs.
-	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, sampledWorlds, *selectionSeed, *capturedAt))
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,

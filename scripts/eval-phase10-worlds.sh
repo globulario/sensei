@@ -18,8 +18,10 @@
 #   GLOBULAR_REV   the exact commit world 2 is pinned to (required to run it)
 #   WORLD3_SRC / WORLD3_REV / WORLD3_DOMAIN / WORLD3_NAME
 #                  an operator-bound world 3 — see "World 3" below before using
-#   PROTOCOL_FILE  the protocol the sample is stamped with; REQUIRED when a
-#                  seed is given alongside an operator-bound world
+#   PROTOCOL_FILE / PROTOCOL_ID
+#                  the protocol the sample is stamped with, and its identity.
+#                  Both or neither. REQUIRED when a seed is given alongside an
+#                  operator-bound world
 set -euo pipefail
 
 AG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -43,15 +45,36 @@ fi
 # digest for the mess. Refused rather than silently relocated, because a run
 # that quietly writes somewhere other than where it was told is its own defect.
 mkdir -p "$OUT"
-OUT_ABS="$(cd "$OUT" && pwd)"
+# pwd -P, not pwd: a logical path keeps the symlink, so an output directory
+# that merely LOOKS external — a symlink pointing back into the checkout —
+# would pass the containment test below and then have eval-arms write mutants
+# through it into the tree world 1 scans. Canonicalize before comparing.
+OUT_ABS="$(cd "$OUT" && pwd -P)"
+AG_P="$(cd "$AG" && pwd -P)"
 case "$OUT_ABS/" in
-  "$AG"/*)
-    echo "$0: --out ($OUT_ABS) is inside the evaluated checkout ($AG)." >&2
+  "$AG_P"/*)
+    echo "$0: --out ($OUT_ABS) is inside the evaluated checkout ($AG_P)." >&2
     echo "  world 1 scans this tree, so the harness's own mutants and reports would" >&2
     echo "  become part of what it measures. Choose a path outside the repository." >&2
     exit 2
     ;;
 esac
+
+# The output directory must be EMPTY.
+#
+# eval-arms writes only the artifacts this run produced, and leaves whatever a
+# previous run left. A rerun without a seed keeps the old sample/ tree beside an
+# index recording the sample as not_run; a rerun omitting a world keeps that
+# world's stale report beside the new one. Either way an operator can end up
+# adjudicating blinded views that this command did not produce, against an index
+# that does not describe them — and nothing in the artifacts would say so.
+if [[ -n "$(ls -A "$OUT_ABS" 2>/dev/null)" ]]; then
+  echo "$0: --out ($OUT_ABS) is not empty." >&2
+  echo "  Artifacts from an earlier run would survive beside this one's index," >&2
+  echo "  so an operator could adjudicate views this command never produced." >&2
+  echo "  Use a fresh directory, or clear this one deliberately." >&2
+  exit 2
+fi
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
@@ -146,7 +169,23 @@ if [[ -n "${WORLD3_SRC:-}" && -n "$SEED" && -z "${PROTOCOL_FILE:-}" ]]; then
   echo "  or run without a selection seed to measure the world and draw nothing." >&2
   exit 2
 fi
-[[ -n "${PROTOCOL_FILE:-}" ]] && args+=(-protocol-file "$PROTOCOL_FILE")
+# The ID travels WITH the file, or neither moves. A new protocol document under
+# the old identity produces a manifest naming v1 while carrying another
+# protocol's digest — a ruler that misstates what it is, which is worse than one
+# that refuses to be built.
+if [[ -n "${PROTOCOL_FILE:-}" && -z "${PROTOCOL_ID:-}" ]]; then
+  echo "$0: PROTOCOL_FILE was given without PROTOCOL_ID." >&2
+  echo "  The manifest records both. A new protocol document under the old identity" >&2
+  echo "  would name one protocol while carrying another's digest." >&2
+  exit 2
+fi
+if [[ -n "${PROTOCOL_ID:-}" && -z "${PROTOCOL_FILE:-}" ]]; then
+  echo "$0: PROTOCOL_ID was given without PROTOCOL_FILE — change both together or neither." >&2
+  exit 2
+fi
+if [[ -n "${PROTOCOL_FILE:-}" ]]; then
+  args+=(-protocol-file "$PROTOCOL_FILE" -protocol-id "$PROTOCOL_ID")
+fi
 
 clone_world "${WORLD3_NAME:-world3_operator_bound}" "${WORLD3_DOMAIN:-}" \
   "${WORLD3_SRC:-}" "${WORLD3_REV:-}" WORLD3_SRC
