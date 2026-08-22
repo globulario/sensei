@@ -125,7 +125,18 @@ func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capt
 		art.Reason = err.Error()
 		return art
 	}
-	if err := writeJSON(filepath.Join(dir, "sample-manifest.json"), manifest); err != nil {
+	// The index's report_digest is the digest of the BYTES ON DISK, exactly as
+	// it is for every other arm. The manifest's own DigestSHA256 is a different
+	// thing — a self-excluding identity over the selection, which a
+	// reference-set release names as its sample_manifest_digest_sha256 — and it
+	// cannot equal the file hash because the file contains it.
+	//
+	// Reporting the self-excluding identity here would make a verifier that
+	// re-hashes the file, as it does for every other artifact, declare this one
+	// altered on every single run.
+	manifestPath := filepath.Join(dir, "sample-manifest.json")
+	fileDigestHex, err := writeJSON(manifestPath, manifest)
+	if err != nil {
 		art.Status = statusFailed
 		art.Reason = err.Error()
 		return art
@@ -136,7 +147,7 @@ func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capt
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		if err := writeJSON(filepath.Join(dir, "blind", name+".json"), blind[name]); err != nil {
+		if _, err := writeJSON(filepath.Join(dir, "blind", name+".json"), blind[name]); err != nil {
 			art.Status = statusFailed
 			art.Reason = err.Error()
 			return art
@@ -145,17 +156,26 @@ func writeSample(out, protocolFile string, worlds []evalsample.World, seed, capt
 
 	art.Status = statusRan
 	art.ReportFile = filepath.Join("sample", "sample-manifest.json")
-	art.ReportDigest = manifest.DigestSHA256
+	art.ReportDigest = fileDigestHex
+	art.SampleManifestDigest = manifest.DigestSHA256
 	art.SiteCoverage = fmt.Sprintf("%d item(s) across %d stratum/strata", len(manifest.Items), len(manifest.Strata))
 	return art
 }
 
-func writeJSON(path string, v any) error {
+// writeJSON writes the artifact and returns the digest of the bytes it wrote,
+// so a caller never has to re-derive the hash of a file from a value it hopes
+// serializes the same way twice.
+func writeJSON(path string, v any) (string, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
-		return err
+		return "", err
 	}
-	return os.WriteFile(path, append(data, '\n'), 0o644)
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func fileDigest(path string) (string, error) {

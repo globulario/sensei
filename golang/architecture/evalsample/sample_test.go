@@ -497,3 +497,42 @@ func TestChallengeLaneCarriesCounterexamples(t *testing.T) {
 		t.Error("the challenge lane materialized no adjudicator view")
 	}
 }
+
+// TestDuplicateWorldNamesAreRefused.
+//
+// Two worlds under one name keep both sets of items in the manifest while the
+// second world's blinded views overwrite the first's under the same key. The
+// result is a manifest whose digest describes items that have no adjudication
+// payload left — a sample that looks complete and cannot be adjudicated.
+func TestDuplicateWorldNamesAreRefused(t *testing.T) {
+	obs := []architecture.Fact{fact("p", "s", "holds", "o", "a.go", 1)}
+	worlds := []World{
+		{Name: "w", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d1", Revision: "r1", RevisionStatus: architecture.RevisionResolved}, Observations: obs},
+		{Name: "w", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d2", Revision: "r2", RevisionStatus: architecture.RevisionResolved}, Observations: obs},
+	}
+	if _, _, err := Build(worlds, testOptions()); err == nil {
+		t.Fatal("two worlds under one name were accepted; the second silently replaces the first's blinded views")
+	} else if !strings.Contains(err.Error(), "twice") {
+		t.Errorf("the refusal does not say what went wrong: %v", err)
+	}
+}
+
+// TestEveryManifestItemKeepsAnAdjudicationPayload is the property the check
+// above protects, asserted directly rather than only through its refusal.
+func TestEveryManifestItemKeepsAnAdjudicationPayload(t *testing.T) {
+	m, blind, err := Build([]World{skewedWorld()}, testOptions())
+	if err != nil {
+		t.Fatalf("Build: %v", err)
+	}
+	payloads := map[string]bool{}
+	for _, group := range blind {
+		for _, it := range group {
+			payloads[it.ItemKey] = true
+		}
+	}
+	for _, it := range m.Items {
+		if !payloads[it.ItemKey] {
+			t.Fatalf("manifest item %s (%s/%s) has no blinded payload to adjudicate", it.ItemKey, it.World, it.Lane)
+		}
+	}
+}

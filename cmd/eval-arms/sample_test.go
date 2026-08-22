@@ -3,6 +3,8 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -123,6 +125,28 @@ func TestTheSampleIsWrittenWhereTheIndexSaysItIs(t *testing.T) {
 	}
 	if art.ReportDigest == "" {
 		t.Error("the sample was written without an identity, so no release can name it")
+	}
+
+	// report_digest must verify the way every other arm's does: re-hash the
+	// bytes on disk. Reporting the manifest's self-excluding identity here
+	// would make any verifier that re-hashes the file declare this artifact
+	// altered on every single run, because the file contains that value.
+	onDisk, err := os.ReadFile(filepath.Join(out, art.ReportFile))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256(onDisk)
+	if got := hex.EncodeToString(sum[:]); got != art.ReportDigest {
+		t.Errorf("report_digest is %s but the bytes on disk hash to %s; a verifier would call this artifact altered every run", art.ReportDigest, got)
+	}
+
+	// The self-excluding identity a reference-set release names still has to
+	// be carried, separately, or step 11 has nothing to bind to.
+	if art.SampleManifestDigest == "" {
+		t.Error("the sample manifest's own identity was dropped; a reference-set release names it as sample_manifest_digest_sha256")
+	}
+	if art.SampleManifestDigest == art.ReportDigest {
+		t.Error("the two digests are equal, which is impossible if one hashes bytes that contain the other")
 	}
 }
 

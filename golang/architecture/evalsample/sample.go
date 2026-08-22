@@ -273,10 +273,21 @@ func Build(worlds []World, opts Options) (Manifest, map[string][]BlindItem, erro
 	ordered := append([]World(nil), worlds...)
 	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].Name < ordered[j].Name })
 
+	seen := map[string]bool{}
 	for _, w := range ordered {
 		if strings.TrimSpace(w.Name) == "" {
 			return Manifest{}, nil, fmt.Errorf("an evaluation world with no name cannot bind its items")
 		}
+		// Two worlds under one name keep both sets of items in the manifest
+		// while the second world's blinded views overwrite the first's under
+		// the same key — leaving manifest items whose adjudication payload no
+		// longer exists, and a digest describing a sample that cannot be
+		// adjudicated. The CLI rejects duplicates already; Build must not
+		// depend on its caller having done so.
+		if seen[w.Name] {
+			return Manifest{}, nil, fmt.Errorf("evaluation world %q was supplied twice; each world's blinded views are keyed by its name, so the second would silently replace the first", w.Name)
+		}
+		seen[w.Name] = true
 		wb := bindingOf(w)
 		m.Worlds = append(m.Worlds, wb)
 

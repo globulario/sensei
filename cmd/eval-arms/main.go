@@ -68,6 +68,11 @@ type armArtifact struct {
 	// that exist in the documents they were composed from — #131's candidate
 	// grounding, in the half that needs no adjudicator.
 	CandidateGrounding string `json:"candidate_grounding,omitempty"`
+	// SampleManifestDigest is the sample's SELF-EXCLUDING identity, which a
+	// reference-set release names as its sample_manifest_digest_sha256. It is
+	// deliberately not ReportDigest: that one hashes the bytes on disk, and the
+	// bytes contain this value, so the two can never be equal.
+	SampleManifestDigest string `json:"sample_manifest_digest_sha256,omitempty"`
 	// AcquisitionFile/Digest name the frozen model measurements this arm
 	// produced, so a later scoring run can be pointed at exact material.
 	AcquisitionFile   string `json:"acquisition_file,omitempty"`
