@@ -91,7 +91,7 @@ func runFreeze(ctx context.Context, args []string) error {
 	graphDigest := fs.String("graph-digest", "", "live store digest the classification evidence was read from (required)")
 	target := fs.Int("target", prospective.DefaultTargetPerStratum, "per-stratum sampling target")
 	overlap := fs.Float64("overlap", 0.2, "second-adjudicator overlap fraction")
-	corpusLimit := fs.Int("corpus-limit", 100, "rows requested per class; production caps this server-side, and the shortfall is reconciled against the graph totals")
+	corpusLimit := fs.Int("corpus-page", 100, "rows per page when walking a class; the walk continues until the server reports no more")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
