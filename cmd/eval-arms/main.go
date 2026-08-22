@@ -195,7 +195,7 @@ func main() {
 	// This pins the pair this binary knows. It cannot validate that some other
 	// id belongs to some other document — nothing here could — but it can
 	// refuse to let either known default move without its counterpart.
-	defaultFile := *protocolFile == protocolPath
+	defaultFile := isDefaultProtocolDocument(*protocolFile)
 	defaultID := *protocolIDFlag == protocolID
 	if defaultFile != defaultID {
 		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-file and --protocol-id disagree about which protocol this is.")
@@ -540,6 +540,38 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	}
 	art.SiteCoverage = fmt.Sprintf("%d/%d", answered, len(report.Results))
 	return art
+}
+
+// isDefaultProtocolDocument reports whether a path names the frozen default
+// protocol, by CONTENT rather than by how the path was spelled.
+//
+// An earlier version compared path strings, so `./docs/...v1.md` read as a
+// custom protocol while being the v1 document — which let the v1 digest be
+// recorded under another identity AND disabled the world-completeness guard
+// that protects v1. A path is a name for a file; two names for one file are
+// still one file, and the manifest records what the bytes were.
+//
+// Falls back to comparing resolved paths when the default cannot be read, so a
+// run from outside the repository root degrades to the older, weaker check
+// rather than silently deciding every document is custom.
+func isDefaultProtocolDocument(path string) bool {
+	want, wantErr := fileDigest(protocolPath)
+	got, gotErr := fileDigest(path)
+	if wantErr == nil && gotErr == nil {
+		return want == got
+	}
+	a, errA := filepath.Abs(path)
+	b, errB := filepath.Abs(protocolPath)
+	if errA != nil || errB != nil {
+		return path == protocolPath
+	}
+	if ra, err := filepath.EvalSymlinks(a); err == nil {
+		a = ra
+	}
+	if rb, err := filepath.EvalSymlinks(b); err == nil {
+		b = rb
+	}
+	return a == b
 }
 
 // requiredMutantArms are the mutant-suite arms the default protocol's fourth

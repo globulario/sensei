@@ -100,12 +100,19 @@ clone_world() {
     echo "$0: skipping $name — set $var to a checkout to run it" >&2
     return
   fi
+  # Past this point the caller SUPPLIED this world, so a bad source is an error
+  # rather than an omission. Returning here would let a mistyped or inaccessible
+  # path be recorded as not_run and the command still succeed, so automation
+  # could accept a run that never executed the world it was explicitly told to
+  # measure. Only an unset variable means "not supplied".
+  #
   # A linked checkout made by `git worktree add` has a .git FILE pointing at the
-  # shared git directory, so testing for a directory would skip a perfectly
-  # cloneable source and record a world the caller did supply as not_run.
+  # shared git directory, so the check is a git query rather than a directory
+  # test, which would reject a perfectly cloneable source.
   if ! git -C "$src" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "$0: skipping $name — $src is not a git checkout" >&2
-    return
+    echo "$0: $name — $src is not a git checkout (set via $var)." >&2
+    echo "  You asked for this world, so this is a failure rather than an omission." >&2
+    exit 2
   fi
   if [[ -z "$rev" ]]; then
     echo "$0: refusing to run $name — no pinned revision given." >&2
