@@ -734,9 +734,7 @@ func composeReceiptsAndCoverage(
 		EvidenceSnapshotDigestSHA256:  "",
 		InvestigationPlanDigestSHA256: planDigest,
 		ExtractorProfileDigestSHA256:  profileDigest,
-		Model: investigation.ModelBinding{
-			Status: investigation.ModelStatusDisabled,
-		},
+		Model:                         investigation.DisabledModelBinding(),
 	}
 
 	receipt := investigation.RunReceipt{
@@ -747,14 +745,12 @@ func composeReceiptsAndCoverage(
 		PlanDigestSHA256:             planDigest,
 		ExtractorProfileDigestSHA256: profileDigest,
 		EvidenceSnapshotDigestSHA256: "",
-		Model: investigation.ModelBinding{
-			Status: investigation.ModelStatusDisabled,
-		},
-		ModelArtifactDigestSHA256: "",
-		PostProcessingVersion:     PostProcessingVersion,
-		TimestampSource:           opts.CapturedAt,
-		ResourceLimits:            opts.ResourceLimits,
-		NondeterminismDeclaration: NondeterminismDeclaration,
+		Model:                        investigation.DisabledModelBinding(),
+		ModelArtifactDigestSHA256:    "",
+		PostProcessingVersion:        PostProcessingVersion,
+		TimestampSource:              opts.CapturedAt,
+		ResourceLimits:               opts.ResourceLimits,
+		NondeterminismDeclaration:    NondeterminismDeclaration,
 	}
 
 	receipt.DiffScope = metrics.diffScope
