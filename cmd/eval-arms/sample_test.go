@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
 )
 
@@ -203,5 +204,71 @@ func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
 		{Name: "world1_sensei_self"}, {Name: "world2_globular"}, {Name: "world3_independent_calibration"},
 	})) != 0 {
 		t.Error("a complete world set reported something missing")
+	}
+}
+
+// TestTheProtocolPairIsCheckedByValueNotByPresence.
+//
+// An earlier version compared only whether both flags were mentioned, so
+// `--protocol-file <the v1 document> --protocol-id v2` passed: it recorded the
+// v1 digest under a v2 identity AND made the completeness check believe a
+// custom protocol was in use, disabling the guard that protects v1. Naming both
+// flags is not the same as keeping them consistent.
+func TestTheProtocolPairIsCheckedByValueNotByPresence(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		file, id   string
+		wantAgrees bool
+	}{
+		{"both default", protocolPath, protocolID, true},
+		{"both custom", "other.md", "other-v2", true},
+		{"v1 document under another identity", protocolPath, "other-v2", false},
+		{"v1 identity over another document", "other.md", protocolID, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			agrees := (tc.file == protocolPath) == (tc.id == protocolID)
+			if agrees != tc.wantAgrees {
+				t.Fatalf("pair (%s, %s) agrees=%v, want %v", tc.file, tc.id, agrees, tc.wantAgrees)
+			}
+		})
+	}
+}
+
+// TestTheMutantSuiteCountsTowardV1Completeness.
+//
+// The protocol consumes four worlds and the fourth is the mutant suite, which
+// is not a checkout and so never appeared in requiredWorlds. A run whose mutant
+// arms failed would otherwise have written a v1 sample over an incomplete v1
+// evaluation — the same omission defect, in the world that does not look like
+// a world.
+func TestTheMutantSuiteCountsTowardV1Completeness(t *testing.T) {
+	complete := []armArtifact{
+		{Arm: evalharness.ArmDeterministicExtraction, Subject: subjectMutantSuite, Status: statusRan},
+		{Arm: evalharness.ArmCompositionModelDisabled, Subject: subjectMutantSuite, Status: statusRan},
+	}
+	if got := incompleteMutantSuite(complete); len(got) != 0 {
+		t.Errorf("a complete mutant suite reported %v missing", got)
+	}
+
+	failed := []armArtifact{
+		{Arm: evalharness.ArmDeterministicExtraction, Subject: subjectMutantSuite, Status: statusFailed},
+		{Arm: evalharness.ArmCompositionModelDisabled, Subject: subjectMutantSuite, Status: statusRan},
+	}
+	got := incompleteMutantSuite(failed)
+	if len(got) != 1 || !strings.Contains(got[0], evalharness.ArmDeterministicExtraction) {
+		t.Fatalf("a failed mutant arm was not counted as incomplete: %v", got)
+	}
+
+	// An arm that never appeared at all is missing, not silently complete.
+	if got := incompleteMutantSuite(nil); len(got) != len(requiredMutantArms) {
+		t.Errorf("absent mutant arms reported %v, want all %d missing", got, len(requiredMutantArms))
+	}
+
+	// The optional model arm must NOT count: the protocol treats a bound model
+	// as available-when-available, so its absence is not incompleteness.
+	withoutModel := append([]armArtifact(nil), complete...)
+	withoutModel = append(withoutModel, armArtifact{Arm: armCompositionModelBound, Subject: subjectMutantSuite, Status: statusNotRun})
+	if got := incompleteMutantSuite(withoutModel); len(got) != 0 {
+		t.Errorf("an unbound optional model arm was treated as incompleteness: %v", got)
 	}
 }

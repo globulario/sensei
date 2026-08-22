@@ -184,16 +184,24 @@ func main() {
 	flag.Parse()
 
 	// The protocol's identity and its document move together or not at all.
-	// The shell wrapper enforced this and a direct caller bypassed it entirely,
-	// which is the same defect as guarding a budget in one consumer: the rule
-	// belongs where every caller passes. A supplied id over the default
-	// document (or the reverse) yields a manifest naming one protocol while
-	// carrying another's digest.
-	set := map[string]bool{}
-	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
-	if set["protocol-id"] != set["protocol-file"] {
-		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-id and --protocol-file must be given together or not at all;")
-		fmt.Fprintln(os.Stderr, "  one alone records an identity beside another protocol's digest")
+	//
+	// Checked by VALUE, not by whether the flags were mentioned. An earlier
+	// version compared only presence, so `--protocol-file <the v1 document>
+	// --protocol-id v2` passed: it recorded the v1 digest under a v2 identity
+	// AND made the completeness check below think a custom protocol was in use,
+	// disabling the very guard that protects v1. Naming both flags is not the
+	// same as keeping them consistent.
+	//
+	// This pins the pair this binary knows. It cannot validate that some other
+	// id belongs to some other document — nothing here could — but it can
+	// refuse to let either known default move without its counterpart.
+	defaultFile := *protocolFile == protocolPath
+	defaultID := *protocolIDFlag == protocolID
+	if defaultFile != defaultID {
+		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-file and --protocol-id disagree about which protocol this is.")
+		fmt.Fprintf(os.Stderr, "  file=%s\n  id=%s\n", *protocolFile, *protocolIDFlag)
+		fmt.Fprintln(os.Stderr, "  One names the known default and the other does not, so the manifest would")
+		fmt.Fprintln(os.Stderr, "  record one protocol's digest under another protocol's identity.")
 		os.Exit(2)
 	}
 
@@ -284,7 +292,14 @@ func main() {
 	// is exactly the substitution this harness refuses elsewhere — and it is
 	// the case that looked safe, because nothing was swapped, only missing.
 	missing := missingRequiredWorlds(sampledWorlds)
-	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, *protocolIDFlag == protocolID, missing, sampledWorlds, *selectionSeed, *capturedAt))
+	// The protocol consumes FOUR worlds, and the fourth is the mutant suite,
+	// which is not a checkout and so never appeared in requiredWorlds. A run
+	// whose mutant arms failed would otherwise have written a v1 sample over an
+	// incomplete v1 evaluation — the same omission defect one level out, in the
+	// world that does not look like a world.
+	missing = append(missing, incompleteMutantSuite(idx.Arms)...)
+	sort.Strings(missing)
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, defaultID, missing, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,
@@ -525,6 +540,40 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	}
 	art.SiteCoverage = fmt.Sprintf("%d/%d", answered, len(report.Results))
 	return art
+}
+
+// requiredMutantArms are the mutant-suite arms the default protocol's fourth
+// world depends on. The optional model arm is excluded: the protocol treats a
+// bound model as available-when-available, so its absence is not incompleteness.
+// The operational-surface arm is excluded too — it is refused by the authority
+// model on purpose, and that refusal is a measured result rather than a gap.
+var requiredMutantArms = []string{
+	evalharness.ArmDeterministicExtraction,
+	evalharness.ArmCompositionModelDisabled,
+}
+
+// incompleteMutantSuite names the mutant-suite arms that did not run.
+func incompleteMutantSuite(arms []armArtifact) []string {
+	status := map[string]string{}
+	for _, a := range arms {
+		if a.Subject == subjectMutantSuite {
+			status[a.Arm] = a.Status
+		}
+	}
+	var missing []string
+	for _, name := range requiredMutantArms {
+		if status[name] != statusRan {
+			missing = append(missing, fmt.Sprintf("mutant suite arm %s (%s)", name, orNotRun(status[name])))
+		}
+	}
+	return missing
+}
+
+func orNotRun(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return statusNotRun
+	}
+	return s
 }
 
 // missingRequiredWorlds names the worlds the default protocol consumes that
