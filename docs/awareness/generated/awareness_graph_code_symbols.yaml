@@ -11619,12 +11619,24 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A baseline that changed WHAT it produced without changing HOW MUCH is a\ndifferent baseline. Counts are not an identity."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestCannotAdjudicateIsPreservedNotCollapsedIntoUnlabelled
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestCannotAdjudicateIsPreservedNotCollapsedIntoUnlabelled
+    package: evalmodel
+    language: go
+    doc: "cannot_adjudicate is a human DECISION, not a missing label."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicAndModelCountsStaySeparate
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestDeterministicAndModelCountsStaySeparate
     package: evalmodel
     language: go
     doc: "Deterministic and model-derived counts must never be merged into one number."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicLaneIsScoredAgainstTheSameReferenceSet
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDeterministicLaneIsScoredAgainstTheSameReferenceSet
+    package: evalmodel
+    language: go
+    doc: "The deterministic lane must be scoreable, or there is no delta to report."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestDuplicateReferenceLabelsInvalidateTheSet
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestDuplicateReferenceLabelsInvalidateTheSet
@@ -11637,6 +11649,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "Two items with the same words but different file attribution are different\nclaims. A label written for one must not migrate to the other."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeysAreScopedToTheExperiment
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestItemKeysAreScopedToTheExperiment
+    package: evalmodel
+    language: go
+    doc: "An identical claim about a DIFFERENT experiment must not inherit the verdict."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestLabelsWithoutAFrozenIdentityCannotScore
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestLabelsWithoutAFrozenIdentityCannotScore
@@ -11655,6 +11673,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A refusal or an error is an evaluation RESULT, not a zero score that would\nread like a bad model."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
+    package: evalmodel
+    language: go
+    doc: "A populated release that omits a required section 17 constituent must not\nscore, however self-consistent its own digest is."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestReAcquisitionWithADifferentAnswerIsANewMeasurement
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestReAcquisitionWithADifferentAnswerIsANewMeasurement
@@ -14861,6 +14885,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "A bid for authority is REFUSED and recorded, not silently stripped: stripping\nwould let a model keep asking with no evidence that it ever did."
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactDigestOrderingIsTotal
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactDigestOrderingIsTotal
+    package: modelexec
+    language: go
+    doc: "The accepted artifact digest is copied into the terminal binding, so a\npartial order here defeats canonicalization everywhere downstream. The\nacquisition-level ordering test could not catch this: it built outcomes whose\nbinding digest was hard-coded, so the production digest never varied."
   - id: golang/architecture/modelexec/execute_test.go:TestCallerCannotPredeclareResolved
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestCallerCannotPredeclareResolved

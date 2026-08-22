@@ -336,3 +336,30 @@ func TestRequestIdentityCoversSuppliedFilePaths(t *testing.T) {
 		t.Error("moving supplied evidence to a different file did not change the request identity")
 	}
 }
+
+// The accepted artifact digest is copied into the terminal binding, so a
+// partial order here defeats canonicalization everywhere downstream. The
+// acquisition-level ordering test could not catch this: it built outcomes whose
+// binding digest was hard-coded, so the production digest never varied.
+func TestArtifactDigestOrderingIsTotal(t *testing.T) {
+	mk := func(cited, files []string) ArtifactItem {
+		return ArtifactItem{Kind: ItemKindCandidateClaim, Text: "identical words", CitedEvidenceIDs: cited, FilePaths: files}
+	}
+	one := mk([]string{"ev-1"}, []string{"a.go"})
+	two := mk([]string{"ev-2"}, []string{"b.go"})
+
+	forward := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{one, two}}
+	reversed := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{two, one}}
+
+	a, err := ArtifactDigest(forward)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ArtifactDigest(reversed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Error("reordering identical items changed the accepted artifact identity; an unchanged answer would mint a new measurement")
+	}
+}

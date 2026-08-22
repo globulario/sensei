@@ -1138,7 +1138,12 @@ func runModelBoundArm(out, capturedAt string, cfg modelArmConfig, elapsed map[st
 		CapturedAt:    capturedAt,
 		Arm:           armCompositionModelBound,
 	}
-	for _, r := range report.Results {
+	// The clean control FIRST. The model runs over it as well as over every
+	// mutant, and the control's answer is the measurement that exposes model
+	// false positives — a claimed defect where none was planted — or a
+	// control-only refusal. Freezing only the mutants would discard exactly the
+	// half that says whether the model is finding things or inventing them.
+	for _, r := range append([]evalharness.CompositionSiteResult{report.Baseline}, report.Results...) {
 		if r.ModelAcquisition.SchemaVersion == "" {
 			continue
 		}

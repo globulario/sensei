@@ -54,6 +54,11 @@ const (
 	VerdictUnsupported  = "unsupported"
 	VerdictAmbiguous    = "ambiguous"
 	VerdictOutsideScope = "outside_scope"
+	// VerdictCannotAdjudicate is an explicit human DECISION that the evidence
+	// does not settle the question. Collapsing it into "unlabelled" would
+	// report a considered judgement as a gap in the answer key, and would make
+	// the protocol's cannot-adjudicate rate impossible to compute.
+	VerdictCannotAdjudicate = "cannot_adjudicate"
 )
 
 // Score is the deterministic result of measuring one frozen acquisition against
@@ -81,10 +86,23 @@ type Score struct {
 	DeterministicCandidates   int            `json:"deterministic_candidates"`
 	ModelItemsByKind          map[string]int `json:"model_items_by_kind,omitempty"`
 
-	ModelSupported   int `json:"model_supported,omitempty"`
-	ModelUnsupported int `json:"model_unsupported,omitempty"`
-	ModelAmbiguous   int `json:"model_ambiguous,omitempty"`
-	ModelUnlabelled  int `json:"model_unlabelled,omitempty"`
+	ModelSupported        int `json:"model_supported,omitempty"`
+	ModelUnsupported      int `json:"model_unsupported,omitempty"`
+	ModelAmbiguous        int `json:"model_ambiguous,omitempty"`
+	ModelCannotAdjudicate int `json:"model_cannot_adjudicate,omitempty"`
+	ModelUnlabelled       int `json:"model_unlabelled,omitempty"`
+
+	// The deterministic lane scored against the SAME reference set, so the
+	// model delta is a comparison rather than an assertion.
+	BaselineSupported        int `json:"baseline_supported,omitempty"`
+	BaselineUnsupported      int `json:"baseline_unsupported,omitempty"`
+	BaselineAmbiguous        int `json:"baseline_ambiguous,omitempty"`
+	BaselineCannotAdjudicate int `json:"baseline_cannot_adjudicate,omitempty"`
+	BaselineUnlabelled       int `json:"baseline_unlabelled,omitempty"`
+
+	// MissingConstituent names which section 17 identity a populated release
+	// omitted, so the refusal is actionable rather than merely typed.
+	MissingConstituent string `json:"missing_constituent,omitempty"`
 }
 
 // Typed reasons a measurement produced no score.
@@ -95,6 +113,7 @@ const (
 	ReasonReferenceSetAltered    = "reference_set_contents_do_not_match_its_digest"
 	ReasonReferenceSetUnfrozen   = "reference_set_carries_labels_but_no_frozen_identity"
 	ReasonReferenceSetConflicted = "reference_set_labels_the_same_item_more_than_once"
+	ReasonReferenceSetIncomplete = "reference_set_omits_required_release_constituents"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -148,6 +167,28 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		s.Reason = ReasonReferenceSetUnfrozen
 		return s
 	}
+	// Representing the section 17 constituents is not enough if they may all be
+	// empty: a locally recomputed digest over a protocol name and flattened
+	// labels would still be self-consistent, so two different rulers with
+	// identical verdicts would again share an accepted identity. A populated
+	// release must actually carry them.
+	if len(ref.Labels) > 0 {
+		for _, missing := range []struct {
+			what  string
+			empty bool
+		}{
+			{"protocol digest", strings.TrimSpace(ref.ProtocolDigestSHA256) == ""},
+			{"sample manifest digest", strings.TrimSpace(ref.SampleManifestDigestSHA256) == ""},
+			{"label file digests", len(ref.LabelFileDigestsSHA256) == 0},
+			{"world binding digests", len(ref.WorldBindingDigestsSHA256) == 0},
+		} {
+			if missing.empty {
+				s.Reason = ReasonReferenceSetIncomplete
+				s.MissingConstituent = missing.what
+				return s
+			}
+		}
+	}
 	if ref.DigestSHA256 != "" && ref.DigestSHA256 != ReferenceDigest(ref) {
 		s.Reason = ReasonReferenceSetAltered
 		return s
@@ -175,36 +216,57 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		labels[l.ItemKey] = l.Verdict
 	}
 	for _, item := range a.Items {
-		switch labels[ItemKey(item)] {
-		case VerdictSupported:
-			s.ModelSupported++
-		case VerdictUnsupported:
-			s.ModelUnsupported++
-		case VerdictAmbiguous:
-			s.ModelAmbiguous++
-		case VerdictOutsideScope:
-			// Deliberately counted nowhere: an item the protocol placed outside
-			// scope must not silently become a miss.
-		default:
-			s.ModelUnlabelled++
-		}
+		tally(labels[ItemKey(a, item)], &s.ModelSupported, &s.ModelUnsupported, &s.ModelAmbiguous, &s.ModelCannotAdjudicate, &s.ModelUnlabelled)
+	}
+	// The deterministic lane, scored against the same labels. A claim produced
+	// by both lanes shares one key on purpose: its truth does not depend on who
+	// said it, and counting it in both lanes is what makes the delta mean
+	// "what the model ADDED".
+	for _, item := range a.Baseline.Candidates {
+		tally(labels[BaselineItemKey(a, item)], &s.BaselineSupported, &s.BaselineUnsupported, &s.BaselineAmbiguous, &s.BaselineCannotAdjudicate, &s.BaselineUnlabelled)
 	}
 	s.Scored = true
 	return s
 }
 
-// ItemKey is the stable identity of one acquired item, so a human label written
-// against a frozen sample keeps pointing at the same item.
-func ItemKey(item AcquiredItem) string {
-	// FilePaths are part of the identity: two items with the same words that
-	// attribute the finding to different files are different claims, and a
-	// human label written for one must not migrate to the other.
+// ItemKey and BaselineItemKey are the stable identities a human label attaches
+// to. They are SCOPED to the experiment that produced the claim.
+//
+// Content alone is not enough. Two pinned worlds can yield an identical claim —
+// same words, same citation ids, same paths — where the evidence supports it in
+// one world and refutes it in the other. An unscoped key would let one
+// adjudicated verdict migrate to a question it was never asked about, which is
+// the worst possible failure in an answer key: silently correct-looking and
+// wrong.
+//
+// The scope is the request identity and the composed deterministic baseline:
+// together they name which question was put, about which world, against which
+// deterministic result. The acquisition digest itself is deliberately NOT used,
+// because it covers the items and the key would be circular.
+func ItemKey(a Acquisition, item AcquiredItem) string {
+	return scopedItemKey(a, item.Kind, item.Text, item.CitedEvidenceIDs, item.FilePaths)
+}
+
+// BaselineItemKey is the same identity for a deterministic claim. A claim
+// produced by both lanes shares one key on purpose: its truth does not depend
+// on which lane said it.
+func BaselineItemKey(a Acquisition, item BaselineItem) string {
+	return scopedItemKey(a, item.Kind, item.Text, item.CitedEvidenceIDs, item.FilePaths)
+}
+
+func scopedItemKey(a Acquisition, kind, text string, cited, files []string) string {
 	payload, _ := json.Marshal(struct {
-		Kind  string   `json:"kind"`
-		Text  string   `json:"text"`
-		Cited []string `json:"cited"`
-		Files []string `json:"files"`
-	}{item.Kind, item.Text, sortedCopy(item.CitedEvidenceIDs), sortedCopy(item.FilePaths)})
+		RequestDigest  string   `json:"request_digest"`
+		BaselineDigest string   `json:"baseline_digest"`
+		Kind           string   `json:"kind"`
+		Text           string   `json:"text"`
+		Cited          []string `json:"cited"`
+		Files          []string `json:"files"`
+	}{
+		a.Model.RequestDigestSHA256,
+		a.Baseline.ComposedResultDigestSHA256,
+		kind, text, sortedCopy(cited), sortedCopy(files),
+	})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])[:32]
 }
@@ -224,4 +286,25 @@ func ReferenceDigest(ref ReferenceSet) string {
 	data, _ := json.Marshal(ref)
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// tally routes one verdict into the right counter.
+//
+// outside_scope is deliberately counted nowhere: an item the protocol placed
+// outside scope must not silently become a miss. cannot_adjudicate IS counted,
+// because it is a human decision rather than a gap.
+func tally(verdict string, supported, unsupported, ambiguous, cannot, unlabelled *int) {
+	switch verdict {
+	case VerdictSupported:
+		*supported++
+	case VerdictUnsupported:
+		*unsupported++
+	case VerdictAmbiguous:
+		*ambiguous++
+	case VerdictCannotAdjudicate:
+		*cannot++
+	case VerdictOutsideScope:
+	default:
+		*unlabelled++
+	}
 }

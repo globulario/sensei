@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/modelexec"
@@ -37,6 +38,19 @@ const (
 // DeterministicBaseline is what the run recovered WITHOUT the model. It is
 // carried alongside the model result and never merged into it: a reader must
 // always be able to tell which lane produced which item.
+// BaselineItem is one claim the DETERMINISTIC lane produced.
+//
+// The counts alone cannot be scored: a human label attaches to a claim, so
+// without the claims themselves the scorer can report model-item counts and
+// nothing else — no deterministic-lane score, and therefore no model delta,
+// which is the comparison the whole arm exists to make.
+type BaselineItem struct {
+	Kind             string   `json:"kind"`
+	Text             string   `json:"text"`
+	CitedEvidenceIDs []string `json:"cited_evidence_ids,omitempty"`
+	FilePaths        []string `json:"file_paths,omitempty"`
+}
+
 type DeterministicBaseline struct {
 	// DocumentDigestSHA256 is the upstream HOW document. It identifies the
 	// input the deterministic lane started from.
@@ -49,6 +63,10 @@ type DeterministicBaseline struct {
 	ComposedResultDigestSHA256 string `json:"composed_result_digest_sha256,omitempty"`
 	ObservationCount           int    `json:"observation_count"`
 	CandidateCount             int    `json:"candidate_count"`
+	// Candidates are the scoreable deterministic claims, carried so the
+	// deterministic lane can be measured against the same reference set as the
+	// model lane.
+	Candidates []BaselineItem `json:"candidates,omitempty"`
 }
 
 // AcquiredItem is one model-derived proposal, recorded with its provenance.
@@ -111,9 +129,15 @@ func NewAcquisition(capturedAt string, baseline DeterministicBaseline, outcome m
 			if a.Items[i].Text != a.Items[j].Text {
 				return a.Items[i].Text < a.Items[j].Text
 			}
-			return ItemKey(a.Items[i]) < ItemKey(a.Items[j])
+			// Content-only tie-break: the scoped key depends on the
+			// acquisition being built, so using it here would be circular.
+			if ac, bc := strings.Join(a.Items[i].CitedEvidenceIDs, "\x00"), strings.Join(a.Items[j].CitedEvidenceIDs, "\x00"); ac != bc {
+				return ac < bc
+			}
+			return strings.Join(a.Items[i].FilePaths, "\x00") < strings.Join(a.Items[j].FilePaths, "\x00")
 		})
 	}
+	a.Baseline.Candidates = sortedBaselineItems(a.Baseline.Candidates)
 	a.AcquisitionDigestSHA256 = acquisitionDigest(a)
 	return a
 }
@@ -136,5 +160,32 @@ func sortedCopy(in []string) []string {
 	}
 	out := append([]string{}, in...)
 	sort.Strings(out)
+	return out
+}
+
+// sortedBaselineItems imposes the same total order on the deterministic lane
+// that the model lane gets, so a reordered identical baseline is not a new
+// measurement either.
+func sortedBaselineItems(in []BaselineItem) []BaselineItem {
+	out := append([]BaselineItem{}, in...)
+	for i := range out {
+		out[i].CitedEvidenceIDs = sortedCopy(out[i].CitedEvidenceIDs)
+		out[i].FilePaths = sortedCopy(out[i].FilePaths)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].Kind != out[j].Kind {
+			return out[i].Kind < out[j].Kind
+		}
+		if out[i].Text != out[j].Text {
+			return out[i].Text < out[j].Text
+		}
+		if a, b := strings.Join(out[i].CitedEvidenceIDs, "\x00"), strings.Join(out[j].CitedEvidenceIDs, "\x00"); a != b {
+			return a < b
+		}
+		return strings.Join(out[i].FilePaths, "\x00") < strings.Join(out[j].FilePaths, "\x00")
+	})
+	if len(out) == 0 {
+		return nil
+	}
 	return out
 }

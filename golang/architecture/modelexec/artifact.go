@@ -114,11 +114,24 @@ func ArtifactDigest(a Artifact) (string, error) {
 		norm.Items[i].CitedEvidenceIDs = sortedCopy(norm.Items[i].CitedEvidenceIDs)
 		norm.Items[i].FilePaths = sortedCopy(norm.Items[i].FilePaths)
 	}
+	// A TOTAL order. Ordering by kind and text alone leaves items that differ
+	// only in citations or file paths in the provider's arrival order, so
+	// swapping two of them changes these bytes and mints a different accepted
+	// artifact identity for an unchanged answer. That digest is copied into the
+	// terminal binding, so a partial order here defeats canonicalization
+	// everywhere downstream however careful the later sorting is.
 	sort.SliceStable(norm.Items, func(i, j int) bool {
-		if norm.Items[i].Kind != norm.Items[j].Kind {
-			return norm.Items[i].Kind < norm.Items[j].Kind
+		a, b := norm.Items[i], norm.Items[j]
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
 		}
-		return norm.Items[i].Text < norm.Items[j].Text
+		if a.Text != b.Text {
+			return a.Text < b.Text
+		}
+		if ac, bc := strings.Join(a.CitedEvidenceIDs, "\x00"), strings.Join(b.CitedEvidenceIDs, "\x00"); ac != bc {
+			return ac < bc
+		}
+		return strings.Join(a.FilePaths, "\x00") < strings.Join(b.FilePaths, "\x00")
 	})
 	data, err := json.Marshal(norm)
 	if err != nil {

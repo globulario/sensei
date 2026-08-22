@@ -331,6 +331,7 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 	// failed: the model lane still ran, and its outcome is still a result.
 	var modelOutcome modelexec.Outcome
 	var composedDigest string
+	var baselineItems []evalmodel.BaselineItem
 	defer func() {
 		if modelOutcome.Binding.Status == "" {
 			return
@@ -340,6 +341,7 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 			ComposedResultDigestSHA256: composedDigest,
 			ObservationCount:           res.Observations,
 			CandidateCount:             res.Candidates,
+			Candidates:                 baselineItems,
 		}, modelOutcome)
 	}()
 
@@ -488,6 +490,10 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 	// The composed result's own content identity, so a baseline that changed
 	// what it produced without changing how much is a different baseline.
 	composedDigest = composedResultDigest(result)
+	// And the deterministic claims themselves, so the deterministic lane can be
+	// scored against the same reference set the model lane is. Counts cannot be
+	// adjudicated; a human label attaches to a claim.
+	baselineItems = baselineItemsFrom(result)
 
 	res.Candidates = len(result.Candidates)
 	res.Challenges = len(result.Challenges)
@@ -632,4 +638,29 @@ func composedResultDigest(result investigator.Result) string {
 	}
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// baselineItemsFrom carries the deterministic candidates into the frozen
+// acquisition as scoreable claims.
+func baselineItemsFrom(result investigator.Result) []evalmodel.BaselineItem {
+	out := make([]evalmodel.BaselineItem, 0, len(result.Candidates))
+	for _, c := range result.Candidates {
+		out = append(out, evalmodel.BaselineItem{
+			Kind:             "candidate_claim",
+			Text:             candidateText(c),
+			CitedEvidenceIDs: candidateCitations(c),
+		})
+	}
+	return out
+}
+
+// candidateCitations is every identity a deterministic candidate points at,
+// across all three citation lanes, so a label attaches to the same grounding
+// the candidate actually claimed.
+func candidateCitations(c investigator.CandidateEnvelope) []string {
+	var out []string
+	for _, refs := range [][]string{c.ObservationRefIDs, c.SupportingEvidenceRefIDs, c.RefutingEvidenceRefIDs} {
+		out = append(out, refs...)
+	}
+	return out
 }

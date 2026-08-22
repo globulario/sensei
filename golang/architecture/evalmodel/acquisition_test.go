@@ -80,7 +80,9 @@ func TestReAcquisitionWithADifferentAnswerIsANewMeasurement(t *testing.T) {
 		t.Fatal("two different model answers share one identity")
 	}
 	// And each scores deterministically against the same reference set.
-	ref := ReferenceSet{Labels: []ReferenceLabel{{ItemKey: "x", Verdict: VerdictSupported}}}
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: "x", Verdict: VerdictSupported}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
 	if a, b := ScoreAcquisition(first, ref), ScoreAcquisition(first, ref); !equalJSON(t, a, b) {
 		t.Error("scoring the same frozen bundle twice was not identical")
 	}
@@ -89,9 +91,9 @@ func TestReAcquisitionWithADifferentAnswerIsANewMeasurement(t *testing.T) {
 // The scorer is the half that MUST replay byte-identically.
 func TestScorerOverAFrozenBundleIsByteIdentical(t *testing.T) {
 	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
-	ref := ReferenceSet{SchemaVersion: "v1", ProtocolID: "phase10-reference-protocol-v1"}
+	ref := frozenRef()
 	ref.Labels = []ReferenceLabel{
-		{ItemKey: ItemKey(a.Items[0]), Verdict: VerdictSupported},
+		{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported},
 		{ItemKey: "unrelated", Verdict: VerdictUnsupported},
 	}
 	ref.DigestSHA256 = ReferenceDigest(ref)
@@ -147,7 +149,10 @@ func TestNonResolvedOutcomeIsReportedAsItselfNotAsZero(t *testing.T) {
 			ProviderID: "bridge", RequestDigestSHA256: sha,
 		},
 	})
-	s := ScoreAcquisition(a, ReferenceSet{Labels: []ReferenceLabel{{ItemKey: "x", Verdict: VerdictSupported}}})
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: "x", Verdict: VerdictSupported}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+	s := ScoreAcquisition(a, ref)
 	if s.Scored {
 		t.Error("a refused model produced a score")
 	}
@@ -183,7 +188,8 @@ func equalJSON(t *testing.T, a, b Score) bool {
 // moved answer key would go undetected.
 func TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest(t *testing.T) {
 	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
-	ref := ReferenceSet{Labels: []ReferenceLabel{{ItemKey: ItemKey(a.Items[0]), Verdict: VerdictSupported}}}
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported}}
 	ref.DigestSHA256 = ReferenceDigest(ref)
 	if s := ScoreAcquisition(a, ref); !s.Scored {
 		t.Fatalf("intact frozen inputs were not scored: %+v", s)
@@ -207,10 +213,11 @@ func TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest(t *testing.T) {
 // Two items with the same words but different file attribution are different
 // claims. A label written for one must not migrate to the other.
 func TestItemKeyDistinguishesFileAttribution(t *testing.T) {
+	acq := NewAcquisition("t", baseline(), resolvedOutcome("x"))
 	a := AcquiredItem{Kind: "candidate_claim", Text: "this boundary leaks", CitedEvidenceIDs: []string{"ev-1"}, FilePaths: []string{"a.go"}}
 	b := a
 	b.FilePaths = []string{"b.go"}
-	if ItemKey(a) == ItemKey(b) {
+	if ItemKey(acq, a) == ItemKey(acq, b) {
 		t.Error("claims about different files share one identity; a human label could migrate between them")
 	}
 }
@@ -220,7 +227,9 @@ func TestItemKeyDistinguishesFileAttribution(t *testing.T) {
 // be present let labels-with-no-digest through to Scored=true.
 func TestLabelsWithoutAFrozenIdentityCannotScore(t *testing.T) {
 	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
-	unfrozen := ReferenceSet{Labels: []ReferenceLabel{{ItemKey: ItemKey(a.Items[0]), Verdict: VerdictSupported}}}
+	unfrozen := frozenRef()
+	unfrozen.DigestSHA256 = ""
+	unfrozen.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported}}
 
 	s := ScoreAcquisition(a, unfrozen)
 	if s.Scored {
@@ -306,11 +315,12 @@ func TestReferenceIdentityCoversTheProtocolConstituents(t *testing.T) {
 // exists to produce. Silently keeping the last verdict would erase it.
 func TestDuplicateReferenceLabelsInvalidateTheSet(t *testing.T) {
 	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
-	key := ItemKey(a.Items[0])
-	conflicted := ReferenceSet{Labels: []ReferenceLabel{
+	key := ItemKey(a, a.Items[0])
+	conflicted := frozenRef()
+	conflicted.Labels = []ReferenceLabel{
 		{ItemKey: key, Verdict: VerdictSupported},
 		{ItemKey: key, Verdict: VerdictUnsupported},
-	}}
+	}
 	conflicted.DigestSHA256 = ReferenceDigest(conflicted)
 
 	s := ScoreAcquisition(a, conflicted)
@@ -319,5 +329,106 @@ func TestDuplicateReferenceLabelsInvalidateTheSet(t *testing.T) {
 	}
 	if s.Reason != ReasonReferenceSetConflicted {
 		t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetConflicted)
+	}
+}
+
+// frozenRef is a reference set carrying the section 17 constituents a real
+// release must have. Tests use it so a fixture cannot accidentally assert that
+// an under-specified ruler is acceptable.
+func frozenRef() ReferenceSet {
+	r := ReferenceSet{
+		SchemaVersion:              "v1",
+		ProtocolID:                 "phase10-reference-protocol-v1",
+		ProtocolDigestSHA256:       "protocol-digest",
+		SampleManifestDigestSHA256: "sample-manifest-digest",
+		LabelFileDigestsSHA256:     []string{"label-file-digest"},
+		WorldBindingDigestsSHA256:  []string{"world-binding-digest"},
+	}
+	r.DigestSHA256 = ReferenceDigest(r)
+	return r
+}
+
+// A populated release that omits a required section 17 constituent must not
+// score, however self-consistent its own digest is.
+func TestPopulatedReferenceSetMustCarryEveryRequiredConstituent(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	for _, tc := range []struct {
+		name  string
+		strip func(*ReferenceSet)
+	}{
+		{"protocol digest", func(r *ReferenceSet) { r.ProtocolDigestSHA256 = "" }},
+		{"sample manifest digest", func(r *ReferenceSet) { r.SampleManifestDigestSHA256 = "" }},
+		{"label file digests", func(r *ReferenceSet) { r.LabelFileDigestsSHA256 = nil }},
+		{"world binding digests", func(r *ReferenceSet) { r.WorldBindingDigestsSHA256 = nil }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ref := frozenRef()
+			ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported}}
+			tc.strip(&ref)
+			ref.DigestSHA256 = ReferenceDigest(ref)
+			s := ScoreAcquisition(a, ref)
+			if s.Scored {
+				t.Fatalf("a release omitting the %s scored anyway", tc.name)
+			}
+			if s.Reason != ReasonReferenceSetIncomplete {
+				t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetIncomplete)
+			}
+		})
+	}
+}
+
+// cannot_adjudicate is a human DECISION, not a missing label.
+func TestCannotAdjudicateIsPreservedNotCollapsedIntoUnlabelled(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictCannotAdjudicate}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+
+	s := ScoreAcquisition(a, ref)
+	if !s.Scored {
+		t.Fatalf("a cannot_adjudicate label prevented scoring: %+v", s)
+	}
+	if s.ModelCannotAdjudicate != 1 {
+		t.Errorf("cannot_adjudicate count = %d, want 1", s.ModelCannotAdjudicate)
+	}
+	if s.ModelUnlabelled != 0 {
+		t.Error("an explicit human decision was reported as a missing label")
+	}
+}
+
+// The deterministic lane must be scoreable, or there is no delta to report.
+func TestDeterministicLaneIsScoredAgainstTheSameReferenceSet(t *testing.T) {
+	base := baseline()
+	base.Candidates = []BaselineItem{{Kind: "candidate_claim", Text: "deterministic finding", CitedEvidenceIDs: []string{"ev-1"}}}
+	a := NewAcquisition("t", base, resolvedOutcome("model finding"))
+
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{
+		{ItemKey: BaselineItemKey(a, a.Baseline.Candidates[0]), Verdict: VerdictSupported},
+		{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictUnsupported},
+	}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+
+	s := ScoreAcquisition(a, ref)
+	if !s.Scored {
+		t.Fatalf("not scored: %+v", s)
+	}
+	if s.BaselineSupported != 1 {
+		t.Errorf("deterministic supported = %d, want 1; without it there is no model delta", s.BaselineSupported)
+	}
+	if s.ModelUnsupported != 1 {
+		t.Errorf("model unsupported = %d, want 1", s.ModelUnsupported)
+	}
+}
+
+// An identical claim about a DIFFERENT experiment must not inherit the verdict.
+func TestItemKeysAreScopedToTheExperiment(t *testing.T) {
+	one := NewAcquisition("t", baseline(), resolvedOutcome("same claim"))
+	otherBase := baseline()
+	otherBase.ComposedResultDigestSHA256 = "a-different-world"
+	two := NewAcquisition("t", otherBase, resolvedOutcome("same claim"))
+
+	if ItemKey(one, one.Items[0]) == ItemKey(two, two.Items[0]) {
+		t.Error("identical claims from different experiments share a label key; one verdict could migrate to a question it was never asked about")
 	}
 }
