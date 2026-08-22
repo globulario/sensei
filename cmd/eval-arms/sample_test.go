@@ -639,3 +639,35 @@ func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {
 		t.Error("the suite world carries no identity")
 	}
 }
+
+// TestTheSuiteBindingIsTheTreeNotTheRunTimestamp.
+//
+// The document digest covers receipt and evidence timestamps, so it changes
+// with --captured-at even when the tree is byte-identical. evalsample's
+// selection key hashes the world binding, so deriving the binding from
+// document digests meant the same committed seed could draw different claims
+// from an unchanged suite — which is the one property the frozen sample
+// depends on.
+func TestTheSuiteBindingIsTheTreeNotTheRunTimestamp(t *testing.T) {
+	build := func(documentDigest string) evalharness.Report {
+		site := evalharness.SiteResult{Defect: "one", DefectPaths: []string{"a.go"}, DocumentDigest: documentDigest}
+		site.Document.Binding.Repository.TreeDigestSHA256 = "the-tree-is-unchanged"
+		base := evalharness.SiteResult{DefectPaths: []string{"a.go"}, DocumentDigest: documentDigest}
+		base.Document.Binding.Repository.TreeDigestSHA256 = "baseline-tree"
+		return evalharness.Report{Baseline: base, Results: []evalharness.SiteResult{site}}
+	}
+	first := mutantSuiteWorld(build("run-one-document-digest"), "example.com/eval")
+	second := mutantSuiteWorld(build("run-two-document-digest"), "example.com/eval")
+
+	if first.Binding.TreeDigestSHA256 != second.Binding.TreeDigestSHA256 {
+		t.Fatalf("two runs over an identical suite produced different bindings:\n  %s\n  %s\nthe same seed would draw different claims",
+			first.Binding.TreeDigestSHA256, second.Binding.TreeDigestSHA256)
+	}
+
+	// A genuinely different tree must still change the binding.
+	changed := build("run-one-document-digest")
+	changed.Results[0].Document.Binding.Repository.TreeDigestSHA256 = "a-different-tree"
+	if mutantSuiteWorld(changed, "example.com/eval").Binding.TreeDigestSHA256 == first.Binding.TreeDigestSHA256 {
+		t.Error("a changed tree produced the same binding; the identity tracks nothing")
+	}
+}

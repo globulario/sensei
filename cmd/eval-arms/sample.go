@@ -166,7 +166,13 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 		for _, p := range site.DefectPaths {
 			inventory[ns.name+"/"+p] = true
 		}
-		fmt.Fprintf(digest, "%s:%s\n", ns.name, site.DocumentDigest)
+		// The site's TREE digest, not its document digest. The document digest
+		// covers receipt and evidence timestamps, so it changes with
+		// --captured-at even when the tree is byte-identical — and
+		// evalsample.selectionKey hashes this binding, so the same committed
+		// seed would have drawn different claims from an unchanged suite. A
+		// world's identity is what it IS, not when it was last looked at.
+		fmt.Fprintf(digest, "%s:%s\n", ns.name, site.Document.Binding.Repository.TreeDigestSHA256)
 	}
 	for unit := range inventory {
 		w.RecallInventory = append(w.RecallInventory, unit)
