@@ -113,7 +113,15 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 		return art
 	}
 	if len(worlds) == 0 {
+		// A seed means the draw was REQUESTED, so "nothing to sample" is a
+		// failure of what was asked for, not a quiet absence. The earlier
+		// failure guard below sat after this branch and was therefore
+		// unreachable here: a direct caller passing --selection-seed with no
+		// --world got exit 0 and no manifest.
 		art.Status = statusNotRun
+		if strings.TrimSpace(seed) != "" {
+			art.Status = statusFailed
+		}
 		art.Reason = "no evaluation world ran, so there is nothing to sample; supply --world"
 		return art
 	}

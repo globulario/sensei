@@ -382,3 +382,22 @@ func TestARefusedRequestedSampleFailsTheRun(t *testing.T) {
 		t.Errorf("a run that asked for no sample reported %q, want %q", art.Status, statusNotRun)
 	}
 }
+
+// TestARequestedDrawWithNoWorldFails.
+//
+// The zero-world branch returned before the refusal guard, so a direct caller
+// passing --selection-seed with no --world got exit 0 and no manifest. A seed
+// means the draw was requested; "nothing to sample" is then a failure of what
+// was asked for rather than a quiet absence.
+func TestARequestedDrawWithNoWorldFails(t *testing.T) {
+	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true, nil, nil, "a-seed", "2026-08-22T05:00:00Z")
+	if art.Status != statusFailed {
+		t.Fatalf("a requested draw with no world reported %q; main counts only %q, so the run would exit 0 with no manifest", art.Status, statusFailed)
+	}
+
+	// Without a seed nothing was requested, so nothing failed.
+	art = writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true, nil, nil, "", "2026-08-22T05:00:00Z")
+	if art.Status != statusNotRun {
+		t.Errorf("an unrequested draw with no world reported %q, want %q", art.Status, statusNotRun)
+	}
+}

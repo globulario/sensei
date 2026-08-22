@@ -89,14 +89,18 @@ No sample was drawn, and the earlier version of this page reported one. That rep
 
 The default protocol consumes **every** world in `requiredWorlds`. World 3 did not run, so a sample drawn here would have carried the v1 identity while following a reduced world definition — the same false claim as substituting a world, arrived at by omission rather than replacement. That is precisely why it looked harmless: nothing was swapped, something was simply missing, and the manifest would have said v1 regardless.
 
-`eval-arms` now refuses:
+`eval-arms` refuses, and the refusal **fails the run**:
 
 ```
-frozen_sample_manifest  not_run  (refusing to draw under the default protocol while
-world3_independent_calibration did not run: the manifest would claim an identity whose
-world definition this run did not follow. Run the missing world(s), or bind a protocol
-that defines the reduced set with --protocol-file and --protocol-id.)
+frozen_sample_manifest  published_domain  failed  (refusing to draw under the default
+protocol while mutant suite (its material is not represented in the sample manifest;
+the sampler draws only from checkout worlds), world3_independent_calibration did not
+run: the manifest would claim an identity whose world definition this run did not
+follow. Run the missing world(s), or bind a protocol that defines the reduced set with
+--protocol-file and --protocol-id.)
 ```
+
+The command exits non-zero. `failed` rather than `not_run` is deliberate: a seed is a request to draw, so refusing it is a failure of what was asked for. Reported as `not_run` it would have left automation with a successful command that produced no manifest — silence indistinguishable from success. A run that supplies no seed still reports `not_run`, because nothing was requested.
 
 The refusal lives in `eval-arms`, not in the wrapper script, because a rule enforced only by a wrapper is a rule a direct caller does not have. The same applies to `--protocol-id` and `--protocol-file`: the tool refuses either one alone, since an identity beside another protocol's digest is a ruler that misstates itself.
 
