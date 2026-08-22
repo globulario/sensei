@@ -705,13 +705,27 @@ func TestComposedClaimsReachTheSample(t *testing.T) {
 	if len(w.Counterexamples) != 2 {
 		t.Fatalf("composed claims produced %d sampleable items, want 2", len(w.Counterexamples))
 	}
+	// The lanes must stay distinguishable for scoring (section 9 forbids
+	// treating them as one population) WITHOUT the blinded view announcing
+	// which lane an item came from (section 12). So the distinction is checked
+	// on the ID, which becomes the manifest's subject_id, and its absence is
+	// checked on the description, which is what the adjudicator reads.
 	var deterministic, model bool
 	for _, c := range w.Counterexamples {
-		if strings.Contains(c.Description, "[deterministic") {
+		if strings.Contains(c.ID, "/deterministic/") {
 			deterministic = true
 		}
-		if strings.Contains(c.Description, "[model") {
+		if strings.Contains(c.ID, "/model/") {
 			model = true
+		}
+		// Only the bracketed prefix is checked: it is the part the artifact
+		// format controls. A claim's own text may legitimately contain the word
+		// "model" (this fixture's does), and rewriting an adjudicator's claim
+		// text to avoid a substring would corrupt the thing being judged.
+		if prefix, _, ok := strings.Cut(c.Description, "] "); ok {
+			if strings.Contains(prefix, "deterministic") || strings.Contains(prefix, "model") {
+				t.Errorf("description prefix %q] names the producing lane; the blinded challenge view would tell the adjudicator which lane to trust", prefix)
+			}
 		}
 		if !strings.HasPrefix(c.ID, "one/") {
 			t.Errorf("claim %q is not attributed to its site", c.ID)
