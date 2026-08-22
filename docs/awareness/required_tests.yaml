@@ -1816,3 +1816,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_frozen_benchmark_run_that_binds_only_target_code_is_replay
+  - id: golang/architecture/whyinvestigation/model_lane_test.go:TestModelAssistedRunRecordsItsOwnNondeterminism
+    title: A model-assisted run stops claiming deterministic replay it cannot deliver
+    protects:
+      failure_modes:
+        - failure.a_threaded_outcome_was_silently_ignored_because_go_permits_a
+  - id: golang/architecture/modelexec/execute_test.go:TestValidArtifactResolvesWithFullIdentity
+    title: Resolved model status is earned by observed execution, never configured
+    protects:
+      invariants:
+        - invariant.sensei.evidence_receipts_are_validated_not_self_certified

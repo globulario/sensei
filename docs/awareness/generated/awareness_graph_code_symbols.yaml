@@ -13978,6 +13978,12 @@ test_symbols:
     symbol: TestVerifyRecomputesAuthorityBindingAndCoverage
     package: interpretationclosure
     language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestBindingAndReceiptCannotTellTwoStories
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestBindingAndReceiptCannotTellTwoStories
+    package: investigation
+    language: go
+    doc: "TestBindingAndReceiptCannotTellTwoStories: RunReceipt carries its own Model\nplus a separate ModelArtifactDigestSHA256. Two fields describing one artifact\nis exactly the shape that drifts, so disagreement must fail closed."
   - id: golang/architecture/investigation/investigation_test.go:TestCandidateScopeExpansionRefusal
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestCandidateScopeExpansionRefusal
@@ -14058,6 +14064,12 @@ test_symbols:
     package: investigation
     language: go
     doc: "Test Model Status and Digest Matrix"
+  - id: golang/architecture/investigation/investigation_test.go:TestNonResolvedStatusCannotCarryExecutionEvidence
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestNonResolvedStatusCannotCarryExecutionEvidence
+    package: investigation
+    language: go
+    doc: "TestNonResolvedStatusCannotCarryExecutionEvidence is the other half: a status\nmust not describe a run it cannot have had. Without this, \"unavailable\" could\ncarry an artifact and \"disabled\" could name a provider."
   - id: golang/architecture/investigation/investigation_test.go:TestNormalizationIdempotence
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestNormalizationIdempotence
@@ -14091,6 +14103,12 @@ test_symbols:
     package: investigation
     language: go
     doc: "Test Repository/Evidence Binding Mismatch Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestResolvedModelStatusCannotBeConfigured
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestResolvedModelStatusCannotBeConfigured
+    package: investigation
+    language: go
+    doc: "TestResolvedModelStatusCannotBeConfigured is the #256 proof that resolved is\nearned rather than set. Each case is a caller declaring success while missing\none identity that only an actual execution could supply."
   - id: golang/architecture/investigationsurface/surface_test.go:TestCoveragePreservesUnavailableAndNoResult
     file: golang/architecture/investigationsurface/surface_test.go
     symbol: TestCoveragePreservesUnavailableAndNoResult
@@ -14587,6 +14605,67 @@ test_symbols:
     file: golang/architecture/maintenance/maintenance_test.go
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
+    language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactCitingUnsuppliedEvidenceIsInvalid
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactCitingUnsuppliedEvidenceIsInvalid
+    package: modelexec
+    language: go
+    doc: "Grounding is decidable because the request is the ONLY material the model was\ngiven: a citation outside it refers to something the model never received."
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactClaimingAuthorityIsRejected
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactClaimingAuthorityIsRejected
+    package: modelexec
+    language: go
+    doc: "A bid for authority is REFUSED and recorded, not silently stripped: stripping\nwould let a model keep asking with no evidence that it ever did."
+  - id: golang/architecture/modelexec/execute_test.go:TestCallerCannotPredeclareResolved
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestCallerCannotPredeclareResolved
+    package: modelexec
+    language: go
+    doc: "Configuration cannot manufacture success. Config has no status field at all,\nso the strongest form of this proof is structural — and the outcome for a\ncaller who asks hardest for success is still driven by what happened."
+  - id: golang/architecture/modelexec/execute_test.go:TestMalformedArtifactIsInvalid
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestMalformedArtifactIsInvalid
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestModelDisabledCallsNothing
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestModelDisabledCallsNothing
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestModelNotRequestedCallsNothing
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestModelNotRequestedCallsNothing
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestProviderErrorIsErroredNotRefused
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestProviderErrorIsErroredNotRefused
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestProviderRefusalIsRefusedNotErrored
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestProviderRefusalIsRefusedNotErrored
+    package: modelexec
+    language: go
+    doc: "A refusal is an ANSWER. Collapsing it into errored would erase the difference\nbetween a provider that declined and one that broke."
+  - id: golang/architecture/modelexec/execute_test.go:TestRequestDigestIsStableAndSensitive
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestRequestDigestIsStableAndSensitive
+    package: modelexec
+    language: go
+    doc: "Determinism of the identity envelope: the same question hashes the same, and\na changed question does not."
+  - id: golang/architecture/modelexec/execute_test.go:TestUnknownProviderIsUnavailableAndNeverInvoked
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestUnknownProviderIsUnavailableAndNeverInvoked
+    package: modelexec
+    language: go
+    doc: "An unresolvable provider fails BEFORE invocation, so it is unavailable and\nnever errored: reporting an outage we never observed would be a lie about\nwhere the failure was."
+  - id: golang/architecture/modelexec/execute_test.go:TestValidArtifactResolvesWithFullIdentity
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestValidArtifactResolvesWithFullIdentity
+    package: modelexec
     language: go
   - id: golang/architecture/packcustody/custody_test.go:TestAdoptionReceiptProvesSharedProjection
     file: golang/architecture/packcustody/custody_test.go
@@ -20542,6 +20621,24 @@ test_symbols:
     symbol: TestShallowHistoryKeepsEvidenceButSignalsLimitation
     package: whyinvestigation
     language: go
+  - id: golang/architecture/whyinvestigation/model_lane_test.go:TestDeterministicWhyIsUnchangedByInstallingModelCapability
+    file: golang/architecture/whyinvestigation/model_lane_test.go
+    symbol: TestDeterministicWhyIsUnchangedByInstallingModelCapability
+    package: whyinvestigation
+    language: go
+    doc: "TestDeterministicWhyIsUnchangedByInstallingModelCapability is #256's central\nregression rule.\n\nAdding a model lane must not perturb the deterministic result merely because\nmodel-capable code is now installed. The comparison is on the composed\ndocument's own digest, so provider ordering, evidence capture and normalized\nfacts are all covered rather than spot-checked."
+  - id: golang/architecture/whyinvestigation/model_lane_test.go:TestDisabledModelLaneCallsNothingAndStaysDeterministic
+    file: golang/architecture/whyinvestigation/model_lane_test.go
+    symbol: TestDisabledModelLaneCallsNothingAndStaysDeterministic
+    package: whyinvestigation
+    language: go
+    doc: "TestDisabledModelLaneCallsNothingAndStaysDeterministic covers the other\nzero-call row of the proof matrix at the orchestration seam."
+  - id: golang/architecture/whyinvestigation/model_lane_test.go:TestModelAssistedRunRecordsItsOwnNondeterminism
+    file: golang/architecture/whyinvestigation/model_lane_test.go
+    symbol: TestModelAssistedRunRecordsItsOwnNondeterminism
+    package: whyinvestigation
+    language: go
+    doc: "TestModelAssistedRunRecordsItsOwnNondeterminism: once a model has genuinely\nrun, the receipt must stop claiming deterministic replay it cannot deliver."
   - id: golang/architecture/whyinvestigation/orchestrate_test.go:TestImmutableEvidenceSnapshotFreeze
     file: golang/architecture/whyinvestigation/orchestrate_test.go
     symbol: TestImmutableEvidenceSnapshotFreeze

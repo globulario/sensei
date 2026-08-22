@@ -1430,6 +1430,7 @@ components:
       - golang/architecture/investigation/digest.go
       - golang/architecture/investigation/evidence.go
       - golang/architecture/investigation/model.go
+      - golang/architecture/investigation/model_binding_validate.go
       - golang/architecture/investigation/normalize.go
       - golang/architecture/investigation/proof_strength.go
       - golang/architecture/investigation/receipt.go
@@ -1556,6 +1557,22 @@ components:
       - component.golang.architecture
     external_imports:
       - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.modelexec
+    name: modelexec
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/modelexec/artifact.go
+      - golang/architecture/modelexec/execute.go
+      - golang/architecture/modelexec/port.go
+      - golang/architecture/modelexec/request.go
+    depends_on:
+      - component.golang.architecture.investigation
     uml:
       kind: Component
       stereotype: module
@@ -2266,6 +2283,7 @@ components:
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.investigation
+      - component.golang.architecture.modelexec
     uml:
       kind: Component
       stereotype: module
