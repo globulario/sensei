@@ -48,6 +48,9 @@ protocol v1 merged
 pinned changes + world binding
       |
       v
+frozen candidate inventory (per stratum, content-addressed)
+      |
+      v
 deterministic sample manifest (strata A/B/C/D)
       |
       v
@@ -155,11 +158,23 @@ Reported **per stratum first**.
 
 ### 7.2 Nuisance / over-alert rate
 
+The denominator is the **resolved** labels only:
+
 ```text
-surfaced items adjudicated inapplicable
-----------------------------------------
-surfaced items adjudicated
+surfaced items labelled not_applicable
+--------------------------------------------------------
+surfaced items labelled applicable + labelled not_applicable
 ```
+
+The restriction is load-bearing, and an earlier draft of this document got it wrong in a way worth recording. Writing the denominator as "surfaced items adjudicated" admits `ambiguous`, `outside_scope` and `cannot_adjudicate` into the bottom while they can never reach the top. A retriever could then drive its reported nuisance rate **downward by flooding**, provided the extra alerts were unresolvable rather than clearly inapplicable — defeating the one check this metric exists to perform.
+
+So three numbers are reported, never one:
+
+- **primary nuisance**, over resolved labels only, as above;
+- **unresolved surfaced rate**: `(ambiguous + cannot_adjudicate + outside_scope) / all surfaced items`, which is what a flooding strategy actually inflates;
+- **conservative nuisance**, counting every unresolved surfaced item as nuisance — the upper bound on how much noise the author was asked to absorb.
+
+A run where primary nuisance is low and conservative nuisance is high has not demonstrated precision. It has demonstrated that most of what it surfaced could not be judged, and the two must never be collapsed into one headline.
 
 Recall and nuisance are reported together, always, and neither may be presented alone. High recall bought with high nuisance means the system can recover relevant law only by flooding the author, which is a different result from recovering it precisely — and an operator experiences the two very differently.
 
@@ -174,6 +189,25 @@ Record which context classes were actually available to production retrieval bef
 This is descriptive. It exists so a low stratum-A score can be attributed to missing context rather than to reasoning, or shown not to be.
 
 ## 8. Sampling
+
+### 8.1 The candidate inventory is frozen first
+
+A stable hash makes selection unbiased **within an already-fixed population**. It says nothing about how that population was assembled, so a curator could choose a favourable set of changes and then comply with the hashing rule exactly. The seed would be honest and the result still biased.
+
+Before any seed is applied, therefore:
+
+1. the **complete** candidate-change inventory is enumerated from a stated, mechanical rule — for example every change in a bounded commit or PR range against the pinned repository — not from a hand-picked list;
+2. eligibility and exclusion rules are written down before the inventory is built, and each exclusion is recorded **with its reason and count**, so a shrinking population is visible rather than silent;
+3. each change is assigned to exactly one stratum by a stated rule applied to its pre-authoring state;
+4. the per-stratum inventory is content-addressed and its digest published in the sample manifest.
+
+Only then is the seed applied.
+
+A recall figure computed over an inventory whose digest is not published is not reproducible, and cannot be defended against the objection that the population was chosen after the fact. Changing the inventory — including by widening the commit range — creates a new sample version.
+
+This is the same discipline the extraction protocol applies to its recall units, and for the same reason: whoever gets to decide what enters the denominator decides the score.
+
+### 8.2 Drawing from the frozen inventory
 
 Sample independently by stratum, never uniformly over changes.
 
@@ -212,7 +246,8 @@ An AI system must not:
 
 Every report must expose:
 
-- per-stratum recall and nuisance, with A and B never merged;
+- per-stratum recall and all three nuisance numbers, with A and B never merged;
+- the candidate-inventory digest per stratum, with exclusion counts and reasons;
 - sample sizes, excluded and ambiguous counts per stratum;
 - macro summary with each stratum still visible;
 - exact change, world, corpus and reference-set identities;
@@ -232,6 +267,7 @@ These are different findings and must not be collapsed into one score:
 | high C, low A | a **new-seam coverage** problem, not generic retrieval failure |
 | low across all strata | a broader prospective-relevance problem |
 | high recall, high nuisance | law is recoverable only by flooding the author |
+| low primary nuisance, high conservative nuisance | most of what was surfaced could not be judged; precision is unproven, not demonstrated |
 | A and B differ | the problem is creation-time context, not missing anchors generally |
 | A and B alike, both low | the problem is missing file anchors generally |
 
