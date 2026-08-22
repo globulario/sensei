@@ -11625,6 +11625,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "cannot_adjudicate is a human DECISION, not a missing label."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestConstituentDigestsMustCarryContentNotJustLength
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestConstituentDigestsMustCarryContentNotJustLength
+    package: evalmodel
+    language: go
+    doc: "An empty entry satisfies a length test while binding nothing. Presence must\nbe checked by content."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicAndModelCountsStaySeparate
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestDeterministicAndModelCountsStaySeparate
@@ -11673,6 +11679,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A refusal or an error is an evaluation RESULT, not a zero score that would\nread like a bad model."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestOutsideScopeIsReportedNotDropped
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestOutsideScopeIsReportedNotDropped
+    package: evalmodel
+    language: go
+    doc: "outside_scope is an exclusion the protocol requires reported as a count and\na rate. An item that vanishes from the score also vanishes from its\ndenominator, and a reader cannot tell an exclusion from an item never made."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
@@ -11703,6 +11715,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A digest stored inside a frozen file is a CLAIM that file makes about itself.\nScoring an edited bundle while reporting the old identity is exactly how a\nmoved answer key would go undetected."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey
+    package: evalmodel
+    language: go
+    doc: "The vocabulary is closed, so a verdict outside it is a malformed answer key\nrather than a missing label."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
@@ -14885,6 +14903,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "A bid for authority is REFUSED and recorded, not silently stripped: stripping\nwould let a model keep asking with no evidence that it ever did."
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactDigestOrderingCoversRepositoryDomain
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactDigestOrderingCoversRepositoryDomain
+    package: modelexec
+    language: go
+    doc: "Validation accepts both an empty repository domain and the bound one, so two\naccepted items can differ only there. The comparator must therefore order on\nit, or the claimed total order is untotal for exactly the artifacts this\nfunction canonicalizes."
   - id: golang/architecture/modelexec/execute_test.go:TestArtifactDigestOrderingIsTotal
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestArtifactDigestOrderingIsTotal

@@ -90,7 +90,12 @@ type Score struct {
 	ModelUnsupported      int `json:"model_unsupported,omitempty"`
 	ModelAmbiguous        int `json:"model_ambiguous,omitempty"`
 	ModelCannotAdjudicate int `json:"model_cannot_adjudicate,omitempty"`
-	ModelUnlabelled       int `json:"model_unlabelled,omitempty"`
+	// ModelOutsideScope is REPORTED, not silently dropped. The protocol
+	// requires every excluded label to appear as a count and a rate; an item
+	// that vanishes from the score also vanishes from its denominator, and a
+	// reader cannot tell an exclusion from an item that was never produced.
+	ModelOutsideScope int `json:"model_outside_scope,omitempty"`
+	ModelUnlabelled   int `json:"model_unlabelled,omitempty"`
 
 	// The deterministic lane scored against the SAME reference set, so the
 	// model delta is a comparison rather than an assertion.
@@ -98,6 +103,7 @@ type Score struct {
 	BaselineUnsupported      int `json:"baseline_unsupported,omitempty"`
 	BaselineAmbiguous        int `json:"baseline_ambiguous,omitempty"`
 	BaselineCannotAdjudicate int `json:"baseline_cannot_adjudicate,omitempty"`
+	BaselineOutsideScope     int `json:"baseline_outside_scope,omitempty"`
 	BaselineUnlabelled       int `json:"baseline_unlabelled,omitempty"`
 
 	// MissingConstituent names which section 17 identity a populated release
@@ -107,13 +113,14 @@ type Score struct {
 
 // Typed reasons a measurement produced no score.
 const (
-	ReasonReferenceSetAbsent     = "reference_set_absent"
-	ReasonModelDidNotResolve     = "model_did_not_resolve"
-	ReasonAcquisitionAltered     = "acquisition_contents_do_not_match_its_digest"
-	ReasonReferenceSetAltered    = "reference_set_contents_do_not_match_its_digest"
-	ReasonReferenceSetUnfrozen   = "reference_set_carries_labels_but_no_frozen_identity"
-	ReasonReferenceSetConflicted = "reference_set_labels_the_same_item_more_than_once"
-	ReasonReferenceSetIncomplete = "reference_set_omits_required_release_constituents"
+	ReasonReferenceSetAbsent         = "reference_set_absent"
+	ReasonModelDidNotResolve         = "model_did_not_resolve"
+	ReasonAcquisitionAltered         = "acquisition_contents_do_not_match_its_digest"
+	ReasonReferenceSetAltered        = "reference_set_contents_do_not_match_its_digest"
+	ReasonReferenceSetUnfrozen       = "reference_set_carries_labels_but_no_frozen_identity"
+	ReasonReferenceSetConflicted     = "reference_set_labels_the_same_item_more_than_once"
+	ReasonReferenceSetIncomplete     = "reference_set_omits_required_release_constituents"
+	ReasonReferenceSetInvalidVerdict = "reference_set_carries_a_verdict_outside_the_closed_vocabulary"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -173,18 +180,22 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 	// identical verdicts would again share an accepted identity. A populated
 	// release must actually carry them.
 	if len(ref.Labels) > 0 {
-		for _, missing := range []struct {
-			what  string
-			empty bool
+		// Presence is checked by CONTENT, not by length. A slice holding one
+		// empty string satisfies a length test while binding no label file and
+		// no world at all, which is the same absence the check exists to
+		// refuse — dressed as a value.
+		for _, required := range []struct {
+			what   string
+			values []string
 		}{
-			{"protocol digest", strings.TrimSpace(ref.ProtocolDigestSHA256) == ""},
-			{"sample manifest digest", strings.TrimSpace(ref.SampleManifestDigestSHA256) == ""},
-			{"label file digests", len(ref.LabelFileDigestsSHA256) == 0},
-			{"world binding digests", len(ref.WorldBindingDigestsSHA256) == 0},
+			{"protocol digest", []string{ref.ProtocolDigestSHA256}},
+			{"sample manifest digest", []string{ref.SampleManifestDigestSHA256}},
+			{"label file digests", ref.LabelFileDigestsSHA256},
+			{"world binding digests", ref.WorldBindingDigestsSHA256},
 		} {
-			if missing.empty {
+			if !allNonEmpty(required.values) {
 				s.Reason = ReasonReferenceSetIncomplete
-				s.MissingConstituent = missing.what
+				s.MissingConstituent = required.what
 				return s
 			}
 		}
@@ -209,6 +220,15 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 	// signal the overlap sample exists to produce.
 	labels := map[string]string{}
 	for _, l := range ref.Labels {
+		// The vocabulary is closed, so a verdict outside it is a MALFORMED
+		// answer key, not a missing label. Counting it as unlabelled and
+		// scoring anyway would report a typo as an omission and accept a ruler
+		// nobody can interpret.
+		if !validVerdict(l.Verdict) {
+			s.Reason = ReasonReferenceSetInvalidVerdict
+			s.MissingConstituent = l.Verdict
+			return s
+		}
 		if _, seen := labels[l.ItemKey]; seen {
 			s.Reason = ReasonReferenceSetConflicted
 			return s
@@ -216,14 +236,14 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		labels[l.ItemKey] = l.Verdict
 	}
 	for _, item := range a.Items {
-		tally(labels[ItemKey(a, item)], &s.ModelSupported, &s.ModelUnsupported, &s.ModelAmbiguous, &s.ModelCannotAdjudicate, &s.ModelUnlabelled)
+		tally(labels[ItemKey(a, item)], &s.ModelSupported, &s.ModelUnsupported, &s.ModelAmbiguous, &s.ModelCannotAdjudicate, &s.ModelOutsideScope, &s.ModelUnlabelled)
 	}
 	// The deterministic lane, scored against the same labels. A claim produced
 	// by both lanes shares one key on purpose: its truth does not depend on who
 	// said it, and counting it in both lanes is what makes the delta mean
 	// "what the model ADDED".
 	for _, item := range a.Baseline.Candidates {
-		tally(labels[BaselineItemKey(a, item)], &s.BaselineSupported, &s.BaselineUnsupported, &s.BaselineAmbiguous, &s.BaselineCannotAdjudicate, &s.BaselineUnlabelled)
+		tally(labels[BaselineItemKey(a, item)], &s.BaselineSupported, &s.BaselineUnsupported, &s.BaselineAmbiguous, &s.BaselineCannotAdjudicate, &s.BaselineOutsideScope, &s.BaselineUnlabelled)
 	}
 	s.Scored = true
 	return s
@@ -290,10 +310,11 @@ func ReferenceDigest(ref ReferenceSet) string {
 
 // tally routes one verdict into the right counter.
 //
-// outside_scope is deliberately counted nowhere: an item the protocol placed
-// outside scope must not silently become a miss. cannot_adjudicate IS counted,
-// because it is a human decision rather than a gap.
-func tally(verdict string, supported, unsupported, ambiguous, cannot, unlabelled *int) {
+// Every closed verdict gets its own counter. outside_scope is counted but kept
+// separate so it never becomes a miss, and cannot_adjudicate is counted because
+// it is a human decision rather than a gap. Nothing is dropped: a verdict that
+// vanishes also vanishes from the denominator.
+func tally(verdict string, supported, unsupported, ambiguous, cannot, outside, unlabelled *int) {
 	switch verdict {
 	case VerdictSupported:
 		*supported++
@@ -304,7 +325,32 @@ func tally(verdict string, supported, unsupported, ambiguous, cannot, unlabelled
 	case VerdictCannotAdjudicate:
 		*cannot++
 	case VerdictOutsideScope:
+		*outside++
 	default:
 		*unlabelled++
 	}
+}
+
+// validVerdict reports whether a label uses the protocol's closed vocabulary.
+func validVerdict(v string) bool {
+	switch v {
+	case VerdictSupported, VerdictUnsupported, VerdictAmbiguous, VerdictCannotAdjudicate, VerdictOutsideScope:
+		return true
+	default:
+		return false
+	}
+}
+
+// allNonEmpty reports whether every entry carries content. An empty entry is an
+// absence wearing the shape of a value.
+func allNonEmpty(values []string) bool {
+	if len(values) == 0 {
+		return false
+	}
+	for _, v := range values {
+		if strings.TrimSpace(v) == "" {
+			return false
+		}
+	}
+	return true
 }

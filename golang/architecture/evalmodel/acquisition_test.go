@@ -432,3 +432,66 @@ func TestItemKeysAreScopedToTheExperiment(t *testing.T) {
 		t.Error("identical claims from different experiments share a label key; one verdict could migrate to a question it was never asked about")
 	}
 }
+
+// outside_scope is an exclusion the protocol requires reported as a count and
+// a rate. An item that vanishes from the score also vanishes from its
+// denominator, and a reader cannot tell an exclusion from an item never made.
+func TestOutsideScopeIsReportedNotDropped(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictOutsideScope}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+
+	s := ScoreAcquisition(a, ref)
+	if !s.Scored {
+		t.Fatalf("not scored: %+v", s)
+	}
+	if s.ModelOutsideScope != 1 {
+		t.Errorf("outside_scope count = %d, want 1", s.ModelOutsideScope)
+	}
+	if s.ModelUnlabelled != 0 || s.ModelSupported != 0 || s.ModelUnsupported != 0 {
+		t.Error("an excluded item was counted somewhere it does not belong")
+	}
+}
+
+// An empty entry satisfies a length test while binding nothing. Presence must
+// be checked by content.
+func TestConstituentDigestsMustCarryContentNotJustLength(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	for _, tc := range []struct {
+		name  string
+		blank func(*ReferenceSet)
+	}{
+		{"blank label file digest", func(r *ReferenceSet) { r.LabelFileDigestsSHA256 = []string{""} }},
+		{"blank world binding digest", func(r *ReferenceSet) { r.WorldBindingDigestsSHA256 = []string{"  "} }},
+		{"blank protocol digest", func(r *ReferenceSet) { r.ProtocolDigestSHA256 = "   " }},
+		{"one good and one blank", func(r *ReferenceSet) { r.LabelFileDigestsSHA256 = []string{"real", ""} }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ref := frozenRef()
+			ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported}}
+			tc.blank(&ref)
+			ref.DigestSHA256 = ReferenceDigest(ref)
+			if s := ScoreAcquisition(a, ref); s.Scored {
+				t.Fatalf("a release with a %s scored anyway", tc.name)
+			}
+		})
+	}
+}
+
+// The vocabulary is closed, so a verdict outside it is a malformed answer key
+// rather than a missing label.
+func TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: "suported"}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+
+	s := ScoreAcquisition(a, ref)
+	if s.Scored {
+		t.Fatal("a reference set with an unrecognised verdict scored anyway")
+	}
+	if s.Reason != ReasonReferenceSetInvalidVerdict {
+		t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetInvalidVerdict)
+	}
+}

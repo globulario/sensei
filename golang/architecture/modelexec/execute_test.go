@@ -363,3 +363,28 @@ func TestArtifactDigestOrderingIsTotal(t *testing.T) {
 		t.Error("reordering identical items changed the accepted artifact identity; an unchanged answer would mint a new measurement")
 	}
 }
+
+// Validation accepts both an empty repository domain and the bound one, so two
+// accepted items can differ only there. The comparator must therefore order on
+// it, or the claimed total order is untotal for exactly the artifacts this
+// function canonicalizes.
+func TestArtifactDigestOrderingCoversRepositoryDomain(t *testing.T) {
+	mk := func(domain string) ArtifactItem {
+		return ArtifactItem{Kind: ItemKindQuestion, Text: "same", RepositoryDomain: domain}
+	}
+	bare, bound := mk(""), mk("github.com/example/repo")
+	forward := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{bare, bound}}
+	reversed := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{bound, bare}}
+
+	a, err := ArtifactDigest(forward)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ArtifactDigest(reversed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Error("items differing only in repository domain are not totally ordered")
+	}
+}

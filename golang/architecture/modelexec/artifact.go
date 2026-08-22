@@ -131,7 +131,14 @@ func ArtifactDigest(a Artifact) (string, error) {
 		if ac, bc := strings.Join(a.CitedEvidenceIDs, "\x00"), strings.Join(b.CitedEvidenceIDs, "\x00"); ac != bc {
 			return ac < bc
 		}
-		return strings.Join(a.FilePaths, "\x00") < strings.Join(b.FilePaths, "\x00")
+		if af, bf := strings.Join(a.FilePaths, "\x00"), strings.Join(b.FilePaths, "\x00"); af != bf {
+			return af < bf
+		}
+		// RepositoryDomain last: validation accepts both an empty domain and
+		// the bound one, so two accepted items can differ only here. Leaving it
+		// out of the comparator would make the "total" order untotal for
+		// exactly the artifacts this function is asked to canonicalize.
+		return a.RepositoryDomain < b.RepositoryDomain
 	})
 	data, err := json.Marshal(norm)
 	if err != nil {

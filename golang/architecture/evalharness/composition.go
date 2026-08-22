@@ -643,15 +643,50 @@ func composedResultDigest(result investigator.Result) string {
 // baselineItemsFrom carries the deterministic candidates into the frozen
 // acquisition as scoreable claims.
 func baselineItemsFrom(result investigator.Result) []evalmodel.BaselineItem {
+	// Resolve each candidate's ClaimID to the proposition it identifies.
+	// candidateText yields "<kind>:<claim-id>", which is a pointer into a
+	// document the frozen artifacts do not carry: an adjudicator reading the
+	// bundle could not tell what the deterministic lane actually asserted, and
+	// a model item stating the same claim in prose could never share the key
+	// the dual-lane scoring depends on.
+	claims := map[string]architecture.Claim{}
+	for _, claim := range result.Document.CandidateClaims {
+		claims[claim.ID] = claim
+	}
 	out := make([]evalmodel.BaselineItem, 0, len(result.Candidates))
 	for _, c := range result.Candidates {
-		out = append(out, evalmodel.BaselineItem{
+		item := evalmodel.BaselineItem{
 			Kind:             "candidate_claim",
 			Text:             candidateText(c),
 			CitedEvidenceIDs: candidateCitations(c),
-		})
+		}
+		if claim, ok := claims[c.ClaimID]; ok {
+			item.Text = claimBody(claim)
+			item.FilePaths = append([]string{}, claim.Scope.Files...)
+		}
+		out = append(out, item)
 	}
 	return out
+}
+
+// claimBody is the proposition a claim asserts, in the same subject-predicate-
+// object shape the model lane is shown, so an identical assertion from either
+// lane produces identical text and therefore one shared label key.
+func claimBody(claim architecture.Claim) string {
+	body := strings.TrimSpace(strings.Join([]string{
+		strings.TrimSpace(claim.Statement.Subject),
+		strings.TrimSpace(claim.Statement.Predicate),
+		strings.TrimSpace(claim.Statement.Object),
+	}, " "))
+	if body != "" {
+		return body
+	}
+	// A claim with no statement still has a human-readable label; falling back
+	// to the id would put a pointer where a proposition belongs.
+	if label := strings.TrimSpace(claim.Label); label != "" {
+		return label
+	}
+	return strings.TrimSpace(claim.ID)
 }
 
 // candidateCitations is every identity a deterministic candidate points at,
