@@ -15,7 +15,9 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalmodel"
+	"github.com/globulario/sensei/golang/architecture/evalmutant"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
+	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
 // TestRecallInventoryComesFromTheTreeNotFromSensei is the property section 7
@@ -202,16 +204,16 @@ func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
 // TestMissingRequiredWorldsNamesWhatDidNotRun keeps the refusal's input honest.
 func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
 	bound := func(name string) evalsample.World {
-		return evalsample.World{Name: name, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: requiredWorldDomains[name]}}
+		return evalsample.World{Name: name, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: defaultProtocol.Domains[name]}}
 	}
-	got := missingRequiredWorlds([]evalsample.World{bound("world1_sensei_self")})
+	got := defaultProtocol.missingWorlds(ranWorldDomains([]evalsample.World{bound(worldSenseiSelf)}))
 	if len(got) != 3 {
 		t.Fatalf("missingRequiredWorlds = %v, want the three worlds that did not run", got)
 	}
-	if len(missingRequiredWorlds([]evalsample.World{
-		bound("world1_sensei_self"), bound("world2_globular"),
-		bound("world3_independent_calibration"), bound(worldMutantSuite),
-	})) != 0 {
+	if len(defaultProtocol.missingWorlds(ranWorldDomains([]evalsample.World{
+		bound(worldSenseiSelf), bound(worldGlobular),
+		bound(worldIndependentCalibration), bound(worldMutantSuite),
+	}))) != 0 {
 		t.Error("a complete world set reported something missing")
 	}
 }
@@ -292,10 +294,10 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 	impostors := []evalsample.World{
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "example.com/not-sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
-		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldIndependentCalibration, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: defaultProtocol.Domains[worldIndependentCalibration]}},
 		{Name: worldMutantSuite},
 	}
-	missing := missingRequiredWorlds(impostors)
+	missing := defaultProtocol.missingWorlds(ranWorldDomains(impostors))
 	if len(missing) != 1 || !strings.Contains(missing[0], "world1_sensei_self") {
 		t.Fatalf("a world bound to the wrong repository passed completeness: %v", missing)
 	}
@@ -306,10 +308,10 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 	honest := []evalsample.World{
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
-		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldIndependentCalibration, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: defaultProtocol.Domains[worldIndependentCalibration]}},
 		{Name: worldMutantSuite},
 	}
-	if got := missingRequiredWorlds(honest); len(got) != 0 {
+	if got := defaultProtocol.missingWorlds(ranWorldDomains(honest)); len(got) != 0 {
 		t.Errorf("correctly bound worlds reported missing: %v", got)
 	}
 }
@@ -348,18 +350,26 @@ func TestTheProtocolDigestIsTheOneValidated(t *testing.T) {
 	}
 }
 
-// TestTheCompiledProtocolDigestMatchesTheDocument is the drift guard for the
-// constant that lets an installed binary recognise the default protocol
-// without a working directory. If the document changes and the constant does
-// not, every caller passing the real v1 document would be told it is custom.
-func TestTheCompiledProtocolDigestMatchesTheDocument(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", protocolPath))
-	if err != nil {
-		t.Skipf("protocol document not readable from the test's working directory: %v", err)
-	}
-	sum := sha256.Sum256(data)
-	if got := hex.EncodeToString(sum[:]); got != defaultProtocolDigest {
-		t.Fatalf("the compiled default-protocol digest is stale:\n  constant: %s\n  document: %s\nUpdate defaultProtocolDigest, or the binary will call the real v1 document custom.", defaultProtocolDigest, got)
+// TestEveryRegisteredProtocolDigestMatchesItsDocument is the drift guard for
+// the compiled digests that let this binary recognise a protocol without a
+// working directory.
+//
+// It covers EVERY registered protocol, not just the default. A stale v1 digest
+// would be as bad as a stale v2 one: v1 is enforced so that a non-SQLite
+// checkout cannot be filed under it, and a digest that no longer matches its
+// document silently turns that enforcement off.
+func TestEveryRegisteredProtocolDigestMatchesItsDocument(t *testing.T) {
+	for _, p := range registeredProtocols {
+		t.Run(p.ID, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join("..", "..", p.Path))
+			if err != nil {
+				t.Skipf("protocol document not readable from the test's working directory: %v", err)
+			}
+			sum := sha256.Sum256(data)
+			if got := hex.EncodeToString(sum[:]); got != p.DigestSHA256 {
+				t.Fatalf("the compiled digest for %s is stale:\n  constant: %s\n  document: %s\nUpdate it, or the binary will not recognise its own protocol.", p.ID, p.DigestSHA256, got)
+			}
+		})
 	}
 }
 
@@ -450,14 +460,14 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	run("init", "-q")
 	run("remote", "add", "origin", "https://github.com/someone/not-sensei.git")
 
-	if _, err := verifyRequiredWorldCheckout("world1_sensei_self", root); err == nil {
+	if _, err := verifyRequiredWorldCheckout(defaultProtocol, true, worldSenseiSelf, root); err == nil {
 		t.Fatal("a checkout of an unrelated repository was accepted as world 1")
 	} else if !strings.Contains(err.Error(), "not-sensei") {
 		t.Errorf("the refusal does not say what the checkout actually is: %v", err)
 	}
 
 	// A world the protocol does not name is the operator's to bind.
-	if _, err := verifyRequiredWorldCheckout("world3_operator_bound", root); err != nil {
+	if _, err := verifyRequiredWorldCheckout(defaultProtocol, true, "world3_operator_bound", root); err != nil {
 		t.Errorf("an operator-bound world was subjected to the protocol's remote check: %v", err)
 	}
 
@@ -465,7 +475,7 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	// registered fails closed. Returning success would let an arbitrary tree
 	// be reported as the SQLite calibration, and guessing a URL for the
 	// repository whose identity is the open question would be worse.
-	if _, err := verifyRequiredWorldCheckout("world3_independent_calibration", root); err == nil {
+	if _, err := verifyRequiredWorldCheckout(protocolV1, true, worldIndependentCalibration, root); err == nil {
 		t.Error("a protocol-named world with no registered upstream identity was accepted")
 	}
 
@@ -481,7 +491,7 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	if out, err := exec.Command("git", "-C", bare, "init", "-q").CombinedOutput(); err != nil {
 		t.Fatalf("git init: %v\n%s", err, out)
 	}
-	note, err := verifyRequiredWorldCheckout("world2_globular", bare)
+	note, err := verifyRequiredWorldCheckout(defaultProtocol, true, worldGlobular, bare)
 	if err != nil {
 		t.Fatalf("a checkout with no origin was refused rather than reported unverified: %v", err)
 	}
@@ -525,7 +535,7 @@ func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
 	if got != "github.com/globulario/sensei" {
 		t.Errorf("resolveUpstream followed the chain to %q, want the upstream repository", got)
 	}
-	if note, err := verifyRequiredWorldCheckout("world1_sensei_self", leaf); err != nil || note != "" {
+	if note, err := verifyRequiredWorldCheckout(defaultProtocol, true, worldSenseiSelf, leaf); err != nil || note != "" {
 		t.Errorf("a legitimate clone-of-a-clone was refused (note=%q): %v", note, err)
 	}
 }
@@ -573,7 +583,7 @@ func TestTheMutantWorldNameCannotBeSuppliedExternally(t *testing.T) {
 		t.Fatal("the mutant suite's world name is not reserved, so --world can claim it")
 	}
 	dir := t.TempDir()
-	arts := runWorlds(t.TempDir(), []string{worldMutantSuite + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+	arts := runWorlds(t.TempDir(), []string{worldMutantSuite + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil, defaultProtocol, true)
 	refused := false
 	for _, a := range arts {
 		if a.Arm == worldMutantSuite && a.Status == statusFailed {
@@ -718,5 +728,61 @@ func TestComposedClaimsReachTheSample(t *testing.T) {
 	}
 	if !deterministic || !model {
 		t.Error("the two lanes are not distinguishable in the sampled claims; §9 forbids scoring them as one population")
+	}
+}
+
+// TestDocumentClaimsAreNamespacedLikeObservations.
+//
+// Found by an adversarial read of eb72fb3e — the #265 commit that merged
+// without a bot review. Observations were namespaced by site; the document's
+// own questions and counterexamples, appended two lines below, were not. Their
+// identities are repo-relative to one mutant's tree, so two mutants emitting
+// the same id collapsed to a single identity in evalsample's challenge lane
+// and a label could attach to the wrong site.
+func TestDocumentClaimsAreNamespacedLikeObservations(t *testing.T) {
+	mk := func(defect string) evalharness.SiteResult {
+		var s evalharness.SiteResult
+		s.Defect = evalmutant.Defect(defect)
+		s.Document.CandidateQuestions = []architecture.OpenQuestion{{ID: "q-1", QuestionText: "who owns this?"}}
+		s.Document.Counterexamples = []investigation.Counterexample{{ID: "ce-1", Description: "d", EvidenceRefIDs: []string{"ev-3"}}}
+		return s
+	}
+	w := mutantSuiteWorld(evalharness.Report{
+		Results: []evalharness.SiteResult{mk("one"), mk("two")},
+	}, "example.com/eval")
+
+	qIDs := map[string]bool{}
+	for _, q := range w.CandidateQuestions {
+		qIDs[q.ID] = true
+	}
+	if len(qIDs) != 2 {
+		t.Errorf("two sites produced %d distinct question ids, want 2: %v", len(qIDs), qIDs)
+	}
+	cIDs := map[string]bool{}
+	for _, c := range w.Counterexamples {
+		cIDs[c.ID] = true
+		for _, r := range c.EvidenceRefIDs {
+			if r == "ev-3" {
+				t.Errorf("evidence ref %q is not scoped to its site; the same id in two mutants names two different receipts", r)
+			}
+		}
+	}
+	if len(cIDs) != 2 {
+		t.Errorf("two sites produced %d distinct counterexample ids, want 2: %v", len(cIDs), cIDs)
+	}
+}
+
+// TestComposedClaimCitationsAreNamespaced covers the second half of the same
+// defect: eb72fb3e namespaced a claim's file paths and left its cited receipt
+// ids bare.
+func TestComposedClaimCitationsAreNamespaced(t *testing.T) {
+	c := composedClaim("one", "deterministic", 0, "claim", "text", []string{"ev-3"}, []string{"a.go"})
+	for _, r := range c.EvidenceRefIDs {
+		if r == "ev-3" || r == "a.go" {
+			t.Errorf("reference %q is not scoped to its site", r)
+		}
+	}
+	if len(c.EvidenceRefIDs) != 2 {
+		t.Fatalf("expected both the receipt id and the path, got %v", c.EvidenceRefIDs)
 	}
 }
