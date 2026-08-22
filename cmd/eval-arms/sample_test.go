@@ -528,3 +528,100 @@ func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
 		t.Errorf("a legitimate clone-of-a-clone was refused (note=%q): %v", note, err)
 	}
 }
+
+// TestMutantObservationsCarryTheirSiteIdentity.
+//
+// Each mutant site is extracted from its own tree, so its anchors are
+// repo-relative inside THAT tree: "a.go:1-2" in one mutant and "a.go:1-2" in
+// another are different files sharing a name. Appended unchanged they
+// collapsed to one identity under evalsample's content hash, so a precision
+// label could attach to the wrong source and an adjudicator had no way to know
+// which tree held the evidence.
+func TestMutantObservationsCarryTheirSiteIdentity(t *testing.T) {
+	same := []architecture.Fact{{
+		Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e",
+		Scope:    architecture.Scope{Files: []string{"a.go"}},
+		Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 2},
+	}}
+	one := namespaceBySite(same, "authority_split")
+	two := namespaceBySite(same, "forbidden_dependency")
+
+	if one[0].Evidence.SourceFile == two[0].Evidence.SourceFile {
+		t.Fatalf("two mutants share the anchor %q; their observations would collapse to one identity", one[0].Evidence.SourceFile)
+	}
+	if one[0].Evidence.SourceFile != "authority_split/a.go" {
+		t.Errorf("anchor is %q, want the path the file has within the suite", one[0].Evidence.SourceFile)
+	}
+	if len(one[0].Scope.Files) != 1 || one[0].Scope.Files[0] != "authority_split/a.go" {
+		t.Errorf("scope files were not namespaced: %v", one[0].Scope.Files)
+	}
+	// The caller's slice must not be mutated — the same document is also the
+	// arm's own report.
+	if same[0].Evidence.SourceFile != "a.go" {
+		t.Errorf("namespacing rewrote the caller's observation in place: %q", same[0].Evidence.SourceFile)
+	}
+}
+
+// TestTheMutantWorldNameCannotBeSuppliedExternally.
+//
+// World 4 is produced internally. Without reserving the name, a caller could
+// pass --world for it: runWorlds would add an arbitrary checkout under that
+// name while main added the real synthetic world under the same one.
+func TestTheMutantWorldNameCannotBeSuppliedExternally(t *testing.T) {
+	if !reservedArmNames[worldMutantSuite] {
+		t.Fatal("the mutant suite's world name is not reserved, so --world can claim it")
+	}
+	dir := t.TempDir()
+	arts := runWorlds(t.TempDir(), []string{worldMutantSuite + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+	refused := false
+	for _, a := range arts {
+		if a.Arm == worldMutantSuite && a.Status == statusFailed {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Fatalf("an external checkout was accepted as the mutant suite: %+v", arts)
+	}
+}
+
+// TestTheMutantWorldNamespacesThroughItsBuilder covers the CALL SITE, not the
+// helper. Removing the namespacing call leaves the helper's own test green —
+// the same "verified the machinery, not the consumer" gap that this session
+// hit twice already — so the property is asserted where it is actually used.
+func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {
+	fact := func() architecture.Fact {
+		return architecture.Fact{
+			Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e",
+			Scope:    architecture.Scope{Files: []string{"a.go"}},
+			Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 2},
+		}
+	}
+	report := evalharness.Report{
+		Baseline: evalharness.SiteResult{Defect: "baseline", DefectPaths: []string{"a.go"}},
+		Results: []evalharness.SiteResult{
+			{Defect: "one", DefectPaths: []string{"a.go"}},
+			{Defect: "two", DefectPaths: []string{"a.go"}},
+		},
+	}
+	report.Results[0].Document.Observations = []architecture.Fact{fact()}
+	report.Results[1].Document.Observations = []architecture.Fact{fact()}
+
+	w := mutantSuiteWorld(report, "example.com/eval")
+	anchors := map[string]bool{}
+	for _, o := range w.Observations {
+		anchors[o.Evidence.SourceFile] = true
+	}
+	if len(anchors) != 2 {
+		t.Fatalf("two mutants produced %d distinct anchors, want 2: %v", len(anchors), anchors)
+	}
+	if !anchors["one/a.go"] || !anchors["two/a.go"] {
+		t.Errorf("anchors are not namespaced by site: %v", anchors)
+	}
+	// The recall inventory is the defect sites, independent of what was observed.
+	if len(w.RecallInventory) != 3 {
+		t.Errorf("recall inventory = %v, want one unit per defect site", w.RecallInventory)
+	}
+	if w.Binding.TreeDigestSHA256 == "" {
+		t.Error("the suite world carries no identity")
+	}
+}

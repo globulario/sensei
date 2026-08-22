@@ -130,7 +130,17 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 	inventory := map[string]bool{}
 	digest := sha256.New()
 	for _, site := range sites {
-		w.Observations = append(w.Observations, site.Document.Observations...)
+		// Each site was extracted from its own mutants/<defect> tree, so its
+		// evidence anchors are repo-relative inside THAT tree — "a.go:1-2" in
+		// one mutant and "a.go:1-2" in another are different files that happen
+		// to share a name. Appending them unchanged collapsed them to one
+		// identity, so a precision label could attach to the wrong source, and
+		// an adjudicator had no way to know which tree to open.
+		//
+		// Namespacing by defect is not decoration: it restores the path the
+		// file actually has within the suite, which is what makes the anchor
+		// resolvable and the identity distinct.
+		w.Observations = append(w.Observations, namespaceBySite(site.Document.Observations, string(site.Defect))...)
 		w.CandidateQuestions = append(w.CandidateQuestions, site.Document.CandidateQuestions...)
 		w.Counterexamples = append(w.Counterexamples, site.Document.Counterexamples...)
 		for _, p := range site.DefectPaths {
@@ -266,6 +276,27 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 // writeJSON writes the artifact and returns the digest of the bytes it wrote,
 // so a caller never has to re-derive the hash of a file from a value it hopes
 // serializes the same way twice.
+// namespaceBySite rewrites each observation's anchor to the path the file has
+// within the mutant suite rather than within its own materialized tree.
+func namespaceBySite(obs []architecture.Fact, defect string) []architecture.Fact {
+	out := make([]architecture.Fact, 0, len(obs))
+	for _, o := range obs {
+		if o.Evidence.SourceFile != "" {
+			o.Evidence.SourceFile = defect + "/" + o.Evidence.SourceFile
+		}
+		files := make([]string, 0, len(o.Scope.Files))
+		for _, f := range o.Scope.Files {
+			if f == "" {
+				continue
+			}
+			files = append(files, defect+"/"+f)
+		}
+		o.Scope.Files = files
+		out = append(out, o)
+	}
+	return out
+}
+
 func writeJSON(path string, v any) (string, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {

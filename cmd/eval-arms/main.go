@@ -817,6 +817,13 @@ var reservedArmNames = map[string]bool{
 	armCompositionModelBound:                       true,
 	"briefing_and_impact_surfaces":                 true,
 	"evaluation_world":                             true,
+	// The mutant suite is produced INTERNALLY. Reserving the name at the CLI
+	// boundary is what stops a caller supplying --world for it: otherwise
+	// runWorlds would add an arbitrary checkout under that name while main
+	// added the real synthetic world under the same one, and the sample would
+	// either be refused as a duplicate or, on a seedless run, quietly ship a
+	// misleading external report for a world nobody can supply.
+	worldMutantSuite: true,
 }
 
 // worldReport is one evaluation world run over an external checkout.
