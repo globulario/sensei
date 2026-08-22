@@ -589,6 +589,76 @@ func isDefaultProtocolDocument(path, got string, gotErr error) bool {
 	return a == b
 }
 
+// verifyRequiredWorldCheckout checks that a checkout claiming a protocol-named
+// world really is that repository, by its git remote.
+//
+// The honest ceiling, stated rather than implied: this defeats mislabelling,
+// not a determined forger. A local path has no unforgeable link to an upstream
+// repository — a remote can be set to anything — so what this buys is that a
+// world cannot be misidentified by accident or convenience, which is the
+// failure mode an evaluation harness actually suffers. A world whose remote
+// cannot be read at all is refused rather than assumed correct.
+func verifyRequiredWorldCheckout(name, path string) error {
+	want, required := requiredWorldRemotes[name]
+	if !required {
+		return nil
+	}
+	got, err := resolveUpstream(path)
+	if err != nil {
+		return fmt.Errorf("%s: cannot read the checkout's origin remote, so it cannot be shown to be %s: %w", name, want, err)
+	}
+	if got != want {
+		return fmt.Errorf("%s: the protocol names %s but this checkout's origin resolves to %s; a world's name is not evidence about the tree", name, want, got)
+	}
+	return nil
+}
+
+// resolveUpstream follows origin until it reaches something that is not a
+// local directory.
+//
+// The worlds are measured from clones, so a clone's origin is the local path it
+// was made from, not the upstream repository — the first version of this check
+// compared that local path against the expected repository and refused every
+// legitimate run. Following the chain is what makes the check usable on the
+// trees this harness actually measures.
+//
+// Bounded, because a pair of checkouts pointing at each other would otherwise
+// loop forever.
+func resolveUpstream(path string) (string, error) {
+	const maxHops = 8
+	for hop := 0; hop < maxHops; hop++ {
+		out, err := exec.Command("git", "-C", path, "remote", "get-url", "origin").Output()
+		if err != nil {
+			return "", err
+		}
+		url := strings.TrimSpace(string(out))
+		if info, statErr := os.Stat(url); statErr == nil && info.IsDir() {
+			path = url
+			continue
+		}
+		return normalizeRemote(url), nil
+	}
+	return "", fmt.Errorf("origin chain did not reach an upstream repository within %d hops", maxHops)
+}
+
+// requiredWorldRemotes is what each protocol-named world's checkout must be.
+var requiredWorldRemotes = map[string]string{
+	"world1_sensei_self": "github.com/globulario/sensei",
+	"world2_globular":    "github.com/globulario/Globular",
+}
+
+// normalizeRemote reduces the forms git accepts to a comparable host/path.
+func normalizeRemote(url string) string {
+	url = strings.TrimSuffix(url, ".git")
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "ssh://")
+	if i := strings.Index(url, "@"); i >= 0 {
+		url = url[i+1:]
+	}
+	return strings.Replace(url, ":", "/", 1)
+}
+
 // requiredMutantArms are the mutant-suite arms the default protocol's fourth
 // world depends on. The optional model arm is excluded: the protocol treats a
 // bound model as available-when-available, so its absence is not incompleteness.
@@ -992,6 +1062,15 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, investigation
 	}
 	if info, err := os.Stat(abs); err != nil || !info.IsDir() {
 		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, fmt.Errorf("%s: not a directory", path)
+	}
+	// For a world the protocol NAMES, the checkout must actually be that
+	// repository. Both the world's name and its domain come from the same
+	// caller-supplied --world string, so neither is evidence about the tree;
+	// the remote is at least a property of the checkout rather than of the
+	// argument. Checked before extraction so an impostor never produces a
+	// report at all.
+	if err := verifyRequiredWorldCheckout(name, abs); err != nil {
+		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}
 	binding, err := worldBinding(abs, domain)
 	if err != nil {

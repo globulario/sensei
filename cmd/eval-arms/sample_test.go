@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -399,5 +400,98 @@ func TestARequestedDrawWithNoWorldFails(t *testing.T) {
 	art = writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true, nil, nil, "", "2026-08-22T05:00:00Z")
 	if art.Status != statusNotRun {
 		t.Errorf("an unrequested draw with no world reported %q, want %q", art.Status, statusNotRun)
+	}
+}
+
+// TestNormalizeRemoteComparesTheRepositoryNotTheURLForm keeps the remote check
+// from rejecting a legitimate checkout over how its URL happens to be spelled.
+func TestNormalizeRemoteComparesTheRepositoryNotTheURLForm(t *testing.T) {
+	for _, form := range []string{
+		"https://github.com/globulario/sensei.git",
+		"https://github.com/globulario/sensei",
+		"git@github.com:globulario/sensei.git",
+		"ssh://git@github.com/globulario/sensei.git",
+	} {
+		if got := normalizeRemote(form); got != "github.com/globulario/sensei" {
+			t.Errorf("normalizeRemote(%q) = %q, want the repository", form, got)
+		}
+	}
+	if normalizeRemote("https://github.com/someone/else.git") == "github.com/globulario/sensei" {
+		t.Error("a different repository normalized to the expected one")
+	}
+}
+
+// TestAnImpostorCheckoutIsRefusedForANamedWorld.
+//
+// A world's name and its domain come from the same caller-supplied --world
+// string, so neither is evidence about the tree. The remote is at least a
+// property of the checkout. This defeats mislabelling rather than a determined
+// forger — a local path has no unforgeable link upstream — and mislabelling is
+// the failure an evaluation harness actually suffers.
+func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
+	root := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", root}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	run("init", "-q")
+	run("remote", "add", "origin", "https://github.com/someone/not-sensei.git")
+
+	if err := verifyRequiredWorldCheckout("world1_sensei_self", root); err == nil {
+		t.Fatal("a checkout of an unrelated repository was accepted as world 1")
+	} else if !strings.Contains(err.Error(), "not-sensei") {
+		t.Errorf("the refusal does not say what the checkout actually is: %v", err)
+	}
+
+	// A world the protocol does not name is the operator's to bind.
+	if err := verifyRequiredWorldCheckout("world3_operator_bound", root); err != nil {
+		t.Errorf("an operator-bound world was subjected to the protocol's remote check: %v", err)
+	}
+
+	// A checkout with no readable remote is refused, not assumed correct.
+	bare := t.TempDir()
+	if err := verifyRequiredWorldCheckout("world2_globular", bare); err == nil {
+		t.Error("a directory with no origin remote was accepted as a protocol-named world")
+	}
+}
+
+// TestResolveUpstreamFollowsACloneBackToItsRepository.
+//
+// The worlds are measured from clones, so a clone's origin is the local path it
+// was made from rather than the upstream repository. The first version of this
+// check compared that local path against the expected repository and refused
+// every legitimate run — the guard rejected exactly the trees it was meant to
+// admit.
+func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
+	origin := t.TempDir()
+	git := func(dir string, args ...string) {
+		t.Helper()
+		if out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git(origin, "init", "-q")
+	git(origin, "remote", "add", "origin", "https://github.com/globulario/sensei.git")
+
+	// A clone of the clone, so the chain is longer than one hop.
+	mid := t.TempDir()
+	git(mid, "init", "-q")
+	git(mid, "remote", "add", "origin", origin)
+	leaf := t.TempDir()
+	git(leaf, "init", "-q")
+	git(leaf, "remote", "add", "origin", mid)
+
+	got, err := resolveUpstream(leaf)
+	if err != nil {
+		t.Fatalf("resolveUpstream: %v", err)
+	}
+	if got != "github.com/globulario/sensei" {
+		t.Errorf("resolveUpstream followed the chain to %q, want the upstream repository", got)
+	}
+	if err := verifyRequiredWorldCheckout("world1_sensei_self", leaf); err != nil {
+		t.Errorf("a legitimate clone-of-a-clone was refused: %v", err)
 	}
 }
