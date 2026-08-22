@@ -597,12 +597,17 @@ func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {
 		}
 	}
 	report := evalharness.Report{
-		Baseline: evalharness.SiteResult{Defect: "baseline", DefectPaths: []string{"a.go"}},
+		// The clean control's Defect is EMPTY — evalmutant.Baseline sets it so
+		// — while its tree is materialized at mutants/baseline. Namespacing by
+		// Defect rewrote its anchors to "/a.go": unresolvable, and worse than
+		// absent because it looks like evidence.
+		Baseline: evalharness.SiteResult{DefectPaths: []string{"a.go"}},
 		Results: []evalharness.SiteResult{
 			{Defect: "one", DefectPaths: []string{"a.go"}},
 			{Defect: "two", DefectPaths: []string{"a.go"}},
 		},
 	}
+	report.Baseline.Document.Observations = []architecture.Fact{fact()}
 	report.Results[0].Document.Observations = []architecture.Fact{fact()}
 	report.Results[1].Document.Observations = []architecture.Fact{fact()}
 
@@ -611,11 +616,20 @@ func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {
 	for _, o := range w.Observations {
 		anchors[o.Evidence.SourceFile] = true
 	}
-	if len(anchors) != 2 {
-		t.Fatalf("two mutants produced %d distinct anchors, want 2: %v", len(anchors), anchors)
+	if len(anchors) != 3 {
+		t.Fatalf("three sites produced %d distinct anchors, want 3: %v", len(anchors), anchors)
 	}
 	if !anchors["one/a.go"] || !anchors["two/a.go"] {
 		t.Errorf("anchors are not namespaced by site: %v", anchors)
+	}
+	// The clean control uses the name its tree is materialized under.
+	if !anchors["baseline/a.go"] {
+		t.Errorf("the clean control's anchor is not baseline/a.go: %v", anchors)
+	}
+	for a := range anchors {
+		if strings.HasPrefix(a, "/") {
+			t.Errorf("anchor %q has an empty site prefix; it resolves to nothing", a)
+		}
 	}
 	// The recall inventory is the defect sites, independent of what was observed.
 	if len(w.RecallInventory) != 3 {

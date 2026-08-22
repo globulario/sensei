@@ -126,11 +126,31 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 			RevisionStatus:   "unavailable",
 		},
 	}
-	sites := append([]evalharness.SiteResult{report.Baseline}, report.Results...)
+	// Paired with the name each site was MATERIALIZED under, not with its
+	// defect: evalmutant.Baseline carries an empty Defect while its tree lives
+	// at mutants/baseline, so namespacing by Defect rewrote the clean
+	// control's anchors to "/a.go" — unresolvable, and attached to a label
+	// that could not be checked. The site name is what the path on disk uses.
+	type namedSite struct {
+		name string
+		site evalharness.SiteResult
+	}
+	sites := []namedSite{{name: "baseline", site: report.Baseline}}
+	for _, r := range report.Results {
+		sites = append(sites, namedSite{name: string(r.Defect), site: r})
+	}
 	inventory := map[string]bool{}
 	digest := sha256.New()
-	for _, site := range sites {
-		// Each site was extracted from its own mutants/<defect> tree, so its
+	for _, ns := range sites {
+		site := ns.site
+		// A site with no name cannot be namespaced into a resolvable anchor,
+		// and an unresolvable anchor is worse than an absent one: it looks
+		// like evidence. Skipped with the omission visible in the count rather
+		// than silently emitting "/path".
+		if strings.TrimSpace(ns.name) == "" {
+			continue
+		}
+		// Each site was extracted from its own mutants/<name> tree, so its
 		// evidence anchors are repo-relative inside THAT tree — "a.go:1-2" in
 		// one mutant and "a.go:1-2" in another are different files that happen
 		// to share a name. Appending them unchanged collapsed them to one
@@ -140,13 +160,13 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 		// Namespacing by defect is not decoration: it restores the path the
 		// file actually has within the suite, which is what makes the anchor
 		// resolvable and the identity distinct.
-		w.Observations = append(w.Observations, namespaceBySite(site.Document.Observations, string(site.Defect))...)
+		w.Observations = append(w.Observations, namespaceBySite(site.Document.Observations, ns.name)...)
 		w.CandidateQuestions = append(w.CandidateQuestions, site.Document.CandidateQuestions...)
 		w.Counterexamples = append(w.Counterexamples, site.Document.Counterexamples...)
 		for _, p := range site.DefectPaths {
-			inventory[string(site.Defect)+"/"+p] = true
+			inventory[ns.name+"/"+p] = true
 		}
-		fmt.Fprintf(digest, "%s:%s\n", site.Defect, site.DocumentDigest)
+		fmt.Fprintf(digest, "%s:%s\n", ns.name, site.DocumentDigest)
 	}
 	for unit := range inventory {
 		w.RecallInventory = append(w.RecallInventory, unit)
