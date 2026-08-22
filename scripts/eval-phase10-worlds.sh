@@ -18,6 +18,8 @@
 #   GLOBULAR_REV   the exact commit world 2 is pinned to (required to run it)
 #   WORLD3_SRC / WORLD3_REV / WORLD3_DOMAIN / WORLD3_NAME
 #                  an operator-bound world 3 — see "World 3" below before using
+#   PROTOCOL_FILE  the protocol the sample is stamped with; REQUIRED when a
+#                  seed is given alongside an operator-bound world
 set -euo pipefail
 
 AG="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -75,8 +77,11 @@ clone_world() {
     echo "$0: skipping $name — set $var to a checkout to run it" >&2
     return
   fi
-  if [[ ! -d "$src/.git" ]]; then
-    echo "$0: skipping $name — no git checkout at $src" >&2
+  # A linked checkout made by `git worktree add` has a .git FILE pointing at the
+  # shared git directory, so testing for a directory would skip a perfectly
+  # cloneable source and record a world the caller did supply as not_run.
+  if ! git -C "$src" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "$0: skipping $name — $src is not a git checkout" >&2
     return
   fi
   if [[ -z "$rev" ]]; then
@@ -122,9 +127,38 @@ clone_world world2_globular github.com/globulario/Globular \
 # not_run with a reason, which is the honest state. An operator who has made
 # that decision can bind one explicitly, and should give it a name that does
 # not claim the v1 slot unless the protocol has been amended to match.
+# Renaming the world is NOT sufficient, and an earlier version of this script
+# stopped there. eval-arms samples every world that ran and stamps the protocol
+# digest into the manifest, so a bound replacement would still be sampled under
+# a protocol specifying a different world — the exact claim this script exists
+# to avoid making. The name only tells a reader; the digest is what the artifact
+# asserts.
+#
+# So binding a world AND drawing a sample requires the operator to name the
+# protocol that governs it. The script cannot check that a protocol's text says
+# what its binder believes, but it can refuse to stamp v1 over a world v1 does
+# not define.
+if [[ -n "${WORLD3_SRC:-}" && -n "$SEED" && -z "${PROTOCOL_FILE:-}" ]]; then
+  echo "$0: refusing to draw a sample over an operator-bound world under the default protocol." >&2
+  echo "  eval-arms stamps the protocol digest into the manifest, so the sample would" >&2
+  echo "  claim compliance with a protocol that does not define this world." >&2
+  echo "  Either set PROTOCOL_FILE to the amended protocol that does define it," >&2
+  echo "  or run without a selection seed to measure the world and draw nothing." >&2
+  exit 2
+fi
+[[ -n "${PROTOCOL_FILE:-}" ]] && args+=(-protocol-file "$PROTOCOL_FILE")
+
 clone_world "${WORLD3_NAME:-world3_operator_bound}" "${WORLD3_DOMAIN:-}" \
   "${WORLD3_SRC:-}" "${WORLD3_REV:-}" WORLD3_SRC
 
 # A world that was not supplied is recorded by eval-arms as not_run with a
 # reason, so a partial run never reads as a complete protocol.
-exec go run ./cmd/eval-arms "${args[@]}"
+#
+# NOT exec: exec replaces this shell, so the EXIT trap never fires and every run
+# would leave a full clone of each external world behind in /tmp. The status is
+# forwarded instead, so a caller still sees the evaluator's own exit code.
+set +e
+go run ./cmd/eval-arms "${args[@]}"
+status=$?
+set -e
+exit "$status"

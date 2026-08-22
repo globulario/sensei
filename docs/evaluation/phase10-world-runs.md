@@ -15,13 +15,17 @@ GLOBULAR_SRC=<checkout> GLOBULAR_REV=<commit> \
 
 Worlds 2 and 3 had previously only ever been run by hand. A measurement that exists only as something somebody typed once is not the reproducible evidence #131 asks for, so the invocation lives in the script.
 
-### Three things the script refuses
+### Four things the script refuses
 
 **An output directory inside this checkout.** `eval-arms` materializes synthetic Go mutant repositories under `<out>/mutants`, and world 1 measures this repository by recursively scanning its `.go` files. An output directory inside the tree feeds the harness's own generated mutants into the self-evaluation and dirties the very tree world 1 is trying to bind. Refused rather than silently relocated: a run that quietly writes somewhere other than where it was told is its own defect.
 
 **An external world with no pinned revision.** `git clone` alone takes whatever the source HEAD happens to name, so the same command with the same seed would silently evaluate a different world once that checkout advanced. Recording the revision afterwards does not make it a pinned input — it only makes the drift legible after the fact. The revision is required, checked out, and verified against what `HEAD` resolved to.
 
 **A revision the source does not contain.** Fails loudly rather than falling back to HEAD.
+
+**A sample drawn over an operator-bound world under the default protocol.** See world 3 below.
+
+A linked checkout made by `git worktree add` is accepted: its `.git` is a file rather than a directory, so the source is validated with `git rev-parse --is-inside-work-tree` instead of a directory test, which would otherwise have recorded a world the caller did supply as `not_run`.
 
 ### Why the external worlds are cloned
 
@@ -44,7 +48,9 @@ Candidate replacements are not interchangeable:
 - **Caddy** is Go but is contaminated: its checkout carries an `awareness: onboard AWG + close invariant→test gaps` commit, so Sensei has already shaped the repository that was supposed to calibrate it independently.
 - **gin** is Go, independently maintained, and its HEAD is an upstream commit with no Sensei authorship in it. It measures cleanly — a trial run produced 16,504 observations over 97 files at revision `34dac209ffb6`, with every anchor resolving.
 
-An operator who has made that decision can bind a world explicitly with `WORLD3_SRC`, `WORLD3_REV`, `WORLD3_DOMAIN` and `WORLD3_NAME`. The default name is `world3_operator_bound`, which deliberately does **not** claim the v1 world-3 slot; claiming it requires amending the protocol so the manifest's stamped digest and its world definition agree.
+An operator who has made that decision can bind a world explicitly with `WORLD3_SRC`, `WORLD3_REV`, `WORLD3_DOMAIN` and `WORLD3_NAME`. The default name is `world3_operator_bound`, which deliberately does **not** claim the v1 world-3 slot.
+
+Renaming alone would not have been enough, and an earlier version of this script stopped there. `eval-arms` samples every world that ran and stamps the protocol digest into the manifest, so a bound replacement would still have been sampled under a protocol specifying a different world — the name only tells a reader, while the digest is what the artifact asserts. So binding a world **and** drawing a sample now requires `PROTOCOL_FILE` to name the protocol that governs it. The script cannot check that a protocol's text says what its binder believes, but it can refuse to stamp v1 over a world v1 does not define.
 
 ## Run of 2026-08-22
 
