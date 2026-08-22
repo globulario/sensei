@@ -165,12 +165,12 @@ func TestReservedArmNamesMatchTheArmsActuallyWritten(t *testing.T) {
 
 // Every world #131 defines appears in the index whether it ran or not.
 func TestEveryRequiredWorldIsAccountedFor(t *testing.T) {
-	arts := runWorlds(t.TempDir(), nil, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+	arts := runWorlds(t.TempDir(), nil, "2026-01-01T00:00:00Z", map[string]int64{}, nil, defaultProtocol, true)
 	seen := map[string]string{}
 	for _, a := range arts {
 		seen[a.Arm] = a.Status
 	}
-	for _, name := range requiredWorlds {
+	for _, name := range defaultProtocol.Worlds {
 		// The mutant suite is a required world that is not a CHECKOUT: it is
 		// materialized by the harness, so runWorlds neither runs nor reports
 		// it, and main records its status from the arm that extracts over it.
@@ -194,7 +194,7 @@ func TestDuplicateWorldNameIsRefused(t *testing.T) {
 		"world3_independent_calibration=a/b=" + dir,
 		"world3_independent_calibration=c/d=" + dir,
 	}
-	arts := runWorlds(dir, specs, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+	arts := runWorlds(dir, specs, "2026-01-01T00:00:00Z", map[string]int64{}, nil, defaultProtocol, true)
 	failed := 0
 	for _, a := range arts {
 		if a.Status == statusFailed && strings.Contains(a.Reason, "collides") {
@@ -449,7 +449,7 @@ func TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten(t *testing.T) {
 	for _, name := range []string{"../escape", "a/b", "..", "ok/../bad"} {
 		t.Run(name, func(t *testing.T) {
 			out := t.TempDir()
-			arts := runWorlds(out, []string{name + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+			arts := runWorlds(out, []string{name + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil, defaultProtocol, true)
 			refused := false
 			for _, a := range arts {
 				if a.Status == statusFailed && strings.Contains(a.Reason, "is a path, not a name") {

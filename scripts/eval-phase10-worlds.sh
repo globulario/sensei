@@ -18,8 +18,11 @@
 #                  usually $(git rev-parse HEAD)
 #   GLOBULAR_SRC   checkout to clone world 2 from
 #   GLOBULAR_REV   the exact commit world 2 is pinned to (required to run it)
+#   GIN_SRC        checkout to clone world 3 (gin) from
+#   GIN_REV        the exact commit protocol v2 pins world 3 to
 #   WORLD3_SRC / WORLD3_REV / WORLD3_DOMAIN / WORLD3_NAME
-#                  an operator-bound world 3 — see "World 3" below before using
+#                  an EXTRA operator-bound world, for protocols this harness
+#                  does not register; it may not claim a protocol-named slot
 #   PROTOCOL_FILE / PROTOCOL_ID
 #                  the protocol the sample is stamped with, and its identity.
 #                  Both or neither. REQUIRED when a seed is given alongside an
@@ -159,65 +162,28 @@ clone_world world1_sensei_self github.com/globulario/sensei \
 clone_world world2_globular github.com/globulario/Globular \
   "${GLOBULAR_SRC:-}" "${GLOBULAR_REV:-}" GLOBULAR_SRC
 
-# World 3.
+# World 3 is gin, under protocol v2.
 #
-# The frozen protocol names world 3 as the independent SQLite calibration, and
-# this script does NOT substitute another repository for it on its own
-# authority. That matters more than the inconvenience it causes: eval-arms
-# stamps the v1 protocol digest into every sample manifest, so a run that
-# quietly swapped the world would produce samples claiming compliance with a
-# world definition they did not follow. Protocol section 3 is explicit that a
-# correction creates a new version rather than a silent amendment.
+# v1 named SQLite. Running it produced a measured negative result — the
+# extraction lane is Go-only, so a C repository yields zero observations and a
+# world that measures nothing. Section 0 of v2 records that, and records why
+# Caddy was rejected (its history carries an `awareness: onboard AWG` commit,
+# so Sensei had already shaped the repository meant to calibrate it).
 #
-# There is a measured obstacle to running it as written. The extraction lane is
-# Go-only: pointed at a C repository it runs and honestly reports zero
-# observations, so SQLite yields a world that measures nothing rather than an
-# independent calibration. See docs/evaluation/phase10-world-runs.md.
-#
-# Resolving that is the evaluation owner's decision, not this script's. Until a
-# protocol version names a reachable world 3, eval-arms records world 3 as
-# not_run with a reason, which is the honest state. An operator who has made
-# that decision can bind one explicitly, and should give it a name that does
-# not claim the v1 slot unless the protocol has been amended to match.
-# Renaming the world is NOT sufficient, and an earlier version of this script
-# stopped there. eval-arms samples every world that ran and stamps the protocol
-# digest into the manifest, so a bound replacement would still be sampled under
-# a protocol specifying a different world — the exact claim this script exists
-# to avoid making. The name only tells a reader; the digest is what the artifact
-# asserts.
-#
-# So binding a world AND drawing a sample requires the operator to name the
-# protocol that governs it. The script cannot check that a protocol's text says
-# what its binder believes, but it can refuse to stamp v1 over a world v1 does
-# not define.
-if [[ -n "${WORLD3_SRC:-}" && -n "$SEED" && -z "${PROTOCOL_FILE:-}" ]]; then
-  echo "$0: refusing to draw a sample over an operator-bound world under the default protocol." >&2
-  echo "  eval-arms stamps the protocol digest into the manifest, so the sample would" >&2
-  echo "  claim compliance with a protocol that does not define this world." >&2
-  echo "  Either set PROTOCOL_FILE to the amended protocol that does define it," >&2
-  echo "  or run without a selection seed to measure the world and draw nothing." >&2
-  exit 2
-fi
-# The ID travels WITH the file, or neither moves. A new protocol document under
-# the old identity produces a manifest naming v1 while carrying another
-# protocol's digest — a ruler that misstates what it is, which is worse than one
-# that refuses to be built.
-if [[ -n "${PROTOCOL_FILE:-}" && -z "${PROTOCOL_ID:-}" ]]; then
-  echo "$0: PROTOCOL_FILE was given without PROTOCOL_ID." >&2
-  echo "  The manifest records both. A new protocol document under the old identity" >&2
-  echo "  would name one protocol while carrying another's digest." >&2
-  exit 2
-fi
-if [[ -n "${PROTOCOL_ID:-}" && -z "${PROTOCOL_FILE:-}" ]]; then
-  echo "$0: PROTOCOL_ID was given without PROTOCOL_FILE — change both together or neither." >&2
-  exit 2
-fi
-if [[ -n "${PROTOCOL_FILE:-}" ]]; then
-  args+=(-protocol-file "$PROTOCOL_FILE" -protocol-id "$PROTOCOL_ID")
-fi
+# The binding is exact: repository AND revision. eval-arms enforces both under
+# v2, so a gin checkout cannot be filed under v1 and SQLite cannot be filed
+# under v2. There is deliberately no compatibility alias.
+GIN_SRC="${GIN_SRC:-$HOME/Documents/github.com/gin-gonic/gin}"
+GIN_REV="${GIN_REV:-34dac209ffb6ef85cc78c5d217bbb7ad001d68fd}"
+clone_world world3_independent_calibration github.com/gin-gonic/gin \
+  "$GIN_SRC" "$GIN_REV" GIN_SRC
 
-clone_world "${WORLD3_NAME:-world3_operator_bound}" "${WORLD3_DOMAIN:-}" \
-  "${WORLD3_SRC:-}" "${WORLD3_REV:-}" WORLD3_SRC
+# An operator-bound extra world remains available for protocols this harness
+# does not register. It must not claim a protocol-named slot.
+if [[ -n "${WORLD3_SRC:-}" ]]; then
+  clone_world "${WORLD3_NAME:-world3_operator_bound}" "${WORLD3_DOMAIN:-}" \
+    "${WORLD3_SRC:-}" "${WORLD3_REV:-}" WORLD3_SRC
+fi
 
 # The EVALUATOR is pinned too, not just the worlds it measures.
 #

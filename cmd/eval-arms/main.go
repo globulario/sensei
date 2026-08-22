@@ -192,22 +192,18 @@ func main() {
 	// disabling the very guard that protects v1. Naming both flags is not the
 	// same as keeping them consistent.
 	//
-	// This pins the pair this binary knows. It cannot validate that some other
-	// id belongs to some other document — nothing here could — but it can
-	// refuse to let either known default move without its counterpart.
 	// Read ONCE, here, and carry the bytes' digest forward. Validating the pair
 	// now and re-reading the file in writeSample leaves a window: the arms run
 	// for minutes, and a file edited in between would be validated as one
-	// document and recorded as another — reproducing the identity split this
-	// check exists to prevent.
+	// document and recorded as another.
 	protocolDigest, protocolErr := fileDigest(*protocolFile)
-	defaultFile := isDefaultProtocolDocument(*protocolFile, protocolDigest, protocolErr)
-	defaultID := *protocolIDFlag == protocolID
-	if defaultFile != defaultID {
-		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-file and --protocol-id disagree about which protocol this is.")
-		fmt.Fprintf(os.Stderr, "  file=%s\n  id=%s\n", *protocolFile, *protocolIDFlag)
-		fmt.Fprintln(os.Stderr, "  One names the known default and the other does not, so the manifest would")
-		fmt.Fprintln(os.Stderr, "  record one protocol's digest under another protocol's identity.")
+
+	// Which protocol do these two flags actually name? The registry answers by
+	// CONTENT and by identity, and refuses any pair that disagrees — which is
+	// what stops a gin checkout being filed under v1 SQLite, or the reverse.
+	activeProtocol, protocolRegistered, protocolPairErr := resolveProtocol(*protocolFile, *protocolIDFlag, protocolDigest, protocolErr)
+	if protocolPairErr != nil {
+		fmt.Fprintln(os.Stderr, "sensei eval-arms: "+protocolPairErr.Error())
 		os.Exit(2)
 	}
 
@@ -301,7 +297,7 @@ func main() {
 	idx.Arms = append(idx.Arms, runPublishedSurfaces(*out, *addr, *publishedDomain, publishedFiles, elapsed))
 
 	var sampledWorlds []evalsample.World
-	idx.Arms = append(idx.Arms, runWorlds(*out, worlds, *capturedAt, elapsed, &sampledWorlds)...)
+	idx.Arms = append(idx.Arms, runWorlds(*out, worlds, *capturedAt, elapsed, &sampledWorlds, activeProtocol, protocolRegistered)...)
 	// Step 9 of the #131 handoff: freeze the SELECTION from the worlds this run
 	// pinned, before any label exists. It is written from the same documents
 	// the reports above describe, so the sample and the measurement cannot
@@ -324,7 +320,7 @@ func main() {
 	}
 	// Computed AFTER the suite joins sampledWorlds. Computing it first counted
 	// the fourth world as missing in the very run that produced it.
-	missing := missingRequiredWorlds(sampledWorlds)
+	missing := activeProtocol.missingWorlds(ranWorldDomains(sampledWorlds))
 	// The protocol consumes FOUR worlds, and the fourth is the mutant suite,
 	// which is not a checkout and so never appeared in requiredWorlds. A run
 	// whose mutant arms failed would otherwise have written a v1 sample over an
@@ -334,7 +330,7 @@ func main() {
 	// The suite is now SAMPLED, not merely gated on. Appended after the
 	// checkout worlds so its material reaches evalsample.Build alongside them.
 	sort.Strings(missing)
-	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, protocolDigest, protocolErr, defaultID, missing, sampledWorlds, *selectionSeed, *capturedAt))
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, protocolDigest, protocolErr, protocolRegistered, missing, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,
@@ -577,36 +573,6 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	return art
 }
 
-// isDefaultProtocolDocument reports whether a path names the frozen default
-// protocol, by CONTENT rather than by how the path was spelled.
-//
-// An earlier version compared path strings, so `./docs/...v1.md` read as a
-// custom protocol while being the v1 document — which let the v1 digest be
-// recorded under another identity AND disabled the world-completeness guard
-// that protects v1. A path is a name for a file; two names for one file are
-// still one file, and the manifest records what the bytes were.
-//
-// Falls back to comparing resolved paths when the default cannot be read, so a
-// run from outside the repository root degrades to the older, weaker check
-// rather than silently deciding every document is custom.
-func isDefaultProtocolDocument(path, got string, gotErr error) bool {
-	if gotErr == nil {
-		return got == defaultProtocolDigest
-	}
-	a, errA := filepath.Abs(path)
-	b, errB := filepath.Abs(protocolPath)
-	if errA != nil || errB != nil {
-		return path == protocolPath
-	}
-	if ra, err := filepath.EvalSymlinks(a); err == nil {
-		a = ra
-	}
-	if rb, err := filepath.EvalSymlinks(b); err == nil {
-		b = rb
-	}
-	return a == b
-}
-
 // verifyRequiredWorldCheckout checks that a checkout claiming a protocol-named
 // world really is that repository, by its git remote.
 //
@@ -616,9 +582,15 @@ func isDefaultProtocolDocument(path, got string, gotErr error) bool {
 // world cannot be misidentified by accident or convenience, which is the
 // failure mode an evaluation harness actually suffers. A world whose remote
 // cannot be read at all is refused rather than assumed correct.
-func verifyRequiredWorldCheckout(name, path string) (string, error) {
+func verifyRequiredWorldCheckout(p protocolVersion, registered bool, name, path string) (string, error) {
+	if !registered {
+		// An operator-bound protocol defines its own worlds. This binary has no
+		// expectations to enforce against it, and inventing some would be the
+		// harness overruling the operator's protocol.
+		return "", nil
+	}
 	isProtocolWorld := false
-	for _, n := range requiredWorlds {
+	for _, n := range p.Worlds {
 		if n == name {
 			isProtocolWorld = true
 			break
@@ -627,20 +599,16 @@ func verifyRequiredWorldCheckout(name, path string) (string, error) {
 	if !isProtocolWorld {
 		return "", nil
 	}
-	want, known := requiredWorldRemotes[name]
+	want, known := p.Remotes[name]
 	if known && want == "" {
 		// Registered as having no checkout to verify. Not the same as
 		// unregistered: this world's identity is established elsewhere.
 		return "", nil
 	}
 	if !known {
-		// Fail CLOSED. This world is one the protocol names, so a checkout
-		// claiming it must be shown to be it — and no upstream identity is
-		// registered here, so it cannot be. Returning success would let an
-		// arbitrary tree be reported as that world, which is the finding this
-		// check exists to answer; inventing a URL for a repository whose
-		// identity is exactly what is undecided would be worse.
-		return "", fmt.Errorf("%s: the protocol names this world but no upstream identity is registered for it, so a checkout cannot be shown to be it; bind it as an operator world instead", name)
+		// Fail CLOSED. This protocol names the world, so a checkout claiming it
+		// must be shown to be it, and no upstream identity is registered.
+		return "", fmt.Errorf("%s: %s names this world but no upstream identity is registered for it, so a checkout cannot be shown to be it; bind it as an operator world instead", name, p.ID)
 	}
 	got, err := resolveUpstream(path)
 	if err != nil {
@@ -649,12 +617,25 @@ func verifyRequiredWorldCheckout(name, path string) (string, error) {
 		// evidence, and treating the second as disproof made the advertised
 		// command fail in exactly the environments it should work in — CI
 		// clones, source archives, any checkout whose remote metadata was
-		// stripped. The absence is typed onto the report instead, so a reader
-		// sees that this world's identity rests on the caller's word.
+		// stripped.
 		return fmt.Sprintf("world identity unverified: %s (%v); the checkout could not be shown to be %s", name, err, want), nil
 	}
 	if got != want {
-		return "", fmt.Errorf("%s: the protocol names %s but this checkout's origin resolves to %s; a world's name is not evidence about the tree", name, want, got)
+		return "", fmt.Errorf("%s: %s names %s but this checkout's origin resolves to %s; a world's name is not evidence about the tree", name, p.ID, want, got)
+	}
+	// The REVISION, where the protocol pins one. A protocol that states an
+	// exact commit is naming that commit as part of its identity, so the right
+	// repository at the wrong commit is a different experiment — and it would
+	// otherwise pass every check above.
+	if wantRev := p.Revisions[name]; wantRev != "" {
+		out, revErr := exec.Command("git", "-C", path, "rev-parse", "HEAD").Output()
+		if revErr != nil {
+			return "", fmt.Errorf("%s: %s pins revision %s but this checkout's HEAD could not be read: %w", name, p.ID, wantRev, revErr)
+		}
+		gotRev := strings.TrimSpace(string(out))
+		if gotRev != wantRev {
+			return "", fmt.Errorf("%s: %s pins revision %s but this checkout is at %s; the right repository at the wrong commit is a different experiment", name, p.ID, wantRev, gotRev)
+		}
 	}
 	return "", nil
 }
@@ -692,22 +673,6 @@ func resolveUpstream(path string) (string, error) {
 		return normalizeRemote(url), nil
 	}
 	return "", fmt.Errorf("origin chain did not reach an upstream repository within %d hops", maxHops)
-}
-
-// requiredWorldRemotes is what each protocol-named world's checkout must be.
-//
-// world3_independent_calibration is deliberately ABSENT. Which repository it
-// should be is the open question this whole file keeps running into, and
-// registering a guess here would let an arbitrary tree pass as the SQLite
-// calibration. A protocol-named world with no entry fails closed.
-var requiredWorldRemotes = map[string]string{
-	"world1_sensei_self": "github.com/globulario/sensei",
-	"world2_globular":    "github.com/globulario/Globular",
-	// The mutant suite is synthetic and has no checkout, so there is nothing
-	// to resolve a remote from. Its identity is the suite's composed digest,
-	// carried on the world's binding, and verifyRequiredWorldCheckout never
-	// sees it because it is not supplied through --world.
-	worldMutantSuite: "",
 }
 
 // normalizeRemote reduces the forms git accepts to a comparable host/path.
@@ -761,58 +726,14 @@ func orNotRun(s string) string {
 	return s
 }
 
-// missingRequiredWorlds names the worlds the default protocol consumes that
-// this run did not measure. Sorted so a refusal reads the same way twice.
-func missingRequiredWorlds(ran []evalsample.World) []string {
-	seen := map[string]string{}
+// ranWorldDomains reduces the sampled worlds to name -> repository domain, the
+// only thing a protocol's completeness check needs from them.
+func ranWorldDomains(ran []evalsample.World) map[string]string {
+	out := map[string]string{}
 	for _, w := range ran {
-		seen[w.Name] = w.Binding.RepositoryDomain
+		out[w.Name] = w.Binding.RepositoryDomain
 	}
-	var missing []string
-	for _, name := range requiredWorlds {
-		domain, ok := seen[name]
-		if !ok {
-			missing = append(missing, name)
-			continue
-		}
-		// Present under the right name but bound to something else. Reported
-		// as a distinct problem, because "you did not run it" and "you ran
-		// something else and called it that" need different corrections.
-		if want := requiredWorldDomains[name]; want != "" && domain != want {
-			missing = append(missing, fmt.Sprintf("%s (bound to %s, protocol names %s)", name, domain, want))
-		}
-	}
-	sort.Strings(missing)
-	return missing
-}
-
-// requiredWorlds are the evaluation worlds #131 defines. Each one is always
-// present in the index, whether it ran or not.
-//
-// World 1 is this repository, and it is required for the same reason as the
-// other two: #131 asks for all worlds to run from exact pinned inputs, and a
-// self-measurement that only ever happened by hand is not pinned. It measures
-// the same extraction lane as worlds 2 and 3, which is what makes the three
-// comparable — the investigation-composition lane is measured separately by
-// the phase10_composition_* arms over the mutant suite.
-var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_independent_calibration", worldMutantSuite}
-
-// worldMutantSuite is the protocol's fourth world. It is not a checkout, which
-// is why it was absent from this list for as long as the list meant "things
-// with a --world flag" rather than "things the protocol consumes".
-const worldMutantSuite = "world4_mutant_suite"
-
-// requiredWorldDomains is what each required world must actually BE.
-//
-// A name is a label the caller chose; it is not proof of identity. A direct
-// caller could point three arbitrary Go checkouts at these names and the
-// completeness check would have seen a full v1 world set. The protocol binds
-// specific repositories, so completeness compares the domain the world reports
-// against the domain the protocol names.
-var requiredWorldDomains = map[string]string{
-	"world1_sensei_self":             "github.com/globulario/sensei",
-	"world2_globular":                "github.com/globulario/Globular",
-	"world3_independent_calibration": "sqlite.org/sqlite",
+	return out
 }
 
 // reservedArmNames are the arm names this command writes itself; a world may
@@ -1059,7 +980,7 @@ const unresolvedExampleLimit = 10
 // that only exists as something somebody typed once is not the reproducible
 // evidence this issue asks for, so they run here, bound the way any other
 // result is bound, or they are recorded as not run.
-func runWorlds(out string, specs []string, capturedAt string, elapsed map[string]int64, sampled *[]evalsample.World) []armArtifact {
+func runWorlds(out string, specs []string, capturedAt string, elapsed map[string]int64, sampled *[]evalsample.World, protocol protocolVersion, protocolRegistered bool) []armArtifact {
 	var arts []armArtifact
 	ran := map[string]bool{}
 	names := map[string]bool{}
@@ -1091,7 +1012,7 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 		}
 		names[name] = true
 		start := time.Now()
-		report, doc, binding, err := runWorld(name, domain, path, capturedAt)
+		report, doc, binding, err := runWorld(name, domain, path, capturedAt, protocol, protocolRegistered)
 		elapsed[name] = time.Since(start).Milliseconds()
 		if err != nil {
 			arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusFailed, Reason: err.Error()})
@@ -1127,7 +1048,7 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 	// A world that was not supplied is recorded, not omitted. An index listing
 	// only the worlds somebody happened to have a checkout for would read as a
 	// complete protocol.
-	for _, name := range requiredWorlds {
+	for _, name := range protocol.Worlds {
 		if ran[name] || names[name] {
 			continue
 		}
@@ -1153,7 +1074,7 @@ func parseWorldSpec(spec string) (name, domain, path string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-func runWorld(name, domain, path, capturedAt string) (worldReport, investigation.Document, architecture.ClaimDocumentBinding, error) {
+func runWorld(name, domain, path, capturedAt string, protocol protocolVersion, protocolRegistered bool) (worldReport, investigation.Document, architecture.ClaimDocumentBinding, error) {
 	abs, err := filepath.Abs(path)
 	if err != nil {
 		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
@@ -1167,7 +1088,7 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, investigation
 	// the remote is at least a property of the checkout rather than of the
 	// argument. Checked before extraction so an impostor never produces a
 	// report at all.
-	identityNote, err := verifyRequiredWorldCheckout(name, abs)
+	identityNote, err := verifyRequiredWorldCheckout(protocol, protocolRegistered, name, abs)
 	if err != nil {
 		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}

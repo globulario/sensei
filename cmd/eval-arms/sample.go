@@ -19,29 +19,13 @@ import (
 	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
-// protocolPath is the frozen protocol this sample serves. The manifest records
-// its digest, so a sample drawn under one protocol version can never be read
-// as though it obeyed another.
-const protocolPath = "docs/evaluation/phase10-reference-protocol-v1.md"
-
-// protocolID is the DEFAULT identity, paired with protocolPath above. It is
-// overridable for the same reason the file is: a manifest that named one
-// protocol while carrying another's digest would corrupt the very identity a
-// reference-set release is supposed to pin.
-const protocolID = "phase10-reference-protocol-v1"
-
-// defaultProtocolDigest is the SHA-256 of the document at protocolPath.
-//
-// Compiled in because protocolPath is relative: an installed binary run from
-// outside the repository cannot read it, and the earlier path-comparison
-// fallback then misclassified a caller who passed the REAL v1 document by
-// absolute path as using a custom protocol — rejecting a valid default pair
-// before any arm ran. A digest travels with the binary and needs no working
-// directory.
-//
-// TestTheCompiledProtocolDigestMatchesTheDocument fails if the document
-// changes without this constant, so the two cannot drift apart silently.
-const defaultProtocolDigest = "e686245ebfeb0885113046d9dfbefcfbab43c2457b1850fa4058ac1ac2f2288c"
+// protocolPath and protocolID are the DEFAULT protocol's document and
+// identity. They are derived from the registry rather than written out again,
+// so the flag defaults and the enforced bindings cannot drift apart.
+var (
+	protocolPath = defaultProtocol.Path
+	protocolID   = defaultProtocol.ID
+)
 
 // recallUnitInventory is the INDEPENDENT unit inventory of section 7.
 //
@@ -162,8 +146,25 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 		// file actually has within the suite, which is what makes the anchor
 		// resolvable and the identity distinct.
 		w.Observations = append(w.Observations, namespaceBySite(site.Document.Observations, ns.name)...)
-		w.CandidateQuestions = append(w.CandidateQuestions, site.Document.CandidateQuestions...)
-		w.Counterexamples = append(w.Counterexamples, site.Document.Counterexamples...)
+		// The document's own questions and counterexamples need the SAME
+		// namespacing as its observations, and did not have it.
+		//
+		// Found by an adversarial read of the #265 change that merged without
+		// bot review (eb72fb3e), and repaired here rather than by rewriting
+		// that history. Their identities are repo-relative to one mutant's
+		// tree, so two mutants emitting the same question or counterexample id
+		// collapsed to a single identity in evalsample's challenge lane —
+		// exactly the defect that was fixed for observations one commit
+		// earlier and left standing two lines below it.
+		for _, q := range site.Document.CandidateQuestions {
+			q.ID = ns.name + "/" + q.ID
+			w.CandidateQuestions = append(w.CandidateQuestions, q)
+		}
+		for _, c := range site.Document.Counterexamples {
+			c.ID = ns.name + "/" + c.ID
+			c.EvidenceRefIDs = namespaceRefs(c.EvidenceRefIDs, ns.name)
+			w.Counterexamples = append(w.Counterexamples, c)
+		}
 		for _, p := range site.DefectPaths {
 			inventory[ns.name+"/"+p] = true
 		}
@@ -234,8 +235,13 @@ func addComposedClaims(w *evalsample.World, report evalharness.CompositionReport
 // citation is repo-relative inside one mutant's tree, and two mutants' "a.go"
 // are different files.
 func composedClaim(site, lane string, i int, kind, text string, cited, paths []string) investigation.Counterexample {
+	// Cited evidence ids are namespaced too, which eb72fb3e did not do: it
+	// namespaced the file paths and left the receipt ids bare. A receipt id is
+	// scoped to the document it came from, so "ev-3" in two mutants names two
+	// different receipts, and an adjudicator handed the bare id cannot tell
+	// which. Same defect as the paths, one field over.
 	refs := make([]string, 0, len(cited)+len(paths))
-	refs = append(refs, cited...)
+	refs = append(refs, namespaceRefs(cited, site)...)
 	for _, p := range paths {
 		if strings.TrimSpace(p) == "" {
 			continue
@@ -249,13 +255,27 @@ func composedClaim(site, lane string, i int, kind, text string, cited, paths []s
 	}
 }
 
+// namespaceRefs scopes evidence identities to the site whose document produced
+// them. An identity that is unique within one mutant's tree is not unique
+// across the suite.
+func namespaceRefs(refs []string, site string) []string {
+	out := make([]string, 0, len(refs))
+	for _, r := range refs {
+		if strings.TrimSpace(r) == "" {
+			continue
+		}
+		out = append(out, site+"/"+r)
+	}
+	return out
+}
+
 // writeSample builds the frozen sample manifest and the blinded adjudication
 // views, and writes them under out/sample.
 //
 // The manifest is written even when a lane is empty. Step 9 of the handoff
 // produces the SELECTION; whether a lane had anything to select is one of the
 // facts the selection is supposed to record.
-func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protocolErr error, isDefaultProtocol bool, missingWorlds []string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
+func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protocolErr error, protocolRegistered bool, missingWorlds []string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
 	art := armArtifact{Arm: "frozen_sample_manifest", Subject: subjectPublishedDomain}
 	if strings.TrimSpace(seed) == "" {
 		// not_run, not failed. A run that only wanted the arms is a legitimate
@@ -283,7 +303,7 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 	// identity while following a reduced world definition — the same false
 	// claim as substituting a world, arrived at by omission rather than
 	// replacement, which is why it looked harmless.
-	if isDefaultProtocol && len(missingWorlds) > 0 {
+	if protocolRegistered && len(missingWorlds) > 0 {
 		// statusFailed, not statusNotRun. The caller asked for a draw by
 		// supplying a seed; refusing it is a failure of what was requested, and
 		// main's exit code counts only failures. Reporting not_run here let
@@ -291,8 +311,8 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 		// silence indistinguishable from success, which is the shape of defect
 		// this whole file exists to refuse.
 		art.Status = statusFailed
-		art.Reason = fmt.Sprintf("refusing to draw under the default protocol while %s did not run: the manifest would claim an identity whose world definition this run did not follow. Run the missing world(s), or bind a protocol that defines the reduced set with --protocol-file and --protocol-id.",
-			strings.Join(missingWorlds, ", "))
+		art.Reason = fmt.Sprintf("refusing to draw under %s while %s did not run: the manifest would claim an identity whose world definition this run did not follow. Run the missing world(s), or bind a protocol that defines the reduced set with --protocol-file and --protocol-id.",
+			protocolIDArg, strings.Join(missingWorlds, ", "))
 		return art
 	}
 	if strings.TrimSpace(protocolIDArg) == "" {
