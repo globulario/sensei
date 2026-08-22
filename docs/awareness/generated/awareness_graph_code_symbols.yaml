@@ -11607,6 +11607,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "Deterministic and model-derived counts must never be merged into one number."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeyDistinguishesFileAttribution
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestItemKeyDistinguishesFileAttribution
+    package: evalmodel
+    language: go
+    doc: "Two items with the same words but different file attribution are different\nclaims. A label written for one must not migrate to the other."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestNoReferenceSetProducesNoScore
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestNoReferenceSetProducesNoScore
@@ -11631,6 +11637,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "The scorer is the half that MUST replay byte-identically."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    package: evalmodel
+    language: go
+    doc: "A digest stored inside a frozen file is a CLAIM that file makes about itself.\nScoring an edited bundle while reporting the old identity is exactly how a\nmoved answer key would go undetected."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
@@ -14689,6 +14701,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "A policy decline must arrive as a refusal, not an outage."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe
+    package: modelexec
+    language: go
+    doc: "TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe: the bridge adds\nfixed template bytes to what the model sees, so a request whose\nprompt_contract_digest does not describe that template would give two\nmaterially different prompts the same request identity."
   - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeReportsApiFailureAsErrored
     file: golang/architecture/modelexec/bridge_script_test.go
     symbol: TestExampleBridgeReportsApiFailureAsErrored
@@ -14707,6 +14725,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "Argv reaches the process verbatim: no shell means no expansion, so a value\nthat a shell would rewrite arrives unchanged."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCancellationTerminatesDescendantProcesses
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCancellationTerminatesDescendantProcesses
+    package: modelexec
+    language: go
+    doc: "A bridge is usually a WRAPPER. exec.CommandContext kills only the wrapper, so\na child inheriting the stdout pipe keeps the real request alive past the\ndeadline while Run stays blocked. The earlier cancellation test missed this\nbecause its fixture was a single process."
   - id: golang/architecture/modelexec/command_provider_test.go:TestCancellationTerminatesTheInvocation
     file: golang/architecture/modelexec/command_provider_test.go
     symbol: TestCancellationTerminatesTheInvocation
@@ -14753,6 +14777,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "stderr is diagnostic. Two runs differing only in stderr must produce the same\naccepted artifact identity, or stderr would be smuggled into semantic truth."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestUnknownOrDuplicateResponseFieldsAreRejected
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestUnknownOrDuplicateResponseFieldsAreRejected
+    package: modelexec
+    language: go
+    doc: "The response contract is closed, so it is decoded closed. A misspelled\nauthority-shaped field must be REJECTED, not silently dropped by a parser\nwith nowhere to put it."
   - id: golang/architecture/modelexec/execute_test.go:TestArtifactCannotAttributeClaimsToUnshownFiles
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestArtifactCannotAttributeClaimsToUnshownFiles

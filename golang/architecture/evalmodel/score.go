@@ -72,8 +72,10 @@ type Score struct {
 
 // Typed reasons a measurement produced no score.
 const (
-	ReasonReferenceSetAbsent = "reference_set_absent"
-	ReasonModelDidNotResolve = "model_did_not_resolve"
+	ReasonReferenceSetAbsent  = "reference_set_absent"
+	ReasonModelDidNotResolve  = "model_did_not_resolve"
+	ReasonAcquisitionAltered  = "acquisition_contents_do_not_match_its_digest"
+	ReasonReferenceSetAltered = "reference_set_contents_do_not_match_its_digest"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -94,6 +96,21 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		for _, item := range a.Items {
 			s.ModelItemsByKind[item.Kind]++
 		}
+	}
+
+	// A digest stored inside a frozen file is a CLAIM that file makes about
+	// itself. Both are recomputed from the contents actually loaded, because a
+	// file edited without refreshing its digest would otherwise be scored while
+	// the score named the identity it no longer has — which is exactly how a
+	// moved answer key would go undetected. This is the same lesson already
+	// recorded against the verification-record path, in a new place.
+	if a.AcquisitionDigestSHA256 != acquisitionDigest(a) {
+		s.Reason = ReasonAcquisitionAltered
+		return s
+	}
+	if ref.DigestSHA256 != "" && ref.DigestSHA256 != ReferenceDigest(ref) {
+		s.Reason = ReasonReferenceSetAltered
+		return s
 	}
 
 	if a.Model.Status != investigation.ModelStatusResolved {
@@ -136,11 +153,15 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 // ItemKey is the stable identity of one acquired item, so a human label written
 // against a frozen sample keeps pointing at the same item.
 func ItemKey(item AcquiredItem) string {
+	// FilePaths are part of the identity: two items with the same words that
+	// attribute the finding to different files are different claims, and a
+	// human label written for one must not migrate to the other.
 	payload, _ := json.Marshal(struct {
 		Kind  string   `json:"kind"`
 		Text  string   `json:"text"`
 		Cited []string `json:"cited"`
-	}{item.Kind, item.Text, sortedCopy(item.CitedEvidenceIDs)})
+		Files []string `json:"files"`
+	}{item.Kind, item.Text, sortedCopy(item.CitedEvidenceIDs), sortedCopy(item.FilePaths)})
 	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])[:32]
 }

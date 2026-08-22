@@ -44,6 +44,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/benchmark"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
+	"github.com/globulario/sensei/golang/architecture/evalmodel"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
@@ -66,6 +67,10 @@ type armArtifact struct {
 	// that exist in the documents they were composed from — #131's candidate
 	// grounding, in the half that needs no adjudicator.
 	CandidateGrounding string `json:"candidate_grounding,omitempty"`
+	// AcquisitionFile/Digest name the frozen model measurements this arm
+	// produced, so a later scoring run can be pointed at exact material.
+	AcquisitionFile   string `json:"acquisition_file,omitempty"`
+	AcquisitionDigest string `json:"acquisition_digest_sha256,omitempty"`
 }
 
 const (
@@ -1123,7 +1128,45 @@ func runModelBoundArm(out, capturedAt string, cfg modelArmConfig, elapsed map[st
 		}
 	}
 	art.Reason = "model outcome per site: " + renderCounts(statuses)
+
+	// Persist the frozen acquisition bundles as their own artifact, and score
+	// them. The scorer runs even with no reference set: it reports
+	// reference_set_absent, which is the honest state before human adjudication
+	// and is what proves the deterministic half of the pipeline is wired.
+	bundle := modelAcquisitionBundle{
+		SchemaVersion: "sensei.eval_model_acquisition_bundle.v1",
+		CapturedAt:    capturedAt,
+		Arm:           armCompositionModelBound,
+	}
+	for _, r := range report.Results {
+		if r.ModelAcquisition.SchemaVersion == "" {
+			continue
+		}
+		bundle.Acquisitions = append(bundle.Acquisitions, r.ModelAcquisition)
+		bundle.Scores = append(bundle.Scores, evalmodel.ScoreAcquisition(r.ModelAcquisition, evalmodel.ReferenceSet{}))
+	}
+	if len(bundle.Acquisitions) > 0 {
+		if bundleArt := writeReport(out, armCompositionModelBound+"_acquisitions", bundle); bundleArt.ReportFile != "" {
+			art.AcquisitionFile = bundleArt.ReportFile
+			art.AcquisitionDigest = bundleArt.ReportDigest
+		}
+	}
 	return art
+}
+
+// modelAcquisitionBundle is the frozen scoring input: what the model actually
+// answered, per site, with the deterministic baseline it answered against.
+//
+// It is a SEPARATE artifact from the composition report on purpose. The report
+// is a summary; this is the immutable material a human adjudicates and the
+// scorer replays over. Keeping counts without the claims they count would leave
+// the promised scoring workflow with nothing to consume.
+type modelAcquisitionBundle struct {
+	SchemaVersion string                  `json:"schema_version"`
+	CapturedAt    string                  `json:"captured_at"`
+	Arm           string                  `json:"arm"`
+	Acquisitions  []evalmodel.Acquisition `json:"acquisitions"`
+	Scores        []evalmodel.Score       `json:"scores"`
 }
 
 func renderCounts(counts map[string]int) string {

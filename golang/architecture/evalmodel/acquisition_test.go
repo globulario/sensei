@@ -177,3 +177,40 @@ func equalJSON(t *testing.T, a, b Score) bool {
 	y, _ := json.Marshal(b)
 	return string(x) == string(y)
 }
+
+// A digest stored inside a frozen file is a CLAIM that file makes about itself.
+// Scoring an edited bundle while reporting the old identity is exactly how a
+// moved answer key would go undetected.
+func TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	ref := ReferenceSet{Labels: []ReferenceLabel{{ItemKey: ItemKey(a.Items[0]), Verdict: VerdictSupported}}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+	if s := ScoreAcquisition(a, ref); !s.Scored {
+		t.Fatalf("intact frozen inputs were not scored: %+v", s)
+	}
+
+	tampered := a
+	tampered.Items = append([]AcquiredItem{}, a.Items...)
+	tampered.Items[0].Text = "something the model never said"
+	if s := ScoreAcquisition(tampered, ref); s.Scored || s.Reason != ReasonAcquisitionAltered {
+		t.Errorf("an edited acquisition scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
+	}
+
+	movedKey := ref
+	movedKey.Labels = append([]ReferenceLabel{}, ref.Labels...)
+	movedKey.Labels[0].Verdict = VerdictUnsupported
+	if s := ScoreAcquisition(a, movedKey); s.Scored || s.Reason != ReasonReferenceSetAltered {
+		t.Errorf("an answer key edited after the fact scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
+	}
+}
+
+// Two items with the same words but different file attribution are different
+// claims. A label written for one must not migrate to the other.
+func TestItemKeyDistinguishesFileAttribution(t *testing.T) {
+	a := AcquiredItem{Kind: "candidate_claim", Text: "this boundary leaks", CitedEvidenceIDs: []string{"ev-1"}, FilePaths: []string{"a.go"}}
+	b := a
+	b.FilePaths = []string{"b.go"}
+	if ItemKey(a) == ItemKey(b) {
+		t.Error("claims about different files share one identity; a human label could migrate between them")
+	}
+}

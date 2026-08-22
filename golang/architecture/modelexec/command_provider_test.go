@@ -288,3 +288,66 @@ func TestCommandProviderRequiresExplicitIdentity(t *testing.T) {
 }
 
 var _ = json.Marshal
+
+// A bridge is usually a WRAPPER. exec.CommandContext kills only the wrapper, so
+// a child inheriting the stdout pipe keeps the real request alive past the
+// deadline while Run stays blocked. The earlier cancellation test missed this
+// because its fixture was a single process.
+func TestCancellationTerminatesDescendantProcesses(t *testing.T) {
+	dir := t.TempDir()
+	// A wrapper that launches a long-lived child holding the inherited stdout.
+	wrapper := filepath.Join(dir, "wrapper.sh")
+	if err := os.WriteFile(wrapper, []byte("#!/usr/bin/env bash\nsleep 60 &\nwait\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := commandProvider(wrapper)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel()
+	start := time.Now()
+	out := Execute(ctx, Config{Requested: true, ProviderID: "bridge", ModelName: "m"}, Registry{"bridge": p}, testRequest())
+	elapsed := time.Since(start)
+
+	if elapsed > 30*time.Second {
+		t.Errorf("cancellation did not reach the bridge's children (took %s)", elapsed)
+	}
+	if out.Binding.Status == investigation.ModelStatusResolved {
+		t.Error("a cancelled invocation produced resolved")
+	}
+}
+
+// The response contract is closed, so it is decoded closed. A misspelled
+// authority-shaped field must be REJECTED, not silently dropped by a parser
+// with nowhere to put it.
+func TestUnknownOrDuplicateResponseFieldsAreRejected(t *testing.T) {
+	for _, tc := range []struct{ name, body string }{
+		{"unknown field", `emit(map[string]interface{}{
+			"schema": "sensei.modelexec.command_response.v1",
+			"artifact": map[string]interface{}{
+				"schema_version":             "sensei.model_artifact.v1",
+				"nondeterminism_declaration": "x",
+				"items":                      []map[string]interface{}{{"kind": "question", "text": "q"}},
+			},
+			"claims_canonicall": true,
+		})`},
+		{"misspelled authority field on an item", `emit(map[string]interface{}{
+			"schema": "sensei.modelexec.command_response.v1",
+			"artifact": map[string]interface{}{
+				"schema_version":             "sensei.model_artifact.v1",
+				"nondeterminism_declaration": "x",
+				"items":                      []map[string]interface{}{{"kind": "question", "text": "q", "claims_canonicaI": true}},
+			},
+		})`},
+		{"a second document", successBody + `
+	emit(map[string]interface{}{"schema": "sensei.modelexec.command_response.v1"})`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := commandProvider(bridgeFixture(t, tc.body))
+			out := Execute(context.Background(), Config{Requested: true, ProviderID: "bridge", ModelName: "m"},
+				Registry{"bridge": p}, testRequest())
+			if out.Binding.Status == investigation.ModelStatusResolved {
+				t.Fatalf("output outside the closed contract produced resolved (%s)", tc.name)
+			}
+		})
+	}
+}

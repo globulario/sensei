@@ -189,13 +189,31 @@ func (c *CommandProvider) Execute(ctx context.Context, req Request) (Artifact, e
 
 	// exec.CommandContext takes the executable and argv directly. No shell is
 	// involved, so nothing in Argv is expanded, globbed, or substituted.
-	cmd := exec.CommandContext(ctx, c.Path, c.Argv...)
+	// exec.Command, not CommandContext: cancellation is handled below so it can
+	// reach the bridge's DESCENDANTS. CommandContext would kill only the
+	// wrapper and leave the real request running.
+	cmd := exec.Command(c.Path, c.Argv...)
+	isolateProcessGroup(cmd)
 	cmd.Stdin = bytes.NewReader(payload)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	if err := cmd.Run(); err != nil {
+	if err := cmd.Start(); err != nil {
+		return Artifact{}, fmt.Errorf("model command failed to start: %w", err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	var runErr error
+	select {
+	case runErr = <-done:
+	case <-ctx.Done():
+		terminateProcessGroup(cmd)
+		<-done
+		return Artifact{}, fmt.Errorf("model command cancelled: %w", ctx.Err())
+	}
+
+	if err := runErr; err != nil {
 		// Cancellation is a transport failure, not a refusal: nobody declined.
 		if ctxErr := ctx.Err(); ctxErr != nil {
 			return Artifact{}, fmt.Errorf("model command cancelled: %w", ctxErr)
@@ -205,9 +223,18 @@ func (c *CommandProvider) Execute(ctx context.Context, req Request) (Artifact, e
 		return Artifact{}, fmt.Errorf("model command failed: %w (stderr: %s)", err, truncate(stderr.String()))
 	}
 
+	// The response contract is CLOSED, so it is decoded closed. json.Unmarshal
+	// silently ignores unknown members and takes the last of duplicate keys,
+	// which would let a misspelled authority-shaped field disappear instead of
+	// being rejected — the opposite of why those fields exist.
 	var response commandResponseEnvelope
-	if err := json.Unmarshal(stdout.Bytes(), &response); err != nil {
-		return Artifact{}, fmt.Errorf("model command returned unparsable output: %w", err)
+	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&response); err != nil {
+		return Artifact{}, fmt.Errorf("model command returned output outside the closed response contract: %w", err)
+	}
+	if dec.More() {
+		return Artifact{}, errors.New("model command returned more than one response document")
 	}
 	if response.Schema != CommandResponseSchema {
 		return Artifact{}, fmt.Errorf("model command answered in an unknown schema %q", response.Schema)

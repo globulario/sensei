@@ -328,6 +328,7 @@ components:
       - component.golang.architecture
       - component.golang.architecture.benchmark
       - component.golang.architecture.evalharness
+      - component.golang.architecture.evalmodel
       - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
@@ -1121,6 +1122,7 @@ components:
       - golang/architecture/evalharness/composition.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.evalmodel
       - component.golang.architecture.evalmutant
       - component.golang.architecture.graphbuild
       - component.golang.architecture.howextract
@@ -1587,6 +1589,8 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/modelexec/artifact.go
+      - golang/architecture/modelexec/command_procgroup_unix.go
+      - golang/architecture/modelexec/command_procgroup_windows.go
       - golang/architecture/modelexec/command_provider.go
       - golang/architecture/modelexec/execute.go
       - golang/architecture/modelexec/port.go

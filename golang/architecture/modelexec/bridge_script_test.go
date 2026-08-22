@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
@@ -39,6 +40,18 @@ func bridgeScript(t *testing.T, apiURL string) *CommandProvider {
 	return &CommandProvider{ProviderID: "anthropic-bridge", ProviderVersion: "example-v1", Path: path}
 }
 
+// bridgeContractDigest asks the bridge itself which template it is running.
+// The digest is discovered, never hard-coded: a hard-coded copy would drift
+// from the script and the test would then pass while the gate was broken.
+func bridgeContractDigest(t *testing.T, p *CommandProvider) string {
+	t.Helper()
+	out, err := exec.Command(p.Path, "--print-contract-digest").Output()
+	if err != nil {
+		t.Fatalf("ask the bridge for its contract digest: %v", err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
 func bridgeRequest() Request {
 	return Request{
 		SchemaVersion:    ArtifactSchemaVersion,
@@ -47,6 +60,33 @@ func bridgeRequest() Request {
 			ID: "ev-1", DigestSHA256: sha, FilePath: "a.go", Excerpt: "func A() { B() }",
 		}},
 		Model: ModelIdentity{Name: "claude-opus-5", DigestAbsent: true},
+	}
+}
+
+// TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe: the bridge adds
+// fixed template bytes to what the model sees, so a request whose
+// prompt_contract_digest does not describe that template would give two
+// materially different prompts the same request identity.
+func TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		t.Error("the bridge called the model despite an unpinned prompt contract")
+	}))
+	defer srv.Close()
+	p := bridgeScript(t, srv.URL)
+
+	for _, tc := range []struct{ name, digest string }{
+		{"absent", ""},
+		{"stale", "0000000000000000000000000000000000000000000000000000000000000000"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := bridgeRequest()
+			req.PromptContractDigest = tc.digest
+			out := Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
+				Registry{"anthropic-bridge": p}, req)
+			if out.Binding.Status == investigation.ModelStatusResolved {
+				t.Fatalf("a %s prompt contract still produced resolved", tc.name)
+			}
+		})
 	}
 }
 
@@ -61,8 +101,10 @@ func TestExampleBridgeMapsAModelAnswerToAnArtifact(t *testing.T) {
 	defer srv.Close()
 
 	p := bridgeScript(t, srv.URL)
+	req := bridgeRequest()
+	req.PromptContractDigest = bridgeContractDigest(t, p)
 	out := Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
-		Registry{"anthropic-bridge": p}, bridgeRequest())
+		Registry{"anthropic-bridge": p}, req)
 
 	if out.Binding.Status != investigation.ModelStatusResolved {
 		t.Fatalf("status = %q (reason %q), want %q", out.Binding.Status, out.Binding.Reason, investigation.ModelStatusResolved)
@@ -97,8 +139,10 @@ func TestExampleBridgePreservesRefusal(t *testing.T) {
 	defer srv.Close()
 
 	p := bridgeScript(t, srv.URL)
+	req := bridgeRequest()
+	req.PromptContractDigest = bridgeContractDigest(t, p)
 	out := Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
-		Registry{"anthropic-bridge": p}, bridgeRequest())
+		Registry{"anthropic-bridge": p}, req)
 	if out.Binding.Status != investigation.ModelStatusRefused {
 		t.Fatalf("status = %q, want %q", out.Binding.Status, investigation.ModelStatusRefused)
 	}
@@ -113,8 +157,10 @@ func TestExampleBridgeReportsApiFailureAsErrored(t *testing.T) {
 	defer srv.Close()
 
 	p := bridgeScript(t, srv.URL)
+	req := bridgeRequest()
+	req.PromptContractDigest = bridgeContractDigest(t, p)
 	out := Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
-		Registry{"anthropic-bridge": p}, bridgeRequest())
+		Registry{"anthropic-bridge": p}, req)
 	if out.Binding.Status != investigation.ModelStatusErrored {
 		t.Fatalf("status = %q, want %q", out.Binding.Status, investigation.ModelStatusErrored)
 	}

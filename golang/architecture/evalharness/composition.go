@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/evalmodel"
 	"github.com/globulario/sensei/golang/architecture/evalmutant"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/howextract"
@@ -64,6 +65,10 @@ type CompositionSiteResult struct {
 	ModelArtifactDigestSHA256 string         `json:"model_artifact_digest_sha256,omitempty" yaml:"model_artifact_digest_sha256,omitempty"`
 	ModelProviderCalls        int            `json:"model_provider_calls,omitempty" yaml:"model_provider_calls,omitempty"`
 	ModelItemsByKind          map[string]int `json:"model_items_by_kind,omitempty" yaml:"model_items_by_kind,omitempty"`
+	// ModelAcquisition is the frozen, content-addressed measurement this site
+	// produced. It is what deterministic scoring consumes later; without it the
+	// report would retain counts nobody can adjudicate.
+	ModelAcquisition evalmodel.Acquisition `json:"model_acquisition,omitempty" yaml:"model_acquisition,omitempty"`
 
 	// Candidates and Challenges are what composition produced. A candidate is
 	// advisory, never a verdict: this arm proposes, it does not admit.
@@ -362,6 +367,14 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 		res.WhyUnavailable = "HOW produced no observations to investigate"
 		return res, nil
 	}
+	// Bound the model lane to THIS site's material. Without it the lane sends a
+	// request naming no targets and supplying no evidence, so a bridge whose
+	// contract requires every claim to cite supplied evidence cannot produce a
+	// valid grounded claim — the arm would report a model that "found nothing"
+	// when it was never shown anything.
+	lane.Request.TargetObservationIDs = observationIDs
+	lane.Request.SuppliedEvidence = suppliedEvidenceFor(how)
+
 	why, modelOutcome, err := investigationsurface.RunWhyWithModel(context.Background(), investigationsurface.WhyRequest{
 		Root:           root,
 		CapturedAt:     opts.CapturedAt,
@@ -386,6 +399,14 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 			res.ModelItemsByKind[item.Kind]++
 		}
 	}
+	// Freeze this site's measurement. Counts and digests alone are not
+	// scoreable: a human adjudicating a claim needs the claim's text, its
+	// citations and its file attribution, so the bundle keeps them.
+	res.ModelAcquisition = evalmodel.NewAcquisition(opts.CapturedAt, evalmodel.DeterministicBaseline{
+		DocumentDigestSHA256: res.DocumentDigest,
+		ObservationCount:     res.Observations,
+		CandidateCount:       res.Candidates,
+	}, modelOutcome)
 	if err != nil {
 		// TYPED, not silent. A WHY that could not run and a WHY that found
 		// nothing are different facts about this arm.
@@ -513,3 +534,35 @@ func investigationDocumentIsHow(d investigation.Document) bool {
 
 var _ = investigationDocumentIsHow
 var _ = howextract.Options{}
+
+// suppliedEvidenceFor turns a HOW document into the bounded material the model
+// is permitted to read and cite.
+//
+// The file path travels with each excerpt so artifact scope can be checked
+// against what was actually shown, and the excerpt is the observation's own
+// recorded statement rather than a re-read of the working tree: the model must
+// see what the deterministic lane saw, not a file that may have moved since.
+func suppliedEvidenceFor(how investigation.Document) []modelexec.SuppliedEvidence {
+	out := make([]modelexec.SuppliedEvidence, 0, len(how.Observations))
+	for _, obs := range how.Observations {
+		// The observation's own subject/predicate/object IS the deterministic
+		// statement. The model sees what the deterministic lane recorded, not a
+		// re-read of a working tree that may have moved since.
+		excerpt := strings.TrimSpace(obs.Subject + " " + obs.Predicate + " " + obs.Object)
+		if strings.TrimSpace(obs.ID) == "" || excerpt == "" {
+			continue
+		}
+		file := obs.Evidence.SourceFile
+		if file == "" && len(obs.Scope.Files) > 0 {
+			file = obs.Scope.Files[0]
+		}
+		sum := sha256.Sum256([]byte(excerpt))
+		out = append(out, modelexec.SuppliedEvidence{
+			ID:           obs.ID,
+			DigestSHA256: hex.EncodeToString(sum[:]),
+			FilePath:     file,
+			Excerpt:      excerpt,
+		})
+	}
+	return out
+}
