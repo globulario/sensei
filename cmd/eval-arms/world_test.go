@@ -171,6 +171,17 @@ func TestEveryRequiredWorldIsAccountedFor(t *testing.T) {
 		seen[a.Arm] = a.Status
 	}
 	for _, name := range requiredWorlds {
+		// The mutant suite is a required world that is not a CHECKOUT: it is
+		// materialized by the harness, so runWorlds neither runs nor reports
+		// it, and main records its status from the arm that extracts over it.
+		// Listing it here would tell an operator to supply a --world for a
+		// repository that does not exist.
+		if name == worldMutantSuite {
+			if _, listed := seen[name]; listed {
+				t.Fatalf("runWorlds reported %q, which it does not own", name)
+			}
+			continue
+		}
 		if seen[name] != statusNotRun {
 			t.Fatalf("world %q status = %q, want %q", name, seen[name], statusNotRun)
 		}

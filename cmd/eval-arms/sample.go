@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
 )
 
@@ -94,6 +96,54 @@ func recallUnitInventory(root string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// mutantSuiteWorld turns the mutant suite into the protocol's FOURTH sampled
+// world.
+//
+// Gating on the suite's arm status was never the same as sampling it: a v1
+// manifest that carried three worlds while naming a protocol defining four was
+// claiming compliance it did not have. This carries the suite's actual
+// observations into the sample.
+//
+// Its recall inventory is the DEFECT SITES — the files each mutant actually
+// changed, taken from the mutant definitions rather than from what extraction
+// happened to observe. That independence is the same rule section 7 applies to
+// the checkout worlds, and it matters more here: a denominator built from
+// observed paths could only contain sites extraction already reached, so a
+// site it missed entirely would be unmeasurable by construction, which is
+// precisely what a mutant suite exists to detect.
+//
+// The binding is the suite's own identity. It is not a checkout and has no
+// revision; the report already identifies each site by tree digest, so the
+// world is bound by the suite's composed digest rather than by borrowing the
+// harness's checkout.
+func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World {
+	w := evalsample.World{
+		Name: worldMutantSuite,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain: domain,
+			RevisionStatus:   "unavailable",
+		},
+	}
+	sites := append([]evalharness.SiteResult{report.Baseline}, report.Results...)
+	inventory := map[string]bool{}
+	digest := sha256.New()
+	for _, site := range sites {
+		w.Observations = append(w.Observations, site.Document.Observations...)
+		w.CandidateQuestions = append(w.CandidateQuestions, site.Document.CandidateQuestions...)
+		w.Counterexamples = append(w.Counterexamples, site.Document.Counterexamples...)
+		for _, p := range site.DefectPaths {
+			inventory[string(site.Defect)+"/"+p] = true
+		}
+		fmt.Fprintf(digest, "%s:%s\n", site.Defect, site.DocumentDigest)
+	}
+	for unit := range inventory {
+		w.RecallInventory = append(w.RecallInventory, unit)
+	}
+	sort.Strings(w.RecallInventory)
+	w.Binding.TreeDigestSHA256 = hex.EncodeToString(digest.Sum(nil))
+	return w
 }
 
 // writeSample builds the frozen sample manifest and the blinded adjudication

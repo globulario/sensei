@@ -74,6 +74,17 @@ type SiteResult struct {
 	// reaches a report: a filesystem path is not a finding, and recording one
 	// would make two runs of the same suite differ.
 	observedRoot string
+
+	// Document is this site's extraction output, carried for callers that must
+	// SAMPLE the mutant suite rather than only count it.
+	//
+	// json:"-" on purpose: the report's bytes are its identity, and embedding
+	// every observation would change that identity while adding nothing a
+	// reader of the report needs. The protocol's fourth world needs the
+	// observations themselves, and a caller that has the report already has
+	// the run — asking it to extract a second time would sample a different
+	// run than the one it is reporting.
+	Document investigation.Document `json:"-" yaml:"-"`
 }
 
 // SiteCovered reports whether this arm produced evidence about any file the
@@ -221,6 +232,7 @@ func runOne(opts Options, name string, m evalmutant.Mutant, witness evalmutant.W
 		}
 	}
 	res.ObservedPaths = sortedKeys(observed)
+	res.Document = doc
 	for _, p := range res.DefectPaths {
 		if observed[p] {
 			res.CoveredDefectPaths = append(res.CoveredDefectPaths, p)

@@ -204,11 +204,12 @@ func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
 		return evalsample.World{Name: name, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: requiredWorldDomains[name]}}
 	}
 	got := missingRequiredWorlds([]evalsample.World{bound("world1_sensei_self")})
-	if len(got) != 2 || got[0] != "world2_globular" || got[1] != "world3_independent_calibration" {
-		t.Fatalf("missingRequiredWorlds = %v, want the two worlds that did not run", got)
+	if len(got) != 3 {
+		t.Fatalf("missingRequiredWorlds = %v, want the three worlds that did not run", got)
 	}
 	if len(missingRequiredWorlds([]evalsample.World{
-		bound("world1_sensei_self"), bound("world2_globular"), bound("world3_independent_calibration"),
+		bound("world1_sensei_self"), bound("world2_globular"),
+		bound("world3_independent_calibration"), bound(worldMutantSuite),
 	})) != 0 {
 		t.Error("a complete world set reported something missing")
 	}
@@ -291,6 +292,7 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "example.com/not-sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
 		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldMutantSuite},
 	}
 	missing := missingRequiredWorlds(impostors)
 	if len(missing) != 1 || !strings.Contains(missing[0], "world1_sensei_self") {
@@ -304,6 +306,7 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
 		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldMutantSuite},
 	}
 	if got := missingRequiredWorlds(honest); len(got) != 0 {
 		t.Errorf("correctly bound worlds reported missing: %v", got)

@@ -105,18 +105,25 @@ The command exits non-zero. `failed` rather than `not_run` is deliberate: a seed
 
 The refusal lives in `eval-arms`, not in the wrapper script, because a rule enforced only by a wrapper is a rule a direct caller does not have. The same applies to `--protocol-id` and `--protocol-file`: the tool refuses either one alone, since an identity beside another protocol's digest is a ruler that misstates itself.
 
-### A v1 sample cannot currently be drawn at all
+### The mutant suite is now the fourth sampled world
 
-Beyond world 3, there is a second reason, and it is worth stating plainly rather than discovering later.
+The protocol consumes the mutant suite as world 4. Checking that its arms *ran* was never the same as sampling it, and for several revisions of this page a v1 manifest would have carried three worlds while naming a protocol that defines four.
 
-The protocol consumes the **mutant suite** as its fourth world. `eval-arms` now checks that the suite's arms ran — but checking their status is not the same as sampling them, and nothing puts the suite's material into `evalsample.Build`. The sampler draws only from checkout worlds. So a v1 manifest would carry three worlds while claiming a protocol that defines four.
+The suite's observations now reach `evalsample.Build` — 347 observations across 12 defect sites, carried from the arm that already extracts over them rather than from a second extraction, so the sample and the report describe the same run. Its recall inventory is the **defect sites**: the files each mutant actually changed, taken from the mutant definitions rather than from what extraction happened to observe. That independence matters more here than anywhere else — a denominator built from observed paths could only contain sites extraction already reached, so a site it missed entirely would be unmeasurable, which is precisely what a mutant suite exists to detect.
 
-That is typed as a blocker rather than quietly omitted. Wiring the suite's observations into the sampler is real work and belongs in its own change. Until then:
+It is not a checkout, so it carries no revision and is bound by the suite's own composed digest. `runWorlds` neither runs nor reports it; telling an operator it "needs an external checkout" would send them looking for a repository that does not exist.
 
-- **to draw a v1 sample**, that work has to land, and every v1 world has to run;
-- **to sample a reduced set now**, bind a protocol that defines it with `PROTOCOL_FILE` and `PROTOCOL_ID`.
+### World 3 remains the one open decision
 
-The capability is not lost. What is refused is the claim that a three-world sample obeys a four-world protocol.
+With worlds 1, 2 and 4 running, world 3 is the only thing standing between this and a v1 sample — and the harness will not resolve it on its own authority. Attempting to bind gin under the v1 name is refused:
+
+```
+world3_independent_calibration  failed  (the protocol names this world but no
+upstream identity is registered for it, so a checkout cannot be shown to be it;
+bind it as an operator world instead)
+```
+
+That refusal is the design working. Registering a guess would let an arbitrary tree pass as the SQLite calibration, and the identity of world 3 is exactly the question that has not been answered. Amending it is a protocol version, not a harness default.
 
 ### Names are not identities
 
