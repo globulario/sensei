@@ -284,6 +284,13 @@ func Build(worlds []World, opts Options) (Manifest, map[string][]BlindItem, erro
 		// longer exists, and a digest describing a sample that cannot be
 		// adjudicated. The CLI rejects duplicates already; Build must not
 		// depend on its caller having done so.
+		// The blinded views are written to one file per (world, lane), so a
+		// world name is a path component. A name carrying a separator or a
+		// parent reference would put the adjudicator's payload somewhere the
+		// run never said it wrote, which is worse than refusing it.
+		if strings.ContainsAny(w.Name, `/\`) || strings.Contains(w.Name, "..") {
+			return Manifest{}, nil, fmt.Errorf("evaluation world %q names a path rather than a world; its blinded views would be written outside the run's own output", w.Name)
+		}
 		if seen[w.Name] {
 			return Manifest{}, nil, fmt.Errorf("evaluation world %q was supplied twice; each world's blinded views are keyed by its name, so the second would silently replace the first", w.Name)
 		}

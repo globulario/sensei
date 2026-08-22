@@ -536,3 +536,23 @@ func TestEveryManifestItemKeepsAnAdjudicationPayload(t *testing.T) {
 		}
 	}
 }
+
+// TestAWorldNameCannotEscapeTheOutputDirectory.
+//
+// The blinded views are written one file per (world, lane), so a world name is
+// a path component. A name carrying a separator or a parent reference would
+// put the adjudicator's payload somewhere the run never said it wrote.
+func TestAWorldNameCannotEscapeTheOutputDirectory(t *testing.T) {
+	for _, name := range []string{"../escape", "a/b", `a\b`, "..", "ok/../bad"} {
+		t.Run(name, func(t *testing.T) {
+			worlds := []World{{
+				Name:         name,
+				Binding:      architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
+				Observations: []architecture.Fact{fact("p", "s", "holds", "o", "a.go", 1)},
+			}}
+			if _, _, err := Build(worlds, testOptions()); err == nil {
+				t.Fatalf("world name %q was accepted as a path component", name)
+			}
+		})
+	}
+}
