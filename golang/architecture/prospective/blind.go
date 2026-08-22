@@ -35,7 +35,29 @@ type Corpus struct {
 	GraphDigestSHA256 string       `json:"graph_digest_sha256"`
 	ProducedBy        string       `json:"produced_by"`
 	Items             []CorpusItem `json:"items"`
-	DigestSHA256      string       `json:"digest_sha256"`
+
+	// UnresolvedIDs are eligible items whose detail could not be read.
+	//
+	// They are recorded rather than dropped, and rather than left to look like
+	// items with nothing to say. An adjudicator handed an identifier with no
+	// statement cannot judge whether it governs a change, so a corpus that
+	// quietly contained hundreds of them would report a healthy denominator
+	// built from rows nobody could act on.
+	UnresolvedIDs []string `json:"unresolved_ids,omitempty"`
+
+	DigestSHA256 string `json:"digest_sha256"`
+}
+
+// Readable reports how many eligible items carry something an adjudicator can
+// actually read.
+func (c Corpus) Readable() int {
+	n := 0
+	for _, it := range c.Items {
+		if strings.TrimSpace(it.Title) != "" || strings.TrimSpace(it.Statement) != "" {
+			n++
+		}
+	}
+	return n
 }
 
 // NormalizeCorpus sorts, deduplicates by ID and content-addresses the corpus.
@@ -58,6 +80,9 @@ func NormalizeCorpus(c Corpus) (Corpus, error) {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	c.Items = out
+	unresolved := append([]string(nil), c.UnresolvedIDs...)
+	sort.Strings(unresolved)
+	c.UnresolvedIDs = unresolved
 	c.DigestSHA256 = ""
 	d, err := DigestOf(c)
 	if err != nil {
@@ -172,4 +197,60 @@ func attachContent(p BlindPackage, lookup ContentLookup) (BlindPackage, error) {
 	p.Change.Content = content
 	p.Change.ContentDigestSHA256 = got
 	return p, nil
+}
+
+// AnchorIndexFromCorpus derives the anchored-path set from the frozen eligible
+// corpus.
+//
+// An earlier rule probed `sensei impact --file <path>` per path and treated an
+// empty answer as "not anchored". On this graph that probe returns nothing even
+// for paths the corpus itself names as anchors, so the whole world classified
+// as unanchored and strata C and D came out empty — a confident empty result
+// laundering a query's blind spot into a fact about the repository, which is
+// the failure protocol section 7.3 exists to separate from an honest miss.
+//
+// Deriving from the corpus removes the second query and, with it, the chance
+// of the two disagreeing: an item is eligible exactly when it is in the corpus,
+// and a path is anchored exactly when some eligible item governs it. The
+// anchored set and the denominator's bound then describe the same graph state
+// rather than two reads of it taken by different means.
+func AnchorIndexFromCorpus(c Corpus) (AnchorIndex, error) {
+	if c.DigestSHA256 == "" {
+		return AnchorIndex{}, fmt.Errorf("corpus is not content-addressed: an anchor index derived from it would name evidence nobody can reproduce")
+	}
+	var paths []string
+	for _, it := range c.Items {
+		paths = append(paths, it.Anchors...)
+	}
+	return NormalizeAnchorIndex(AnchorIndex{
+		RepositoryDomain:  c.RepositoryDomain,
+		GraphDigestSHA256: c.GraphDigestSHA256,
+		ProducedBy: "derived from the frozen eligible corpus " + c.DigestSHA256 +
+			": a path is anchored when at least one eligible item names it as a file anchor. Produced by: " + c.ProducedBy,
+		AnchoredPaths: paths,
+	})
+}
+
+// VerifyAnchorsReachThePopulation refuses an index whose paths never meet the
+// population it is supposed to stratify.
+//
+// A corpus that carries anchors while not one of them matches an inventory path
+// is almost always a path-form mismatch — one side repo-relative, the other
+// prefixed or absolute. Left unchecked it classifies every change as unanchored
+// and reports empty anchored strata as a finding about the repository.
+func VerifyAnchorsReachThePopulation(idx AnchorIndex, inventoryPaths []string) error {
+	if len(idx.AnchoredPaths) == 0 {
+		return nil
+	}
+	in := map[string]bool{}
+	for _, p := range inventoryPaths {
+		in[p] = true
+	}
+	for _, a := range idx.AnchoredPaths {
+		if in[a] {
+			return nil
+		}
+	}
+	return fmt.Errorf("the anchor index names %d anchored paths and not one of them appears among the %d paths in the population — this is a path-form mismatch, not an unanchored world, and classifying on it would report empty anchored strata as a finding",
+		len(idx.AnchoredPaths), len(inventoryPaths))
 }

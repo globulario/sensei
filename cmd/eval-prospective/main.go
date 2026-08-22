@@ -134,26 +134,30 @@ func runFreeze(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintf(os.Stderr, "  %d candidate changes, %d excluded\n", len(changes), len(exclusions))
 
-	paths := distinctExistingPaths(changes)
-	fmt.Fprintf(os.Stderr, "reading classification evidence for %d distinct existing paths\n", len(paths))
 	graph := Graph{Bin: *senseiBin, Addr: *addr, Domain: proto.Domain}
-	idx, err := graph.BuildAnchorIndex(ctx, paths, *graphDigest)
-	if err != nil {
-		return err
-	}
-	fmt.Fprintf(os.Stderr, "  %d of %d paths carry usable anchors\n", len(idx.AnchoredPaths), len(paths))
-
-	inv, err := prospective.BuildInventory(wb, idx, changes, exclusions)
-	if err != nil {
-		return err
-	}
-
 	fmt.Fprintln(os.Stderr, "freezing the eligible corpus")
 	corpus, err := graph.BuildCorpus(ctx, *graphDigest, *corpusLimit)
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "  %d eligible items\n", len(corpus.Items))
+	fmt.Fprintf(os.Stderr, "  %d eligible items, %d readable, %d unresolved\n", len(corpus.Items), corpus.Readable(), len(corpus.UnresolvedIDs))
+
+	// The corpus comes first because the anchor index is derived from it. Two
+	// independent reads of the graph could disagree; one read cannot.
+	idx, err := prospective.AnchorIndexFromCorpus(corpus)
+	if err != nil {
+		return err
+	}
+	paths := distinctExistingPaths(changes)
+	if err := prospective.VerifyAnchorsReachThePopulation(idx, paths); err != nil {
+		return err
+	}
+	fmt.Fprintf(os.Stderr, "  %d anchored paths, against %d distinct existing paths in the population\n", len(idx.AnchoredPaths), len(paths))
+
+	inv, err := prospective.BuildInventory(wb, idx, changes, exclusions)
+	if err != nil {
+		return err
+	}
 
 	manifest, packages, err := prospective.Build(inv, corpus, prospective.Options{
 		ProtocolID:           proto.ID,

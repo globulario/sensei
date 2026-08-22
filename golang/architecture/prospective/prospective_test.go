@@ -513,3 +513,78 @@ func TestBuildRefusesIncompleteInputs(t *testing.T) {
 		t.Fatal("a corpus with no producing command was accepted")
 	}
 }
+
+// The anchored set and the eligible corpus must describe the same graph state.
+// Two independent reads can disagree; one read cannot.
+func TestAnchorIndexIsDerivedFromTheFrozenCorpus(t *testing.T) {
+	corpus, err := NormalizeCorpus(Corpus{
+		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
+		Items: []CorpusItem{
+			{ID: "inv.a", Class: "invariant", Anchors: []string{"anchored.go", "Makefile"}},
+			{ID: "inv.b", Class: "invariant"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("corpus: %v", err)
+	}
+	idx, err := AnchorIndexFromCorpus(corpus)
+	if err != nil {
+		t.Fatalf("index: %v", err)
+	}
+	if !idx.Anchored("anchored.go") || !idx.Anchored("Makefile") || idx.Anchored("elsewhere.go") {
+		t.Fatalf("the derived index does not match the corpus anchors: %#v", idx.AnchoredPaths)
+	}
+	if !strings.Contains(idx.ProducedBy, corpus.DigestSHA256) {
+		t.Fatal("the index does not name the corpus it was derived from")
+	}
+	if _, err := AnchorIndexFromCorpus(Corpus{}); err == nil {
+		t.Fatal("an index was derived from a corpus with no identity")
+	}
+}
+
+// A corpus whose anchors never meet the population is a path-form mismatch, not
+// an unanchored world. Classifying on it reports empty anchored strata as a
+// finding about the repository — which is how a query's blind spot becomes a
+// result.
+func TestAnchorsThatNeverMeetThePopulationAreRefused(t *testing.T) {
+	idx := testIndex(t, "prefixed/repo/anchored.go")
+	err := VerifyAnchorsReachThePopulation(idx, []string{"anchored.go", "other.go"})
+	if err == nil {
+		t.Fatal("an anchor index that matches nothing in the population was accepted")
+	}
+	if !strings.Contains(err.Error(), "path-form mismatch") {
+		t.Fatalf("the refusal does not name the likely cause: %v", err)
+	}
+	if err := VerifyAnchorsReachThePopulation(testIndex(t, "anchored.go"), []string{"anchored.go"}); err != nil {
+		t.Fatalf("a matching index was refused: %v", err)
+	}
+	// A genuinely empty corpus is not a mismatch: there is nothing to line up.
+	if err := VerifyAnchorsReachThePopulation(testIndex(t), []string{"a.go"}); err != nil {
+		t.Fatalf("an empty anchor index was refused: %v", err)
+	}
+}
+
+// An item a human cannot read still bounds the denominator, so it is counted
+// rather than left looking like an item with nothing to say.
+func TestUnreadableCorpusItemsAreCountedNotHidden(t *testing.T) {
+	c, err := NormalizeCorpus(Corpus{
+		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
+		Items: []CorpusItem{
+			{ID: "inv.readable", Class: "invariant", Title: "something a human can judge"},
+			{ID: "inv.blank", Class: "invariant"},
+		},
+		UnresolvedIDs: []string{"inv.blank"},
+	})
+	if err != nil {
+		t.Fatalf("corpus: %v", err)
+	}
+	if c.Readable() != 1 {
+		t.Fatalf("readable count is %d, so an unjudgeable row is being counted as judgeable", c.Readable())
+	}
+	if len(c.UnresolvedIDs) != 1 || c.UnresolvedIDs[0] != "inv.blank" {
+		t.Fatal("the unresolved item was dropped from the record")
+	}
+	if len(c.Items) != 2 {
+		t.Fatal("an unresolved item left the corpus, which would silently shrink what bounds the denominator")
+	}
+}

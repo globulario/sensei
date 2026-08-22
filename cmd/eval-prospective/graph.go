@@ -14,19 +14,6 @@ import (
 	"github.com/globulario/sensei/golang/architecture/prospective"
 )
 
-// AnchorRuleDescription states what "usable anchors" means, because the B/C
-// boundary is exactly this definition.
-//
-// A path is anchored when production `sensei impact` returns at least one
-// governing node for it — an invariant, a failure mode, or an architecture
-// node. Symbols alone do not count: an indexed file the graph holds no law
-// about is precisely stratum B, and counting its symbols as anchors would file
-// every indexed file under C and empty the stratum the experiment exists to
-// measure.
-const AnchorRuleDescription = "" +
-	"A path is anchored when `sensei impact --file <path>` returns at least one of " +
-	"direct_invariants, direct_failure_modes or direct_architecture. Symbol index entries do not count."
-
 // governingClasses are the classes that make up the eligible corpus.
 var governingClasses = []string{"invariant", "failure_mode", "forbidden_fix", "incident_pattern", "contract", "meta_principle"}
 
@@ -49,8 +36,12 @@ type Graph struct {
 	Domain string
 }
 
-func (g Graph) run(ctx context.Context, args ...string) ([]byte, error) {
-	full := append([]string{"--addr", g.Addr, "--domain", g.Domain}, args...)
+// run invokes one production subcommand. The address and domain flags follow
+// the subcommand because that is where the CLI parses them; placing them first
+// makes every call print the top-level usage instead, which reads like an
+// empty graph rather than like a malformed command.
+func (g Graph) run(ctx context.Context, sub string, args ...string) ([]byte, error) {
+	full := append([]string{sub, "--addr", g.Addr, "--domain", g.Domain}, args...)
 	// Direct argv, never a shell.
 	cmd := exec.CommandContext(ctx, g.Bin, full...)
 	var out, errb bytes.Buffer
@@ -60,12 +51,6 @@ func (g Graph) run(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("%s %s: %w: %s", g.Bin, strings.Join(full, " "), err, strings.TrimSpace(errb.String()))
 	}
 	return out.Bytes(), nil
-}
-
-type impactResult struct {
-	DirectInvariants   []graphNode `json:"direct_invariants"`
-	DirectFailureModes []graphNode `json:"direct_failure_modes"`
-	DirectArchitecture []graphNode `json:"direct_architecture"`
 }
 
 type graphNode struct {
@@ -79,33 +64,6 @@ type graphNode struct {
 		Predicate string `json:"predicate"`
 		Value     string `json:"value"`
 	} `json:"facts"`
-}
-
-// BuildAnchorIndex asks production which paths it holds governing law about.
-func (g Graph) BuildAnchorIndex(ctx context.Context, paths []string, graphDigest string) (prospective.AnchorIndex, error) {
-	var anchored []string
-	for _, p := range paths {
-		raw, err := g.run(ctx, "impact", "--file", p, "--json")
-		if err != nil {
-			// A path production cannot answer for is not anchored. It is not an
-			// error either: "the graph holds no law about this file" is the
-			// stratum-B fact this index exists to record.
-			continue
-		}
-		var res impactResult
-		if err := json.Unmarshal(raw, &res); err != nil {
-			continue
-		}
-		if len(res.DirectInvariants)+len(res.DirectFailureModes)+len(res.DirectArchitecture) > 0 {
-			anchored = append(anchored, p)
-		}
-	}
-	return prospective.NormalizeAnchorIndex(prospective.AnchorIndex{
-		RepositoryDomain:  g.Domain,
-		GraphDigestSHA256: graphDigest,
-		ProducedBy:        fmt.Sprintf("%s impact --addr %s --domain %s --file <path> --json  [%s]", g.Bin, g.Addr, g.Domain, AnchorRuleDescription),
-		AnchoredPaths:     anchored,
-	})
 }
 
 type queryResult struct {
@@ -127,6 +85,7 @@ type resolveResult struct {
 // prospective.BlindCorpusItem.
 func (g Graph) BuildCorpus(ctx context.Context, graphDigest string, limit int) (prospective.Corpus, error) {
 	var items []prospective.CorpusItem
+	var unresolved []string
 	for _, class := range governingClasses {
 		raw, err := g.run(ctx, "query", "--mode", "by_class", "--class", class, "--limit", fmt.Sprint(limit), "--json")
 		if err != nil {
@@ -140,11 +99,19 @@ func (g Graph) BuildCorpus(ctx context.Context, graphDigest string, limit int) (
 			id := strings.TrimPrefix(row.ID, class+":")
 			item := prospective.CorpusItem{ID: row.ID, Class: row.Class}
 			if rc, ok := resolveClasses[class]; ok {
-				if node, err := g.resolve(ctx, rc, id); err == nil {
+				node, err := g.resolve(ctx, rc, id)
+				if err != nil {
+					// Recorded, not swallowed. An unreadable item still bounds
+					// the denominator, and a human has to know it was in the
+					// pile they could not judge.
+					unresolved = append(unresolved, row.ID)
+				} else {
 					item.Title = node.Label
 					item.Statement = statementOf(node)
 					item.Anchors = anchorsOf(node)
 				}
+			} else {
+				unresolved = append(unresolved, row.ID)
 			}
 			items = append(items, item)
 		}
@@ -154,6 +121,7 @@ func (g Graph) BuildCorpus(ctx context.Context, graphDigest string, limit int) (
 		GraphDigestSHA256: graphDigest,
 		ProducedBy:        fmt.Sprintf("%s query --addr %s --domain %s --mode by_class --class {%s} --json (+ resolve per node)", g.Bin, g.Addr, g.Domain, strings.Join(governingClasses, ",")),
 		Items:             items,
+		UnresolvedIDs:     unresolved,
 	})
 }
 
