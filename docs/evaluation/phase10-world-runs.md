@@ -9,9 +9,12 @@ It records **measurements only**. No score, no interpretation of whether Sensei 
 ## The command
 
 ```bash
+SENSEI_REV=$(git rev-parse HEAD) \
 GLOBULAR_SRC=<checkout> GLOBULAR_REV=<commit> \
   scripts/eval-phase10-worlds.sh <out-dir> <captured-at RFC3339> [selection-seed]
 ```
+
+**Every** world is pinned, world 1 included. An earlier version passed the live checkout straight through on the reasoning that world 1 *is* this repository — which was wrong in the way that matters: `worldBinding` records the revision only *after* extraction, so the tree could be anything and the report would simply describe whatever it found. The same command and seed evaluated a different world whenever the working tree moved. Naming `SENSEI_REV` makes the choice of tree an explicit act rather than something the run discovers afterwards.
 
 Worlds 2 and 3 had previously only ever been run by hand. A measurement that exists only as something somebody typed once is not the reproducible evidence #131 asks for, so the invocation lives in the script.
 
@@ -62,15 +65,13 @@ Renaming alone would not have been enough, and an earlier version of this script
 
 Captured at `2026-08-22T10:00:00Z`, selection seed `phase10-v1-pass1`, world 2 pinned to `48784d096039`.
 
-| world | revision | status | observations | receipts | files cited |
-|---|---|---|---|---|---|
-| 1 sensei | tree digest | unavailable | 241,776 | 241,775 | 1,541 |
-| 2 Globular | `48784d096039` | resolved | 20,168 | 20,167 | 170 |
-| 3 | — | `not_run` | — | — | — |
+| world | status | observations | report digest |
+|---|---|---|---|
+| 1 sensei | resolved, at `SENSEI_REV` | 241,978 | `0f4c01faf023` |
+| 2 Globular | resolved, `48784d096039` | 20,168 | `2713b450cf0a` |
+| 3 | `not_run` | — | — |
 
 No sample was drawn from this run — see below.
-
-World 1 reports a tree digest rather than a revision because the working tree was dirty when the run was made — the script it invokes was still uncommitted. That is the binding working as intended: a dirty tree is not the commit it names, and the run says so rather than claiming a revision it did not measure.
 
 ### Mechanically decidable integrity
 
@@ -123,7 +124,9 @@ Completeness compares each required world's **repository domain** against the do
 
 ## Reproducibility
 
-World 2 produces a byte-identical report digest (`2713b450cf0a`) across independent runs at the same pinned revision. World 1's digest differs between runs made against different working trees. Both halves are the same property seen from two sides: the report tracks exactly what was measured.
+Two independent runs at the same pinned revisions produce byte-identical report digests for **both** worlds — `0f4c01faf023` and `2713b450cf0a`.
+
+World 1's reproducibility is the part that had to be earned. While it was measured from the live tree, its digest changed between runs whenever anything in the repository moved, including the script's own uncommitted edits. Pinning it made the self-evaluation as re-measurable as the external worlds, which is what "exact pinned inputs" has to mean if it means anything.
 
 ## Deliberately not committed here
 

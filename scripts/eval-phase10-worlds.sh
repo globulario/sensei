@@ -14,6 +14,8 @@
 # exist, so eval-arms refuses to draw from one nobody fixed in advance.
 #
 # Environment:
+#   SENSEI_REV     the exact commit world 1 is pinned to (required to run it);
+#                  usually $(git rev-parse HEAD)
 #   GLOBULAR_SRC   checkout to clone world 2 from
 #   GLOBULAR_REV   the exact commit world 2 is pinned to (required to run it)
 #   WORLD3_SRC / WORLD3_REV / WORLD3_DOMAIN / WORLD3_NAME
@@ -82,11 +84,6 @@ trap 'rm -rf "$WORK"' EXIT
 args=(-out "$OUT_ABS" -captured-at "$CAPTURED_AT")
 [[ -n "$SEED" ]] && args+=(-selection-seed "$SEED")
 
-# World 1 is this repository, measured in place: it is the tree the run is
-# already bound to, and cloning it would measure a different checkout than the
-# one whose revision the index records.
-args+=(-world "world1_sensei_self=github.com/globulario/sensei=$AG")
-
 # clone_world materializes one external world at an EXACT commit.
 #
 # The revision is required and verified. `git clone` alone takes whatever the
@@ -133,6 +130,22 @@ clone_world() {
   fi
   args+=(-world "$name=$domain=$WORK/$name")
 }
+
+# World 1 is pinned and cloned like every other world.
+#
+# An earlier version passed the live $AG tree straight through, on the reasoning
+# that world 1 IS this repository and cloning would measure a different
+# checkout. That reasoning was wrong in the way that matters: worldBinding
+# records the revision AFTER extraction, so the tree could be anything and the
+# report would simply describe whatever it found. The same documented command
+# and seed evaluated a different world whenever the working tree moved — the
+# run notes demonstrated exactly that, with world 1's digest changing between
+# runs while the pinned worlds stayed byte-identical.
+#
+# Requiring the revision is an explicit act: SENSEI_REV=$(git rev-parse HEAD)
+# says which tree this run means, instead of the run finding out afterwards.
+clone_world world1_sensei_self github.com/globulario/sensei \
+  "$AG" "${SENSEI_REV:-}" SENSEI_SRC
 
 clone_world world2_globular github.com/globulario/Globular \
   "${GLOBULAR_SRC:-}" "${GLOBULAR_REV:-}" GLOBULAR_SRC
