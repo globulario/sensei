@@ -183,6 +183,20 @@ func main() {
 	flag.Var(&worlds, "world", "an evaluation world as name=domain=path, e.g. world2_globular=github.com/globulario/Globular=/path/to/checkout; repeatable")
 	flag.Parse()
 
+	// The protocol's identity and its document move together or not at all.
+	// The shell wrapper enforced this and a direct caller bypassed it entirely,
+	// which is the same defect as guarding a budget in one consumer: the rule
+	// belongs where every caller passes. A supplied id over the default
+	// document (or the reverse) yields a manifest naming one protocol while
+	// carrying another's digest.
+	set := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) { set[f.Name] = true })
+	if set["protocol-id"] != set["protocol-file"] {
+		fmt.Fprintln(os.Stderr, "sensei eval-arms: --protocol-id and --protocol-file must be given together or not at all;")
+		fmt.Fprintln(os.Stderr, "  one alone records an identity beside another protocol's digest")
+		os.Exit(2)
+	}
+
 	if strings.TrimSpace(*out) == "" || strings.TrimSpace(*capturedAt) == "" {
 		fmt.Fprintln(os.Stderr, "sensei eval-arms: --out and --captured-at are required")
 		os.Exit(2)
@@ -264,7 +278,13 @@ func main() {
 	// pinned, before any label exists. It is written from the same documents
 	// the reports above describe, so the sample and the measurement cannot
 	// describe two different extraction runs.
-	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, sampledWorlds, *selectionSeed, *capturedAt))
+	// A sample stamped with a protocol whose worlds did not all run claims
+	// compliance with a definition it did not follow. The default protocol
+	// consumes every world in requiredWorlds, so drawing from a subset under it
+	// is exactly the substitution this harness refuses elsewhere — and it is
+	// the case that looked safe, because nothing was swapped, only missing.
+	missing := missingRequiredWorlds(sampledWorlds)
+	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, *protocolIDFlag == protocolID, missing, sampledWorlds, *selectionSeed, *capturedAt))
 
 	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
 		ProviderID:      *modelProviderID,
@@ -505,6 +525,23 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 	}
 	art.SiteCoverage = fmt.Sprintf("%d/%d", answered, len(report.Results))
 	return art
+}
+
+// missingRequiredWorlds names the worlds the default protocol consumes that
+// this run did not measure. Sorted so a refusal reads the same way twice.
+func missingRequiredWorlds(ran []evalsample.World) []string {
+	seen := map[string]bool{}
+	for _, w := range ran {
+		seen[w.Name] = true
+	}
+	var missing []string
+	for _, name := range requiredWorlds {
+		if !seen[name] {
+			missing = append(missing, name)
+		}
+	}
+	sort.Strings(missing)
+	return missing
 }
 
 // requiredWorlds are the evaluation worlds #131 defines. Each one is always

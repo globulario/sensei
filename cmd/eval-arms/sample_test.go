@@ -78,7 +78,7 @@ func TestASeedlessRunIsNotRunRatherThanFailed(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), protocolPath, protocolID, worlds, "", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), protocolPath, protocolID, true, nil, worlds, "", "2026-08-22T05:00:00Z")
 	if art.Status != statusNotRun {
 		t.Errorf("a seedless run reported status %q, want %q", art.Status, statusNotRun)
 	}
@@ -96,7 +96,7 @@ func TestAMissingProtocolIsAnActionableRefusal(t *testing.T) {
 		Name:    "w",
 		Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
 	}}
-	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), protocolID, worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(t.TempDir(), filepath.Join(t.TempDir(), "absent.md"), protocolID, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusFailed {
 		t.Fatalf("an unreadable protocol produced status %q, want %q", art.Status, statusFailed)
 	}
@@ -116,7 +116,7 @@ func TestTheSampleIsWrittenWhereTheIndexSaysItIs(t *testing.T) {
 		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
 		RecallInventory: []string{"pkg/a"},
 	}}
-	art := writeSample(out, protocolFileForTest(t), protocolID, worlds, "seed", "2026-08-22T05:00:00Z")
+	art := writeSample(out, protocolFileForTest(t), protocolID, false, nil, worlds, "seed", "2026-08-22T05:00:00Z")
 	if art.Status != statusRan {
 		t.Fatalf("writeSample: %s — %s", art.Status, art.Reason)
 	}
@@ -159,4 +159,49 @@ func protocolFileForTest(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return path
+}
+
+// TestTheDefaultProtocolRefusesAPartialWorldSet is the case that looked safe.
+//
+// Nothing is substituted here — a world is simply missing. But the default
+// protocol consumes every world in requiredWorlds, so a sample drawn from a
+// subset carries the v1 identity while following a reduced world definition.
+// That is the same false claim as swapping a world, reached by omission, and
+// it is what the documented default invocation was doing.
+func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
+	worlds := []evalsample.World{{
+		Name:            "world1_sensei_self",
+		Binding:         architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
+		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
+		RecallInventory: []string{"pkg/a"},
+	}}
+	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, true,
+		[]string{"world3_independent_calibration"}, worlds, "seed", "2026-08-22T05:00:00Z")
+	if art.Status != statusNotRun {
+		t.Fatalf("a sample was drawn under the default protocol with a world missing: %s", art.Status)
+	}
+	if !strings.Contains(art.Reason, "world3_independent_calibration") {
+		t.Errorf("the refusal does not name the world that was missing: %q", art.Reason)
+	}
+
+	// A protocol the operator bound explicitly is theirs to define, so the
+	// same subset is allowed once they say which protocol governs it.
+	art = writeSample(t.TempDir(), protocolFileForTest(t), "operator-protocol-v2", false,
+		[]string{"world3_independent_calibration"}, worlds, "seed", "2026-08-22T05:00:00Z")
+	if art.Status != statusRan {
+		t.Fatalf("an explicitly bound protocol was refused a subset it may define: %s — %s", art.Status, art.Reason)
+	}
+}
+
+// TestMissingRequiredWorldsNamesWhatDidNotRun keeps the refusal's input honest.
+func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
+	got := missingRequiredWorlds([]evalsample.World{{Name: "world1_sensei_self"}})
+	if len(got) != 2 || got[0] != "world2_globular" || got[1] != "world3_independent_calibration" {
+		t.Fatalf("missingRequiredWorlds = %v, want the two worlds that did not run", got)
+	}
+	if len(missingRequiredWorlds([]evalsample.World{
+		{Name: "world1_sensei_self"}, {Name: "world2_globular"}, {Name: "world3_independent_calibration"},
+	})) != 0 {
+		t.Error("a complete world set reported something missing")
+	}
 }

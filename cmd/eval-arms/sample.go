@@ -89,7 +89,7 @@ func recallUnitInventory(root string) ([]string, error) {
 // The manifest is written even when a lane is empty. Step 9 of the handoff
 // produces the SELECTION; whether a lane had anything to select is one of the
 // facts the selection is supposed to record.
-func writeSample(out, protocolFile, protocolIDArg string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
+func writeSample(out, protocolFile, protocolIDArg string, isDefaultProtocol bool, missingWorlds []string, worlds []evalsample.World, seed, capturedAt string) armArtifact {
 	art := armArtifact{Arm: "frozen_sample_manifest", Subject: subjectPublishedDomain}
 	if strings.TrimSpace(seed) == "" {
 		// not_run, not failed. A run that only wanted the arms is a legitimate
@@ -102,6 +102,17 @@ func writeSample(out, protocolFile, protocolIDArg string, worlds []evalsample.Wo
 	if len(worlds) == 0 {
 		art.Status = statusNotRun
 		art.Reason = "no evaluation world ran, so there is nothing to sample; supply --world"
+		return art
+	}
+	// Refused, not merely noted. The default protocol consumes every world in
+	// requiredWorlds, so a sample drawn from a subset would carry the v1
+	// identity while following a reduced world definition — the same false
+	// claim as substituting a world, arrived at by omission rather than
+	// replacement, which is why it looked harmless.
+	if isDefaultProtocol && len(missingWorlds) > 0 {
+		art.Status = statusNotRun
+		art.Reason = fmt.Sprintf("refusing to draw under the default protocol while %s did not run: the manifest would claim an identity whose world definition this run did not follow. Run the missing world(s), or bind a protocol that defines the reduced set with --protocol-file and --protocol-id.",
+			strings.Join(missingWorlds, ", "))
 		return art
 	}
 	if strings.TrimSpace(protocolIDArg) == "" {

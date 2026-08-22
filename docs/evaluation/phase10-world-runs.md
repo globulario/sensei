@@ -68,6 +68,8 @@ Captured at `2026-08-22T10:00:00Z`, selection seed `phase10-v1-pass1`, world 2 p
 | 2 Globular | `48784d096039` | resolved | 20,168 | 20,167 | 170 |
 | 3 | — | `not_run` | — | — | — |
 
+No sample was drawn from this run — see below.
+
 World 1 reports a tree digest rather than a revision because the working tree was dirty when the run was made — the script it invokes was still uncommitted. That is the binding working as intended: a dirty tree is not the commit it names, and the run says so rather than claiming a revision it did not measure.
 
 ### Mechanically decidable integrity
@@ -81,18 +83,24 @@ These need no adjudicator and are reported as measured:
 
 No observation in either world cites a file that is missing, is not a regular file, or names a line range outside its file. World 2 carries 190 non-blocking limitations; world 1 carries none.
 
-### Frozen sample
+### The sample was refused, and that is the correct outcome
 
-444 items across 20 strata (two worlds × seven provider strata plus three lanes).
+No sample was drawn, and the earlier version of this page reported one. That report was wrong in exactly the way this document spends its length warning about.
 
-| lane | outcome |
-|---|---|
-| precision | sampled, 30 per provider per world |
-| recall_unit | sampled |
-| contradiction | `population_empty` — **undrawn, not clean** |
-| challenge | `population_empty` — the deterministic lane produced no counterexample or candidate question |
+The default protocol consumes **every** world in `requiredWorlds`. World 3 did not run, so a sample drawn here would have carried the v1 identity while following a reduced world definition — the same false claim as substituting a world, arrived at by omission rather than replacement. That is precisely why it looked harmless: nothing was swapped, something was simply missing, and the manifest would have said v1 regardless.
 
-The contradiction lane is undrawn because nobody has declared which predicates may hold a single object, so no pair of observations can be shown to disagree rather than to describe a multi-valued relation.
+`eval-arms` now refuses:
+
+```
+frozen_sample_manifest  not_run  (refusing to draw under the default protocol while
+world3_independent_calibration did not run: the manifest would claim an identity whose
+world definition this run did not follow. Run the missing world(s), or bind a protocol
+that defines the reduced set with --protocol-file and --protocol-id.)
+```
+
+The refusal lives in `eval-arms`, not in the wrapper script, because a rule enforced only by a wrapper is a rule a direct caller does not have. The same applies to `--protocol-id` and `--protocol-file`: the tool refuses either one alone, since an identity beside another protocol's digest is a ruler that misstates itself.
+
+To draw a v1 sample, run every v1 world. To sample a reduced set, bind a protocol that defines it.
 
 ## Reproducibility
 
