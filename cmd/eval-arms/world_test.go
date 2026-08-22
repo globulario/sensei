@@ -425,3 +425,37 @@ func TestEvaluationConfigCannotStateATerminalModelOutcome(t *testing.T) {
 		}
 	}
 }
+
+// TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten.
+//
+// A world name becomes a filename — its report, and its blinded views — so a
+// name carrying a separator or a parent reference writes outside the output
+// directory the run was given. The guard in evalsample.Build is too late: the
+// report is written first, and on a seedless run Build is never reached at
+// all. This is the parse seam every caller passes.
+func TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"../escape", "a/b", "..", "ok/../bad"} {
+		t.Run(name, func(t *testing.T) {
+			out := t.TempDir()
+			arts := runWorlds(out, []string{name + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+			refused := false
+			for _, a := range arts {
+				if a.Status == statusFailed && strings.Contains(a.Reason, "is a path, not a name") {
+					refused = true
+				}
+			}
+			if !refused {
+				t.Fatalf("world name %q was not refused: %+v", name, arts)
+			}
+			// Nothing may have been written for it.
+			if entries, err := os.ReadDir(out); err == nil {
+				for _, e := range entries {
+					if strings.Contains(e.Name(), "escape") || strings.Contains(e.Name(), "bad") {
+						t.Errorf("a refused world still wrote %s", e.Name())
+					}
+				}
+			}
+		})
+	}
+}

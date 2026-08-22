@@ -93,6 +93,15 @@ args=(-out "$OUT_ABS" -captured-at "$CAPTURED_AT")
 # only makes the drift legible afterwards.
 clone_world() {
   local name="$1" domain="$2" src="$3" rev="$4" var="$5"
+  # The name becomes a directory under $WORK and a filename in the report, so a
+  # path-like name escapes both. Checked before the clone rather than after,
+  # because by the time anything downstream looks the tree is already there.
+  case "$name" in
+    */*|*\\*|*..*)
+      echo "$0: world name '$name' is a path, not a name." >&2
+      exit 2
+      ;;
+  esac
   if [[ -z "$src" ]]; then
     echo "$0: skipping $name — set $var to a checkout to run it" >&2
     return

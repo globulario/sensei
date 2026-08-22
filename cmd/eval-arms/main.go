@@ -1033,6 +1033,17 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 		// Two worlds under one name would overwrite each other's report after
 		// the first digest was already recorded, leaving an index whose digest
 		// does not describe the file it names.
+		// A world name becomes a FILENAME — its report, and its blinded views.
+		// A name carrying a separator or a parent reference writes outside the
+		// output directory the run was given. The guard in evalsample.Build is
+		// too late: the report is written first, and on a seedless run Build is
+		// never reached at all. Checked here, at the parse seam every caller
+		// passes, rather than at the last consumer that happens to look.
+		if strings.ContainsAny(name, `/\`) || strings.Contains(name, "..") {
+			arts = append(arts, armArtifact{Arm: "evaluation_world", Subject: subjectPublishedDomain, Status: statusFailed,
+				Reason: fmt.Sprintf("world name %q is a path, not a name; its report would be written outside the run's own output", name)})
+			continue
+		}
 		if names[name] || reservedArmNames[name] {
 			arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusFailed,
 				Reason: "world name collides with another arm or world in this run; every arm writes its own report"})
