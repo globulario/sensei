@@ -490,10 +490,12 @@ func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
 	git(origin, "init", "-q")
 	git(origin, "remote", "add", "origin", "https://github.com/globulario/sensei.git")
 
-	// A clone of the clone, so the chain is longer than one hop.
+	// A clone of the clone, so the chain is longer than one hop. The middle
+	// hop uses a file:// URL, which git supports and which os.Stat rejects as
+	// a directory unless the scheme is stripped before the walk decides.
 	mid := t.TempDir()
 	git(mid, "init", "-q")
-	git(mid, "remote", "add", "origin", origin)
+	git(mid, "remote", "add", "origin", "file://"+origin)
 	leaf := t.TempDir()
 	git(leaf, "init", "-q")
 	git(leaf, "remote", "add", "origin", mid)

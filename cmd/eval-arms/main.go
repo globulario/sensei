@@ -648,8 +648,15 @@ func resolveUpstream(path string) (string, error) {
 			return "", err
 		}
 		url := strings.TrimSpace(string(out))
-		if info, statErr := os.Stat(url); statErr == nil && info.IsDir() {
-			path = url
+		// A file:// origin is a local checkout wearing a URL. Converted to a
+		// path BEFORE the directory test, because os.Stat on the literal URI
+		// says "not a directory" and the walk would stop there — returning the
+		// intermediate clone's path as the repository identity and rejecting a
+		// legitimate world. Stripping the scheme afterwards, as the normalizer
+		// does, is too late: the recursion decision has already been made.
+		local := strings.TrimPrefix(url, "file://")
+		if info, statErr := os.Stat(local); statErr == nil && info.IsDir() {
+			path = local
 			continue
 		}
 		return normalizeRemote(url), nil
