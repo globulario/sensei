@@ -446,14 +446,14 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	run("init", "-q")
 	run("remote", "add", "origin", "https://github.com/someone/not-sensei.git")
 
-	if err := verifyRequiredWorldCheckout("world1_sensei_self", root); err == nil {
+	if _, err := verifyRequiredWorldCheckout("world1_sensei_self", root); err == nil {
 		t.Fatal("a checkout of an unrelated repository was accepted as world 1")
 	} else if !strings.Contains(err.Error(), "not-sensei") {
 		t.Errorf("the refusal does not say what the checkout actually is: %v", err)
 	}
 
 	// A world the protocol does not name is the operator's to bind.
-	if err := verifyRequiredWorldCheckout("world3_operator_bound", root); err != nil {
+	if _, err := verifyRequiredWorldCheckout("world3_operator_bound", root); err != nil {
 		t.Errorf("an operator-bound world was subjected to the protocol's remote check: %v", err)
 	}
 
@@ -461,14 +461,28 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	// registered fails closed. Returning success would let an arbitrary tree
 	// be reported as the SQLite calibration, and guessing a URL for the
 	// repository whose identity is the open question would be worse.
-	if err := verifyRequiredWorldCheckout("world3_independent_calibration", root); err == nil {
+	if _, err := verifyRequiredWorldCheckout("world3_independent_calibration", root); err == nil {
 		t.Error("a protocol-named world with no registered upstream identity was accepted")
 	}
 
-	// A checkout with no readable remote is refused, not assumed correct.
+	// A checkout with no origin is UNVERIFIED, not refused.
+	//
+	// "The remote says something else" is evidence of mislabelling; "there is
+	// no remote to read" is the absence of evidence. Treating the second as
+	// disproof made the advertised command fail in CI clones, source archives,
+	// and any checkout whose remote metadata was stripped — the guard breaking
+	// the very runs it exists to protect. The absence is typed onto the report
+	// instead, so a reader sees the identity rests on the caller's word.
 	bare := t.TempDir()
-	if err := verifyRequiredWorldCheckout("world2_globular", bare); err == nil {
-		t.Error("a directory with no origin remote was accepted as a protocol-named world")
+	if out, err := exec.Command("git", "-C", bare, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("git init: %v\n%s", err, out)
+	}
+	note, err := verifyRequiredWorldCheckout("world2_globular", bare)
+	if err != nil {
+		t.Fatalf("a checkout with no origin was refused rather than reported unverified: %v", err)
+	}
+	if !strings.Contains(note, "unverified") {
+		t.Errorf("the missing identity was not typed onto the report: %q", note)
 	}
 }
 
@@ -507,7 +521,7 @@ func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
 	if got != "github.com/globulario/sensei" {
 		t.Errorf("resolveUpstream followed the chain to %q, want the upstream repository", got)
 	}
-	if err := verifyRequiredWorldCheckout("world1_sensei_self", leaf); err != nil {
-		t.Errorf("a legitimate clone-of-a-clone was refused: %v", err)
+	if note, err := verifyRequiredWorldCheckout("world1_sensei_self", leaf); err != nil || note != "" {
+		t.Errorf("a legitimate clone-of-a-clone was refused (note=%q): %v", note, err)
 	}
 }

@@ -598,7 +598,7 @@ func isDefaultProtocolDocument(path, got string, gotErr error) bool {
 // world cannot be misidentified by accident or convenience, which is the
 // failure mode an evaluation harness actually suffers. A world whose remote
 // cannot be read at all is refused rather than assumed correct.
-func verifyRequiredWorldCheckout(name, path string) error {
+func verifyRequiredWorldCheckout(name, path string) (string, error) {
 	isProtocolWorld := false
 	for _, n := range requiredWorlds {
 		if n == name {
@@ -607,7 +607,7 @@ func verifyRequiredWorldCheckout(name, path string) error {
 		}
 	}
 	if !isProtocolWorld {
-		return nil
+		return "", nil
 	}
 	want, known := requiredWorldRemotes[name]
 	if !known {
@@ -617,16 +617,23 @@ func verifyRequiredWorldCheckout(name, path string) error {
 		// arbitrary tree be reported as that world, which is the finding this
 		// check exists to answer; inventing a URL for a repository whose
 		// identity is exactly what is undecided would be worse.
-		return fmt.Errorf("%s: the protocol names this world but no upstream identity is registered for it, so a checkout cannot be shown to be it; bind it as an operator world instead", name)
+		return "", fmt.Errorf("%s: the protocol names this world but no upstream identity is registered for it, so a checkout cannot be shown to be it; bind it as an operator world instead", name)
 	}
 	got, err := resolveUpstream(path)
 	if err != nil {
-		return fmt.Errorf("%s: cannot read the checkout's origin remote, so it cannot be shown to be %s: %w", name, want, err)
+		// UNVERIFIED, not refused. "The remote says something else" is evidence
+		// of mislabelling; "there is no remote to read" is the absence of
+		// evidence, and treating the second as disproof made the advertised
+		// command fail in exactly the environments it should work in — CI
+		// clones, source archives, any checkout whose remote metadata was
+		// stripped. The absence is typed onto the report instead, so a reader
+		// sees that this world's identity rests on the caller's word.
+		return fmt.Sprintf("world identity unverified: %s (%v); the checkout could not be shown to be %s", name, err, want), nil
 	}
 	if got != want {
-		return fmt.Errorf("%s: the protocol names %s but this checkout's origin resolves to %s; a world's name is not evidence about the tree", name, want, got)
+		return "", fmt.Errorf("%s: the protocol names %s but this checkout's origin resolves to %s; a world's name is not evidence about the tree", name, want, got)
 	}
-	return nil
+	return "", nil
 }
 
 // resolveUpstream follows origin until it reaches something that is not a
@@ -1102,7 +1109,8 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, investigation
 	// the remote is at least a property of the checkout rather than of the
 	// argument. Checked before extraction so an impostor never produces a
 	// report at all.
-	if err := verifyRequiredWorldCheckout(name, abs); err != nil {
+	identityNote, err := verifyRequiredWorldCheckout(name, abs)
+	if err != nil {
 		return worldReport{}, investigation.Document{}, architecture.ClaimDocumentBinding{}, err
 	}
 	binding, err := worldBinding(abs, domain)
@@ -1146,6 +1154,9 @@ func runWorld(name, domain, path, capturedAt string) (worldReport, investigation
 		if strings.Contains(l.Reason, "observation surface") {
 			report.SurfaceExcluded = true
 		}
+	}
+	if identityNote != "" {
+		report.Limitations = append(report.Limitations, identityNote)
 	}
 	sort.Strings(report.Limitations)
 	return report, doc, binding, nil
