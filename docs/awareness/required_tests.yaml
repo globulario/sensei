@@ -1851,3 +1851,15 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_mechanically_manufactured_evaluation_population_reads_as_a
+  - id: cmd/eval-arms/protocol_test.go:TestCompiledProtocolIdentitiesMatchTheirDocuments
+    title: Compiled protocol digests and revision pins match their documents both ways
+    protects:
+      invariants:
+        - invariant.a_compiled_protocol_identity_must_be_bound_to_the_document_i
+  - id: cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
+    title: Composed claims reach the sample with the lane in the ID and not in the blinded description
+    protects:
+      invariants:
+        - invariant.a_blinded_adjudication_view_must_not_carry_provenance_the_ma
+      failure_modes:
+        - failure.composed_claim_baked_its_lane_into_the_description_the_blind
