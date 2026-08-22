@@ -6175,30 +6175,108 @@ test_symbols:
     package: main
     language: go
     doc: "TestAMissingProtocolIsAnActionableRefusal. The manifest records the\nprotocol's digest so a sample drawn under one version can never be read as\nthough it obeyed another; if the protocol cannot be read, nothing may be\ndrawn."
+  - id: cmd/eval-arms/sample_test.go:TestARefusedRequestedSampleFailsTheRun
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestARefusedRequestedSampleFailsTheRun
+    package: main
+    language: go
+    doc: "TestARefusedRequestedSampleFailsTheRun.\n\nThe caller asked for a draw by supplying a seed. Refusing it is a failure of\nwhat was requested, and main's exit code counts only failures — reporting\nnot_run let automation see a successful command that produced no manifest."
+  - id: cmd/eval-arms/sample_test.go:TestARequestedDrawWithNoWorldFails
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestARequestedDrawWithNoWorldFails
+    package: main
+    language: go
+    doc: "TestARequestedDrawWithNoWorldFails.\n\nThe zero-world branch returned before the refusal guard, so a direct caller\npassing --selection-seed with no --world got exit 0 and no manifest. A seed\nmeans the draw was requested; \"nothing to sample\" is then a failure of what\nwas asked for rather than a quiet absence."
   - id: cmd/eval-arms/sample_test.go:TestASeedlessRunIsNotRunRatherThanFailed
     file: cmd/eval-arms/sample_test.go
     symbol: TestASeedlessRunIsNotRunRatherThanFailed
     package: main
     language: go
     doc: "TestASeedlessRunIsNotRunRatherThanFailed. A run that only wanted the arms is\nlegitimate; what it did not do was draw a sample, and that is a different\nfact from a draw that was attempted and broke."
+  - id: cmd/eval-arms/sample_test.go:TestAWorldsNameIsNotItsIdentity
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestAWorldsNameIsNotItsIdentity
+    package: main
+    language: go
+    doc: "TestAWorldsNameIsNotItsIdentity.\n\nA name is a label the caller chose. A direct caller could point three\narbitrary Go checkouts at the required names and the completeness check\nwould have seen a full v1 world set, so a v1 sample could be drawn over\nrepositories the protocol never named."
   - id: cmd/eval-arms/sample_test.go:TestAnEmptyTreeIsRefusedRatherThanSampledEmpty
     file: cmd/eval-arms/sample_test.go
     symbol: TestAnEmptyTreeIsRefusedRatherThanSampledEmpty
     package: main
     language: go
     doc: "TestAnEmptyTreeIsRefusedRatherThanSampledEmpty. A world sampled with a\nsilently empty inventory reports a recall lane that is honestly absent for a\ndishonest reason, and no later reader can tell the two apart."
+  - id: cmd/eval-arms/sample_test.go:TestAnImpostorCheckoutIsRefusedForANamedWorld
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestAnImpostorCheckoutIsRefusedForANamedWorld
+    package: main
+    language: go
+    doc: "TestAnImpostorCheckoutIsRefusedForANamedWorld.\n\nA world's name and its domain come from the same caller-supplied --world\nstring, so neither is evidence about the tree. The remote is at least a\nproperty of the checkout. This defeats mislabelling rather than a determined\nforger — a local path has no unforgeable link upstream — and mislabelling is\nthe failure an evaluation harness actually suffers."
+  - id: cmd/eval-arms/sample_test.go:TestMissingRequiredWorldsNamesWhatDidNotRun
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestMissingRequiredWorldsNamesWhatDidNotRun
+    package: main
+    language: go
+    doc: "TestMissingRequiredWorldsNamesWhatDidNotRun keeps the refusal's input honest."
+  - id: cmd/eval-arms/sample_test.go:TestNormalizeRemoteComparesTheRepositoryNotTheURLForm
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestNormalizeRemoteComparesTheRepositoryNotTheURLForm
+    package: main
+    language: go
+    doc: "TestNormalizeRemoteComparesTheRepositoryNotTheURLForm keeps the remote check\nfrom rejecting a legitimate checkout over how its URL happens to be spelled."
   - id: cmd/eval-arms/sample_test.go:TestRecallInventoryComesFromTheTreeNotFromSensei
     file: cmd/eval-arms/sample_test.go
     symbol: TestRecallInventoryComesFromTheTreeNotFromSensei
     package: main
     language: go
     doc: "TestRecallInventoryComesFromTheTreeNotFromSensei is the property section 7\ndepends on.\n\nA recall denominator built from Sensei's own extraction can only contain\nunits Sensei already had something to say about, so a unit it missed\nentirely never enters the denominator and its omission is unmeasurable by\nconstruction — recall would be a measurement of the output against itself.\n\nHere a package exists on disk that no observation mentions. It must appear\nin the inventory anyway."
+  - id: cmd/eval-arms/sample_test.go:TestResolveUpstreamFollowsACloneBackToItsRepository
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestResolveUpstreamFollowsACloneBackToItsRepository
+    package: main
+    language: go
+    doc: "TestResolveUpstreamFollowsACloneBackToItsRepository.\n\nThe worlds are measured from clones, so a clone's origin is the local path it\nwas made from rather than the upstream repository. The first version of this\ncheck compared that local path against the expected repository and refused\nevery legitimate run — the guard rejected exactly the trees it was meant to\nadmit."
+  - id: cmd/eval-arms/sample_test.go:TestTheCompiledProtocolDigestMatchesTheDocument
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheCompiledProtocolDigestMatchesTheDocument
+    package: main
+    language: go
+    doc: "TestTheCompiledProtocolDigestMatchesTheDocument is the drift guard for the\nconstant that lets an installed binary recognise the default protocol\nwithout a working directory. If the document changes and the constant does\nnot, every caller passing the real v1 document would be told it is custom."
+  - id: cmd/eval-arms/sample_test.go:TestTheDefaultProtocolRefusesAPartialWorldSet
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheDefaultProtocolRefusesAPartialWorldSet
+    package: main
+    language: go
+    doc: "TestTheDefaultProtocolRefusesAPartialWorldSet is the case that looked safe.\n\nNothing is substituted here — a world is simply missing. But the default\nprotocol consumes every world in requiredWorlds, so a sample drawn from a\nsubset carries the v1 identity while following a reduced world definition.\nThat is the same false claim as swapping a world, reached by omission, and\nit is what the documented default invocation was doing."
+  - id: cmd/eval-arms/sample_test.go:TestTheMutantSuiteCountsTowardV1Completeness
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheMutantSuiteCountsTowardV1Completeness
+    package: main
+    language: go
+    doc: "TestTheMutantSuiteCountsTowardV1Completeness.\n\nThe protocol consumes four worlds and the fourth is the mutant suite, which\nis not a checkout and so never appeared in requiredWorlds. A run whose mutant\narms failed would otherwise have written a v1 sample over an incomplete v1\nevaluation — the same omission defect, in the world that does not look like\na world."
+  - id: cmd/eval-arms/sample_test.go:TestTheProtocolDigestIsTheOneValidated
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheProtocolDigestIsTheOneValidated
+    package: main
+    language: go
+    doc: "TestTheProtocolDigestIsTheOneValidated.\n\nValidating the pair at startup and re-reading the file when the sample is\nwritten leaves a window across the arms' runtime. A file edited in between\nwould be validated as one document and recorded as another — the identity\nsplit the pair check exists to prevent."
+  - id: cmd/eval-arms/sample_test.go:TestTheProtocolPairIsCheckedByValueNotByPresence
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheProtocolPairIsCheckedByValueNotByPresence
+    package: main
+    language: go
+    doc: "TestTheProtocolPairIsCheckedByValueNotByPresence.\n\nAn earlier version compared only whether both flags were mentioned, so\n`--protocol-file <the v1 document> --protocol-id v2` passed: it recorded the\nv1 digest under a v2 identity AND made the completeness check believe a\ncustom protocol was in use, disabling the guard that protects v1. Naming both\nflags is not the same as keeping them consistent."
   - id: cmd/eval-arms/sample_test.go:TestTheSampleIsWrittenWhereTheIndexSaysItIs
     file: cmd/eval-arms/sample_test.go
     symbol: TestTheSampleIsWrittenWhereTheIndexSaysItIs
     package: main
     language: go
     doc: "TestTheSampleIsWrittenWhereTheIndexSaysItIs. An index naming a file that is\nnot there, or naming a digest that does not describe the bytes on disk, is\nworse than no index."
+  - id: cmd/eval-arms/world_test.go:TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten
+    file: cmd/eval-arms/world_test.go
+    symbol: TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten
+    package: main
+    language: go
+    doc: "TestAPathLikeWorldNameIsRefusedBeforeAnythingIsWritten.\n\nA world name becomes a filename — its report, and its blinded views — so a\nname carrying a separator or a parent reference writes outside the output\ndirectory the run was given. The guard in evalsample.Build is too late: the\nreport is written first, and on a seedless run Build is never reached at\nall. This is the parse seam every caller passes."
   - id: cmd/eval-arms/world_test.go:TestAbsenceIntegrityDetectsAnUnexplainedAbsence
     file: cmd/eval-arms/world_test.go
     symbol: TestAbsenceIntegrityDetectsAnUnexplainedAbsence
