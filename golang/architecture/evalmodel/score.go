@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
 )
@@ -72,10 +73,11 @@ type Score struct {
 
 // Typed reasons a measurement produced no score.
 const (
-	ReasonReferenceSetAbsent  = "reference_set_absent"
-	ReasonModelDidNotResolve  = "model_did_not_resolve"
-	ReasonAcquisitionAltered  = "acquisition_contents_do_not_match_its_digest"
-	ReasonReferenceSetAltered = "reference_set_contents_do_not_match_its_digest"
+	ReasonReferenceSetAbsent   = "reference_set_absent"
+	ReasonModelDidNotResolve   = "model_did_not_resolve"
+	ReasonAcquisitionAltered   = "acquisition_contents_do_not_match_its_digest"
+	ReasonReferenceSetAltered  = "reference_set_contents_do_not_match_its_digest"
+	ReasonReferenceSetUnfrozen = "reference_set_carries_labels_but_no_frozen_identity"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -108,17 +110,32 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 		s.Reason = ReasonAcquisitionAltered
 		return s
 	}
-	if ref.DigestSHA256 != "" && ref.DigestSHA256 != ReferenceDigest(ref) {
-		s.Reason = ReasonReferenceSetAltered
-		return s
-	}
-
 	if a.Model.Status != investigation.ModelStatusResolved {
 		// A refusal or an error is a real evaluation result. It is reported as
 		// itself, never as a zero score that would read like a bad model.
 		s.Reason = ReasonModelDidNotResolve
 		return s
 	}
+
+	// Ordered AFTER the model outcome on purpose: what the run did is a fact
+	// about the run, and a refusal must be reported as itself whatever state
+	// the ruler is in.
+	//
+	// A reference set that carries labels MUST carry its own frozen identity.
+	// Validating the digest only when one happens to be present let an
+	// unfrozen answer key score: labels with an empty digest would skip the
+	// check here and then satisfy the "labels exist" test below, producing
+	// Scored=true against a ruler nothing pins. An answer key with no identity
+	// is not frozen, and an unfrozen ruler cannot support a defensible score.
+	if len(ref.Labels) > 0 && strings.TrimSpace(ref.DigestSHA256) == "" {
+		s.Reason = ReasonReferenceSetUnfrozen
+		return s
+	}
+	if ref.DigestSHA256 != "" && ref.DigestSHA256 != ReferenceDigest(ref) {
+		s.Reason = ReasonReferenceSetAltered
+		return s
+	}
+
 	if len(ref.Labels) == 0 {
 		// No answer key means no score. Producing one anyway — by inferring
 		// correctness from the system's own output — is exactly what the

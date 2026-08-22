@@ -2176,3 +2176,13 @@ invariants:
     required_tests:
       - golang/architecture/graphbuild/cross_domain_source_file_collision_test.go:TestTwoScaffoldedDomainsShareNoRepositoryLocalSubject
     contract: 'Identity families are classified by what the identity denotes: repository-local entity -> scoped by canonical repository identity; portable/shared canonical knowledge -> one shared identity, custody from governed provenance'
+  - id: invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    title: An identity claim must be derived from the exact thing it claims to identify
+    status: active
+    description: 'Repeatedly violated in structurally different places within one work stream: a verification record trusted the digest it carried about itself; a benchmark bound a checkout as proof about the binary that ran; an evaluation arm named itself model_disabled while a model was bound; a model bridge selected its model from the environment while the request named a different one; a prompt-contract digest covered the templates but not the output schema it also sent; an acquisition froze a deterministic baseline before that baseline finished being computed; a reference set was permitted to carry labels with no frozen identity at all. Each was found in review rather than in authoring, and each is the same law.'
+    protects:
+      files:
+        - golang/architecture/evalmodel/score.go
+    required_tests:
+      - golang/architecture/evalmodel/acquisition_test.go:TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    contract: Any field that identifies something — a digest, a model name, an arm name, a status, a baseline count — must be computed or derived from that exact thing at the moment it is recorded. A value carried alongside the subject, chosen from configuration, read from a neighbouring field, or captured before the subject reached its final state is a CLAIM about identity, not identity, and must be recomputed or re-derived before anything relies on it.

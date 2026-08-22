@@ -25,7 +25,6 @@
 #   ANTHROPIC_API_KEY=... sensei ... --model-provider-path examples/model-bridge/anthropic-bridge.sh
 set -euo pipefail
 
-MODEL="${SENSEI_BRIDGE_MODEL:-claude-opus-5}"
 API="${ANTHROPIC_API_URL:-https://api.anthropic.com/v1/messages}"
 
 PRINT_DIGEST=0
@@ -56,7 +55,33 @@ Supplied evidence:
 
 Propose derived findings about the architecture these excerpts show."
 
-TEMPLATE_DIGEST="$(printf '%s\n--\n%s' "$SYSTEM_TEMPLATE" "$USER_TEMPLATE" | sha256sum | cut -d' ' -f1)"
+SCHEMA='{
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {"type": "string", "enum": ["candidate_claim", "question", "challenge", "limitation"]},
+          "text": {"type": "string"},
+          "cited_evidence_ids": {"type": "array", "items": {"type": "string"}},
+          "file_paths": {"type": "array", "items": {"type": "string"}}
+        },
+        "required": ["kind", "text", "cited_evidence_ids", "file_paths"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["items"],
+  "additionalProperties": false
+}'
+
+# The contract digest covers the system template, the user template AND the
+# output schema. The schema is part of what the model is asked to do: hashing
+# only the prose while sending a schema that could change independently would
+# leave half the contract unpinned, which is the same gap one level down.
+TEMPLATE_DIGEST="$(printf '%s\n--\n%s\n--\n%s' "$SYSTEM_TEMPLATE" "$USER_TEMPLATE" "$SCHEMA" | sha256sum | cut -d' ' -f1)"
 
 # An operator needs a way to LEARN the digest in order to configure it. Without
 # this, the only way to discover it would be to trigger the refusal below.
@@ -82,6 +107,20 @@ ALLOWED_IDS="$(jq -c '[(.supplied_evidence // [])[].id]' <<<"$REQ")"
 # two materially different prompts the same request digest and the same
 # acquisition identity. A declared digest is a claim about content, not the
 # content.
+# The model that RUNS must be the model the request names. Choosing it from an
+# environment variable while the request separately carries model_name would let
+# the acquisition record one model's identity for another model's answer — the
+# exact identity failure this whole binding exists to prevent.
+MODEL="$(jq -r '.model_name // ""' <<<"$REQ")"
+if [[ -z "$MODEL" ]]; then
+  echo "anthropic-bridge: request carries no model_name; the bridge does not choose a model" >&2
+  exit 69
+fi
+if [[ -n "${SENSEI_BRIDGE_MODEL:-}" && "${SENSEI_BRIDGE_MODEL}" != "$MODEL" ]]; then
+  echo "anthropic-bridge: SENSEI_BRIDGE_MODEL=${SENSEI_BRIDGE_MODEL} disagrees with the requested model_name=${MODEL}; refusing to run a model the request does not name" >&2
+  exit 70
+fi
+
 CLAIMED="$(jq -r '.prompt_contract_digest // ""' <<<"$REQ")"
 if [[ -z "$CLAIMED" ]]; then
   echo "anthropic-bridge: request carries no prompt_contract_digest; this template is ${TEMPLATE_DIGEST} (see --print-contract-digest)" >&2
@@ -92,27 +131,6 @@ if [[ "$CLAIMED" != "$TEMPLATE_DIGEST" ]]; then
   exit 68
 fi
 
-SCHEMA='{
-  "type": "object",
-  "properties": {
-    "items": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "kind": {"type": "string", "enum": ["candidate_claim", "question", "challenge", "limitation"]},
-          "text": {"type": "string"},
-          "cited_evidence_ids": {"type": "array", "items": {"type": "string"}},
-          "file_paths": {"type": "array", "items": {"type": "string"}}
-        },
-        "required": ["kind", "text", "cited_evidence_ids", "file_paths"],
-        "additionalProperties": false
-      }
-    }
-  },
-  "required": ["items"],
-  "additionalProperties": false
-}'
 
 SYSTEM="${SYSTEM_TEMPLATE//\{\{ALLOWED_IDS\}\}/$ALLOWED_IDS}"
 USER="${USER_TEMPLATE//\{\{DOMAIN\}\}/$DOMAIN}"

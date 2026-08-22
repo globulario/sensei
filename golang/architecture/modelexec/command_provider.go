@@ -227,6 +227,9 @@ func (c *CommandProvider) Execute(ctx context.Context, req Request) (Artifact, e
 	// silently ignores unknown members and takes the last of duplicate keys,
 	// which would let a misspelled authority-shaped field disappear instead of
 	// being rejected — the opposite of why those fields exist.
+	if err := rejectDuplicateKeys(stdout.Bytes()); err != nil {
+		return Artifact{}, fmt.Errorf("model command returned output outside the closed response contract: %w", err)
+	}
 	var response commandResponseEnvelope
 	dec := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	dec.DisallowUnknownFields()

@@ -49,6 +49,21 @@ import (
 // defect is actually about.
 const ArmCompositionModelDisabled = "phase10_composition_model_disabled"
 
+// ArmCompositionModelBound is the SAME composition measured with a model bound.
+// It is a different arm because it is a different measurement, and a report
+// that named itself model_disabled while a model ran would misidentify its own
+// result — the identity failure this arm exists to measure elsewhere.
+const ArmCompositionModelBound = "phase10_composition_model_bound"
+
+// armIdentityFor derives the arm's identity from whether the lane is actually
+// engaged, rather than from a constant chosen when the function was written.
+func armIdentityFor(lane whyinvestigation.ModelLane) string {
+	if lane.Config.Requested && !lane.Config.Disabled {
+		return ArmCompositionModelBound
+	}
+	return ArmCompositionModelDisabled
+}
+
 // CompositionSiteResult is one mutant's outcome under the composition arm.
 // It extends the deterministic arm's shape with what composition adds, and
 // deliberately reuses SiteResult's fields for everything else so the two arms
@@ -257,12 +272,18 @@ func RunCompositionArmWithModel(opts Options, lane whyinvestigation.ModelLane) (
 		return CompositionReport{}, fmt.Errorf("evalharness: MaterializeInto is required")
 	}
 
+	arm := armIdentityFor(lane)
+	modelBound := arm == ArmCompositionModelBound
+	floorLimitation := "no model is bound: this arm measures what deterministic composition alone recovers, which is the floor a model-assisted configuration must beat to have earned its cost"
+	if modelBound {
+		floorLimitation = "a model is bound: deterministic composition and model-derived additions are reported separately, and the deterministic lane remains the floor this configuration must beat to have earned its cost"
+	}
 	report := CompositionReport{
 		SchemaVersion: "sensei.evalharness.composition.v1",
-		Arm:           ArmCompositionModelDisabled,
+		Arm:           arm,
 		CapturedAt:    opts.CapturedAt,
 		Limitations: []string{
-			"no model is bound: this arm measures what deterministic composition alone recovers, which is the floor a model-assisted configuration must beat to have earned its cost",
+			floorLimitation,
 			"a candidate is advisory and is not a verdict; whether one matched the intended defect is a grading judgement this harness does not make",
 			"candidate counts are reported, never a detection rate, because this arm cannot grade its own output",
 			"a synthetic mutant has no graph to bind, and composition validates a composed document's receipt graph digest against its binding's; supplying one without the other is refused, and making them agree would declare a resolved graph digest for a repository that has none. Composition over this suite therefore requires publishing each mutant into a real graph first: until then the composition step is reported as unavailable with its exact refusal, and candidate counts of zero mean COMPOSITION DID NOT RUN, not that composition found nothing",
@@ -297,7 +318,28 @@ func RunCompositionArmWithModel(opts Options, lane whyinvestigation.ModelLane) (
 // without putting a filesystem path into the reported record.
 type compositionSiteInternal = CompositionSiteResult
 
-func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinvestigation.ModelLane) (CompositionSiteResult, error) {
+func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinvestigation.ModelLane) (res CompositionSiteResult, err error) {
+	// The acquisition is frozen on the way OUT, not where the model outcome
+	// happens to arrive. Freezing it mid-function captured res.Candidates
+	// before RunArchitecture had assigned them, so a bundle could record a
+	// deterministic baseline of zero candidates for a run that produced
+	// several — a frozen identity describing a state that never existed.
+	//
+	// A deferred freeze also means every early return path carries the same
+	// baseline the report does, including the paths where WHY or composition
+	// failed: the model lane still ran, and its outcome is still a result.
+	var modelOutcome modelexec.Outcome
+	defer func() {
+		if modelOutcome.Binding.Status == "" {
+			return
+		}
+		res.ModelAcquisition = evalmodel.NewAcquisition(opts.CapturedAt, evalmodel.DeterministicBaseline{
+			DocumentDigestSHA256: res.DocumentDigest,
+			ObservationCount:     res.Observations,
+			CandidateCount:       res.Candidates,
+		}, modelOutcome)
+	}()
+
 	root, err := opts.MaterializeInto(name)
 	if err != nil {
 		return CompositionSiteResult{}, err
@@ -310,7 +352,6 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 		return CompositionSiteResult{}, fmt.Errorf("materialize repo: %w", err)
 	}
 
-	res := CompositionSiteResult{}
 	res.Defect = m.Defect
 	res.Statement = m.Statement
 	res.DefectPaths = normalizePaths(m.TouchedPaths)
@@ -375,7 +416,8 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 	lane.Request.TargetObservationIDs = observationIDs
 	lane.Request.SuppliedEvidence = suppliedEvidenceFor(how)
 
-	why, modelOutcome, err := investigationsurface.RunWhyWithModel(context.Background(), investigationsurface.WhyRequest{
+	var why investigation.Document
+	why, modelOutcome, err = investigationsurface.RunWhyWithModel(context.Background(), investigationsurface.WhyRequest{
 		Root:           root,
 		CapturedAt:     opts.CapturedAt,
 		How:            how,
@@ -399,14 +441,6 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 			res.ModelItemsByKind[item.Kind]++
 		}
 	}
-	// Freeze this site's measurement. Counts and digests alone are not
-	// scoreable: a human adjudicating a claim needs the claim's text, its
-	// citations and its file attribution, so the bundle keeps them.
-	res.ModelAcquisition = evalmodel.NewAcquisition(opts.CapturedAt, evalmodel.DeterministicBaseline{
-		DocumentDigestSHA256: res.DocumentDigest,
-		ObservationCount:     res.Observations,
-		CandidateCount:       res.Candidates,
-	}, modelOutcome)
 	if err != nil {
 		// TYPED, not silent. A WHY that could not run and a WHY that found
 		// nothing are different facts about this arm.
@@ -429,7 +463,7 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 			ReviewHistoryDigestSHA256:     emptyInputDigest(),
 		},
 		Options: investigator.ComposeOptions{
-			GeneratorVersion: ArmCompositionModelDisabled,
+			GeneratorVersion: armIdentityFor(lane),
 			RulesetVersion:   "eval.v1",
 			// The caller's explicit capture time, not a label. Compose requires
 			// RFC3339 here; passing the string "caller" made every composition
@@ -440,7 +474,7 @@ func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinve
 			// Declared because Compose requires them. They record the arm's
 			// configuration in the receipt, which keeps a report traceable to
 			// the configuration that produced it.
-			ResourceLimits: map[string]string{"arm": ArmCompositionModelDisabled, "model": "disabled"},
+			ResourceLimits: map[string]string{"arm": armIdentityFor(lane), "model": modelResourceLabel(lane)},
 		},
 	})
 	if err != nil {
@@ -565,4 +599,17 @@ func suppliedEvidenceFor(how investigation.Document) []modelexec.SuppliedEvidenc
 		})
 	}
 	return out
+}
+
+// modelResourceLabel records what the lane actually was, not a constant. A run
+// that engaged a model must not describe its own resources as "disabled".
+func modelResourceLabel(lane whyinvestigation.ModelLane) string {
+	switch {
+	case lane.Config.Disabled:
+		return "disabled"
+	case !lane.Config.Requested:
+		return "not_requested"
+	default:
+		return "bound:" + lane.Config.ProviderID + ":" + lane.Config.ModelName
+	}
 }

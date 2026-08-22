@@ -11519,6 +11519,12 @@ test_symbols:
     package: evalharness
     language: go
     doc: "Required inputs are required. A harness that defaulted them would produce a\nreport bound to whatever checkout it happened to run inside."
+  - id: golang/architecture/evalharness/composition_test.go:TestArmIdentityIsDerivedFromTheLane
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestArmIdentityIsDerivedFromTheLane
+    package: evalharness
+    language: go
+    doc: "A report must not identify itself as model-disabled while a model is bound.\nThe arm, its generator version and its resource label are all derived from\nthe lane rather than from a constant chosen when the function was written."
   - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmCoversEveryMutantAndTheControl
     file: golang/architecture/evalharness/composition_test.go
     symbol: TestCompositionArmCoversEveryMutantAndTheControl
@@ -11613,6 +11619,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "Two items with the same words but different file attribution are different\nclaims. A label written for one must not migrate to the other."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestLabelsWithoutAFrozenIdentityCannotScore
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestLabelsWithoutAFrozenIdentityCannotScore
+    package: evalmodel
+    language: go
+    doc: "An answer key with no identity is not frozen, and an unfrozen ruler cannot\nsupport a defensible score. Validating the digest only when one happened to\nbe present let labels-with-no-digest through to Scored=true."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestNoReferenceSetProducesNoScore
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestNoReferenceSetProducesNoScore
@@ -14690,6 +14702,12 @@ test_symbols:
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
     language: go
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestBridgeContractDigestCoversTheOutputSchema
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestBridgeContractDigestCoversTheOutputSchema
+    package: modelexec
+    language: go
+    doc: "The contract digest must cover the OUTPUT SCHEMA too: it is part of what the\nmodel is asked to do, and a schema that could change independently would\nleave half the contract unpinned."
   - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeMapsAModelAnswerToAnArtifact
     file: golang/architecture/modelexec/bridge_script_test.go
     symbol: TestExampleBridgeMapsAModelAnswerToAnArtifact
@@ -14713,6 +14731,18 @@ test_symbols:
     package: modelexec
     language: go
     doc: "An API failure is errored, and the credential must not reach the diagnostic."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeRunsTheModelTheRequestNames
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeRunsTheModelTheRequestNames
+    package: modelexec
+    language: go
+    doc: "The model that RUNS must be the model the request names. An env-selected\nmodel would let the acquisition record one model's identity for another\nmodel's answer."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestAdapterRejectsADuplicateKeyResponseEndToEnd
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestAdapterRejectsADuplicateKeyResponseEndToEnd
+    package: modelexec
+    language: go
+    doc: "The helper is only useful if the adapter CALLS it. Testing the function alone\nwould keep passing if the call site were removed, so this drives a real\nbridge whose response retracts an authority bid with a duplicate key."
   - id: golang/architecture/modelexec/command_provider_test.go:TestAdapterSendsOnlyBoundedRequestMaterial
     file: golang/architecture/modelexec/command_provider_test.go
     symbol: TestAdapterSendsOnlyBoundedRequestMaterial
@@ -14771,6 +14801,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "Disabled and not-requested must never launch a process at all. A sentinel\npath that cannot exist proves it: reaching exec would fail loudly."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestDuplicateResponseKeysAreRejected
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestDuplicateResponseKeysAreRejected
+    package: modelexec
+    language: go
+    doc: "encoding/json accepts duplicate keys and keeps the LAST one, so a closed\ncontract must reject them explicitly: a response could carry an authority bid\nfollowed by a retraction of it and be accepted with the bid erased."
   - id: golang/architecture/modelexec/command_provider_test.go:TestStderrCannotAlterArtifactIdentity
     file: golang/architecture/modelexec/command_provider_test.go
     symbol: TestStderrCannotAlterArtifactIdentity

@@ -214,3 +214,26 @@ func TestItemKeyDistinguishesFileAttribution(t *testing.T) {
 		t.Error("claims about different files share one identity; a human label could migrate between them")
 	}
 }
+
+// An answer key with no identity is not frozen, and an unfrozen ruler cannot
+// support a defensible score. Validating the digest only when one happened to
+// be present let labels-with-no-digest through to Scored=true.
+func TestLabelsWithoutAFrozenIdentityCannotScore(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	unfrozen := ReferenceSet{Labels: []ReferenceLabel{{ItemKey: ItemKey(a.Items[0]), Verdict: VerdictSupported}}}
+
+	s := ScoreAcquisition(a, unfrozen)
+	if s.Scored {
+		t.Fatal("an answer key with no frozen identity produced a score")
+	}
+	if s.Reason != ReasonReferenceSetUnfrozen {
+		t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetUnfrozen)
+	}
+
+	// The same labels, frozen, do score.
+	frozen := unfrozen
+	frozen.DigestSHA256 = ReferenceDigest(frozen)
+	if s := ScoreAcquisition(a, frozen); !s.Scored {
+		t.Errorf("a frozen answer key did not score: %+v", s)
+	}
+}

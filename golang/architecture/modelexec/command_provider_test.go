@@ -351,3 +351,36 @@ func TestUnknownOrDuplicateResponseFieldsAreRejected(t *testing.T) {
 		})
 	}
 }
+
+// encoding/json accepts duplicate keys and keeps the LAST one, so a closed
+// contract must reject them explicitly: a response could carry an authority bid
+// followed by a retraction of it and be accepted with the bid erased.
+func TestDuplicateResponseKeysAreRejected(t *testing.T) {
+	for _, tc := range []struct{ name, raw string }{
+		{"duplicate top-level key", `{"schema":"sensei.modelexec.command_response.v1","schema":"sensei.modelexec.command_response.v1"}`},
+		{"authority bid retracted by a duplicate", `{"schema":"sensei.modelexec.command_response.v1","artifact":{"schema_version":"sensei.model_artifact.v1","nondeterminism_declaration":"x","items":[{"kind":"question","text":"q","claims_canonical":true,"claims_canonical":false}]}}`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := rejectDuplicateKeys([]byte(tc.raw)); err == nil {
+				t.Fatal("duplicate keys were accepted by the closed response contract")
+			}
+		})
+	}
+	valid := `{"schema":"sensei.modelexec.command_response.v1","artifact":{"schema_version":"v","items":[{"kind":"question"},{"kind":"challenge"}]}}`
+	if err := rejectDuplicateKeys([]byte(valid)); err != nil {
+		t.Errorf("a valid document was rejected: %v", err)
+	}
+}
+
+// The helper is only useful if the adapter CALLS it. Testing the function alone
+// would keep passing if the call site were removed, so this drives a real
+// bridge whose response retracts an authority bid with a duplicate key.
+func TestAdapterRejectsADuplicateKeyResponseEndToEnd(t *testing.T) {
+	p := commandProvider(bridgeFixture(t, `
+	fmt.Println(`+"`"+`{"schema":"sensei.modelexec.command_response.v1","artifact":{"schema_version":"sensei.model_artifact.v1","nondeterminism_declaration":"x","items":[{"kind":"question","text":"q","claims_canonical":true,"claims_canonical":false}]}}`+"`"+`)`))
+	out := Execute(context.Background(), Config{Requested: true, ProviderID: "bridge", ModelName: "m"},
+		Registry{"bridge": p}, testRequest())
+	if out.Binding.Status == investigation.ModelStatusResolved {
+		t.Fatal("a response that retracted an authority bid with a duplicate key was accepted")
+	}
+}

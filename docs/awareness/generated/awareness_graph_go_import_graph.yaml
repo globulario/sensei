@@ -1595,6 +1595,7 @@ components:
       - golang/architecture/modelexec/execute.go
       - golang/architecture/modelexec/port.go
       - golang/architecture/modelexec/request.go
+      - golang/architecture/modelexec/strictjson.go
     depends_on:
       - component.golang.architecture.investigation
     uml:

@@ -181,3 +181,60 @@ func jsonContains(h, n string) bool {
 	}
 	return false
 }
+
+// The model that RUNS must be the model the request names. An env-selected
+// model would let the acquisition record one model's identity for another
+// model's answer.
+func TestExampleBridgeRunsTheModelTheRequestNames(t *testing.T) {
+	var sentModel string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		sentModel, _ = body["model"].(string)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"stop_reason":"end_turn","content":[{"type":"text","text":"{\"items\":[{\"kind\":\"question\",\"text\":\"q\",\"cited_evidence_ids\":[],\"file_paths\":[]}]}"}]}`))
+	}))
+	defer srv.Close()
+
+	p := bridgeScript(t, srv.URL)
+	req := bridgeRequest()
+	req.PromptContractDigest = bridgeContractDigest(t, p)
+	req.Model.Name = "claude-opus-5"
+
+	out := Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
+		Registry{"anthropic-bridge": p}, req)
+	if out.Binding.Status != investigation.ModelStatusResolved {
+		t.Fatalf("status = %q (%q)", out.Binding.Status, out.Binding.Reason)
+	}
+	if sentModel != "claude-opus-5" {
+		t.Errorf("the bridge called model %q while the request named %q", sentModel, "claude-opus-5")
+	}
+
+	// An environment override that disagrees with the request must be refused,
+	// not silently preferred.
+	t.Setenv("SENSEI_BRIDGE_MODEL", "some-other-model")
+	out = Execute(context.Background(), Config{Requested: true, ProviderID: "anthropic-bridge", ModelName: "claude-opus-5"},
+		Registry{"anthropic-bridge": p}, req)
+	if out.Binding.Status == investigation.ModelStatusResolved {
+		t.Error("an environment override ran a model the request did not name")
+	}
+}
+
+// The contract digest must cover the OUTPUT SCHEMA too: it is part of what the
+// model is asked to do, and a schema that could change independently would
+// leave half the contract unpinned.
+func TestBridgeContractDigestCoversTheOutputSchema(t *testing.T) {
+	p := bridgeScript(t, "http://127.0.0.1:1/unused")
+	digest := bridgeContractDigest(t, p)
+
+	data, err := os.ReadFile(p.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), `"$SYSTEM_TEMPLATE" "$USER_TEMPLATE" "$SCHEMA"`) {
+		t.Error("the contract digest does not hash the output schema alongside the templates")
+	}
+	if digest == "" {
+		t.Error("the bridge reports no contract digest")
+	}
+}

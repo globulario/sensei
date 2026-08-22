@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/evalmutant"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
+	"github.com/globulario/sensei/golang/architecture/whyinvestigation"
 )
 
 func runComposedArm(t *testing.T) CompositionReport {
@@ -206,5 +208,29 @@ func TestZeroCandidatesIsDistinguishedFromCompositionNotRunning(t *testing.T) {
 		if res.Observations == 0 {
 			t.Errorf("%s: HOW produced no observations, so this arm did not reach composition for a different reason than reported", res.Defect)
 		}
+	}
+}
+
+// A report must not identify itself as model-disabled while a model is bound.
+// The arm, its generator version and its resource label are all derived from
+// the lane rather than from a constant chosen when the function was written.
+func TestArmIdentityIsDerivedFromTheLane(t *testing.T) {
+	disabled := whyinvestigation.ModelLane{Config: modelexec.Config{Disabled: true}}
+	bound := whyinvestigation.ModelLane{Config: modelexec.Config{Requested: true, ProviderID: "bridge", ModelName: "m"}}
+
+	if got := armIdentityFor(disabled); got != ArmCompositionModelDisabled {
+		t.Errorf("disabled lane arm = %q, want %q", got, ArmCompositionModelDisabled)
+	}
+	if got := armIdentityFor(bound); got != ArmCompositionModelBound {
+		t.Errorf("bound lane arm = %q, want %q", got, ArmCompositionModelBound)
+	}
+	if got := modelResourceLabel(bound); got == "disabled" {
+		t.Error("a bound lane described its own resources as disabled")
+	}
+	if got := modelResourceLabel(disabled); got != "disabled" {
+		t.Errorf("disabled lane resource label = %q, want disabled", got)
+	}
+	if got := modelResourceLabel(whyinvestigation.ModelLane{}); got != "not_requested" {
+		t.Errorf("unrequested lane resource label = %q, want not_requested", got)
 	}
 }
