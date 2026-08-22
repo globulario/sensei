@@ -572,9 +572,8 @@ func runPublishedSurfaces(out, addr, domain string, files []string, elapsed map[
 // run from outside the repository root degrades to the older, weaker check
 // rather than silently deciding every document is custom.
 func isDefaultProtocolDocument(path, got string, gotErr error) bool {
-	want, wantErr := fileDigest(protocolPath)
-	if wantErr == nil && gotErr == nil {
-		return want == got
+	if gotErr == nil {
+		return got == defaultProtocolDigest
 	}
 	a, errA := filepath.Abs(path)
 	b, errB := filepath.Abs(protocolPath)

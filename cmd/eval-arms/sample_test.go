@@ -179,7 +179,9 @@ func TestTheDefaultProtocolRefusesAPartialWorldSet(t *testing.T) {
 	}}
 	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true,
 		[]string{"world3_independent_calibration"}, worlds, "seed", "2026-08-22T05:00:00Z")
-	if art.Status != statusNotRun {
+	// statusFailed: a seed was supplied, so the draw was REQUESTED, and a
+	// refused request must fail the run rather than pass silently.
+	if art.Status != statusFailed {
 		t.Fatalf("a sample was drawn under the default protocol with a world missing: %s", art.Status)
 	}
 	if !strings.Contains(art.Reason, "world3_independent_calibration") {
@@ -338,5 +340,45 @@ func TestTheProtocolDigestIsTheOneValidated(t *testing.T) {
 	}
 	if !strings.Contains(string(data), validated) {
 		t.Error("the manifest recorded a digest re-read from disk rather than the one validated at startup")
+	}
+}
+
+// TestTheCompiledProtocolDigestMatchesTheDocument is the drift guard for the
+// constant that lets an installed binary recognise the default protocol
+// without a working directory. If the document changes and the constant does
+// not, every caller passing the real v1 document would be told it is custom.
+func TestTheCompiledProtocolDigestMatchesTheDocument(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "..", protocolPath))
+	if err != nil {
+		t.Skipf("protocol document not readable from the test's working directory: %v", err)
+	}
+	sum := sha256.Sum256(data)
+	if got := hex.EncodeToString(sum[:]); got != defaultProtocolDigest {
+		t.Fatalf("the compiled default-protocol digest is stale:\n  constant: %s\n  document: %s\nUpdate defaultProtocolDigest, or the binary will call the real v1 document custom.", defaultProtocolDigest, got)
+	}
+}
+
+// TestARefusedRequestedSampleFailsTheRun.
+//
+// The caller asked for a draw by supplying a seed. Refusing it is a failure of
+// what was requested, and main's exit code counts only failures — reporting
+// not_run let automation see a successful command that produced no manifest.
+func TestARefusedRequestedSampleFailsTheRun(t *testing.T) {
+	worlds := []evalsample.World{{
+		Name:            "world1_sensei_self",
+		Binding:         architecture.ClaimDocumentBinding{RepositoryDomain: "d", Revision: "r", RevisionStatus: architecture.RevisionResolved},
+		Observations:    []architecture.Fact{{Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e", Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 1}}},
+		RecallInventory: []string{"pkg/a"},
+	}}
+	art := writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true,
+		[]string{"mutant suite"}, worlds, "a-seed-was-supplied", "2026-08-22T05:00:00Z")
+	if art.Status != statusFailed {
+		t.Fatalf("a requested sample was refused with status %q; main counts only %q, so the run would have exited successfully with no manifest", art.Status, statusFailed)
+	}
+
+	// No seed means no sample was requested, which is not a failure.
+	art = writeSample(t.TempDir(), protocolFileForTest(t), protocolID, "deadbeef", nil, true, nil, worlds, "", "2026-08-22T05:00:00Z")
+	if art.Status != statusNotRun {
+		t.Errorf("a run that asked for no sample reported %q, want %q", art.Status, statusNotRun)
 	}
 }

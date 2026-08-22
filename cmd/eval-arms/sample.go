@@ -27,6 +27,19 @@ const protocolPath = "docs/evaluation/phase10-reference-protocol-v1.md"
 // reference-set release is supposed to pin.
 const protocolID = "phase10-reference-protocol-v1"
 
+// defaultProtocolDigest is the SHA-256 of the document at protocolPath.
+//
+// Compiled in because protocolPath is relative: an installed binary run from
+// outside the repository cannot read it, and the earlier path-comparison
+// fallback then misclassified a caller who passed the REAL v1 document by
+// absolute path as using a custom protocol — rejecting a valid default pair
+// before any arm ran. A digest travels with the binary and needs no working
+// directory.
+//
+// TestTheCompiledProtocolDigestMatchesTheDocument fails if the document
+// changes without this constant, so the two cannot drift apart silently.
+const defaultProtocolDigest = "e686245ebfeb0885113046d9dfbefcfbab43c2457b1850fa4058ac1ac2f2288c"
+
 // recallUnitInventory is the INDEPENDENT unit inventory of section 7.
 //
 // It is the repository's own package structure, read from the filesystem. That
@@ -110,7 +123,13 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 	// claim as substituting a world, arrived at by omission rather than
 	// replacement, which is why it looked harmless.
 	if isDefaultProtocol && len(missingWorlds) > 0 {
-		art.Status = statusNotRun
+		// statusFailed, not statusNotRun. The caller asked for a draw by
+		// supplying a seed; refusing it is a failure of what was requested, and
+		// main's exit code counts only failures. Reporting not_run here let
+		// automation see a successful command that produced no manifest —
+		// silence indistinguishable from success, which is the shape of defect
+		// this whole file exists to refuse.
+		art.Status = statusFailed
 		art.Reason = fmt.Sprintf("refusing to draw under the default protocol while %s did not run: the manifest would claim an identity whose world definition this run did not follow. Run the missing world(s), or bind a protocol that defines the reduced set with --protocol-file and --protocol-id.",
 			strings.Join(missingWorlds, ", "))
 		return art
