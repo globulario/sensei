@@ -249,8 +249,23 @@ func composedClaim(site, lane string, i int, kind, text string, cited, paths []s
 		refs = append(refs, site+"/"+p)
 	}
 	return investigation.Counterexample{
-		ID:             fmt.Sprintf("%s/%s/%d", site, lane, i),
-		Description:    fmt.Sprintf("[%s %s] %s", lane, kind, text),
+		ID: fmt.Sprintf("%s/%s/%d", site, lane, i),
+		// The lane is deliberately NOT in the description.
+		//
+		// The description is what evalsample renders into the blinded challenge
+		// view, and section 12 says an adjudicator should not be told which lane
+		// produced an item during first-pass labeling where the format allows it
+		// "without losing required provenance". Here it does allow it: the lane
+		// is already in the ID above, which becomes the manifest's subject_id, so
+		// hiding it in the view loses nothing and revealing it would let a
+		// usefulness rating (section 10) and a support label turn on which lane
+		// an item came from. Same shape as provider_id, which the manifest
+		// carries and the view hides.
+		//
+		// The KIND stays: it tells the adjudicator what sort of proposition they
+		// are judging, which is adjudication context rather than lane
+		// provenance, and nothing else carries it.
+		Description:    fmt.Sprintf("[%s] %s", kind, text),
 		EvidenceRefIDs: refs,
 	}
 }
