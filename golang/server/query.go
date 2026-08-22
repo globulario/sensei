@@ -53,15 +53,21 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 		return nil, err
 	}
 
+	offset := int(req.GetOffset())
+	if offset < 0 {
+		offset = 0
+	}
+
 	var rows []*awarenesspb.QueryRow
 	var err error
+	total, totalKnown := 0, false
 	switch req.GetMode() {
 	case awarenesspb.QueryMode_QUERY_MODE_BY_FILE:
 		rows, err = s.queryByFile(ctx, strings.TrimSpace(req.GetFile()), requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_BY_ID:
 		rows, err = s.queryByID(ctx, strings.TrimSpace(req.GetId()), requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_BY_CLASS:
-		rows, err = s.queryByClass(ctx, req.GetClass(), limit, requestedDomain)
+		rows, total, totalKnown, err = s.queryByClass(ctx, req.GetClass(), limit, offset, requestedDomain)
 	case awarenesspb.QueryMode_QUERY_MODE_RELATED:
 		rows, err = s.queryRelated(ctx, strings.TrimSpace(req.GetId()), limit, requestedDomain)
 	default:
@@ -75,7 +81,23 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 		Rows:          rows,
 		GeneratedInMs: time.Since(start).Milliseconds(),
 		Authority:     s.graphAuthority(ctx),
+		Total:         int32(total),
+		TotalKnown:    totalKnown,
+		Truncated:     moreRowsExist(offset, len(rows), limit, total, totalKnown),
 	}, nil
+}
+
+// moreRowsExist reports whether rows remain past this page.
+//
+// When the total is known the answer is exact. When it is not, a full page is
+// treated as possibly-truncated: guessing "complete" there is the failure this
+// whole field exists to prevent, and one extra empty page costs a caller far
+// less than a silently short enumeration costs everyone downstream.
+func moreRowsExist(offset, returned, limit, total int, totalKnown bool) bool {
+	if totalKnown {
+		return offset+returned < total
+	}
+	return limit > 0 && returned >= limit
 }
 
 func (s *server) queryByFile(ctx context.Context, file, domain string) ([]*awarenesspb.QueryRow, error) {
@@ -130,34 +152,66 @@ func (s *server) queryByID(ctx context.Context, qualifiedID, domain string) ([]*
 // prefix.
 const maxScopedListFetch = 300
 
-func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryClass, limit int, domain string) ([]*awarenesspb.QueryRow, error) {
+func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryClass, limit, offset int, domain string) ([]*awarenesspb.QueryRow, int, bool, error) {
 	className, classIRI, ok := queryClassSpec(queryClass)
 	if !ok {
-		return nil, status.Error(codes.InvalidArgument, "invalid class for by_class")
+		return nil, 0, false, status.Error(codes.InvalidArgument, "invalid class for by_class")
 	}
+
+	total, totalKnown := 0, false
+	if counter, ok := s.store.(classCounter); ok {
+		var err error
+		if domain != "" {
+			total, err = counter.ClassCountScoped(ctx, classIRI, domain, s.homeDomain)
+		} else {
+			total, err = counter.ClassCount(ctx, classIRI)
+		}
+		// A count that fails leaves total_known false. It does not fail the
+		// query: a caller can still page, it just cannot be told when to stop.
+		totalKnown = err == nil
+	}
+
 	// Domain-scoped: prefer a store that applies the domain FILTER inside its
 	// selection LIMIT (ClassFactsScoped), so the LIMIT lands on in-scope nodes
 	// rather than an arbitrary page that may contain none. Fall back to
 	// fetch-then-filter (capped) only if the store lacks it.
 	var facts []store.ImpactFact
 	var keep map[string]bool
-	if domain != "" {
+	pager, canPage := s.store.(classFactsPager)
+	if offset > 0 && !canPage {
+		// Silently serving page 0 for a request that asked for page 3 would
+		// hand back rows the caller has already seen, as though they were new.
+		return nil, total, totalKnown, status.Error(codes.Unimplemented,
+			"this store cannot page a class listing, so an offset cannot be honoured; re-run without --offset and treat the result as the first page only")
+	}
+	switch {
+	case domain != "" && canPage:
+		var err error
+		if facts, err = pager.ClassFactsScopedPage(ctx, classIRI, domain, s.homeDomain, limit, offset); err != nil {
+			return nil, total, totalKnown, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+		}
+	case domain != "":
 		if sc, ok := s.store.(classFactsScoper); ok {
 			var err error
 			if facts, err = sc.ClassFactsScoped(ctx, classIRI, domain, s.homeDomain, limit); err != nil {
-				return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+				return nil, total, totalKnown, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 			}
 		} else {
 			var err error
 			if facts, err = s.store.ClassFacts(ctx, classIRI, maxScopedListFetch); err != nil {
-				return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+				return nil, total, totalKnown, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 			}
 			keep = keepIRIsInScope(facts, s.homeDomain, domain)
 		}
-	} else {
+	case canPage:
+		var err error
+		if facts, err = pager.ClassFactsPage(ctx, classIRI, limit, offset); err != nil {
+			return nil, total, totalKnown, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+		}
+	default:
 		var err error
 		if facts, err = s.store.ClassFacts(ctx, classIRI, limit); err != nil {
-			return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
+			return nil, total, totalKnown, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 		}
 	}
 
@@ -172,7 +226,7 @@ func (s *server) queryByClass(ctx context.Context, queryClass awarenesspb.QueryC
 			break
 		}
 	}
-	return rows, nil
+	return rows, total, totalKnown, nil
 }
 
 // queryRelated returns the neighbours of a node in BOTH directions. Outgoing

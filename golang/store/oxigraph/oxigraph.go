@@ -323,11 +323,25 @@ func (c *Client) ImpactForFile(ctx context.Context, repoRelativePath string) ([]
 
 // ClassFacts returns direct facts for nodes of one awareness class.
 func (c *Client) ClassFacts(ctx context.Context, classIRI string, limit int) ([]store.ImpactFact, error) {
+	return c.ClassFactsPage(ctx, classIRI, limit, 0)
+}
+
+// ClassFactsPage is ClassFacts with a row offset.
+//
+// The offset lands inside the inner DISTINCT ?node selection, next to the
+// ORDER BY that already made the selection deterministic. Offsetting the outer
+// result instead would page over (node, predicate, object) triples rather than
+// over nodes, so a page boundary could fall in the middle of one node's facts
+// and split it across two pages.
+func (c *Client) ClassFactsPage(ctx context.Context, classIRI string, limit, offset int) ([]store.ImpactFact, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	if limit > 300 {
 		limit = 300
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	q := fmt.Sprintf(
 		`SELECT ?node ?p ?o WHERE {
@@ -337,12 +351,24 @@ func (c *Client) ClassFacts(ctx context.Context, classIRI string, limit int) ([]
     }
     ORDER BY ?node
     LIMIT %d
+    OFFSET %d
   }
   OPTIONAL { ?node ?p ?o . }
 }`,
-		classIRI, limit,
+		classIRI, limit, offset,
 	)
 	return c.classFactsFromQuery(ctx, q, classIRI)
+}
+
+// ClassCount returns how many distinct nodes carry this class, before any
+// limit or offset. It is what lets a caller tell a complete page from a capped
+// one.
+func (c *Client) ClassCount(ctx context.Context, classIRI string) (int, error) {
+	q := fmt.Sprintf(
+		`SELECT (COUNT(DISTINCT ?node) AS ?n) WHERE {
+  ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
+}`, classIRI)
+	return c.countFromQuery(ctx, q)
 }
 
 // classFactsFromQuery runs a SELECT ?node ?p ?o query and decodes it into
@@ -877,11 +903,19 @@ func (c *Client) ClassNodeDomains(ctx context.Context, classIRI string) (map[str
 // home domain) so the LIMIT lands on in-scope nodes, not an arbitrary page.
 // Mirrors the InScope core (golang/server/scope.go).
 func (c *Client) ClassFactsScoped(ctx context.Context, classIRI, domain, home string, limit int) ([]store.ImpactFact, error) {
+	return c.ClassFactsScopedPage(ctx, classIRI, domain, home, limit, 0)
+}
+
+// ClassFactsScopedPage is ClassFactsScoped with a row offset.
+func (c *Client) ClassFactsScopedPage(ctx context.Context, classIRI, domain, home string, limit, offset int) ([]store.ImpactFact, error) {
 	if limit <= 0 {
 		limit = 20
 	}
 	if limit > 300 {
 		limit = 300
+	}
+	if offset < 0 {
+		offset = 0
 	}
 	q := fmt.Sprintf(
 		`SELECT ?node ?p ?o WHERE {
@@ -898,12 +932,72 @@ func (c *Client) ClassFactsScoped(ctx context.Context, classIRI, domain, home st
     }
     ORDER BY ?node
     LIMIT %d
+    OFFSET %d
   }
   OPTIONAL { ?node ?p ?o . }
 }`,
-		classIRI, domain, home, domain, limit,
+		classIRI, domain, home, domain, limit, offset,
 	)
 	return c.classFactsFromQuery(ctx, q, classIRI)
+}
+
+// ClassCountScoped counts the nodes of a class visible in one domain, using
+// the same FILTER as ClassFactsScopedPage so the total and the pages describe
+// the same population. A count taken with different scoping would let a caller
+// page forever toward a total it can never reach.
+func (c *Client) ClassCountScoped(ctx context.Context, classIRI, domain, home string) (int, error) {
+	q := fmt.Sprintf(
+		`SELECT (COUNT(DISTINCT ?node) AS ?n) WHERE {
+  ?node <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <%s> .
+  OPTIONAL { ?node <https://globular.io/awareness#repo> ?repo }
+  OPTIONAL { ?node <https://globular.io/awareness#domain> ?dom }
+  FILTER(
+    (BOUND(?dom) && ?dom = "shared") ||
+    (BOUND(?repo) && ?repo = "%s") ||
+    (!BOUND(?repo) && (!BOUND(?dom) || ?dom != "shared") && "%s" = "%s")
+  )
+}`, classIRI, domain, home, domain)
+	return c.countFromQuery(ctx, q)
+}
+
+// countFromQuery runs a SELECT (COUNT(...) AS ?n) query and decodes the scalar.
+func (c *Client) countFromQuery(ctx context.Context, q string) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.queryURL, strings.NewReader(q))
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph class count: build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/sparql-query")
+	req.Header.Set("Accept", "application/sparql-results+json")
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return 0, fmt.Errorf("oxigraph class count: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return 0, fmt.Errorf("oxigraph class count: %s: %s", resp.Status, strings.TrimSpace(string(body)))
+	}
+	var out struct {
+		Results struct {
+			Bindings []map[string]struct {
+				Value string `json:"value"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return 0, fmt.Errorf("oxigraph class count: decode sparql json: %w", err)
+	}
+	if len(out.Results.Bindings) == 0 {
+		return 0, nil
+	}
+	for _, v := range out.Results.Bindings[0] {
+		var n int
+		if _, err := fmt.Sscanf(v.Value, "%d", &n); err != nil {
+			return 0, fmt.Errorf("oxigraph class count: unparseable count %q", v.Value)
+		}
+		return n, nil
+	}
+	return 0, nil
 }
 
 // Subjects returns every distinct subject IRI in the default graph. Blank-node

@@ -516,6 +516,13 @@ message QueryRequest {
   // multi-domain graph. See golang/server/scope.go.
   string domain = 8;
 
+  // Optional zero-based row offset, applied after the mode's own deterministic
+  // ordering. It exists because `limit` alone cannot enumerate a class: the
+  // server caps a single response, so without an offset a caller has no way to
+  // reach past the cap and no way to finish. See QueryResponse.total_known for
+  // the other half of that problem.
+  int32 offset = 9;
+
   reserved 1, 2;
   reserved "sparql", "accept";
 }
@@ -539,6 +546,20 @@ message QueryResponse {
   repeated QueryRow rows = 3;
   int64 generated_in_ms = 4;
   GraphAuthority authority = 5;
+
+  // total is how many rows match the query before limit and offset.
+  //
+  // total_known is carried separately and is not redundant: a backend that
+  // cannot count would otherwise report 0, which reads exactly like a class
+  // with no members. Conflating "unknown" with "zero" is the failure this
+  // field exists to prevent.
+  int32 total = 6;
+  bool total_known = 7;
+
+  // truncated says more rows exist beyond this page. A caller that cannot see
+  // this cannot tell a complete answer from a capped one, and silently reports
+  // the cap as the population.
+  bool truncated = 8;
 
   reserved 1, 2;
   reserved "body", "content_type";
