@@ -144,3 +144,50 @@ World 1's report is stale the moment the repository changes, so a committed copy
 ## What this does not establish
 
 Nothing about precision, recall, grounding quality, or whether any observation is true. Those require the human reference set (protocol §6, §14), which forbids Sensei from producing it. This page establishes only that the worlds it can reach run, from inputs that can be named, by a command anyone can re-run — and that world 3 is not one of them yet.
+
+
+## Run under protocol v2 (2026-08-22)
+
+World 3 is now the independent **gin** calibration, bound to
+`github.com/gin-gonic/gin` at `34dac209ffb6ef85cc78c5d217bbb7ad001d68fd`.
+
+```bash
+SENSEI_REV=$(git rev-parse HEAD) \
+GLOBULAR_SRC=<checkout> GLOBULAR_REV=48784d096039 \
+GIN_SRC=<checkout> \
+  scripts/eval-phase10-worlds.sh <out-dir> 2026-08-22T15:00:00Z phase10-v2-pass1
+```
+
+| world | binding | status | observations |
+|---|---|---|---|
+| 1 sensei | `github.com/globulario/sensei` @ `SENSEI_REV` | resolved | 242,512 |
+| 2 Globular | `github.com/globulario/Globular` @ `48784d096039` | resolved | 20,168 |
+| 3 **gin** | `github.com/gin-gonic/gin` @ `34dac209ffb6` | resolved | **16,504** |
+| 4 mutant suite | composed tree digest | synthetic | 347 over 12 sites |
+
+World 3 carries **real observations** rather than the outside-surface zero it
+produced under v1. That is the whole point of the amendment.
+
+### Frozen sample
+
+- protocol: `phase10-reference-protocol-v2`, digest `6afaf6ec1cebc73c…`
+- selection seed: `phase10-v2-pass1`
+- manifest digest: `21b503c184f9d379…`
+- **805 items across 37 strata**
+
+| world | precision | recall_unit | challenge |
+|---|---|---|---|
+| 1 sensei | 210 | 12 | — |
+| 2 Globular | 210 | 12 | — |
+| 3 gin | 210 | 7 | — |
+| 4 mutant suite | 120 | 12 | 12 |
+
+### Replay identity
+
+Two runs from identical pinned inputs produce **byte-identical** artifacts:
+all 16 world reports, arm reports, the sample manifest and every blinded view.
+
+`run_envelope.json` is the one file that differs, by design — it records what a
+run *cost* (wall clock, per-arm elapsed, heap), never what it concluded. The
+difference was checked rather than assumed: nothing but timings and allocation
+counters moves.
