@@ -39,6 +39,25 @@ type classFactsScoper interface {
 	ClassFactsScoped(ctx context.Context, classIRI, domain, home string, limit int) ([]store.ImpactFact, error)
 }
 
+// classFactsPager is the optional store capability that pages a class listing.
+//
+// Without it a caller cannot enumerate a class at all: a single response is
+// capped, so the rows past the cap are unreachable by any request. Absent →
+// the server serves page 0 only and says so through QueryResponse.truncated,
+// rather than pretending the cap is the population.
+type classFactsPager interface {
+	ClassFactsPage(ctx context.Context, classIRI string, limit, offset int) ([]store.ImpactFact, error)
+	ClassFactsScopedPage(ctx context.Context, classIRI, domain, home string, limit, offset int) ([]store.ImpactFact, error)
+}
+
+// classCounter is the optional store capability that reports a class's size
+// before limit and offset. Absent → total_known stays false, which is not the
+// same as a total of zero and must never be reported as one.
+type classCounter interface {
+	ClassCount(ctx context.Context, classIRI string) (int, error)
+	ClassCountScoped(ctx context.Context, classIRI, domain, home string) (int, error)
+}
+
 // classDomainLister is the optional store capability that returns, for a class,
 // each node's raw domains UNCAPPED. A node may have MORE THAN ONE domain (e.g. a
 // forbidden fix authored in two repos → two aw:repo tags), so the value is a

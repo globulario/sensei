@@ -3417,7 +3417,13 @@ type QueryRequest struct {
 	// by_class / by_file lists are restricted to that domain plus shared nodes.
 	// Empty resolves trivially on a single-domain graph and fails closed on a
 	// multi-domain graph. See golang/server/scope.go.
-	Domain        string `protobuf:"bytes,8,opt,name=domain,proto3" json:"domain,omitempty"`
+	Domain string `protobuf:"bytes,8,opt,name=domain,proto3" json:"domain,omitempty"`
+	// Optional zero-based row offset, applied after the mode's own deterministic
+	// ordering. It exists because `limit` alone cannot enumerate a class: the
+	// server caps a single response, so without an offset a caller has no way to
+	// reach past the cap and no way to finish. See QueryResponse.total_known for
+	// the other half of that problem.
+	Offset        int32 `protobuf:"varint,9,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3492,6 +3498,13 @@ func (x *QueryRequest) GetDomain() string {
 		return x.Domain
 	}
 	return ""
+}
+
+func (x *QueryRequest) GetOffset() int32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
 }
 
 type QueryRow struct {
@@ -3617,6 +3630,18 @@ type QueryResponse struct {
 	Rows          []*QueryRow            `protobuf:"bytes,3,rep,name=rows,proto3" json:"rows,omitempty"`
 	GeneratedInMs int64                  `protobuf:"varint,4,opt,name=generated_in_ms,json=generatedInMs,proto3" json:"generated_in_ms,omitempty"`
 	Authority     *GraphAuthority        `protobuf:"bytes,5,opt,name=authority,proto3" json:"authority,omitempty"`
+	// total is how many rows match the query before limit and offset.
+	//
+	// total_known is carried separately and is not redundant: a backend that
+	// cannot count would otherwise report 0, which reads exactly like a class
+	// with no members. Conflating "unknown" with "zero" is the failure this
+	// field exists to prevent.
+	Total      int32 `protobuf:"varint,6,opt,name=total,proto3" json:"total,omitempty"`
+	TotalKnown bool  `protobuf:"varint,7,opt,name=total_known,json=totalKnown,proto3" json:"total_known,omitempty"`
+	// truncated says more rows exist beyond this page. A caller that cannot see
+	// this cannot tell a complete answer from a capped one, and silently reports
+	// the cap as the population.
+	Truncated     bool `protobuf:"varint,8,opt,name=truncated,proto3" json:"truncated,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3670,6 +3695,27 @@ func (x *QueryResponse) GetAuthority() *GraphAuthority {
 		return x.Authority
 	}
 	return nil
+}
+
+func (x *QueryResponse) GetTotal() int32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *QueryResponse) GetTotalKnown() bool {
+	if x != nil {
+		return x.TotalKnown
+	}
+	return false
+}
+
+func (x *QueryResponse) GetTruncated() bool {
+	if x != nil {
+		return x.Truncated
+	}
+	return false
 }
 
 type ResolveRequest struct {
@@ -10008,14 +10054,15 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x06symbol\x18\x03 \x01(\tR\x06symbol\x12\x1d\n" +
 	"\n" +
 	"line_start\x18\x04 \x01(\x05R\tlineStart\x12\x19\n" +
-	"\bline_end\x18\x05 \x01(\x05R\alineEnd\"\xf1\x01\n" +
+	"\bline_end\x18\x05 \x01(\x05R\alineEnd\"\x89\x02\n" +
 	"\fQueryRequest\x127\n" +
 	"\x04mode\x18\x03 \x01(\x0e2#.globular.awareness_graph.QueryModeR\x04mode\x12\x12\n" +
 	"\x04file\x18\x04 \x01(\tR\x04file\x12\x0e\n" +
 	"\x02id\x18\x05 \x01(\tR\x02id\x12:\n" +
 	"\x05class\x18\x06 \x01(\x0e2$.globular.awareness_graph.QueryClassR\x05class\x12\x14\n" +
 	"\x05limit\x18\a \x01(\x05R\x05limit\x12\x16\n" +
-	"\x06domain\x18\b \x01(\tR\x06domainJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x06sparqlR\x06accept\"\x94\x02\n" +
+	"\x06domain\x18\b \x01(\tR\x06domain\x12\x16\n" +
+	"\x06offset\x18\t \x01(\x05R\x06offsetJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x06sparqlR\x06accept\"\x94\x02\n" +
 	"\bQueryRow\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05class\x18\x02 \x01(\tR\x05class\x12\x14\n" +
@@ -10028,11 +10075,15 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\buml_kind\x18\b \x01(\tR\aumlKind\x12%\n" +
 	"\x0euml_stereotype\x18\t \x01(\tR\rumlStereotype\x12\x19\n" +
 	"\buml_view\x18\n" +
-	" \x01(\tR\aumlView\"\xd7\x01\n" +
+	" \x01(\tR\aumlView\"\xac\x02\n" +
 	"\rQueryResponse\x126\n" +
 	"\x04rows\x18\x03 \x03(\v2\".globular.awareness_graph.QueryRowR\x04rows\x12&\n" +
 	"\x0fgenerated_in_ms\x18\x04 \x01(\x03R\rgeneratedInMs\x12F\n" +
-	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthorityJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04bodyR\fcontent_type\"N\n" +
+	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthority\x12\x14\n" +
+	"\x05total\x18\x06 \x01(\x05R\x05total\x12\x1f\n" +
+	"\vtotal_known\x18\a \x01(\bR\n" +
+	"totalKnown\x12\x1c\n" +
+	"\ttruncated\x18\b \x01(\bR\ttruncatedJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04bodyR\fcontent_type\"N\n" +
 	"\x0eResolveRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05class\x18\x02 \x01(\tR\x05class\x12\x16\n" +

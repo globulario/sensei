@@ -31,7 +31,8 @@ func runQuery(args []string) int {
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")
 	class := fs.String("class", "", "class name (for mode=by_class)")
 	domain := fs.String("domain", "", "scope by_class/by_file results to a domain/repo (e.g. github.com/globulario/services)")
-	limit := fs.Int("limit", 50, "maximum rows")
+	limit := fs.Int("limit", 50, "maximum rows per page (the server caps a single page)")
+	offset := fs.Int("offset", 0, "zero-based row offset, for paging past the server's per-page cap (by_class)")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei query --mode <mode> [flags]
@@ -41,7 +42,7 @@ Structured browse of the awareness graph.
 Modes:
   by_file   list nodes whose anchor names --file
   by_id     return the node matching --id
-  by_class  list all nodes of --class (use --limit)
+  by_class  list all nodes of --class (page with --limit and --offset)
   related   list nodes pointed at by --id
 
 Classes: invariant, failure_mode, incident_pattern, intent, symbol, source_file,
@@ -72,6 +73,7 @@ Flags:
 		File:   *file,
 		Id:     *id,
 		Limit:  int32(*limit),
+		Offset: int32(*offset),
 		Domain: *domain,
 	}
 	if *class != "" {
@@ -98,6 +100,10 @@ Flags:
 
 	rows := resp.GetRows()
 	printGraphAuthority(resp.GetAuthority())
+	// Printed before the rows, and printed even when there are none: a reader
+	// who sees only rows cannot tell a complete listing from a capped one, and
+	// that is exactly how a per-page cap gets mistaken for a population.
+	printPaging(resp, *offset, len(rows))
 	if len(rows) == 0 {
 		fmt.Println("(no rows)")
 		return 0
@@ -180,4 +186,18 @@ func parseQueryClass(s string) (awarenesspb.QueryClass, bool) {
 		return awarenesspb.QueryClass_QUERY_CLASS_EVIDENCE_PROBE, true
 	}
 	return 0, false
+}
+
+// printPaging says how much of the population this page covers.
+func printPaging(resp *awarenesspb.QueryResponse, offset, returned int) {
+	switch {
+	case resp.GetTotalKnown() && resp.GetTruncated():
+		fmt.Printf("rows %d-%d of %d — more remain; re-run with --offset %d\n",
+			offset+1, offset+returned, resp.GetTotal(), offset+returned)
+	case resp.GetTotalKnown():
+		fmt.Printf("rows %d-%d of %d — complete\n", offset+1, offset+returned, resp.GetTotal())
+	case resp.GetTruncated():
+		fmt.Printf("rows %d-%d; the total is unknown and more may remain — re-run with --offset %d\n",
+			offset+1, offset+returned, offset+returned)
+	}
 }
