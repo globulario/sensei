@@ -18,6 +18,10 @@ func composeDocumentMulti(
 	coverage []investigation.CoverageEntry,
 	limitations []architecture.Limitation,
 	resolvedProviders []investigation.ProviderBinding,
+	// model is the OBSERVED outcome of the optional model lane, threaded in
+	// rather than minted here. Composition used to write a status from
+	// configuration, which is exactly how a status stops describing a run.
+	model investigation.ModelBinding,
 ) (investigation.Document, error) {
 	query, err := digestQuery(req.Query)
 	if err != nil {
@@ -68,9 +72,7 @@ func composeDocumentMulti(
 			EvidenceSnapshotDigestSHA256:  compositeSnapshotDigest,
 			InvestigationPlanDigestSHA256: investigation.SHA256Bytes(planData),
 			ExtractorProfileDigestSHA256:  profile,
-			Model: investigation.ModelBinding{
-				Status: investigation.ModelStatusDisabled,
-			},
+			Model:                         model,
 			Why: investigation.WhyBinding{
 				HowDocumentDigestSHA256:   req.How.Receipt.OutputDocumentDigestSHA256,
 				QueryDigestSHA256:         query,
@@ -94,13 +96,12 @@ func composeDocumentMulti(
 			PlanDigestSHA256:             investigation.SHA256Bytes(planData),
 			ExtractorProfileDigestSHA256: profile,
 			EvidenceSnapshotDigestSHA256: compositeSnapshotDigest,
-			Model: investigation.ModelBinding{
-				Status: investigation.ModelStatusDisabled,
-			},
-			PostProcessingVersion:     "why.orchestrator.v1",
-			TimestampSource:           req.CapturedAt,
-			ResourceLimits:            map[string]string{"orchestrator": "local_only"},
-			NondeterminismDeclaration: "deterministic_only",
+			Model:                        model,
+			ModelArtifactDigestSHA256:    model.ArtifactDigestSHA256,
+			PostProcessingVersion:        "why.orchestrator.v1",
+			TimestampSource:              req.CapturedAt,
+			ResourceLimits:               map[string]string{"orchestrator": "local_only"},
+			NondeterminismDeclaration:    nondeterminismFor(model),
 		},
 	}
 
@@ -117,4 +118,15 @@ func composeDocumentMulti(
 		return investigation.Document{}, err
 	}
 	return norm, nil
+}
+
+// nondeterminismFor keeps the run receipt honest about replayability. A
+// deterministic-only claim is true exactly while no model ran; once one has,
+// the provider's own declaration governs, because this lane cannot promise a
+// byte-identical model response it does not control.
+func nondeterminismFor(model investigation.ModelBinding) string {
+	if model.Status == investigation.ModelStatusResolved && model.NondeterminismDeclaration != "" {
+		return model.NondeterminismDeclaration
+	}
+	return "deterministic_only"
 }

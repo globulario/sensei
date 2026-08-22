@@ -1983,3 +1983,16 @@ failure_modes:
     evidence:
       - 'Found by the repository''s Codex PR review on PR #254 (P1). Demonstrated on the branch''s own end-to-end run: the binary built at 71f72c50 against a fixture checkout 753e2aad previously printed authority_match, and now reports executed_build_not_from_recorded_checkout. Go stamps vcs.revision into binaries built inside a repository; when that stamp is absent the state is recorded as unstamped and the replay is refused rather than assumed to match.'
     contract: An identity recorded for a checkout characterises that tree, never the executable built from some other tree. A run may be certified reproducible only when the running evaluator's own build provenance ties it to the checkout being recorded; absent provenance is a refusal, not a pass.
+  - id: failure.a_threaded_outcome_was_silently_ignored_because_go_permits_a
+    title: A threaded outcome was silently ignored because Go permits an unused parameter
+    description: The WHY composer was changed to accept the observed model outcome instead of minting a status from configuration. The edit that was supposed to consume it silently failed to apply — gofmt had realigned the struct literal, so the text substitution did not match — and the composer kept writing the hardcoded disabled binding. The parameter was simply unused, which compiles, so the build and the deterministic tests stayed green while the model lane's result was discarded.
+    protects:
+      files:
+        - golang/architecture/whyinvestigation/compose.go
+    related_invariants:
+      - invariant.synthesis.intelligence_may_explore_but_authority_is_deterministic
+    required_tests:
+      - golang/architecture/whyinvestigation/model_lane_test.go:TestModelAssistedRunRecordsItsOwnNondeterminism
+    evidence:
+      - 'Observed on the #256 implementation branch: the deterministic-preservation test passed BECAUSE the model outcome was ignored, and only the model-assisted assertion (model digest absence empty on a resolved run) exposed it. Both the model binding and the nondeterminism declaration had to be rewired by line position after the pattern-based edit reported success.'
+    contract: 'Threading a value into a composer is not the same as the composer using it. Where a parameter replaces a previously hardcoded value, a test must observe the parameter changing the output, because the compiler will not: an unused function parameter is legal Go.'

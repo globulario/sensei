@@ -98,25 +98,12 @@ func Validate(doc Document) error {
 		errs = append(errs, "binding extractor profile digest must be a valid SHA256")
 	}
 
-	// 4. Model Binding Validation
-	if !IsValidModelStatus(doc.Binding.Model.Status) {
-		errs = append(errs, fmt.Sprintf("invalid model binding status: %q", doc.Binding.Model.Status))
-	}
-	if doc.Binding.Model.Status == ModelStatusResolved {
-		if doc.Binding.Model.ModelName == "" {
-			errs = append(errs, "resolved model status requires model_name")
-		}
-		if !IsValidSHA256(doc.Binding.Model.ModelDigestSHA256) {
-			errs = append(errs, "resolved model status requires a valid model_digest_sha256")
-		}
-	} else {
-		if doc.Binding.Model.ModelName != "" {
-			errs = append(errs, fmt.Sprintf("model_name must be empty when model status is %q", doc.Binding.Model.Status))
-		}
-		if doc.Binding.Model.ModelDigestSHA256 != "" {
-			errs = append(errs, fmt.Sprintf("model_digest_sha256 must be empty when model status is %q", doc.Binding.Model.Status))
-		}
-	}
+	// 4. Model binding validation. ValidateModelBinding owns the whole rule,
+	//    including the half that keeps a non-resolved status from carrying
+	//    execution evidence it cannot have, and the two documents describing
+	//    one execution are required to agree.
+	errs = append(errs, ValidateModelBinding(doc.Binding.Model)...)
+	errs = append(errs, ValidateModelExecutionAgreement(doc.Binding.Model, doc.Receipt)...)
 
 	// 6. Evidence snapshot binding is explicit when external evidence is declared
 	hasExternalEvidence := false
@@ -814,9 +801,13 @@ func Validate(doc Document) error {
 	if receipt.Model.ModelDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
 		errs = append(errs, fmt.Sprintf("receipt model digest %q does not match binding model digest %q", receipt.Model.ModelDigestSHA256, doc.Binding.Model.ModelDigestSHA256))
 	}
-	if receipt.ModelArtifactDigestSHA256 != doc.Binding.Model.ModelDigestSHA256 {
-		errs = append(errs, fmt.Sprintf("receipt model artifact digest %q does not match binding model digest %q", receipt.ModelArtifactDigestSHA256, doc.Binding.Model.ModelDigestSHA256))
-	}
+	// The receipt's model-artifact digest is deliberately NOT compared against
+	// the binding's MODEL digest. Those identify different things: one is which
+	// model ran, the other is what it returned. Requiring them equal was only
+	// coherent while no model could actually run, and it would force an
+	// executor to write a model's identity into an artifact field. The real
+	// agreement — receipt artifact == the binding's ACCEPTED artifact — is
+	// enforced by ValidateModelExecutionAgreement.
 
 	// Mandate repository details match binding
 	if receipt.Repository.RepositoryDomain != doc.Binding.Repository.RepositoryDomain {

@@ -6,23 +6,104 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 )
 
+// Closed model-execution outcome vocabulary.
+//
+// The distinctions are machine-visible on purpose. Collapsing them would erase
+// the difference between "we chose not to ask", "we could not reach anyone",
+// "it was asked and said no", and "it was asked and broke" — four different
+// facts about a run that an operator and an evaluator must be able to tell
+// apart without parsing prose.
 const (
-	ModelStatusDisabled     = "disabled"
+	// ModelStatusDisabled: the capability is intentionally off. Zero calls.
+	ModelStatusDisabled = "disabled"
+	// ModelStatusNotRequested: no model execution was asked for. Zero calls.
 	ModelStatusNotRequested = "not_requested"
-	ModelStatusUnavailable  = "unavailable"
-	ModelStatusResolved     = "resolved"
-	ModelStatusInvalid      = "invalid"
+	// ModelStatusUnavailable: execution WAS requested, but the provider or
+	// model could not be resolved or reached BEFORE any invocation began.
+	ModelStatusUnavailable = "unavailable"
+	// ModelStatusRefused: the provider was invoked and explicitly declined.
+	// A refusal is an answer, not an outage, and must not read as one.
+	ModelStatusRefused = "refused"
+	// ModelStatusErrored: invocation began and execution or transport failed.
+	ModelStatusErrored = "errored"
+	// ModelStatusInvalid: an artifact came back and failed the model-artifact
+	// contract or its grounding rules.
+	ModelStatusInvalid = "invalid"
+	// ModelStatusResolved: a provider genuinely ran and produced exactly one
+	// accepted, content-addressed artifact. This status is EARNED by observed
+	// execution; it can never be configured. See ValidateModelBinding.
+	ModelStatusResolved = "resolved"
 )
+
+// Typed reasons for a non-resolved outcome (closed; no prose matching).
+const (
+	ModelReasonCapabilityDisabled  = "model_capability_disabled"
+	ModelReasonNoModelRequested    = "no_model_requested"
+	ModelReasonProviderUnknown     = "provider_not_registered"
+	ModelReasonProviderUnreachable = "provider_unreachable"
+	ModelReasonModelUnknown        = "model_not_offered_by_provider"
+	ModelReasonProviderRefused     = "provider_refused_request"
+	ModelReasonExecutionFailed     = "provider_execution_failed"
+	ModelReasonArtifactMalformed   = "artifact_malformed"
+	ModelReasonArtifactUngrounded  = "artifact_cites_material_not_supplied"
+	ModelReasonArtifactOutOfScope  = "artifact_outside_bound_scope"
+	ModelReasonArtifactAuthority   = "artifact_attempted_authority_assignment"
+	ModelReasonArtifactUnhashable  = "artifact_empty_or_unhashable"
+)
+
+// ModelDigestAbsent is the typed statement that a provider genuinely exposes no
+// model identity digest. It is NOT interchangeable with an empty digest field:
+// one says "this provider cannot supply that identity", the other says nothing
+// at all, and a resolved binding must not be allowed to say nothing.
+const ModelDigestAbsent = "provider_exposes_no_model_digest"
 
 type ProviderBinding struct {
 	ID      string `json:"id" yaml:"id"`
 	Version string `json:"version" yaml:"version"`
 }
 
+// ModelBinding is the canonical serialized identity of one optional model
+// execution. It is the single model contract: an executor living in another
+// package still terminates here, so two packages cannot tell two stories about
+// the same run.
+//
+// A model label is not evidence of execution. Everything below the status
+// exists so that "a model ran" is a claim backed by the exact request that was
+// sent, the exact artifact that came back, and who produced it.
 type ModelBinding struct {
-	Status            string `json:"status" yaml:"status"`
-	ModelName         string `json:"model_name,omitempty" yaml:"model_name,omitempty"`
-	ModelDigestSHA256 string `json:"model_digest_sha256,omitempty" yaml:"model_digest_sha256,omitempty"`
+	Status string `json:"status" yaml:"status"`
+	// Reason is the typed ModelReason* cause. Required for every status that
+	// is not resolved, so an absence always says why.
+	Reason string `json:"reason,omitempty" yaml:"reason,omitempty"`
+	// ProviderID and ProviderVersion identify WHO ran. A provider name without
+	// a version cannot distinguish two behaviours behind one label.
+	//
+	// They are flat strings rather than a nested ProviderBinding because
+	// encoding/json's omitempty does not apply to structs: a nested value would
+	// serialize as {"id":"","version":""} on every deterministic document and
+	// change bytes that must not change. Keeping them flat also keeps
+	// ModelBinding comparable by value, which the agreement check relies on.
+	ProviderID      string `json:"provider_id,omitempty" yaml:"provider_id,omitempty"`
+	ProviderVersion string `json:"provider_version,omitempty" yaml:"provider_version,omitempty"`
+	// ModelName and ModelDigestSHA256 identify WHAT ran. When a provider
+	// genuinely exposes no model digest, ModelDigestAbsence carries that as a
+	// typed statement rather than leaving the digest silently empty.
+	ModelName          string `json:"model_name,omitempty" yaml:"model_name,omitempty"`
+	ModelDigestSHA256  string `json:"model_digest_sha256,omitempty" yaml:"model_digest_sha256,omitempty"`
+	ModelDigestAbsence string `json:"model_digest_absence,omitempty" yaml:"model_digest_absence,omitempty"`
+	// RequestDigestSHA256 is the exact request that was sent, hashed BEFORE
+	// invocation. A digest computed afterwards from a reconstruction would
+	// describe what we believe we asked, not what we asked.
+	RequestDigestSHA256 string `json:"request_digest_sha256,omitempty" yaml:"request_digest_sha256,omitempty"`
+	// ArtifactDigestSHA256 identifies the accepted, normalized artifact. It is
+	// set ONLY on resolved: an artifact that failed validation was returned but
+	// not accepted, and recording its digest here would make a rejection look
+	// like a result.
+	ArtifactDigestSHA256 string `json:"artifact_digest_sha256,omitempty" yaml:"artifact_digest_sha256,omitempty"`
+	// NondeterminismDeclaration states what about this execution may differ on
+	// replay. A model lane that claimed determinism it cannot deliver would
+	// make an unreproducible run look reproducible.
+	NondeterminismDeclaration string `json:"nondeterminism_declaration,omitempty" yaml:"nondeterminism_declaration,omitempty"`
 }
 
 // WhyBinding pins a WHY investigation to the exact HOW document and local
@@ -47,9 +128,37 @@ type Binding struct {
 	Why                           WhyBinding                        `json:"why,omitempty" yaml:"why,omitempty"`
 }
 
+// DisabledModelBinding is the canonical binding for a deterministic lane that
+// intentionally runs no model. It exists so every deterministic composer says
+// the same thing the same way rather than through hand-written literals.
+//
+// It carries ONLY the status, and deliberately no reason. "disabled" already
+// states its own cause, so a reason would add no information — while the extra
+// serialized field would change the bytes and output digest of every
+// model-disabled HOW and WHY document, and would make previously valid
+// schema-v1 documents invalid. #256's strongest regression rule is that
+// deterministic output is unchanged by installing model capability, and a
+// cosmetic field is not worth breaking it for.
+func DisabledModelBinding() ModelBinding {
+	return ModelBinding{Status: ModelStatusDisabled}
+}
+
 func IsValidModelStatus(status string) bool {
 	switch status {
-	case ModelStatusDisabled, ModelStatusNotRequested, ModelStatusUnavailable, ModelStatusResolved, ModelStatusInvalid:
+	case ModelStatusDisabled, ModelStatusNotRequested, ModelStatusUnavailable,
+		ModelStatusRefused, ModelStatusErrored, ModelStatusInvalid, ModelStatusResolved:
+		return true
+	default:
+		return false
+	}
+}
+
+// ModelStatusInvoked reports whether a status means the provider was actually
+// called. It is the machine-readable form of the "provider call?" column in the
+// #256 contract, so callers never infer invocation by matching status strings.
+func ModelStatusInvoked(status string) bool {
+	switch status {
+	case ModelStatusRefused, ModelStatusErrored, ModelStatusInvalid, ModelStatusResolved:
 		return true
 	default:
 		return false
