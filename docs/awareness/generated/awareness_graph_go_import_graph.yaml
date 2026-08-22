@@ -324,6 +324,7 @@ components:
     assertion: inferred
     source_files:
       - cmd/eval-arms/main.go
+      - cmd/eval-arms/protocol.go
       - cmd/eval-arms/sample.go
     depends_on:
       - component.golang.architecture
