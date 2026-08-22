@@ -75,9 +75,16 @@ type ModelBinding struct {
 	// Reason is the typed ModelReason* cause. Required for every status that
 	// is not resolved, so an absence always says why.
 	Reason string `json:"reason,omitempty" yaml:"reason,omitempty"`
-	// Provider identifies WHO ran, including version. A provider name without
+	// ProviderID and ProviderVersion identify WHO ran. A provider name without
 	// a version cannot distinguish two behaviours behind one label.
-	Provider ProviderBinding `json:"provider,omitempty" yaml:"provider,omitempty"`
+	//
+	// They are flat strings rather than a nested ProviderBinding because
+	// encoding/json's omitempty does not apply to structs: a nested value would
+	// serialize as {"id":"","version":""} on every deterministic document and
+	// change bytes that must not change. Keeping them flat also keeps
+	// ModelBinding comparable by value, which the agreement check relies on.
+	ProviderID      string `json:"provider_id,omitempty" yaml:"provider_id,omitempty"`
+	ProviderVersion string `json:"provider_version,omitempty" yaml:"provider_version,omitempty"`
 	// ModelName and ModelDigestSHA256 identify WHAT ran. When a provider
 	// genuinely exposes no model digest, ModelDigestAbsence carries that as a
 	// typed statement rather than leaving the digest silently empty.
@@ -123,10 +130,17 @@ type Binding struct {
 
 // DisabledModelBinding is the canonical binding for a deterministic lane that
 // intentionally runs no model. It exists so every deterministic composer says
-// the same thing the same way: five hand-written literals would drift, and a
-// status without its typed reason is the drift that matters.
+// the same thing the same way rather than through hand-written literals.
+//
+// It carries ONLY the status, and deliberately no reason. "disabled" already
+// states its own cause, so a reason would add no information — while the extra
+// serialized field would change the bytes and output digest of every
+// model-disabled HOW and WHY document, and would make previously valid
+// schema-v1 documents invalid. #256's strongest regression rule is that
+// deterministic output is unchanged by installing model capability, and a
+// cosmetic field is not worth breaking it for.
 func DisabledModelBinding() ModelBinding {
-	return ModelBinding{Status: ModelStatusDisabled, Reason: ModelReasonCapabilityDisabled}
+	return ModelBinding{Status: ModelStatusDisabled}
 }
 
 func IsValidModelStatus(status string) bool {

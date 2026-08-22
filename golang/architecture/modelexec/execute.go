@@ -64,9 +64,9 @@ func Execute(ctx context.Context, cfg Config, reg Registry, req Request) Outcome
 	}
 	if cfg.ModelName == "" {
 		return Outcome{Binding: investigation.ModelBinding{
-			Status:   investigation.ModelStatusUnavailable,
-			Reason:   investigation.ModelReasonModelUnknown,
-			Provider: investigation.ProviderBinding{ID: identity.ID, Version: identity.Version},
+			Status:     investigation.ModelStatusUnavailable,
+			Reason:     investigation.ModelReasonModelUnknown,
+			ProviderID: identity.ID, ProviderVersion: identity.Version,
 		}}
 	}
 
@@ -80,14 +80,15 @@ func Execute(ctx context.Context, cfg Config, reg Registry, req Request) Outcome
 	requestDigest, err := RequestDigest(req)
 	if err != nil {
 		return Outcome{Binding: investigation.ModelBinding{
-			Status:   investigation.ModelStatusErrored,
-			Reason:   investigation.ModelReasonExecutionFailed,
-			Provider: investigation.ProviderBinding{ID: identity.ID, Version: identity.Version},
+			Status:     investigation.ModelStatusErrored,
+			Reason:     investigation.ModelReasonExecutionFailed,
+			ProviderID: identity.ID, ProviderVersion: identity.Version,
 		}}
 	}
 
 	invoked := investigation.ModelBinding{
-		Provider:            investigation.ProviderBinding{ID: identity.ID, Version: identity.Version},
+		ProviderID:          identity.ID,
+		ProviderVersion:     identity.Version,
 		ModelName:           cfg.ModelName,
 		RequestDigestSHA256: requestDigest,
 	}

@@ -349,7 +349,8 @@ func TestModelStatusAndDigestMatrix(t *testing.T) {
 func resolvedModelFixture(sha string) ModelBinding {
 	return ModelBinding{
 		Status:                    ModelStatusResolved,
-		Provider:                  ProviderBinding{ID: "fake", Version: "v1"},
+		ProviderID:                "fake",
+		ProviderVersion:           "v1",
 		ModelName:                 "gemini-pro",
 		ModelDigestSHA256:         sha,
 		RequestDigestSHA256:       sha,
@@ -368,8 +369,8 @@ func TestResolvedModelStatusCannotBeConfigured(t *testing.T) {
 		mutate  func(*ModelBinding)
 		wantErr string
 	}{
-		{"no provider", func(m *ModelBinding) { m.Provider.ID = "" }, "requires a provider id"},
-		{"no provider version", func(m *ModelBinding) { m.Provider.Version = "" }, "requires a provider version"},
+		{"no provider", func(m *ModelBinding) { m.ProviderID = "" }, "requires a provider id"},
+		{"no provider version", func(m *ModelBinding) { m.ProviderVersion = "" }, "requires a provider version"},
 		{"no request digest", func(m *ModelBinding) { m.RequestDigestSHA256 = "" }, "requires the exact request digest"},
 		{"no artifact digest", func(m *ModelBinding) { m.ArtifactDigestSHA256 = "" }, "requires the accepted artifact digest"},
 		{"no nondeterminism declaration", func(m *ModelBinding) { m.NondeterminismDeclaration = "" }, "requires an explicit nondeterminism declaration"},
@@ -408,16 +409,16 @@ func TestNonResolvedStatusCannotCarryExecutionEvidence(t *testing.T) {
 			ModelBinding{Status: ModelStatusUnavailable, Reason: ModelReasonProviderUnknown, RequestDigestSHA256: sha},
 			"no request was sent"},
 		{"disabled naming a provider",
-			ModelBinding{Status: ModelStatusDisabled, Reason: ModelReasonCapabilityDisabled, Provider: ProviderBinding{ID: "fake", Version: "v1"}},
+			ModelBinding{Status: ModelStatusDisabled, Reason: ModelReasonCapabilityDisabled, ProviderID: "fake", ProviderVersion: "v1"},
 			"provider identity must be empty"},
 		{"absence with no typed reason",
 			ModelBinding{Status: ModelStatusErrored},
 			"requires a typed reason"},
 		{"invoked without the request that was sent",
-			ModelBinding{Status: ModelStatusRefused, Reason: ModelReasonProviderRefused, Provider: ProviderBinding{ID: "fake", Version: "v1"}},
+			ModelBinding{Status: ModelStatusRefused, Reason: ModelReasonProviderRefused, ProviderID: "fake", ProviderVersion: "v1"},
 			"the exact request digest is required"},
 		{"refused claiming a nondeterminism declaration",
-			ModelBinding{Status: ModelStatusRefused, Reason: ModelReasonProviderRefused, Provider: ProviderBinding{ID: "fake", Version: "v1"}, RequestDigestSHA256: sha, NondeterminismDeclaration: "x"},
+			ModelBinding{Status: ModelStatusRefused, Reason: ModelReasonProviderRefused, ProviderID: "fake", ProviderVersion: "v1", RequestDigestSHA256: sha, NondeterminismDeclaration: "x"},
 			"nondeterminism_declaration must be empty"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1000,4 +1001,68 @@ func TestCoverageEvidenceResolutionSurvivesTheIndex(t *testing.T) {
 			t.Fatalf("the base fixture stopped validating: %v", err)
 		}
 	})
+}
+
+// TestDeterministicDisabledBindingIsBytePinned is the regression the #256
+// review correctly said was missing.
+//
+// Comparing two post-change code paths proves only that they agree with each
+// other. This pins the SERIALIZED bytes against a fixture captured before the
+// model lane existed, so adding a field to the disabled binding — however
+// cosmetic — fails here rather than silently changing every deterministic HOW
+// and WHY document digest.
+func TestDeterministicDisabledBindingIsBytePinned(t *testing.T) {
+	const preChange = `{"status":"disabled"}`
+
+	got, err := json.Marshal(DisabledModelBinding())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != preChange {
+		t.Errorf("the deterministic disabled binding serializes as %s, want %s;\n"+
+			"changing these bytes changes the output digest of every model-disabled document", got, preChange)
+	}
+}
+
+// TestPreExistingDisabledDocumentsStayValid: a schema-v1 document written
+// before the model lane carries only status: disabled. Adding requirements that
+// such a document cannot satisfy would invalidate history retroactively.
+func TestPreExistingDisabledDocumentsStayValid(t *testing.T) {
+	for _, status := range []string{ModelStatusDisabled, ModelStatusNotRequested} {
+		t.Run(status, func(t *testing.T) {
+			if errs := ValidateModelBinding(ModelBinding{Status: status}); len(errs) != 0 {
+				t.Errorf("a bare %q binding is no longer valid: %v", status, errs)
+			}
+		})
+	}
+}
+
+// TestAgreementCoversEveryDuplicatedField: a partial comparison leaves the
+// unchecked fields free to disagree, so a document can be altered in one of
+// them, re-digested, and still validate.
+func TestAgreementCoversEveryDuplicatedField(t *testing.T) {
+	sha := "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"
+	base := resolvedModelFixture(sha)
+	for _, tc := range []struct {
+		name   string
+		mutate func(*ModelBinding)
+	}{
+		{"reason", func(m *ModelBinding) { m.Reason = ModelReasonProviderRefused }},
+		{"provider id", func(m *ModelBinding) { m.ProviderID = "someone-else" }},
+		{"provider version", func(m *ModelBinding) { m.ProviderVersion = "v9" }},
+		{"model name", func(m *ModelBinding) { m.ModelName = "other-model" }},
+		{"model digest", func(m *ModelBinding) { m.ModelDigestSHA256 = strings.Repeat("c", 64) }},
+		{"model digest absence", func(m *ModelBinding) { m.ModelDigestAbsence = ModelDigestAbsent }},
+		{"request digest", func(m *ModelBinding) { m.RequestDigestSHA256 = strings.Repeat("d", 64) }},
+		{"nondeterminism declaration", func(m *ModelBinding) { m.NondeterminismDeclaration = "totally_replayable" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			drifted := base
+			tc.mutate(&drifted)
+			receipt := RunReceipt{Model: drifted, ModelArtifactDigestSHA256: base.ArtifactDigestSHA256}
+			if errs := ValidateModelExecutionAgreement(base, receipt); len(errs) == 0 {
+				t.Errorf("a receipt disagreeing about %s was accepted", tc.name)
+			}
+		})
+	}
 }

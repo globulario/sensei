@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -41,12 +42,18 @@ type requestIdentity struct {
 	ToolPolicy                   string             `json:"tool_policy"`
 }
 
-// evidenceIdentity binds each excerpt by digest rather than by its bytes. What
-// matters for identity is WHICH material was supplied; the excerpt text is
-// already covered by its own digest.
+// evidenceIdentity binds each supplied excerpt by its ID, the caller's declared
+// digest, AND a digest computed over the excerpt bytes themselves.
+//
+// The computed digest is the load-bearing one. A caller-supplied digest is a
+// claim about content, not the content: changing an excerpt while leaving its
+// ID and declared digest alone would send the model different material under
+// an identical request identity, so the terminal binding would content-address
+// a request that was never sent.
 type evidenceIdentity struct {
-	ID           string `json:"id"`
-	DigestSHA256 string `json:"digest_sha256"`
+	ID                   string `json:"id"`
+	DeclaredDigestSHA256 string `json:"declared_digest_sha256"`
+	ExcerptDigestSHA256  string `json:"excerpt_digest_sha256"`
 }
 
 // RequestDigest content-addresses the exact question. It is computed BEFORE
@@ -77,7 +84,12 @@ func RequestDigest(r Request) (string, error) {
 		ToolPolicy:                   r.ToolPolicy,
 	}
 	for _, e := range r.SuppliedEvidence {
-		id.SuppliedEvidence = append(id.SuppliedEvidence, evidenceIdentity{ID: e.ID, DigestSHA256: e.DigestSHA256})
+		sum := sha256.Sum256([]byte(e.Excerpt))
+		id.SuppliedEvidence = append(id.SuppliedEvidence, evidenceIdentity{
+			ID:                   e.ID,
+			DeclaredDigestSHA256: e.DigestSHA256,
+			ExcerptDigestSHA256:  hex.EncodeToString(sum[:]),
+		})
 	}
 	sort.Slice(id.SuppliedEvidence, func(i, j int) bool { return id.SuppliedEvidence[i].ID < id.SuppliedEvidence[j].ID })
 	data, err := json.Marshal(id)
@@ -93,6 +105,19 @@ func sortedCopy(in []string) []string {
 	sort.Strings(out)
 	if out == nil {
 		out = []string{}
+	}
+	return out
+}
+
+// suppliedFilePaths is the exact set of files the model was shown. An artifact
+// may attribute a claim only to these: a path it was never given is a claim
+// about material the model did not see.
+func suppliedFilePaths(r Request) map[string]bool {
+	out := map[string]bool{}
+	for _, e := range r.SuppliedEvidence {
+		if p := strings.TrimSpace(e.FilePath); p != "" {
+			out[filepath.ToSlash(p)] = true
+		}
 	}
 	return out
 }

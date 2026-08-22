@@ -79,9 +79,15 @@ type Request struct {
 }
 
 // SuppliedEvidence is one excerpt the model is permitted to see and cite.
+//
+// FilePath records where the excerpt came from, so an artifact attributing a
+// claim to a file can be checked against the files the model was actually
+// shown. Without it, "in scope" could only be checked at repository
+// granularity, and a model could attribute a finding to any file in the repo.
 type SuppliedEvidence struct {
 	ID           string
 	DigestSHA256 string
+	FilePath     string
 	Excerpt      string
 }
 

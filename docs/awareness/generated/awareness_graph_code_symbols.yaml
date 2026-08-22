@@ -13978,6 +13978,12 @@ test_symbols:
     symbol: TestVerifyRecomputesAuthorityBindingAndCoverage
     package: interpretationclosure
     language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestAgreementCoversEveryDuplicatedField
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestAgreementCoversEveryDuplicatedField
+    package: investigation
+    language: go
+    doc: "TestAgreementCoversEveryDuplicatedField: a partial comparison leaves the\nunchecked fields free to disagree, so a document can be altered in one of\nthem, re-digested, and still validate."
   - id: golang/architecture/investigation/investigation_test.go:TestBindingAndReceiptCannotTellTwoStories
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestBindingAndReceiptCannotTellTwoStories
@@ -14016,6 +14022,12 @@ test_symbols:
     symbol: TestDeduplicationAndCollisionDetection
     package: investigation
     language: go
+  - id: golang/architecture/investigation/investigation_test.go:TestDeterministicDisabledBindingIsBytePinned
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestDeterministicDisabledBindingIsBytePinned
+    package: investigation
+    language: go
+    doc: "TestDeterministicDisabledBindingIsBytePinned is the regression the #256\nreview correctly said was missing.\n\nComparing two post-change code paths proves only that they agree with each\nother. This pins the SERIALIZED bytes against a fixture captured before the\nmodel lane existed, so adding a field to the disabled binding — however\ncosmetic — fails here rather than silently changing every deterministic HOW\nand WHY document digest."
   - id: golang/architecture/investigation/investigation_test.go:TestDigestDeterminism
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestDigestDeterminism
@@ -14082,6 +14094,12 @@ test_symbols:
     package: investigation
     language: go
     doc: "Test Output Receipt Digest Mismatch Refusal"
+  - id: golang/architecture/investigation/investigation_test.go:TestPreExistingDisabledDocumentsStayValid
+    file: golang/architecture/investigation/investigation_test.go
+    symbol: TestPreExistingDisabledDocumentsStayValid
+    package: investigation
+    language: go
+    doc: "TestPreExistingDisabledDocumentsStayValid: a schema-v1 document written\nbefore the model lane carries only status: disabled. Adding requirements that\nsuch a document cannot satisfy would invalidate history retroactively."
   - id: golang/architecture/investigation/investigation_test.go:TestProofStrengthIndependenceFromConfidence
     file: golang/architecture/investigation/investigation_test.go
     symbol: TestProofStrengthIndependenceFromConfidence
@@ -14606,6 +14624,12 @@ test_symbols:
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
     language: go
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactCannotAttributeClaimsToUnshownFiles
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactCannotAttributeClaimsToUnshownFiles
+    package: modelexec
+    language: go
+    doc: "TestArtifactCannotAttributeClaimsToUnshownFiles: checking only the repository\ndomain leaves file attribution unbounded, so a model could pin a claim to any\npath in the repo — including one it never saw."
   - id: golang/architecture/modelexec/execute_test.go:TestArtifactCitingUnsuppliedEvidenceIsInvalid
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestArtifactCitingUnsuppliedEvidenceIsInvalid
@@ -14656,6 +14680,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "Determinism of the identity envelope: the same question hashes the same, and\na changed question does not."
+  - id: golang/architecture/modelexec/execute_test.go:TestRequestIdentityCoversExcerptBytes
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestRequestIdentityCoversExcerptBytes
+    package: modelexec
+    language: go
+    doc: "TestRequestIdentityCoversExcerptBytes: a caller-supplied digest is a CLAIM\nabout content, not the content. Changing an excerpt while leaving its ID and\ndeclared digest alone sends the model different material, so a request\nidentity blind to the bytes would content-address a request never sent."
   - id: golang/architecture/modelexec/execute_test.go:TestUnknownProviderIsUnavailableAndNeverInvoked
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestUnknownProviderIsUnavailableAndNeverInvoked

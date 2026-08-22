@@ -29,12 +29,12 @@ func ValidateModelBinding(m ModelBinding) []string {
 		if m.Reason != "" {
 			errs = append(errs, "resolved model status must not carry a failure reason")
 		}
-		if m.Provider.ID == "" {
+		if m.ProviderID == "" {
 			errs = append(errs, "resolved model status requires a provider id")
 		}
 		// A provider name without a version cannot distinguish two behaviours
 		// behind one label, which is exactly what a replay needs to tell apart.
-		if m.Provider.Version == "" {
+		if m.ProviderVersion == "" {
 			errs = append(errs, "resolved model status requires a provider version")
 		}
 		if m.ModelName == "" {
@@ -64,8 +64,15 @@ func ValidateModelBinding(m ModelBinding) []string {
 		return errs
 	}
 
-	// Every absence says why.
-	if m.Reason == "" {
+	// An absence whose cause is not implied by its own status must say why.
+	//
+	// disabled and not_requested are self-explanatory: nothing was asked, or
+	// the capability is off. Requiring a reason there would add no information
+	// and would change the serialized bytes of every deterministic document,
+	// which is the one thing #256 must not do. The states that CAN have
+	// several causes — could not reach anyone, was told no, broke, came back
+	// wrong — must name theirs.
+	if m.Reason == "" && m.Status != ModelStatusDisabled && m.Status != ModelStatusNotRequested {
 		errs = append(errs, fmt.Sprintf("model status %q requires a typed reason", m.Status))
 	}
 	// An accepted artifact exists only for resolved. A rejected or unreturned
@@ -83,7 +90,7 @@ func ValidateModelBinding(m ModelBinding) []string {
 			errs = append(errs, fmt.Sprintf("request_digest_sha256 must be empty when model status is %q: no request was sent", m.Status))
 		}
 		if m.Status == ModelStatusDisabled || m.Status == ModelStatusNotRequested {
-			if m.Provider.ID != "" || m.Provider.Version != "" {
+			if m.ProviderID != "" || m.ProviderVersion != "" {
 				errs = append(errs, fmt.Sprintf("provider identity must be empty when model status is %q", m.Status))
 			}
 			if m.ModelName != "" {
@@ -98,7 +105,7 @@ func ValidateModelBinding(m ModelBinding) []string {
 	if !IsValidSHA256(m.RequestDigestSHA256) {
 		errs = append(errs, fmt.Sprintf("model status %q means the provider was invoked, so the exact request digest is required", m.Status))
 	}
-	if m.Provider.ID == "" {
+	if m.ProviderID == "" {
 		errs = append(errs, fmt.Sprintf("model status %q means a provider was invoked, so its id is required", m.Status))
 	}
 	return errs
@@ -113,14 +120,31 @@ func ValidateModelBinding(m ModelBinding) []string {
 // merely coexist.
 func ValidateModelExecutionAgreement(binding ModelBinding, receipt RunReceipt) []string {
 	var errs []string
-	if binding.Status != receipt.Model.Status {
-		errs = append(errs, fmt.Sprintf("model status disagrees between binding (%q) and receipt (%q)", binding.Status, receipt.Model.Status))
-	}
-	if binding.RequestDigestSHA256 != receipt.Model.RequestDigestSHA256 {
-		errs = append(errs, "model request digest disagrees between binding and receipt")
-	}
-	if binding.ArtifactDigestSHA256 != receipt.Model.ArtifactDigestSHA256 {
-		errs = append(errs, "model artifact digest disagrees between binding and receipt")
+	// The WHOLE duplicated binding is compared, not a chosen subset. A partial
+	// comparison leaves the unchecked fields free to disagree, and a document
+	// altered in one of them can be re-digested and still validate — which is
+	// exactly the two-stories problem this function exists to stop. Comparing
+	// the struct also means a field added later is covered by default rather
+	// than silently exempt.
+	if binding != receipt.Model {
+		errs = append(errs, "the model binding and the run receipt describe different executions")
+		// Name the specific disagreements so the failure is actionable.
+		for _, d := range []struct{ field, a, b string }{
+			{"status", binding.Status, receipt.Model.Status},
+			{"reason", binding.Reason, receipt.Model.Reason},
+			{"provider id", binding.ProviderID, receipt.Model.ProviderID},
+			{"provider version", binding.ProviderVersion, receipt.Model.ProviderVersion},
+			{"model name", binding.ModelName, receipt.Model.ModelName},
+			{"model digest", binding.ModelDigestSHA256, receipt.Model.ModelDigestSHA256},
+			{"model digest absence", binding.ModelDigestAbsence, receipt.Model.ModelDigestAbsence},
+			{"request digest", binding.RequestDigestSHA256, receipt.Model.RequestDigestSHA256},
+			{"artifact digest", binding.ArtifactDigestSHA256, receipt.Model.ArtifactDigestSHA256},
+			{"nondeterminism declaration", binding.NondeterminismDeclaration, receipt.Model.NondeterminismDeclaration},
+		} {
+			if d.a != d.b {
+				errs = append(errs, fmt.Sprintf("model %s disagrees between binding (%q) and receipt (%q)", d.field, d.a, d.b))
+			}
+		}
 	}
 	if receipt.ModelArtifactDigestSHA256 != binding.ArtifactDigestSHA256 {
 		errs = append(errs, "receipt model_artifact_digest_sha256 disagrees with the accepted artifact identity in the model binding")

@@ -168,8 +168,8 @@ func TestValidArtifactResolvesWithFullIdentity(t *testing.T) {
 	assertOutcome(t, out, p, investigation.ModelStatusResolved, 1)
 
 	b := out.Binding
-	if b.Provider.ID != "fake" || b.Provider.Version != "v1" {
-		t.Errorf("provider identity = %+v, want fake/v1", b.Provider)
+	if b.ProviderID != "fake" || b.ProviderVersion != "v1" {
+		t.Errorf("provider identity = %s/%s, want fake/v1", b.ProviderID, b.ProviderVersion)
 	}
 	if b.RequestDigestSHA256 == "" || b.ArtifactDigestSHA256 == "" {
 		t.Error("resolved binding is missing request or artifact identity")
@@ -259,5 +259,61 @@ func assertOutcome(t *testing.T, out Outcome, p *fakeProvider, wantStatus string
 	}
 	if errs := investigation.ValidateModelBinding(out.Binding); len(errs) != 0 {
 		t.Errorf("outcome binding fails the serialized contract: %v", errs)
+	}
+}
+
+// TestRequestIdentityCoversExcerptBytes: a caller-supplied digest is a CLAIM
+// about content, not the content. Changing an excerpt while leaving its ID and
+// declared digest alone sends the model different material, so a request
+// identity blind to the bytes would content-address a request never sent.
+func TestRequestIdentityCoversExcerptBytes(t *testing.T) {
+	before, err := RequestDigest(testRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	tampered := testRequest()
+	tampered.SuppliedEvidence[0].Excerpt = "func A() { doSomethingElse() }"
+	after, err := RequestDigest(tampered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Error("changing what the model was shown did not change the request identity; " +
+			"the binding would claim a digest for a request that was never sent")
+	}
+}
+
+// TestArtifactCannotAttributeClaimsToUnshownFiles: checking only the repository
+// domain leaves file attribution unbounded, so a model could pin a claim to any
+// path in the repo — including one it never saw.
+func TestArtifactCannotAttributeClaimsToUnshownFiles(t *testing.T) {
+	req := testRequest()
+	req.SuppliedEvidence[0].FilePath = "internal/a.go"
+	req.SuppliedEvidence[1].FilePath = "internal/b.go"
+
+	for _, tc := range []struct {
+		name  string
+		paths []string
+		want  bool
+	}{
+		{"a file it was shown", []string{"internal/a.go"}, true},
+		{"a file it was never shown", []string{"internal/secret.go"}, false},
+		{"an absolute path", []string{"/etc/passwd"}, false},
+		{"an escaping path", []string{"../../elsewhere/x.go"}, false},
+		{"one shown and one not", []string{"internal/a.go", "internal/nope.go"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			a := goodArtifact()
+			a.Items[0].FilePaths = tc.paths
+			p := &fakeProvider{id: "fake", version: "v1", artifact: a}
+			out := Execute(context.Background(), requested("fake-model"), registryWith(p), req)
+			resolved := out.Binding.Status == investigation.ModelStatusResolved
+			if resolved != tc.want {
+				t.Fatalf("resolved = %v (status %q, reason %q), want %v", resolved, out.Binding.Status, out.Binding.Reason, tc.want)
+			}
+			if !tc.want && out.Binding.Reason != investigation.ModelReasonArtifactOutOfScope {
+				t.Errorf("reason = %q, want %q", out.Binding.Reason, investigation.ModelReasonArtifactOutOfScope)
+			}
+		})
 	}
 }

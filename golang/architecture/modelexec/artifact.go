@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -54,6 +55,7 @@ func ValidateArtifact(a Artifact, r Request) (reason string, ok bool) {
 	}
 
 	supplied := suppliedIDs(r)
+	shown := suppliedFilePaths(r)
 	for _, item := range a.Items {
 		if !validItemKind(item.Kind) || strings.TrimSpace(item.Text) == "" {
 			return investigation.ModelReasonArtifactMalformed, false
@@ -72,9 +74,23 @@ func ValidateArtifact(a Artifact, r Request) (reason string, ok bool) {
 			}
 		}
 		// Scope: the item must stay inside the bound repository and, when it
-		// names files, inside the material it was shown.
+		// names files, inside the material it was shown. Checking only the
+		// repository domain would leave file attribution unbounded — a model
+		// could pin a claim to any path in the repo, including one it never
+		// saw, and still be accepted.
 		if item.RepositoryDomain != "" && item.RepositoryDomain != r.RepositoryDomain {
 			return investigation.ModelReasonArtifactOutOfScope, false
+		}
+		for _, p := range item.FilePaths {
+			clean := filepath.ToSlash(strings.TrimSpace(p))
+			// An absolute or escaping path is out of scope by construction,
+			// before any set membership question.
+			if clean == "" || filepath.IsAbs(clean) || strings.HasPrefix(clean, "../") || strings.Contains(clean, "/../") {
+				return investigation.ModelReasonArtifactOutOfScope, false
+			}
+			if !shown[clean] {
+				return investigation.ModelReasonArtifactOutOfScope, false
+			}
 		}
 		// A claim of the kind that carries weight must cite something. An
 		// uncited candidate is an assertion, and this lane does not carry
