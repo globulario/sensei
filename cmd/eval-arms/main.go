@@ -236,6 +236,12 @@ func main() {
 	}
 	idx := newIndex(*capturedAt, *domain)
 
+	// mutantWorld is the protocol's fourth world, built from the arm that
+	// actually extracts over the suite. Captured here rather than re-extracted
+	// later: sampling a second run would sample a different run than the one
+	// this index reports.
+	var mutantWorld *evalsample.World
+
 	armStart := time.Now()
 	if report, err := evalharness.RunDeterministicExtraction(opts); err != nil {
 		elapsed[evalharness.ArmDeterministicExtraction] = time.Since(armStart).Milliseconds()
@@ -243,6 +249,8 @@ func main() {
 	} else {
 		elapsed[evalharness.ArmDeterministicExtraction] = time.Since(armStart).Milliseconds()
 		covered, total := report.SiteCoverageRate()
+		w := mutantSuiteWorld(report, *domain)
+		mutantWorld = &w
 		art := writeReport(*out, evalharness.ArmDeterministicExtraction, report)
 		art.Subject = subjectMutantSuite
 		art.SiteCoverage = fmt.Sprintf("%d/%d", covered, total)
@@ -255,6 +263,12 @@ func main() {
 		idx.Arms = append(idx.Arms, armArtifact{Arm: evalharness.ArmCompositionModelDisabled, Subject: subjectMutantSuite, Status: statusFailed, Reason: err.Error()})
 	} else {
 		elapsed[evalharness.ArmCompositionModelDisabled] = time.Since(armStart).Milliseconds()
+		if mutantWorld != nil {
+			// The composed claims belong to the same fourth world as the
+			// observations: a reference set that labels one and not the other
+			// cannot produce the protocol's unsupported-claim rate.
+			addComposedClaims(mutantWorld, report)
+		}
 		produced, total := report.CandidateRate()
 		grounded, candidates, dangling, groundingFailures := report.CandidateGrounding()
 		art := writeReport(*out, evalharness.ArmCompositionModelDisabled, report)
@@ -297,6 +311,19 @@ func main() {
 	// consumes every world in requiredWorlds, so drawing from a subset under it
 	// is exactly the substitution this harness refuses elsewhere — and it is
 	// the case that looked safe, because nothing was swapped, only missing.
+	if mutantWorld != nil {
+		sampledWorlds = append(sampledWorlds, *mutantWorld)
+		idx.Arms = append(idx.Arms, armArtifact{
+			Arm: worldMutantSuite, Subject: subjectMutantSuite, Status: statusRan,
+			SiteCoverage: fmt.Sprintf("%d obs across %d site(s)", len(mutantWorld.Observations), len(mutantWorld.RecallInventory)),
+		})
+	} else {
+		idx.Arms = append(idx.Arms, armArtifact{
+			Arm: worldMutantSuite, Subject: subjectMutantSuite, Status: statusNotRun,
+			Reason: "the deterministic extraction arm did not run, so the suite produced no observations to sample"})
+	}
+	// Computed AFTER the suite joins sampledWorlds. Computing it first counted
+	// the fourth world as missing in the very run that produced it.
 	missing := missingRequiredWorlds(sampledWorlds)
 	// The protocol consumes FOUR worlds, and the fourth is the mutant suite,
 	// which is not a checkout and so never appeared in requiredWorlds. A run
@@ -304,17 +331,8 @@ func main() {
 	// incomplete v1 evaluation — the same omission defect one level out, in the
 	// world that does not look like a world.
 	missing = append(missing, incompleteMutantSuite(idx.Arms)...)
-	// Gating on the mutant arms' STATUS is not the same as sampling them. The
-	// protocol consumes the mutant suite as its fourth world, and nothing here
-	// puts that world's observations into evalsample.Build — sampledWorlds is
-	// populated only from checkouts. So a v1 manifest would carry three worlds
-	// while claiming a protocol that defines four.
-	//
-	// Typed as a blocker rather than quietly omitted. Wiring the suite's
-	// material into the sampler is real work and belongs in its own change;
-	// until then a v1 sample cannot honestly be drawn, and an operator who
-	// wants a reduced set can bind a protocol that defines one.
-	missing = append(missing, "mutant suite (its material is not represented in the sample manifest; the sampler draws only from checkout worlds)")
+	// The suite is now SAMPLED, not merely gated on. Appended after the
+	// checkout worlds so its material reaches evalsample.Build alongside them.
 	sort.Strings(missing)
 	idx.Arms = append(idx.Arms, writeSample(*out, *protocolFile, *protocolIDFlag, protocolDigest, protocolErr, defaultID, missing, sampledWorlds, *selectionSeed, *capturedAt))
 
@@ -610,6 +628,11 @@ func verifyRequiredWorldCheckout(name, path string) (string, error) {
 		return "", nil
 	}
 	want, known := requiredWorldRemotes[name]
+	if known && want == "" {
+		// Registered as having no checkout to verify. Not the same as
+		// unregistered: this world's identity is established elsewhere.
+		return "", nil
+	}
 	if !known {
 		// Fail CLOSED. This world is one the protocol names, so a checkout
 		// claiming it must be shown to be it — and no upstream identity is
@@ -680,6 +703,11 @@ func resolveUpstream(path string) (string, error) {
 var requiredWorldRemotes = map[string]string{
 	"world1_sensei_self": "github.com/globulario/sensei",
 	"world2_globular":    "github.com/globulario/Globular",
+	// The mutant suite is synthetic and has no checkout, so there is nothing
+	// to resolve a remote from. Its identity is the suite's composed digest,
+	// carried on the world's binding, and verifyRequiredWorldCheckout never
+	// sees it because it is not supplied through --world.
+	worldMutantSuite: "",
 }
 
 // normalizeRemote reduces the forms git accepts to a comparable host/path.
@@ -767,7 +795,12 @@ func missingRequiredWorlds(ran []evalsample.World) []string {
 // the same extraction lane as worlds 2 and 3, which is what makes the three
 // comparable — the investigation-composition lane is measured separately by
 // the phase10_composition_* arms over the mutant suite.
-var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_independent_calibration"}
+var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_independent_calibration", worldMutantSuite}
+
+// worldMutantSuite is the protocol's fourth world. It is not a checkout, which
+// is why it was absent from this list for as long as the list meant "things
+// with a --world flag" rather than "things the protocol consumes".
+const worldMutantSuite = "world4_mutant_suite"
 
 // requiredWorldDomains is what each required world must actually BE.
 //
@@ -790,6 +823,13 @@ var reservedArmNames = map[string]bool{
 	armCompositionModelBound:                       true,
 	"briefing_and_impact_surfaces":                 true,
 	"evaluation_world":                             true,
+	// The mutant suite is produced INTERNALLY. Reserving the name at the CLI
+	// boundary is what stops a caller supplying --world for it: otherwise
+	// runWorlds would add an arbitrary checkout under that name while main
+	// added the real synthetic world under the same one, and the sample would
+	// either be refused as a duplicate or, on a seedless run, quietly ship a
+	// misleading external report for a world nobody can supply.
+	worldMutantSuite: true,
 }
 
 // worldReport is one evaluation world run over an external checkout.
@@ -1089,6 +1129,13 @@ func runWorlds(out string, specs []string, capturedAt string, elapsed map[string
 	// complete protocol.
 	for _, name := range requiredWorlds {
 		if ran[name] || names[name] {
+			continue
+		}
+		// The mutant suite is a required world that is NOT a checkout: it is
+		// materialized by the harness and reported by its own arms. Telling an
+		// operator it "needs an external checkout" would send them looking for
+		// a repository that does not exist.
+		if name == worldMutantSuite {
 			continue
 		}
 		arts = append(arts, armArtifact{Arm: name, Subject: subjectPublishedDomain, Status: statusNotRun,

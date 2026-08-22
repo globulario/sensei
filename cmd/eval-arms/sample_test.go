@@ -14,6 +14,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
+	"github.com/globulario/sensei/golang/architecture/evalmodel"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
 )
 
@@ -204,11 +205,12 @@ func TestMissingRequiredWorldsNamesWhatDidNotRun(t *testing.T) {
 		return evalsample.World{Name: name, Binding: architecture.ClaimDocumentBinding{RepositoryDomain: requiredWorldDomains[name]}}
 	}
 	got := missingRequiredWorlds([]evalsample.World{bound("world1_sensei_self")})
-	if len(got) != 2 || got[0] != "world2_globular" || got[1] != "world3_independent_calibration" {
-		t.Fatalf("missingRequiredWorlds = %v, want the two worlds that did not run", got)
+	if len(got) != 3 {
+		t.Fatalf("missingRequiredWorlds = %v, want the three worlds that did not run", got)
 	}
 	if len(missingRequiredWorlds([]evalsample.World{
-		bound("world1_sensei_self"), bound("world2_globular"), bound("world3_independent_calibration"),
+		bound("world1_sensei_self"), bound("world2_globular"),
+		bound("world3_independent_calibration"), bound(worldMutantSuite),
 	})) != 0 {
 		t.Error("a complete world set reported something missing")
 	}
@@ -291,6 +293,7 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "example.com/not-sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
 		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldMutantSuite},
 	}
 	missing := missingRequiredWorlds(impostors)
 	if len(missing) != 1 || !strings.Contains(missing[0], "world1_sensei_self") {
@@ -304,6 +307,7 @@ func TestAWorldsNameIsNotItsIdentity(t *testing.T) {
 		{Name: "world1_sensei_self", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/sensei"}},
 		{Name: "world2_globular", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "github.com/globulario/Globular"}},
 		{Name: "world3_independent_calibration", Binding: architecture.ClaimDocumentBinding{RepositoryDomain: "sqlite.org/sqlite"}},
+		{Name: worldMutantSuite},
 	}
 	if got := missingRequiredWorlds(honest); len(got) != 0 {
 		t.Errorf("correctly bound worlds reported missing: %v", got)
@@ -523,5 +527,196 @@ func TestResolveUpstreamFollowsACloneBackToItsRepository(t *testing.T) {
 	}
 	if note, err := verifyRequiredWorldCheckout("world1_sensei_self", leaf); err != nil || note != "" {
 		t.Errorf("a legitimate clone-of-a-clone was refused (note=%q): %v", note, err)
+	}
+}
+
+// TestMutantObservationsCarryTheirSiteIdentity.
+//
+// Each mutant site is extracted from its own tree, so its anchors are
+// repo-relative inside THAT tree: "a.go:1-2" in one mutant and "a.go:1-2" in
+// another are different files sharing a name. Appended unchanged they
+// collapsed to one identity under evalsample's content hash, so a precision
+// label could attach to the wrong source and an adjudicator had no way to know
+// which tree held the evidence.
+func TestMutantObservationsCarryTheirSiteIdentity(t *testing.T) {
+	same := []architecture.Fact{{
+		Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e",
+		Scope:    architecture.Scope{Files: []string{"a.go"}},
+		Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 2},
+	}}
+	one := namespaceBySite(same, "authority_split")
+	two := namespaceBySite(same, "forbidden_dependency")
+
+	if one[0].Evidence.SourceFile == two[0].Evidence.SourceFile {
+		t.Fatalf("two mutants share the anchor %q; their observations would collapse to one identity", one[0].Evidence.SourceFile)
+	}
+	if one[0].Evidence.SourceFile != "authority_split/a.go" {
+		t.Errorf("anchor is %q, want the path the file has within the suite", one[0].Evidence.SourceFile)
+	}
+	if len(one[0].Scope.Files) != 1 || one[0].Scope.Files[0] != "authority_split/a.go" {
+		t.Errorf("scope files were not namespaced: %v", one[0].Scope.Files)
+	}
+	// The caller's slice must not be mutated — the same document is also the
+	// arm's own report.
+	if same[0].Evidence.SourceFile != "a.go" {
+		t.Errorf("namespacing rewrote the caller's observation in place: %q", same[0].Evidence.SourceFile)
+	}
+}
+
+// TestTheMutantWorldNameCannotBeSuppliedExternally.
+//
+// World 4 is produced internally. Without reserving the name, a caller could
+// pass --world for it: runWorlds would add an arbitrary checkout under that
+// name while main added the real synthetic world under the same one.
+func TestTheMutantWorldNameCannotBeSuppliedExternally(t *testing.T) {
+	if !reservedArmNames[worldMutantSuite] {
+		t.Fatal("the mutant suite's world name is not reserved, so --world can claim it")
+	}
+	dir := t.TempDir()
+	arts := runWorlds(t.TempDir(), []string{worldMutantSuite + "=example.com/x=" + dir}, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
+	refused := false
+	for _, a := range arts {
+		if a.Arm == worldMutantSuite && a.Status == statusFailed {
+			refused = true
+		}
+	}
+	if !refused {
+		t.Fatalf("an external checkout was accepted as the mutant suite: %+v", arts)
+	}
+}
+
+// TestTheMutantWorldNamespacesThroughItsBuilder covers the CALL SITE, not the
+// helper. Removing the namespacing call leaves the helper's own test green —
+// the same "verified the machinery, not the consumer" gap that this session
+// hit twice already — so the property is asserted where it is actually used.
+func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {
+	fact := func() architecture.Fact {
+		return architecture.Fact{
+			Kind: "k", Subject: "s", Predicate: "p", Object: "o", Extractor: "e",
+			Scope:    architecture.Scope{Files: []string{"a.go"}},
+			Evidence: architecture.Evidence{SourceFile: "a.go", LineStart: 1, LineEnd: 2},
+		}
+	}
+	report := evalharness.Report{
+		// The clean control's Defect is EMPTY — evalmutant.Baseline sets it so
+		// — while its tree is materialized at mutants/baseline. Namespacing by
+		// Defect rewrote its anchors to "/a.go": unresolvable, and worse than
+		// absent because it looks like evidence.
+		Baseline: evalharness.SiteResult{DefectPaths: []string{"a.go"}},
+		Results: []evalharness.SiteResult{
+			{Defect: "one", DefectPaths: []string{"a.go"}},
+			{Defect: "two", DefectPaths: []string{"a.go"}},
+		},
+	}
+	report.Baseline.Document.Observations = []architecture.Fact{fact()}
+	report.Results[0].Document.Observations = []architecture.Fact{fact()}
+	report.Results[1].Document.Observations = []architecture.Fact{fact()}
+
+	w := mutantSuiteWorld(report, "example.com/eval")
+	anchors := map[string]bool{}
+	for _, o := range w.Observations {
+		anchors[o.Evidence.SourceFile] = true
+	}
+	if len(anchors) != 3 {
+		t.Fatalf("three sites produced %d distinct anchors, want 3: %v", len(anchors), anchors)
+	}
+	if !anchors["one/a.go"] || !anchors["two/a.go"] {
+		t.Errorf("anchors are not namespaced by site: %v", anchors)
+	}
+	// The clean control uses the name its tree is materialized under.
+	if !anchors["baseline/a.go"] {
+		t.Errorf("the clean control's anchor is not baseline/a.go: %v", anchors)
+	}
+	for a := range anchors {
+		if strings.HasPrefix(a, "/") {
+			t.Errorf("anchor %q has an empty site prefix; it resolves to nothing", a)
+		}
+	}
+	// The recall inventory is the defect sites, independent of what was observed.
+	if len(w.RecallInventory) != 3 {
+		t.Errorf("recall inventory = %v, want one unit per defect site", w.RecallInventory)
+	}
+	if w.Binding.TreeDigestSHA256 == "" {
+		t.Error("the suite world carries no identity")
+	}
+}
+
+// TestTheSuiteBindingIsTheTreeNotTheRunTimestamp.
+//
+// The document digest covers receipt and evidence timestamps, so it changes
+// with --captured-at even when the tree is byte-identical. evalsample's
+// selection key hashes the world binding, so deriving the binding from
+// document digests meant the same committed seed could draw different claims
+// from an unchanged suite — which is the one property the frozen sample
+// depends on.
+func TestTheSuiteBindingIsTheTreeNotTheRunTimestamp(t *testing.T) {
+	build := func(documentDigest string) evalharness.Report {
+		site := evalharness.SiteResult{Defect: "one", DefectPaths: []string{"a.go"}, DocumentDigest: documentDigest}
+		site.Document.Binding.Repository.TreeDigestSHA256 = "the-tree-is-unchanged"
+		base := evalharness.SiteResult{DefectPaths: []string{"a.go"}, DocumentDigest: documentDigest}
+		base.Document.Binding.Repository.TreeDigestSHA256 = "baseline-tree"
+		return evalharness.Report{Baseline: base, Results: []evalharness.SiteResult{site}}
+	}
+	first := mutantSuiteWorld(build("run-one-document-digest"), "example.com/eval")
+	second := mutantSuiteWorld(build("run-two-document-digest"), "example.com/eval")
+
+	if first.Binding.TreeDigestSHA256 != second.Binding.TreeDigestSHA256 {
+		t.Fatalf("two runs over an identical suite produced different bindings:\n  %s\n  %s\nthe same seed would draw different claims",
+			first.Binding.TreeDigestSHA256, second.Binding.TreeDigestSHA256)
+	}
+
+	// A genuinely different tree must still change the binding.
+	changed := build("run-one-document-digest")
+	changed.Results[0].Document.Binding.Repository.TreeDigestSHA256 = "a-different-tree"
+	if mutantSuiteWorld(changed, "example.com/eval").Binding.TreeDigestSHA256 == first.Binding.TreeDigestSHA256 {
+		t.Error("a changed tree produced the same binding; the identity tracks nothing")
+	}
+}
+
+// TestComposedClaimsReachTheSample.
+//
+// Without this the frozen manifest held no item key and no blinded payload for
+// any composed candidate, so a reference set derived from it left every one
+// unlabelled — and the protocol's unsupported-claim rate (§9) and model delta
+// (§18) are computed over exactly those claims. The world carried the
+// observations and silently dropped the propositions.
+func TestComposedClaimsReachTheSample(t *testing.T) {
+	var w evalsample.World
+	site := evalharness.CompositionSiteResult{}
+	site.Defect = "one"
+	site.ModelAcquisition.Baseline.Candidates = []evalmodel.BaselineItem{
+		{Kind: "claim", Text: "the boundary is crossed in the helper", CitedEvidenceIDs: []string{"ev-1"}, FilePaths: []string{"a.go"}},
+	}
+	site.ModelAcquisition.Items = []evalmodel.AcquiredItem{
+		{Kind: "claim", Text: "a model-derived proposal", FilePaths: []string{"b.go"}},
+	}
+	addComposedClaims(&w, evalharness.CompositionReport{Results: []evalharness.CompositionSiteResult{site}})
+
+	if len(w.Counterexamples) != 2 {
+		t.Fatalf("composed claims produced %d sampleable items, want 2", len(w.Counterexamples))
+	}
+	var deterministic, model bool
+	for _, c := range w.Counterexamples {
+		if strings.Contains(c.Description, "[deterministic") {
+			deterministic = true
+		}
+		if strings.Contains(c.Description, "[model") {
+			model = true
+		}
+		if !strings.HasPrefix(c.ID, "one/") {
+			t.Errorf("claim %q is not attributed to its site", c.ID)
+		}
+		// A claim without its evidence is not adjudicable, it is an opinion.
+		if len(c.EvidenceRefIDs) == 0 {
+			t.Errorf("claim %q carries no evidence anchor; an adjudicator cannot open the pinned source", c.ID)
+		}
+		for _, r := range c.EvidenceRefIDs {
+			if r == "a.go" || r == "b.go" {
+				t.Errorf("path %q is not namespaced by site; two mutants' a.go are different files", r)
+			}
+		}
+	}
+	if !deterministic || !model {
+		t.Error("the two lanes are not distinguishable in the sampled claims; §9 forbids scoring them as one population")
 	}
 }

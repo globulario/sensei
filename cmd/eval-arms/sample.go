@@ -13,7 +13,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
+	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
 // protocolPath is the frozen protocol this sample serves. The manifest records
@@ -94,6 +97,156 @@ func recallUnitInventory(root string) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// mutantSuiteWorld turns the mutant suite into the protocol's FOURTH sampled
+// world.
+//
+// Gating on the suite's arm status was never the same as sampling it: a v1
+// manifest that carried three worlds while naming a protocol defining four was
+// claiming compliance it did not have. This carries the suite's actual
+// observations into the sample.
+//
+// Its recall inventory is the DEFECT SITES — the files each mutant actually
+// changed, taken from the mutant definitions rather than from what extraction
+// happened to observe. That independence is the same rule section 7 applies to
+// the checkout worlds, and it matters more here: a denominator built from
+// observed paths could only contain sites extraction already reached, so a
+// site it missed entirely would be unmeasurable by construction, which is
+// precisely what a mutant suite exists to detect.
+//
+// The binding is the suite's own identity. It is not a checkout and has no
+// revision; the report already identifies each site by tree digest, so the
+// world is bound by the suite's composed digest rather than by borrowing the
+// harness's checkout.
+func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World {
+	w := evalsample.World{
+		Name: worldMutantSuite,
+		Binding: architecture.ClaimDocumentBinding{
+			RepositoryDomain: domain,
+			RevisionStatus:   "unavailable",
+		},
+	}
+	// Paired with the name each site was MATERIALIZED under, not with its
+	// defect: evalmutant.Baseline carries an empty Defect while its tree lives
+	// at mutants/baseline, so namespacing by Defect rewrote the clean
+	// control's anchors to "/a.go" — unresolvable, and attached to a label
+	// that could not be checked. The site name is what the path on disk uses.
+	type namedSite struct {
+		name string
+		site evalharness.SiteResult
+	}
+	sites := []namedSite{{name: "baseline", site: report.Baseline}}
+	for _, r := range report.Results {
+		sites = append(sites, namedSite{name: string(r.Defect), site: r})
+	}
+	inventory := map[string]bool{}
+	digest := sha256.New()
+	for _, ns := range sites {
+		site := ns.site
+		// A site with no name cannot be namespaced into a resolvable anchor,
+		// and an unresolvable anchor is worse than an absent one: it looks
+		// like evidence. Skipped with the omission visible in the count rather
+		// than silently emitting "/path".
+		if strings.TrimSpace(ns.name) == "" {
+			continue
+		}
+		// Each site was extracted from its own mutants/<name> tree, so its
+		// evidence anchors are repo-relative inside THAT tree — "a.go:1-2" in
+		// one mutant and "a.go:1-2" in another are different files that happen
+		// to share a name. Appending them unchanged collapsed them to one
+		// identity, so a precision label could attach to the wrong source, and
+		// an adjudicator had no way to know which tree to open.
+		//
+		// Namespacing by defect is not decoration: it restores the path the
+		// file actually has within the suite, which is what makes the anchor
+		// resolvable and the identity distinct.
+		w.Observations = append(w.Observations, namespaceBySite(site.Document.Observations, ns.name)...)
+		w.CandidateQuestions = append(w.CandidateQuestions, site.Document.CandidateQuestions...)
+		w.Counterexamples = append(w.Counterexamples, site.Document.Counterexamples...)
+		for _, p := range site.DefectPaths {
+			inventory[ns.name+"/"+p] = true
+		}
+		// The site's TREE digest, not its document digest. The document digest
+		// covers receipt and evidence timestamps, so it changes with
+		// --captured-at even when the tree is byte-identical — and
+		// evalsample.selectionKey hashes this binding, so the same committed
+		// seed would have drawn different claims from an unchanged suite. A
+		// world's identity is what it IS, not when it was last looked at.
+		fmt.Fprintf(digest, "%s:%s\n", ns.name, site.Document.Binding.Repository.TreeDigestSHA256)
+	}
+	for unit := range inventory {
+		w.RecallInventory = append(w.RecallInventory, unit)
+	}
+	sort.Strings(w.RecallInventory)
+	w.Binding.TreeDigestSHA256 = hex.EncodeToString(digest.Sum(nil))
+	return w
+}
+
+// addComposedClaims carries the composition arm's SCOREABLE claims into the
+// mutant world's challenge lane.
+//
+// Without them the frozen manifest held no item key and no blinded payload for
+// any composed candidate, so a reference set derived from it left every one of
+// them unlabelled — and the protocol's unsupported-claim rate (section 9) and
+// model delta (section 18) are computed over exactly those claims. The world
+// carried the observations and silently dropped the propositions.
+//
+// The two lanes stay SEPARATE in the text they carry, because section 9 forbids
+// a combined score that lets a model-assisted lane improve recall while hiding
+// an increased unsupported rate inside it. Provenance is in the claim's kind,
+// which the adjudicator sees; nothing here merges them into one population.
+func addComposedClaims(w *evalsample.World, report evalharness.CompositionReport) {
+	sites := []struct {
+		name string
+		site evalharness.CompositionSiteResult
+	}{{name: "baseline", site: report.Baseline}}
+	for _, r := range report.Results {
+		sites = append(sites, struct {
+			name string
+			site evalharness.CompositionSiteResult
+		}{name: string(r.Defect), site: r})
+	}
+
+	for _, ns := range sites {
+		if strings.TrimSpace(ns.name) == "" {
+			continue
+		}
+		acq := ns.site.ModelAcquisition
+		for i, c := range acq.Baseline.Candidates {
+			w.Counterexamples = append(w.Counterexamples, composedClaim(ns.name, "deterministic", i, c.Kind, c.Text, c.CitedEvidenceIDs, c.FilePaths))
+		}
+		for i, c := range acq.Items {
+			w.Counterexamples = append(w.Counterexamples, composedClaim(ns.name, "model", i, c.Kind, c.Text, c.CitedEvidenceIDs, c.FilePaths))
+		}
+	}
+}
+
+// composedClaim carries a claim into the sample WITH its anchors.
+//
+// A Counterexample rather than an OpenQuestion because only the former has a
+// place for evidence references, and an earlier version lost them: the blind
+// payload arrived with text and no citations, so an adjudicator could not open
+// the pinned source and the label could not validly drive the unsupported-claim
+// rate. A claim without its evidence is not adjudicable, it is just an opinion.
+//
+// Paths are namespaced by site for the same reason the observations are: the
+// citation is repo-relative inside one mutant's tree, and two mutants' "a.go"
+// are different files.
+func composedClaim(site, lane string, i int, kind, text string, cited, paths []string) investigation.Counterexample {
+	refs := make([]string, 0, len(cited)+len(paths))
+	refs = append(refs, cited...)
+	for _, p := range paths {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		refs = append(refs, site+"/"+p)
+	}
+	return investigation.Counterexample{
+		ID:             fmt.Sprintf("%s/%s/%d", site, lane, i),
+		Description:    fmt.Sprintf("[%s %s] %s", lane, kind, text),
+		EvidenceRefIDs: refs,
+	}
 }
 
 // writeSample builds the frozen sample manifest and the blinded adjudication
@@ -216,6 +369,27 @@ func writeSample(out, protocolFile, protocolIDArg, protocolDigest string, protoc
 // writeJSON writes the artifact and returns the digest of the bytes it wrote,
 // so a caller never has to re-derive the hash of a file from a value it hopes
 // serializes the same way twice.
+// namespaceBySite rewrites each observation's anchor to the path the file has
+// within the mutant suite rather than within its own materialized tree.
+func namespaceBySite(obs []architecture.Fact, defect string) []architecture.Fact {
+	out := make([]architecture.Fact, 0, len(obs))
+	for _, o := range obs {
+		if o.Evidence.SourceFile != "" {
+			o.Evidence.SourceFile = defect + "/" + o.Evidence.SourceFile
+		}
+		files := make([]string, 0, len(o.Scope.Files))
+		for _, f := range o.Scope.Files {
+			if f == "" {
+				continue
+			}
+			files = append(files, defect+"/"+f)
+		}
+		o.Scope.Files = files
+		out = append(out, o)
+	}
+	return out
+}
+
 func writeJSON(path string, v any) (string, error) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
