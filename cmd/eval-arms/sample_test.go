@@ -14,6 +14,7 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
+	"github.com/globulario/sensei/golang/architecture/evalmodel"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
 )
 
@@ -669,5 +670,44 @@ func TestTheSuiteBindingIsTheTreeNotTheRunTimestamp(t *testing.T) {
 	changed.Results[0].Document.Binding.Repository.TreeDigestSHA256 = "a-different-tree"
 	if mutantSuiteWorld(changed, "example.com/eval").Binding.TreeDigestSHA256 == first.Binding.TreeDigestSHA256 {
 		t.Error("a changed tree produced the same binding; the identity tracks nothing")
+	}
+}
+
+// TestComposedClaimsReachTheSample.
+//
+// Without this the frozen manifest held no item key and no blinded payload for
+// any composed candidate, so a reference set derived from it left every one
+// unlabelled — and the protocol's unsupported-claim rate (§9) and model delta
+// (§18) are computed over exactly those claims. The world carried the
+// observations and silently dropped the propositions.
+func TestComposedClaimsReachTheSample(t *testing.T) {
+	var w evalsample.World
+	site := evalharness.CompositionSiteResult{}
+	site.Defect = "one"
+	site.ModelAcquisition.Baseline.Candidates = []evalmodel.BaselineItem{
+		{Kind: "claim", Text: "the boundary is crossed in the helper"},
+	}
+	site.ModelAcquisition.Items = []evalmodel.AcquiredItem{
+		{Kind: "claim", Text: "a model-derived proposal"},
+	}
+	addComposedClaims(&w, evalharness.CompositionReport{Results: []evalharness.CompositionSiteResult{site}})
+
+	if len(w.CandidateQuestions) != 2 {
+		t.Fatalf("composed claims produced %d sampleable items, want 2", len(w.CandidateQuestions))
+	}
+	var deterministic, model bool
+	for _, q := range w.CandidateQuestions {
+		if strings.Contains(q.QuestionText, "[deterministic") {
+			deterministic = true
+		}
+		if strings.Contains(q.QuestionText, "[model") {
+			model = true
+		}
+		if !strings.HasPrefix(q.ID, "one/") {
+			t.Errorf("claim %q is not attributed to its site", q.ID)
+		}
+	}
+	if !deterministic || !model {
+		t.Error("the two lanes are not distinguishable in the sampled claims; §9 forbids scoring them as one population")
 	}
 }

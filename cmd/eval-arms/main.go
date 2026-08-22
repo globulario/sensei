@@ -263,6 +263,12 @@ func main() {
 		idx.Arms = append(idx.Arms, armArtifact{Arm: evalharness.ArmCompositionModelDisabled, Subject: subjectMutantSuite, Status: statusFailed, Reason: err.Error()})
 	} else {
 		elapsed[evalharness.ArmCompositionModelDisabled] = time.Since(armStart).Milliseconds()
+		if mutantWorld != nil {
+			// The composed claims belong to the same fourth world as the
+			// observations: a reference set that labels one and not the other
+			// cannot produce the protocol's unsupported-claim rate.
+			addComposedClaims(mutantWorld, report)
+		}
 		produced, total := report.CandidateRate()
 		grounded, candidates, dangling, groundingFailures := report.CandidateGrounding()
 		art := writeReport(*out, evalharness.ArmCompositionModelDisabled, report)

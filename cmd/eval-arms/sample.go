@@ -182,6 +182,51 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World
 	return w
 }
 
+// addComposedClaims carries the composition arm's SCOREABLE claims into the
+// mutant world's challenge lane.
+//
+// Without them the frozen manifest held no item key and no blinded payload for
+// any composed candidate, so a reference set derived from it left every one of
+// them unlabelled — and the protocol's unsupported-claim rate (section 9) and
+// model delta (section 18) are computed over exactly those claims. The world
+// carried the observations and silently dropped the propositions.
+//
+// The two lanes stay SEPARATE in the text they carry, because section 9 forbids
+// a combined score that lets a model-assisted lane improve recall while hiding
+// an increased unsupported rate inside it. Provenance is in the claim's kind,
+// which the adjudicator sees; nothing here merges them into one population.
+func addComposedClaims(w *evalsample.World, report evalharness.CompositionReport) {
+	sites := []struct {
+		name string
+		site evalharness.CompositionSiteResult
+	}{{name: "baseline", site: report.Baseline}}
+	for _, r := range report.Results {
+		sites = append(sites, struct {
+			name string
+			site evalharness.CompositionSiteResult
+		}{name: string(r.Defect), site: r})
+	}
+
+	for _, ns := range sites {
+		if strings.TrimSpace(ns.name) == "" {
+			continue
+		}
+		acq := ns.site.ModelAcquisition
+		for i, c := range acq.Baseline.Candidates {
+			w.CandidateQuestions = append(w.CandidateQuestions, architecture.OpenQuestion{
+				ID:           fmt.Sprintf("%s/deterministic/%d", ns.name, i),
+				QuestionText: fmt.Sprintf("[deterministic %s] %s", c.Kind, c.Text),
+			})
+		}
+		for i, c := range acq.Items {
+			w.CandidateQuestions = append(w.CandidateQuestions, architecture.OpenQuestion{
+				ID:           fmt.Sprintf("%s/model/%d", ns.name, i),
+				QuestionText: fmt.Sprintf("[model %s] %s", c.Kind, c.Text),
+			})
+		}
+	}
+}
+
 // writeSample builds the frozen sample manifest and the blinded adjudication
 // views, and writes them under out/sample.
 //
