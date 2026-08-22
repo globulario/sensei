@@ -3,9 +3,12 @@
 package main
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -223,5 +226,86 @@ func TestChangingTheWorldBindingChangesTheExperimentIdentity(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(missingUnderV1, " "), "sqlite") {
 		t.Errorf("v1 did not report the SQLite world as unmet: %v", missingUnderV1)
+	}
+}
+
+// repoRoot is the checkout root, from which protocolVersion.Path is relative.
+// This package always lives at cmd/eval-arms, so two levels up is the root.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+// TestCompiledProtocolIdentitiesMatchTheirDocuments closes the gap the test
+// above leaves open.
+//
+// TestProtocolIDAndDigestCannotDriftIndependently compares the compiled
+// constants to EACH OTHER; it would still pass if both had drifted away from
+// the documents they claim to identify. But the constants are the whole basis
+// on which resolveProtocol decides that some bytes are "the v2 protocol", so a
+// constant that no longer hashes the file at Path means the binary is enforcing
+// an identity nothing on disk carries.
+//
+// The revision check is the same defect one level down, and the more dangerous
+// half: the DOCUMENT is the authority, the compiled pin is only the enforcement
+// of it. Editing section 3's revision without editing Revisions (or the
+// reverse) would have the evaluator refuse every checkout except one the
+// protocol never named, while stamping a digest of a document that says
+// otherwise. Bound in BOTH directions so neither side can move alone.
+func TestCompiledProtocolIdentitiesMatchTheirDocuments(t *testing.T) {
+	root := repoRoot(t)
+	sha := regexp.MustCompile(`\b[0-9a-f]{40}\b`)
+
+	for _, p := range registeredProtocols {
+		t.Run(p.ID, func(t *testing.T) {
+			body, err := os.ReadFile(filepath.Join(root, p.Path))
+			if err != nil {
+				t.Fatalf("%s names %s, which cannot be read: %v", p.ID, p.Path, err)
+			}
+			sum := sha256.Sum256(body)
+			if got := hex.EncodeToString(sum[:]); got != p.DigestSHA256 {
+				t.Errorf("%s: compiled digest %s but %s hashes to %s;\n"+
+					"the binary would refuse the very document this protocol IS",
+					p.ID, p.DigestSHA256, p.Path, got)
+			}
+
+			// Every revision this protocol enforces must be one its document
+			// states, and every revision its document states must be one it
+			// enforces. Either half alone lets the two drift.
+			doc := map[string]bool{}
+			for _, rev := range sha.FindAllString(string(body), -1) {
+				doc[rev] = true
+			}
+			for world, rev := range p.Revisions {
+				if !doc[rev] {
+					t.Errorf("%s pins %s to revision %s, which %s never states",
+						p.ID, world, rev, p.Path)
+				}
+				delete(doc, rev)
+			}
+			for rev := range doc {
+				t.Errorf("%s states revision %s but %s enforces no pin for it",
+					p.Path, rev, p.ID)
+			}
+		})
+	}
+}
+
+// TestEachProtocolWorldHasARegisteredBinding. A world listed in Worlds but
+// absent from Remotes fails closed at run time by design, which is safe but
+// arrives as a run-time refusal rather than a build-time error. Since the
+// bindings are now per-protocol, a future protocol that adds a world and
+// forgets its binding should fail here instead.
+func TestEachProtocolWorldHasARegisteredBinding(t *testing.T) {
+	for _, p := range registeredProtocols {
+		for _, w := range p.Worlds {
+			if _, ok := p.Remotes[w]; !ok {
+				t.Errorf("%s names world %s but registers no upstream identity for it", p.ID, w)
+			}
+		}
 	}
 }
