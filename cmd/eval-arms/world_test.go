@@ -165,7 +165,7 @@ func TestReservedArmNamesMatchTheArmsActuallyWritten(t *testing.T) {
 
 // Every world #131 defines appears in the index whether it ran or not.
 func TestEveryRequiredWorldIsAccountedFor(t *testing.T) {
-	arts := runWorlds(t.TempDir(), nil, "2026-01-01T00:00:00Z", map[string]int64{})
+	arts := runWorlds(t.TempDir(), nil, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
 	seen := map[string]string{}
 	for _, a := range arts {
 		seen[a.Arm] = a.Status
@@ -183,7 +183,7 @@ func TestDuplicateWorldNameIsRefused(t *testing.T) {
 		"world3_independent_calibration=a/b=" + dir,
 		"world3_independent_calibration=c/d=" + dir,
 	}
-	arts := runWorlds(dir, specs, "2026-01-01T00:00:00Z", map[string]int64{})
+	arts := runWorlds(dir, specs, "2026-01-01T00:00:00Z", map[string]int64{}, nil)
 	failed := 0
 	for _, a := range arts {
 		if a.Status == statusFailed && strings.Contains(a.Reason, "collides") {

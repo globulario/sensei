@@ -6169,6 +6169,36 @@ test_symbols:
     symbol: TestVerifyWorktreeUncommittedEditVerifies
     package: main
     language: go
+  - id: cmd/eval-arms/sample_test.go:TestAMissingProtocolIsAnActionableRefusal
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestAMissingProtocolIsAnActionableRefusal
+    package: main
+    language: go
+    doc: "TestAMissingProtocolIsAnActionableRefusal. The manifest records the\nprotocol's digest so a sample drawn under one version can never be read as\nthough it obeyed another; if the protocol cannot be read, nothing may be\ndrawn."
+  - id: cmd/eval-arms/sample_test.go:TestASeedlessRunIsNotRunRatherThanFailed
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestASeedlessRunIsNotRunRatherThanFailed
+    package: main
+    language: go
+    doc: "TestASeedlessRunIsNotRunRatherThanFailed. A run that only wanted the arms is\nlegitimate; what it did not do was draw a sample, and that is a different\nfact from a draw that was attempted and broke."
+  - id: cmd/eval-arms/sample_test.go:TestAnEmptyTreeIsRefusedRatherThanSampledEmpty
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestAnEmptyTreeIsRefusedRatherThanSampledEmpty
+    package: main
+    language: go
+    doc: "TestAnEmptyTreeIsRefusedRatherThanSampledEmpty. A world sampled with a\nsilently empty inventory reports a recall lane that is honestly absent for a\ndishonest reason, and no later reader can tell the two apart."
+  - id: cmd/eval-arms/sample_test.go:TestRecallInventoryComesFromTheTreeNotFromSensei
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestRecallInventoryComesFromTheTreeNotFromSensei
+    package: main
+    language: go
+    doc: "TestRecallInventoryComesFromTheTreeNotFromSensei is the property section 7\ndepends on.\n\nA recall denominator built from Sensei's own extraction can only contain\nunits Sensei already had something to say about, so a unit it missed\nentirely never enters the denominator and its omission is unmeasurable by\nconstruction — recall would be a measurement of the output against itself.\n\nHere a package exists on disk that no observation mentions. It must appear\nin the inventory anyway."
+  - id: cmd/eval-arms/sample_test.go:TestTheSampleIsWrittenWhereTheIndexSaysItIs
+    file: cmd/eval-arms/sample_test.go
+    symbol: TestTheSampleIsWrittenWhereTheIndexSaysItIs
+    package: main
+    language: go
+    doc: "TestTheSampleIsWrittenWhereTheIndexSaysItIs. An index naming a file that is\nnot there, or naming a digest that does not describe the bytes on disk, is\nworse than no index."
   - id: cmd/eval-arms/world_test.go:TestAbsenceIntegrityDetectsAnUnexplainedAbsence
     file: cmd/eval-arms/world_test.go
     symbol: TestAbsenceIntegrityDetectsAnUnexplainedAbsence
@@ -11870,6 +11900,78 @@ test_symbols:
     package: evalmutant
     language: go
     doc: "The witness must still find the defect in a git-materialized tree: if\ncommitting changed what is on disk, the suite would measure a different tree\nthan the one it certifies."
+  - id: golang/architecture/evalsample/sample_test.go:TestAMultiValuedRelationIsNotADisagreement
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestAMultiValuedRelationIsNotADisagreement
+    package: evalsample
+    language: go
+    doc: "TestAMultiValuedRelationIsNotADisagreement is the defect this package\nshipped and then removed.\n\nTreating every repeated (subject, predicate) with differing objects as a\ncontradiction produced 23,641 \"cases\" from world 1, essentially all of them\ncomponents legitimately depending on many things. That would have handed an\nadjudicator thousands of non-questions and let the lane report a healthy\ndenominator built from nothing.\n\nWhether a predicate is single-valued is a statement about the ontology, so\nit comes from outside — and when nobody supplies it, the lane must say it is\nUNDRAWN rather than clean."
+  - id: golang/architecture/evalsample/sample_test.go:TestAnEmptyLaneIsReportedNotOmitted
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestAnEmptyLaneIsReportedNotOmitted
+    package: evalsample
+    language: go
+    doc: "TestAnEmptyLaneIsReportedNotOmitted. A lane that vanishes reads as a lane\nnobody needed, and no later reader can tell that from a lane whose\npopulation was genuinely zero. Sensei types its absences."
+  - id: golang/architecture/evalsample/sample_test.go:TestAnUnseededOrUnstampedSampleIsRefused
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestAnUnseededOrUnstampedSampleIsRefused
+    package: evalsample
+    language: go
+    doc: "TestAnUnseededOrUnstampedSampleIsRefused. Both are identity, not ceremony: a\nsample nobody can recompute cannot be audited, and a self-stamped artifact\nis not reproducible."
+  - id: golang/architecture/evalsample/sample_test.go:TestChallengeLaneCarriesCounterexamples
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestChallengeLaneCarriesCounterexamples
+    package: evalsample
+    language: go
+    doc: "TestChallengeLaneCarriesCounterexamples keeps the lane wired to real input\nrather than only proving its absence."
+  - id: golang/architecture/evalsample/sample_test.go:TestChangingTheSeedIsANewSample
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestChangingTheSeedIsANewSample
+    package: evalsample
+    language: go
+    doc: "TestChangingTheSeedIsANewSample, per section 6.2. If a different seed drew\nthe same items, the seed would be decoration and re-drawing a sample after\nseeing a score would be undetectable."
+  - id: golang/architecture/evalsample/sample_test.go:TestContradictionCasesAreSelectedNotDecided
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestContradictionCasesAreSelectedNotDecided
+    package: evalsample
+    language: go
+    doc: "TestContradictionCasesAreSelectedNotDecided. Section 8 gives the human three\npossible states and no winner. The manifest must therefore present both\nsides and record no verdict."
+  - id: golang/architecture/evalsample/sample_test.go:TestOneVerdictCannotMigrateBetweenWorlds
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestOneVerdictCannotMigrateBetweenWorlds
+    package: evalsample
+    language: go
+    doc: "TestOneVerdictCannotMigrateBetweenWorlds.\n\nTwo pinned worlds can produce a byte-identical claim that the evidence\nsupports in one and refutes in the other. If the key were content alone, one\nadjudicated verdict would silently answer a question it was never asked —\nthe worst failure available to an answer key, because the result still looks\ncorrect."
+  - id: golang/architecture/evalsample/sample_test.go:TestRepeatedEmissionsBecomeOneQuestionWithItsCountKept
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestRepeatedEmissionsBecomeOneQuestionWithItsCountKept
+    package: evalsample
+    language: go
+    doc: "TestRepeatedEmissionsBecomeOneQuestionWithItsCountKept.\n\nAdjudicating the same claim about the same anchor twice returns the same\nanswer, so it adds no evidence while doubling that claim's weight in a\nprecision denominator. Collapsed for that reason — and the count is kept, so\nthe collapse is visible rather than discovered later inside a ratio."
+  - id: golang/architecture/evalsample/sample_test.go:TestSelectionCannotSeeAClaimsContent
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestSelectionCannotSeeAClaimsContent
+    package: evalsample
+    language: go
+    doc: "TestSelectionCannotSeeAClaimsContent is the anti-self-grading property.\n\nIf the draw could be moved by a claim's text, confidence or plausibility,\nthe sample would be an opinion about the output being sampled. Here two\nworlds differ in every observation's OBJECT and confidence while the\nidentities the key is built from are unchanged, and the same items must be\ndrawn."
+  - id: golang/architecture/evalsample/sample_test.go:TestSelectionIsReproducibleFromTheSeed
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestSelectionIsReproducibleFromTheSeed
+    package: evalsample
+    language: go
+    doc: "TestSelectionIsReproducibleFromTheSeed. \"Deterministic\" has to be checkable,\nnot asserted: the manifest publishes the seed and every selection key so a\nreader can recompute the draw and dispute it."
+  - id: golang/architecture/evalsample/sample_test.go:TestTheBlindViewCannotLeakTheProvider
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestTheBlindViewCannotLeakTheProvider
+    package: evalsample
+    language: go
+    doc: "TestTheBlindViewCannotLeakTheProvider, per section 12. The provider label is\nabsent by construction rather than blanked, so a reader who was not meant to\nhave it cannot restore it from the payload they were given."
+  - id: golang/architecture/evalsample/sample_test.go:TestThinProviderIsNotErasedByALargeOne
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestThinProviderIsNotErasedByALargeOne
+    package: evalsample
+    language: go
+    doc: "TestThinProviderIsNotErasedByALargeOne is the reason the protocol's section\n6 exists, expressed as a test.\n\nworld 1 really is skewed about a thousand to one — 159,729 state_extractor\nobservations against 160 contract_extractor ones. A sample drawn uniformly\nover observations would be a measurement of the largest extractor wearing\nthe name of a measurement of Sensei, and the thinnest lane, which is the one\ncarrying contracts, would contribute almost nothing."
   - id: golang/architecture/evaluatorcomposition/adapters_test.go:TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
     file: golang/architecture/evaluatorcomposition/adapters_test.go
     symbol: TestMechanicalEvaluatorMapsProcessTruthWithoutRecommendationAuthority
