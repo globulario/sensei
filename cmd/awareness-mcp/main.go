@@ -583,6 +583,21 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 	// a test exercising callTool directly exercises the real budget: while this
 	// lived only in the message loop, a direct caller silently got no deadline
 	// at all, and a test could not tell the two budgets apart.
+	//
+	// What it does NOT do, stated exactly rather than implied: it cannot
+	// interrupt a handler that does not read this context. The local lane —
+	// task_status, advance_task, admit_change, the Phase 10 tools — calls
+	// synchronous APIs, so the ceiling expires while the handler runs on. That
+	// lane is bounded by its own resource budgets instead (probeexec caps
+	// probes, files and bytes; the task lock has its own wait), and it neither
+	// opens a socket nor spawns a process, so it has no stall to be rescued
+	// from. The deadline is real where the stall is real.
+	//
+	// Enforcing it by returning while the handler keeps running was considered
+	// and refused: advance_task and admit_change MUTATE governed task state, so
+	// abandoning one to a goroutine would report a deadline on work that is
+	// still going to commit. A caller told "timed out" about a change that then
+	// lands is worse off than one that waited.
 	ctx, cancel := context.WithTimeout(ctx, b.callCeiling())
 	defer cancel()
 
@@ -2211,7 +2226,7 @@ func serveStdio(br *bridge, r io.Reader, w io.Writer) error {
 func main() {
 	awarenessAddr := flag.String("awareness-addr", netcfg.ServiceAddr(), "awareness-graph gRPC address (or comma-separated fallback list; honors $SENSEI_ADDR, then legacy $AWG_ADDR)")
 	timeout := flag.Duration("timeout", 5*time.Second, "per-request gRPC timeout, applied to each individual call a tool makes")
-	callTimeout := flag.Duration("call-timeout", 2*time.Minute, "ceiling for one whole tools/call, which may make many gRPC requests")
+	callTimeout := flag.Duration("call-timeout", 2*time.Minute, "ceiling for one whole tools/call, which may make many gRPC requests; it bounds the requests a call makes and cannot interrupt a local handler that reads no context (those are bounded by their own probe/file/byte budgets)")
 	flag.Parse()
 
 	addrs := awarenessAddrs(*awarenessAddr)
