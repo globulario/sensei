@@ -6156,6 +6156,12 @@ test_symbols:
     symbol: TestDuplicateWorldNameIsRefused
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestEvaluationConfigCannotStateATerminalModelOutcome
+    file: cmd/eval-arms/world_test.go
+    symbol: TestEvaluationConfigCannotStateATerminalModelOutcome
+    package: main
+    language: go
+    doc: "The evaluator must not be able to state a terminal model outcome. The\nstrongest form of the proof is structural: there is no field for it."
   - id: cmd/eval-arms/world_test.go:TestEveryAbsenceStatusMustCarryAReason
     file: cmd/eval-arms/world_test.go
     symbol: TestEveryAbsenceStatusMustCarryAReason
@@ -6174,6 +6180,18 @@ test_symbols:
     package: main
     language: go
     doc: "TestIndexBindsTheEvaluatingAuthority pins the Sensei-side half of a run's\nidentity into the index.\n\nindex.Revision already binds the evaluator's checkout (#216), but a checkout\nis a different claim from the authority that answered: it can be advanced\nwithout rebuilding, and it names neither the compiled seed nor the authored\ncorpus consulted. #131 requires every run to bind \"revision/tree, graph\ndigest/status, policy/profile, provider versions\"; without this the eval\npath recorded only the first.\n\nThe block is asserted to live in the index, which carries no digest, so it\ncannot perturb the per-arm replay identity CI compares."
+  - id: cmd/eval-arms/world_test.go:TestModelArmIsImplementedButNotRunWithoutAProvider
+    file: cmd/eval-arms/world_test.go
+    symbol: TestModelArmIsImplementedButNotRunWithoutAProvider
+    package: main
+    language: go
+    doc: "TestModelArmIsImplementedButNotRunWithoutAProvider is the status change #258\nasks for, and the reason it is not cosmetic.\n\n`not_implemented_in_evaluated_path` and `not_run` say different things: one\nis \"no such behaviour exists to measure\", the other is \"this run did not\nask\". The first stopped being true when the execution path and a real\nadapter landed. Continuing to report it would understate the system, and\nreporting it while the capability exists would be false."
+  - id: cmd/eval-arms/world_test.go:TestModelArmRefusesAPartialProviderBinding
+    file: cmd/eval-arms/world_test.go
+    symbol: TestModelArmRefusesAPartialProviderBinding
+    package: main
+    language: go
+    doc: "A partially configured provider is still not a provider. Half a binding must\nnot launch anything, and must not look like a measurement."
   - id: cmd/eval-arms/world_test.go:TestParseWorldSpecRejectsIncompleteSpec
     file: cmd/eval-arms/world_test.go
     symbol: TestParseWorldSpecRejectsIncompleteSpec
@@ -11501,6 +11519,12 @@ test_symbols:
     package: evalharness
     language: go
     doc: "Required inputs are required. A harness that defaulted them would produce a\nreport bound to whatever checkout it happened to run inside."
+  - id: golang/architecture/evalharness/composition_test.go:TestArmIdentityIsDerivedFromTheLane
+    file: golang/architecture/evalharness/composition_test.go
+    symbol: TestArmIdentityIsDerivedFromTheLane
+    package: evalharness
+    language: go
+    doc: "A report must not identify itself as model-disabled while a model is bound.\nThe arm, its generator version and its resource label are all derived from\nthe lane rather than from a constant chosen when the function was written."
   - id: golang/architecture/evalharness/composition_test.go:TestCompositionArmCoversEveryMutantAndTheControl
     file: golang/architecture/evalharness/composition_test.go
     symbol: TestCompositionArmCoversEveryMutantAndTheControl
@@ -11577,6 +11601,144 @@ test_symbols:
     package: evalharness
     language: go
     doc: "A site that did not compose contributes nothing to the grounding rate, so the\nrate must be reported with the count of such sites. Otherwise a run where\nevery site failed reads as \"0/0\" — indistinguishable from a run with no\ncandidates and no problems.\n\nThis matters specifically because Compose ends in Validate, which rejects a\ncandidate carrying a dangling reference and fails the whole site: the defect\nthis metric looks for shows up as a composition failure, never as an\nungrounded candidate."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestAcquisitionIdentityCoversBaselineBindingAndItems
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestAcquisitionIdentityCoversBaselineBindingAndItems
+    package: evalmodel
+    language: go
+    doc: "The acquisition identity must cover everything that makes one measurement\ndifferent from another."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestAcquisitionItemOrderIsTotal
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestAcquisitionItemOrderIsTotal
+    package: evalmodel
+    language: go
+    doc: "Reordering an unchanged answer must not mint a new measurement."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestBaselineIdentityCoversTheComposedResultNotJustCounts
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestBaselineIdentityCoversTheComposedResultNotJustCounts
+    package: evalmodel
+    language: go
+    doc: "A baseline that changed WHAT it produced without changing HOW MUCH is a\ndifferent baseline. Counts are not an identity."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestCannotAdjudicateIsPreservedNotCollapsedIntoUnlabelled
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestCannotAdjudicateIsPreservedNotCollapsedIntoUnlabelled
+    package: evalmodel
+    language: go
+    doc: "cannot_adjudicate is a human DECISION, not a missing label."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestConstituentDigestsMustCarryContentNotJustLength
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestConstituentDigestsMustCarryContentNotJustLength
+    package: evalmodel
+    language: go
+    doc: "An empty entry satisfies a length test while binding nothing. Presence must\nbe checked by content."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicAndModelCountsStaySeparate
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDeterministicAndModelCountsStaySeparate
+    package: evalmodel
+    language: go
+    doc: "Deterministic and model-derived counts must never be merged into one number."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicLaneIsScoredAgainstTheSameReferenceSet
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDeterministicLaneIsScoredAgainstTheSameReferenceSet
+    package: evalmodel
+    language: go
+    doc: "The deterministic lane must be scoreable, or there is no delta to report."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDuplicateReferenceLabelsInvalidateTheSet
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDuplicateReferenceLabelsInvalidateTheSet
+    package: evalmodel
+    language: go
+    doc: "Two adjudicators disagreeing about one item is the signal the overlap sample\nexists to produce. Silently keeping the last verdict would erase it."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestFrozenArtifactIsVerifiedAgainstTheBinding
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestFrozenArtifactIsVerifiedAgainstTheBinding
+    package: evalmodel
+    language: go
+    doc: "The bundle must be able to verify the binding's central claim: that this\ndigest identifies what came back. Keeping the artifact without checking it\nwould preserve the material and leave the claim unverified."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeyDistinguishesFileAttribution
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestItemKeyDistinguishesFileAttribution
+    package: evalmodel
+    language: go
+    doc: "Two items with the same words but different file attribution are different\nclaims. A label written for one must not migrate to the other."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeysAreScopedToTheExperiment
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestItemKeysAreScopedToTheExperiment
+    package: evalmodel
+    language: go
+    doc: "An identical claim about a DIFFERENT experiment must not inherit the verdict."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestLabelsWithoutAFrozenIdentityCannotScore
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestLabelsWithoutAFrozenIdentityCannotScore
+    package: evalmodel
+    language: go
+    doc: "An answer key with no identity is not frozen, and an unfrozen ruler cannot\nsupport a defensible score. Validating the digest only when one happened to\nbe present let labels-with-no-digest through to Scored=true."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestLoadReferenceSetVerifiesBytesAndPublishedIdentity
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestLoadReferenceSetVerifiesBytesAndPublishedIdentity
+    package: evalmodel
+    language: go
+    doc: "The loader is where label BYTES are checked against the release that names\nthem, where a release cannot present itself under someone else's digest, and\nwhere a partial adjudication cannot be scored under a full release identity."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestNoReferenceSetProducesNoScore
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestNoReferenceSetProducesNoScore
+    package: evalmodel
+    language: go
+    doc: "No answer key means NO score. Inferring correctness from the system's own\noutput is the one thing the protocol forbids."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestNonResolvedOutcomeIsReportedAsItselfNotAsZero
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestNonResolvedOutcomeIsReportedAsItselfNotAsZero
+    package: evalmodel
+    language: go
+    doc: "A refusal or an error is an evaluation RESULT, not a zero score that would\nread like a bad model."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestOutsideScopeIsReportedNotDropped
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestOutsideScopeIsReportedNotDropped
+    package: evalmodel
+    language: go
+    doc: "outside_scope is an exclusion the protocol requires reported as a count and\na rate. An item that vanishes from the score also vanishes from its\ndenominator, and a reader cannot tell an exclusion from an item never made."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestPopulatedReferenceSetMustCarryEveryRequiredConstituent
+    package: evalmodel
+    language: go
+    doc: "A populated release that omits a required section 17 constituent must not\nscore, however self-consistent its own digest is."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestReAcquisitionWithADifferentAnswerIsANewMeasurement
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestReAcquisitionWithADifferentAnswerIsANewMeasurement
+    package: evalmodel
+    language: go
+    doc: "A live re-acquisition that answers differently is a NEW measurement, not a\nreplay failure. This is the distinction the acquisition/scoring split exists\nto preserve."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestReferenceIdentityCoversTheProtocolConstituents
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestReferenceIdentityCoversTheProtocolConstituents
+    package: evalmodel
+    language: go
+    doc: "The recomputed identity must be the one the protocol defines, or two\ngenuinely different rulers can share an accepted identity."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerOverAFrozenBundleIsByteIdentical
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestScorerOverAFrozenBundleIsByteIdentical
+    package: evalmodel
+    language: go
+    doc: "The scorer is the half that MUST replay byte-identically."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    package: evalmodel
+    language: go
+    doc: "A digest stored inside a frozen file is a CLAIM that file makes about itself.\nScoring an edited bundle while reporting the old identity is exactly how a\nmoved answer key would go undetected."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestUnionIsKeyedAndDeltaExcludesSharedClaims
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestUnionIsKeyedAndDeltaExcludesSharedClaims
+    package: evalmodel
+    language: go
+    doc: "The union is not the sum. A claim produced by both lanes is one claim, and\nadding counters would inflate whatever an operator reads as coverage."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey
+    package: evalmodel
+    language: go
+    doc: "The vocabulary is closed, so a verdict outside it is a malformed answer key\nrather than a missing label."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent
@@ -14624,6 +14786,123 @@ test_symbols:
     symbol: TestSupportedDependencyAllowsDependentSupport
     package: maintenance
     language: go
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestBridgeContractDigestCoversTheOutputSchema
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestBridgeContractDigestCoversTheOutputSchema
+    package: modelexec
+    language: go
+    doc: "The contract digest must cover the OUTPUT SCHEMA too: it is part of what the\nmodel is asked to do, and a schema that could change independently would\nleave half the contract unpinned."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeMapsAModelAnswerToAnArtifact
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeMapsAModelAnswerToAnArtifact
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgePreservesRefusal
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgePreservesRefusal
+    package: modelexec
+    language: go
+    doc: "A policy decline must arrive as a refusal, not an outage."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe
+    package: modelexec
+    language: go
+    doc: "TestExampleBridgeRefusesAPromptItsContractDoesNotDescribe: the bridge adds\nfixed template bytes to what the model sees, so a request whose\nprompt_contract_digest does not describe that template would give two\nmaterially different prompts the same request identity."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeReportsApiFailureAsErrored
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeReportsApiFailureAsErrored
+    package: modelexec
+    language: go
+    doc: "An API failure is errored, and the credential must not reach the diagnostic."
+  - id: golang/architecture/modelexec/bridge_script_test.go:TestExampleBridgeRunsTheModelTheRequestNames
+    file: golang/architecture/modelexec/bridge_script_test.go
+    symbol: TestExampleBridgeRunsTheModelTheRequestNames
+    package: modelexec
+    language: go
+    doc: "The model that RUNS must be the model the request names. An env-selected\nmodel would let the acquisition record one model's identity for another\nmodel's answer."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestAdapterRejectsADuplicateKeyResponseEndToEnd
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestAdapterRejectsADuplicateKeyResponseEndToEnd
+    package: modelexec
+    language: go
+    doc: "The helper is only useful if the adapter CALLS it. Testing the function alone\nwould keep passing if the call site were removed, so this drives a real\nbridge whose response retracts an authority bid with a duplicate key."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestAdapterSendsOnlyBoundedRequestMaterial
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestAdapterSendsOnlyBoundedRequestMaterial
+    package: modelexec
+    language: go
+    doc: "The adapter must not introduce material the request identity does not cover.\nThe envelope is compared field-by-field against the request that produced it."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestArgvIsPassedWithoutShellInterpretation
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestArgvIsPassedWithoutShellInterpretation
+    package: modelexec
+    language: go
+    doc: "Argv reaches the process verbatim: no shell means no expansion, so a value\nthat a shell would rewrite arrives unchanged."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCancellationTerminatesDescendantProcesses
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCancellationTerminatesDescendantProcesses
+    package: modelexec
+    language: go
+    doc: "A bridge is usually a WRAPPER. exec.CommandContext kills only the wrapper, so\na child inheriting the stdout pipe keeps the real request alive past the\ndeadline while Run stays blocked. The earlier cancellation test missed this\nbecause its fixture was a single process."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCancellationTerminatesTheInvocation
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCancellationTerminatesTheInvocation
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderMalformedStdoutIsNeverResolved
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderMalformedStdoutIsNeverResolved
+    package: modelexec
+    language: go
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderProcessFailureIsErrored
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderProcessFailureIsErrored
+    package: modelexec
+    language: go
+    doc: "A non-zero exit is transport failure, and must not be mistaken for a refusal."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderRefusalStaysRefused
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderRefusalStaysRefused
+    package: modelexec
+    language: go
+    doc: "A structured refusal stays a refusal across the process boundary."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderRequiresExplicitIdentity
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderRequiresExplicitIdentity
+    package: modelexec
+    language: go
+    doc: "Provider identity is a semantic assertion, never inferred from a filename."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestCommandProviderSuccessEarnsResolvedThroughExecute
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestCommandProviderSuccessEarnsResolvedThroughExecute
+    package: modelexec
+    language: go
+    doc: "A fixture success must earn resolved through Execute's existing validation,\nnot because a transport said so."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestDisabledAndNotRequestedNeverLaunchAProcess
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestDisabledAndNotRequestedNeverLaunchAProcess
+    package: modelexec
+    language: go
+    doc: "Disabled and not-requested must never launch a process at all. A sentinel\npath that cannot exist proves it: reaching exec would fail loudly."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestDuplicateResponseKeysAreRejected
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestDuplicateResponseKeysAreRejected
+    package: modelexec
+    language: go
+    doc: "encoding/json accepts duplicate keys and keeps the LAST one, so a closed\ncontract must reject them explicitly: a response could carry an authority bid\nfollowed by a retraction of it and be accepted with the bid erased."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestStderrCannotAlterArtifactIdentity
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestStderrCannotAlterArtifactIdentity
+    package: modelexec
+    language: go
+    doc: "stderr is diagnostic. Two runs differing only in stderr must produce the same\naccepted artifact identity, or stderr would be smuggled into semantic truth."
+  - id: golang/architecture/modelexec/command_provider_test.go:TestUnknownOrDuplicateResponseFieldsAreRejected
+    file: golang/architecture/modelexec/command_provider_test.go
+    symbol: TestUnknownOrDuplicateResponseFieldsAreRejected
+    package: modelexec
+    language: go
+    doc: "The response contract is closed, so it is decoded closed. A misspelled\nauthority-shaped field must be REJECTED, not silently dropped by a parser\nwith nowhere to put it."
   - id: golang/architecture/modelexec/execute_test.go:TestArtifactCannotAttributeClaimsToUnshownFiles
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestArtifactCannotAttributeClaimsToUnshownFiles
@@ -14642,6 +14921,18 @@ test_symbols:
     package: modelexec
     language: go
     doc: "A bid for authority is REFUSED and recorded, not silently stripped: stripping\nwould let a model keep asking with no evidence that it ever did."
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactDigestOrderingCoversRepositoryDomain
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactDigestOrderingCoversRepositoryDomain
+    package: modelexec
+    language: go
+    doc: "Validation accepts both an empty repository domain and the bound one, so two\naccepted items can differ only there. The comparator must therefore order on\nit, or the claimed total order is untotal for exactly the artifacts this\nfunction canonicalizes."
+  - id: golang/architecture/modelexec/execute_test.go:TestArtifactDigestOrderingIsTotal
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestArtifactDigestOrderingIsTotal
+    package: modelexec
+    language: go
+    doc: "The accepted artifact digest is copied into the terminal binding, so a\npartial order here defeats canonicalization everywhere downstream. The\nacquisition-level ordering test could not catch this: it built outcomes whose\nbinding digest was hard-coded, so the production digest never varied."
   - id: golang/architecture/modelexec/execute_test.go:TestCallerCannotPredeclareResolved
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestCallerCannotPredeclareResolved
@@ -14686,6 +14977,12 @@ test_symbols:
     package: modelexec
     language: go
     doc: "TestRequestIdentityCoversExcerptBytes: a caller-supplied digest is a CLAIM\nabout content, not the content. Changing an excerpt while leaving its ID and\ndeclared digest alone sends the model different material, so a request\nidentity blind to the bytes would content-address a request never sent."
+  - id: golang/architecture/modelexec/execute_test.go:TestRequestIdentityCoversSuppliedFilePaths
+    file: golang/architecture/modelexec/execute_test.go
+    symbol: TestRequestIdentityCoversSuppliedFilePaths
+    package: modelexec
+    language: go
+    doc: "The adapter sends FilePath to the bridge, which puts it in the prompt and\nuses it to constrain valid attribution. The same excerpt attributed to a\ndifferent file is a different question with a different permitted answer."
   - id: golang/architecture/modelexec/execute_test.go:TestUnknownProviderIsUnavailableAndNeverInvoked
     file: golang/architecture/modelexec/execute_test.go
     symbol: TestUnknownProviderIsUnavailableAndNeverInvoked
@@ -14697,6 +14994,12 @@ test_symbols:
     symbol: TestValidArtifactResolvesWithFullIdentity
     package: modelexec
     language: go
+  - id: golang/architecture/modelexec/real_provider_smoke_test.go:TestRealProviderSmoke
+    file: golang/architecture/modelexec/real_provider_smoke_test.go
+    symbol: TestRealProviderSmoke
+    package: modelexec
+    language: go
+    doc: "TestRealProviderSmoke invokes an ACTUAL model through the command adapter.\n\nIt is supplementary and skips unless SENSEI_MODEL_BRIDGE names an executable\nand a credential is present in the environment. CI must never depend on it:\nthe hermetic fake-provider matrix is the merge proof, and an external service\nmust not be able to decide whether Sensei's authority contract holds.\n\nWhat it proves is narrow and worth stating: that the capability crosses a\nreal process and network boundary into a real model, and that what comes back\nstill has to earn resolved through the same validation everything else does.\nIt proves reachability, not model correctness — correctness belongs to #131.\n\nNothing secret is asserted on, printed, or returned. The evidence this test\nproduces is a status and two digests."
   - id: golang/architecture/packcustody/custody_test.go:TestAdoptionReceiptProvesSharedProjection
     file: golang/architecture/packcustody/custody_test.go
     symbol: TestAdoptionReceiptProvesSharedProjection

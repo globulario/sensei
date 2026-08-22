@@ -1826,3 +1826,8 @@ required_tests:
     protects:
       invariants:
         - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest
+    title: Frozen scoring inputs whose contents do not match their stored digest are refused
+    protects:
+      invariants:
+        - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl

@@ -105,6 +105,21 @@ func ValidateArtifact(a Artifact, r Request) (reason string, ok bool) {
 // ArtifactDigest content-addresses the NORMALIZED artifact, so two providers
 // returning the same answer in a different order produce the same identity.
 func ArtifactDigest(a Artifact) (string, error) {
+	data, err := json.Marshal(NormalizeArtifact(a))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// NormalizeArtifact is the canonical form ArtifactDigest hashes.
+//
+// It is exported because anything that FREEZES an artifact must freeze this
+// form: storing the provider's arrival order would make the frozen record's
+// own identity order-sensitive again, defeating the canonicalization at the
+// point it matters most.
+func NormalizeArtifact(a Artifact) Artifact {
 	norm := Artifact{
 		SchemaVersion:             a.SchemaVersion,
 		NondeterminismDeclaration: a.NondeterminismDeclaration,
@@ -114,16 +129,31 @@ func ArtifactDigest(a Artifact) (string, error) {
 		norm.Items[i].CitedEvidenceIDs = sortedCopy(norm.Items[i].CitedEvidenceIDs)
 		norm.Items[i].FilePaths = sortedCopy(norm.Items[i].FilePaths)
 	}
+	// A TOTAL order. Ordering by kind and text alone leaves items that differ
+	// only in citations or file paths in the provider's arrival order, so
+	// swapping two of them changes these bytes and mints a different accepted
+	// artifact identity for an unchanged answer. That digest is copied into the
+	// terminal binding, so a partial order here defeats canonicalization
+	// everywhere downstream however careful the later sorting is.
 	sort.SliceStable(norm.Items, func(i, j int) bool {
-		if norm.Items[i].Kind != norm.Items[j].Kind {
-			return norm.Items[i].Kind < norm.Items[j].Kind
+		a, b := norm.Items[i], norm.Items[j]
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
 		}
-		return norm.Items[i].Text < norm.Items[j].Text
+		if a.Text != b.Text {
+			return a.Text < b.Text
+		}
+		if ac, bc := strings.Join(a.CitedEvidenceIDs, "\x00"), strings.Join(b.CitedEvidenceIDs, "\x00"); ac != bc {
+			return ac < bc
+		}
+		if af, bf := strings.Join(a.FilePaths, "\x00"), strings.Join(b.FilePaths, "\x00"); af != bf {
+			return af < bf
+		}
+		// RepositoryDomain last: validation accepts both an empty domain and
+		// the bound one, so two accepted items can differ only here. Leaving it
+		// out of the comparator would make the "total" order untotal for
+		// exactly the artifacts this function is asked to canonicalize.
+		return a.RepositoryDomain < b.RepositoryDomain
 	})
-	data, err := json.Marshal(norm)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	return norm
 }

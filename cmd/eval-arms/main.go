@@ -44,9 +44,12 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/benchmark"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
+	"github.com/globulario/sensei/golang/architecture/evalmodel"
 	"github.com/globulario/sensei/golang/architecture/gosemantics"
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
+	"github.com/globulario/sensei/golang/architecture/whyinvestigation"
 	"github.com/globulario/sensei/golang/client"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
@@ -64,6 +67,10 @@ type armArtifact struct {
 	// that exist in the documents they were composed from — #131's candidate
 	// grounding, in the half that needs no adjudicator.
 	CandidateGrounding string `json:"candidate_grounding,omitempty"`
+	// AcquisitionFile/Digest name the frozen model measurements this arm
+	// produced, so a later scoring run can be pointed at exact material.
+	AcquisitionFile   string `json:"acquisition_file,omitempty"`
+	AcquisitionDigest string `json:"acquisition_digest_sha256,omitempty"`
 }
 
 const (
@@ -82,7 +89,11 @@ const (
 	// has no such behaviour to measure, so running it would produce a column
 	// comparing a recorded label against a capability.
 	statusNotImplemented = "not_implemented_in_evaluated_path"
-	statusFailed         = "failed"
+	// armCompositionModelBound is #131's optional-model arm. It is named here
+	// rather than repeated as a literal so the index, the report file and the
+	// required-arm list cannot drift apart.
+	armCompositionModelBound = "phase10_composition_model_bound"
+	statusFailed             = "failed"
 )
 
 type index struct {
@@ -141,6 +152,16 @@ func main() {
 	var publishedFiles repeatable
 	flag.Var(&publishedFiles, "published-file", "repo-relative file in the published domain to query; repeatable, and part of the run's pinned inputs")
 	var worlds repeatable
+	var modelProviderArgs repeatable
+	var labelFiles repeatable
+	modelProviderID := flag.String("model-provider-id", "", "arm 3: provider id to bind (empty leaves the model arm not_run)")
+	modelProviderVersion := flag.String("model-provider-version", "", "arm 3: provider version; a name without a version cannot distinguish two behaviours")
+	modelName := flag.String("model-name", "", "arm 3: model to request")
+	modelProviderPath := flag.String("model-provider-path", "", "arm 3: executable implementing the command bridge")
+	modelPromptContract := flag.String("model-prompt-contract", "", "arm 3: identity of the exact prompt/schema contract the bridge uses")
+	referenceSetPath := flag.String("reference-set", "", "arm 3: frozen reference-set release manifest to score against; without one the scorer reports reference_set_absent")
+	flag.Var(&labelFiles, "label-file", "arm 3: a label file the release names; repeatable, and every named file must be supplied")
+	flag.Var(&modelProviderArgs, "model-provider-arg", "arm 3: argument for the bridge executable; repeatable, passed without a shell")
 	flag.Var(&worlds, "world", "an evaluation world as name=domain=path, e.g. world2_globular=github.com/globulario/Globular=/path/to/checkout; repeatable")
 	flag.Parse()
 
@@ -221,10 +242,17 @@ func main() {
 
 	idx.Arms = append(idx.Arms, runWorlds(*out, worlds, *capturedAt, elapsed)...)
 
-	idx.Arms = append(idx.Arms,
-		armArtifact{Arm: "phase10_composition_model_bound", Subject: subjectMutantSuite, Status: statusNotImplemented,
-			Reason: "the investigation path carries a model binding but never invokes a model: investigator copies Binding.Model into the receipt and nothing else reads it, no model provider is reachable from howextract, investigator or investigation, and nothing in the tree sets ModelStatusResolved. Binding a model today would change one recorded field and no observation, so an arm-3 column would compare a label against a capability."},
-	)
+	idx.Arms = append(idx.Arms, runModelBoundArm(*out, *capturedAt, modelArmConfig{
+		ProviderID:      *modelProviderID,
+		ProviderVersion: *modelProviderVersion,
+		ModelName:       *modelName,
+		ProviderPath:    *modelProviderPath,
+		ProviderArgs:    modelProviderArgs,
+		PromptContract:  *modelPromptContract,
+		Domain:          *domain,
+		ReferenceSet:    *referenceSetPath,
+		LabelFiles:      labelFiles,
+	}, elapsed))
 
 	// The volatile half, written as its own artifact and covered by no digest.
 	var mem runtime.MemStats
@@ -471,7 +499,7 @@ var requiredWorlds = []string{"world1_sensei_self", "world2_globular", "world3_i
 var reservedArmNames = map[string]bool{
 	"deterministic_extraction_without_composition": true,
 	"phase10_composition_model_disabled":           true,
-	"phase10_composition_model_bound":              true,
+	armCompositionModelBound:                       true,
 	"briefing_and_impact_surfaces":                 true,
 	"evaluation_world":                             true,
 }
@@ -1013,4 +1041,189 @@ func revisionState() string {
 func sha256Hex(data []byte) string {
 	sum := sha256.Sum256(data)
 	return hex.EncodeToString(sum[:])
+}
+
+// modelArmConfig is what a CALLER may ask arm 3 for. It carries provider and
+// model selection and nothing else: there is no field here for a status, an
+// artifact digest, or a request digest, because those are execution evidence
+// and the evaluator does not get to supply them.
+type modelArmConfig struct {
+	ProviderID      string
+	ProviderVersion string
+	ModelName       string
+	ProviderPath    string
+	ProviderArgs    []string
+	PromptContract  string
+	Domain          string
+	// ReferenceSet is the path to a frozen human answer key. It is a path
+	// rather than a value because the loader verifies the bytes against the
+	// release's own label-file digests: a caller must not be able to hand the
+	// scorer labels that no published release carries.
+	ReferenceSet string
+	// LabelFiles are the adjudicator outputs the release names. They are
+	// supplied separately because the release identifies them by digest and
+	// the loader checks their bytes.
+	LabelFiles []string
+}
+
+func (c modelArmConfig) configured() bool {
+	return strings.TrimSpace(c.ProviderID) != "" && strings.TrimSpace(c.ProviderPath) != "" && strings.TrimSpace(c.ModelName) != ""
+}
+
+// runModelBoundArm is #131's optional-model arm.
+//
+// It calls the PRODUCTION model path. The evaluator does not implement model
+// execution, does not interpret a provider's answer, and cannot mint a terminal
+// status — it configures the capability, runs it, and copies the outcome.
+//
+// The status it reports when nothing is bound is `not_run`, NOT
+// `not_implemented_in_evaluated_path`. Those say different things: one is "this
+// run did not ask", the other is "no such behaviour exists to measure". The
+// second stopped being true when the execution path and a real adapter landed,
+// and continuing to report it would understate the system.
+func runModelBoundArm(out, capturedAt string, cfg modelArmConfig, elapsed map[string]int64) armArtifact {
+	art := armArtifact{Arm: armCompositionModelBound, Subject: subjectMutantSuite}
+	if !cfg.configured() {
+		art.Status = statusNotRun
+		art.Reason = "optional model capability is available; this run did not bind a provider (supply --model-provider-id, --model-provider-path and --model-name to measure it)"
+		return art
+	}
+
+	start := time.Now()
+	provider := &modelexec.CommandProvider{
+		ProviderID:      cfg.ProviderID,
+		ProviderVersion: cfg.ProviderVersion,
+		Path:            cfg.ProviderPath,
+		Argv:            cfg.ProviderArgs,
+	}
+	lane := whyinvestigation.ModelLane{
+		Config: modelexec.Config{
+			Requested:  true,
+			ProviderID: cfg.ProviderID,
+			ModelName:  cfg.ModelName,
+		},
+		Registry: modelexec.Registry{cfg.ProviderID: provider},
+		Request: modelexec.Request{
+			SchemaVersion:        modelexec.ArtifactSchemaVersion,
+			PromptContractDigest: cfg.PromptContract,
+			OutputSchemaVersion:  modelexec.ArtifactSchemaVersion,
+			ToolPolicy:           "none",
+			Model:                modelexec.ModelIdentity{Name: cfg.ModelName, DigestAbsent: true},
+		},
+	}
+
+	report, err := evalharness.RunCompositionArmWithModel(evalharness.Options{
+		RepositoryDomain: cfg.Domain,
+		CapturedAt:       capturedAt,
+		MaterializeInto: func(name string) (string, error) {
+			path := filepath.Join(out, "mutants", name)
+			return path, os.MkdirAll(path, 0o755)
+		},
+	}, lane)
+	elapsed[armCompositionModelBound] = time.Since(start).Milliseconds()
+	if err != nil {
+		art.Status = statusFailed
+		art.Reason = err.Error()
+		return art
+	}
+
+	art = writeReport(out, armCompositionModelBound, report)
+	art.Subject = subjectMutantSuite
+	produced, total := report.CandidateRate()
+	art.CandidateRate = fmt.Sprintf("%d/%d", produced, total)
+
+	// The model outcome is copied VERBATIM. An evaluator that re-derived a
+	// status from what it saw would be grading the provider on its own
+	// authority instead of reporting what the production path concluded.
+	// The control is counted too. Summarising only the mutants would hide a
+	// control-only refusal or error — the case where the model answered every
+	// planted defect but declined the clean repository, which is a finding
+	// about the model rather than about the mutants.
+	statuses := map[string]int{}
+	for _, r := range append([]evalharness.CompositionSiteResult{report.Baseline}, report.Results...) {
+		if r.ModelStatus != "" {
+			statuses[r.ModelStatus]++
+		}
+	}
+	art.Reason = "model outcome per site: " + renderCounts(statuses)
+
+	// Persist the frozen acquisition bundles as their own artifact, and score
+	// them. The scorer runs even with no reference set: it reports
+	// reference_set_absent, which is the honest state before human adjudication
+	// and is what proves the deterministic half of the pipeline is wired.
+	// Load the frozen ruler if one was supplied. A failure to LOAD it is not a
+	// reason to fall back to scoring against nothing: that would silently turn
+	// a requested measurement into reference_set_absent and look like a run
+	// that never had a ruler.
+	var reference evalmodel.ReferenceSet
+	if strings.TrimSpace(cfg.ReferenceSet) != "" {
+		loaded, err := evalmodel.LoadReferenceSet(cfg.ReferenceSet, cfg.LabelFiles)
+		if err != nil {
+			art.Status = statusFailed
+			art.Reason = "frozen reference set could not be loaded: " + err.Error()
+			return art
+		}
+		reference = loaded
+	}
+
+	bundle := modelAcquisitionBundle{
+		SchemaVersion:         "sensei.eval_model_acquisition_bundle.v1",
+		CapturedAt:            capturedAt,
+		Arm:                   armCompositionModelBound,
+		ReferenceDigestSHA256: reference.DigestSHA256,
+	}
+	// The clean control FIRST. The model runs over it as well as over every
+	// mutant, and the control's answer is the measurement that exposes model
+	// false positives — a claimed defect where none was planted — or a
+	// control-only refusal. Freezing only the mutants would discard exactly the
+	// half that says whether the model is finding things or inventing them.
+	for _, r := range append([]evalharness.CompositionSiteResult{report.Baseline}, report.Results...) {
+		if r.ModelAcquisition.SchemaVersion == "" {
+			continue
+		}
+		bundle.Acquisitions = append(bundle.Acquisitions, r.ModelAcquisition)
+		bundle.Scores = append(bundle.Scores, evalmodel.ScoreAcquisition(r.ModelAcquisition, reference))
+	}
+	if len(bundle.Acquisitions) > 0 {
+		if bundleArt := writeReport(out, armCompositionModelBound+"_acquisitions", bundle); bundleArt.ReportFile != "" {
+			art.AcquisitionFile = bundleArt.ReportFile
+			art.AcquisitionDigest = bundleArt.ReportDigest
+		}
+	}
+	return art
+}
+
+// modelAcquisitionBundle is the frozen scoring input: what the model actually
+// answered, per site, with the deterministic baseline it answered against.
+//
+// It is a SEPARATE artifact from the composition report on purpose. The report
+// is a summary; this is the immutable material a human adjudicates and the
+// scorer replays over. Keeping counts without the claims they count would leave
+// the promised scoring workflow with nothing to consume.
+type modelAcquisitionBundle struct {
+	SchemaVersion string `json:"schema_version"`
+	CapturedAt    string `json:"captured_at"`
+	Arm           string `json:"arm"`
+	// ReferenceDigestSHA256 names the exact ruler these scores were measured
+	// against, and is empty when none was supplied. A score that does not name
+	// its ruler cannot be compared with another score.
+	ReferenceDigestSHA256 string                  `json:"reference_digest_sha256,omitempty"`
+	Acquisitions          []evalmodel.Acquisition `json:"acquisitions"`
+	Scores                []evalmodel.Score       `json:"scores"`
+}
+
+func renderCounts(counts map[string]int) string {
+	keys := make([]string, 0, len(counts))
+	for k := range counts {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%d", k, counts[k]))
+	}
+	if len(parts) == 0 {
+		return "(none)"
+	}
+	return strings.Join(parts, " ")
 }

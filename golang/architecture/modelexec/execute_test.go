@@ -317,3 +317,74 @@ func TestArtifactCannotAttributeClaimsToUnshownFiles(t *testing.T) {
 		})
 	}
 }
+
+// The adapter sends FilePath to the bridge, which puts it in the prompt and
+// uses it to constrain valid attribution. The same excerpt attributed to a
+// different file is a different question with a different permitted answer.
+func TestRequestIdentityCoversSuppliedFilePaths(t *testing.T) {
+	before, err := RequestDigest(testRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := testRequest()
+	moved.SuppliedEvidence[0].FilePath = "internal/somewhere/else.go"
+	after, err := RequestDigest(moved)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if before == after {
+		t.Error("moving supplied evidence to a different file did not change the request identity")
+	}
+}
+
+// The accepted artifact digest is copied into the terminal binding, so a
+// partial order here defeats canonicalization everywhere downstream. The
+// acquisition-level ordering test could not catch this: it built outcomes whose
+// binding digest was hard-coded, so the production digest never varied.
+func TestArtifactDigestOrderingIsTotal(t *testing.T) {
+	mk := func(cited, files []string) ArtifactItem {
+		return ArtifactItem{Kind: ItemKindCandidateClaim, Text: "identical words", CitedEvidenceIDs: cited, FilePaths: files}
+	}
+	one := mk([]string{"ev-1"}, []string{"a.go"})
+	two := mk([]string{"ev-2"}, []string{"b.go"})
+
+	forward := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{one, two}}
+	reversed := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{two, one}}
+
+	a, err := ArtifactDigest(forward)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ArtifactDigest(reversed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Error("reordering identical items changed the accepted artifact identity; an unchanged answer would mint a new measurement")
+	}
+}
+
+// Validation accepts both an empty repository domain and the bound one, so two
+// accepted items can differ only there. The comparator must therefore order on
+// it, or the claimed total order is untotal for exactly the artifacts this
+// function canonicalizes.
+func TestArtifactDigestOrderingCoversRepositoryDomain(t *testing.T) {
+	mk := func(domain string) ArtifactItem {
+		return ArtifactItem{Kind: ItemKindQuestion, Text: "same", RepositoryDomain: domain}
+	}
+	bare, bound := mk(""), mk("github.com/example/repo")
+	forward := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{bare, bound}}
+	reversed := Artifact{SchemaVersion: ArtifactSchemaVersion, NondeterminismDeclaration: "x", Items: []ArtifactItem{bound, bare}}
+
+	a, err := ArtifactDigest(forward)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := ArtifactDigest(reversed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a != b {
+		t.Error("items differing only in repository domain are not totally ordered")
+	}
+}
