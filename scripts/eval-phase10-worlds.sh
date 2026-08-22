@@ -210,14 +210,39 @@ fi
 clone_world "${WORLD3_NAME:-world3_operator_bound}" "${WORLD3_DOMAIN:-}" \
   "${WORLD3_SRC:-}" "${WORLD3_REV:-}" WORLD3_SRC
 
+# The EVALUATOR is pinned too, not just the worlds it measures.
+#
+# Pinning world 1 and then compiling eval-arms from the live tree left the same
+# asymmetry one level up: the measured tree was fixed while the measuring binary
+# was whatever happened to be checked out, so the same SENSEI_REV and seed could
+# produce different reports with nothing recording why. A self-evaluation whose
+# instrument is unpinned is not re-measurable.
+#
+# Built from its own clone rather than from the world-1 clone, so compiling
+# cannot touch the tree being measured.
+if [[ -z "${SENSEI_REV:-}" ]]; then
+  echo "$0: SENSEI_REV is required — it pins both world 1 and the evaluator itself." >&2
+  exit 2
+fi
+git clone -q "$AG" "$WORK/_runner"
+if ! git -C "$WORK/_runner" checkout -q "$SENSEI_REV" 2>/dev/null; then
+  echo "$0: this checkout does not contain SENSEI_REV $SENSEI_REV" >&2
+  exit 2
+fi
+echo "$0: evaluator pinned at $(git -C "$WORK/_runner" rev-parse HEAD)" >&2
+( cd "$WORK/_runner" && go build -o "$WORK/eval-arms" ./cmd/eval-arms )
+
 # A world that was not supplied is recorded by eval-arms as not_run with a
 # reason, so a partial run never reads as a complete protocol.
 #
 # NOT exec: exec replaces this shell, so the EXIT trap never fires and every run
 # would leave a full clone of each external world behind in /tmp. The status is
 # forwarded instead, so a caller still sees the evaluator's own exit code.
+#
+# Run from the pinned clone so the default --protocol-file resolves against the
+# revision the evaluator was built from rather than the live tree.
 set +e
-go run ./cmd/eval-arms "${args[@]}"
+( cd "$WORK/_runner" && "$WORK/eval-arms" "${args[@]}" )
 status=$?
 set -e
 exit "$status"
