@@ -599,9 +599,25 @@ func isDefaultProtocolDocument(path, got string, gotErr error) bool {
 // failure mode an evaluation harness actually suffers. A world whose remote
 // cannot be read at all is refused rather than assumed correct.
 func verifyRequiredWorldCheckout(name, path string) error {
-	want, required := requiredWorldRemotes[name]
-	if !required {
+	isProtocolWorld := false
+	for _, n := range requiredWorlds {
+		if n == name {
+			isProtocolWorld = true
+			break
+		}
+	}
+	if !isProtocolWorld {
 		return nil
+	}
+	want, known := requiredWorldRemotes[name]
+	if !known {
+		// Fail CLOSED. This world is one the protocol names, so a checkout
+		// claiming it must be shown to be it — and no upstream identity is
+		// registered here, so it cannot be. Returning success would let an
+		// arbitrary tree be reported as that world, which is the finding this
+		// check exists to answer; inventing a URL for a repository whose
+		// identity is exactly what is undecided would be worse.
+		return fmt.Errorf("%s: the protocol names this world but no upstream identity is registered for it, so a checkout cannot be shown to be it; bind it as an operator world instead", name)
 	}
 	got, err := resolveUpstream(path)
 	if err != nil {
@@ -642,17 +658,27 @@ func resolveUpstream(path string) (string, error) {
 }
 
 // requiredWorldRemotes is what each protocol-named world's checkout must be.
+//
+// world3_independent_calibration is deliberately ABSENT. Which repository it
+// should be is the open question this whole file keeps running into, and
+// registering a guess here would let an arbitrary tree pass as the SQLite
+// calibration. A protocol-named world with no entry fails closed.
 var requiredWorldRemotes = map[string]string{
 	"world1_sensei_self": "github.com/globulario/sensei",
 	"world2_globular":    "github.com/globulario/Globular",
 }
 
 // normalizeRemote reduces the forms git accepts to a comparable host/path.
+//
+// git:// is included: it is a documented transport, and omitting it left a
+// legitimate checkout normalized to "git///github.com/..." and rejected. The
+// scp-like form (git@host:path) is handled by the "@" split below.
 func normalizeRemote(url string) string {
+	url = strings.TrimSuffix(url, "/")
 	url = strings.TrimSuffix(url, ".git")
-	url = strings.TrimPrefix(url, "https://")
-	url = strings.TrimPrefix(url, "http://")
-	url = strings.TrimPrefix(url, "ssh://")
+	for _, scheme := range []string{"https://", "http://", "ssh://", "git://", "git+ssh://", "file://"} {
+		url = strings.TrimPrefix(url, scheme)
+	}
 	if i := strings.Index(url, "@"); i >= 0 {
 		url = url[i+1:]
 	}

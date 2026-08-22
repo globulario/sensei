@@ -411,6 +411,12 @@ func TestNormalizeRemoteComparesTheRepositoryNotTheURLForm(t *testing.T) {
 		"https://github.com/globulario/sensei",
 		"git@github.com:globulario/sensei.git",
 		"ssh://git@github.com/globulario/sensei.git",
+		// git:// is a documented transport. Omitting it normalized a
+		// legitimate checkout to "git///github.com/..." and rejected it.
+		"git://github.com/globulario/sensei.git",
+		"git://github.com/globulario/sensei",
+		"git+ssh://git@github.com/globulario/sensei.git",
+		"https://github.com/globulario/sensei.git/",
 	} {
 		if got := normalizeRemote(form); got != "github.com/globulario/sensei" {
 			t.Errorf("normalizeRemote(%q) = %q, want the repository", form, got)
@@ -449,6 +455,14 @@ func TestAnImpostorCheckoutIsRefusedForANamedWorld(t *testing.T) {
 	// A world the protocol does not name is the operator's to bind.
 	if err := verifyRequiredWorldCheckout("world3_operator_bound", root); err != nil {
 		t.Errorf("an operator-bound world was subjected to the protocol's remote check: %v", err)
+	}
+
+	// A world the protocol DOES name but for which no upstream identity is
+	// registered fails closed. Returning success would let an arbitrary tree
+	// be reported as the SQLite calibration, and guessing a URL for the
+	// repository whose identity is the open question would be worse.
+	if err := verifyRequiredWorldCheckout("world3_independent_calibration", root); err == nil {
+		t.Error("a protocol-named world with no registered upstream identity was accepted")
 	}
 
 	// A checkout with no readable remote is refused, not assumed correct.
