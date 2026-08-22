@@ -343,6 +343,22 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.cmd.eval_prospective
+    name: eval-prospective
+    kind: service
+    assertion: inferred
+    source_files:
+      - cmd/eval-prospective/gitworld.go
+      - cmd/eval-prospective/graph.go
+      - cmd/eval-prospective/main.go
+      - cmd/eval-prospective/protocol.go
+    depends_on:
+      - component.golang.architecture.prospective
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.cmd.grpcweb_scan
     name: grpcweb-scan
     kind: service
@@ -1742,6 +1758,21 @@ components:
       - component.golang.architecture.factextract
     external_imports:
       - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.prospective
+    name: prospective
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/prospective/blind.go
+      - golang/architecture/prospective/classify.go
+      - golang/architecture/prospective/inventory.go
+      - golang/architecture/prospective/prospective.go
+      - golang/architecture/prospective/sample.go
     uml:
       kind: Component
       stereotype: module
