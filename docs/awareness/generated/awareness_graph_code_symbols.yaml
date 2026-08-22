@@ -11649,6 +11649,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "Two adjudicators disagreeing about one item is the signal the overlap sample\nexists to produce. Silently keeping the last verdict would erase it."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestFrozenArtifactIsVerifiedAgainstTheBinding
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestFrozenArtifactIsVerifiedAgainstTheBinding
+    package: evalmodel
+    language: go
+    doc: "The bundle must be able to verify the binding's central claim: that this\ndigest identifies what came back. Keeping the artifact without checking it\nwould preserve the material and leave the claim unverified."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestItemKeyDistinguishesFileAttribution
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestItemKeyDistinguishesFileAttribution
@@ -11667,6 +11673,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "An answer key with no identity is not frozen, and an unfrozen ruler cannot\nsupport a defensible score. Validating the digest only when one happened to\nbe present let labels-with-no-digest through to Scored=true."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestLoadReferenceSetVerifiesBytesAndPublishedIdentity
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestLoadReferenceSetVerifiesBytesAndPublishedIdentity
+    package: evalmodel
+    language: go
+    doc: "The loader is where label BYTES are checked against the release that names\nthem, where a release cannot present itself under someone else's digest, and\nwhere a partial adjudication cannot be scored under a full release identity."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestNoReferenceSetProducesNoScore
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestNoReferenceSetProducesNoScore
@@ -11715,6 +11727,12 @@ test_symbols:
     package: evalmodel
     language: go
     doc: "A digest stored inside a frozen file is a CLAIM that file makes about itself.\nScoring an edited bundle while reporting the old identity is exactly how a\nmoved answer key would go undetected."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestUnionIsKeyedAndDeltaExcludesSharedClaims
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestUnionIsKeyedAndDeltaExcludesSharedClaims
+    package: evalmodel
+    language: go
+    doc: "The union is not the sum. A claim produced by both lanes is one claim, and\nadding counters would inflate whatever an operator reads as coverage."
   - id: golang/architecture/evalmodel/acquisition_test.go:TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey
     file: golang/architecture/evalmodel/acquisition_test.go
     symbol: TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey

@@ -6,10 +6,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"sort"
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
 )
 
 // ReferenceSet is the INDEPENDENT human answer key. This package can consume
@@ -106,6 +106,27 @@ type Score struct {
 	BaselineOutsideScope     int `json:"baseline_outside_scope,omitempty"`
 	BaselineUnlabelled       int `json:"baseline_unlabelled,omitempty"`
 
+	// The KEYED union of both lanes. It is not the sum of the two tallies:
+	// a claim produced by both lanes is one claim, and adding counters would
+	// count it twice and inflate whatever the operator reads as coverage.
+	UnionSupported        int `json:"union_supported,omitempty"`
+	UnionUnsupported      int `json:"union_unsupported,omitempty"`
+	UnionAmbiguous        int `json:"union_ambiguous,omitempty"`
+	UnionCannotAdjudicate int `json:"union_cannot_adjudicate,omitempty"`
+	UnionOutsideScope     int `json:"union_outside_scope,omitempty"`
+	UnionUnlabelled       int `json:"union_unlabelled,omitempty"`
+
+	// The model DELTA: claims the model contributed that the deterministic
+	// lane did not produce. This is the number that answers whether the model
+	// earned its cost, and it is computed by key rather than by subtraction.
+	DeltaItems            int `json:"delta_items,omitempty"`
+	DeltaSupported        int `json:"delta_supported,omitempty"`
+	DeltaUnsupported      int `json:"delta_unsupported,omitempty"`
+	DeltaAmbiguous        int `json:"delta_ambiguous,omitempty"`
+	DeltaCannotAdjudicate int `json:"delta_cannot_adjudicate,omitempty"`
+	DeltaOutsideScope     int `json:"delta_outside_scope,omitempty"`
+	DeltaUnlabelled       int `json:"delta_unlabelled,omitempty"`
+
 	// MissingConstituent names which section 17 identity a populated release
 	// omitted, so the refusal is actionable rather than merely typed.
 	MissingConstituent string `json:"missing_constituent,omitempty"`
@@ -113,14 +134,15 @@ type Score struct {
 
 // Typed reasons a measurement produced no score.
 const (
-	ReasonReferenceSetAbsent         = "reference_set_absent"
-	ReasonModelDidNotResolve         = "model_did_not_resolve"
-	ReasonAcquisitionAltered         = "acquisition_contents_do_not_match_its_digest"
-	ReasonReferenceSetAltered        = "reference_set_contents_do_not_match_its_digest"
-	ReasonReferenceSetUnfrozen       = "reference_set_carries_labels_but_no_frozen_identity"
-	ReasonReferenceSetConflicted     = "reference_set_labels_the_same_item_more_than_once"
-	ReasonReferenceSetIncomplete     = "reference_set_omits_required_release_constituents"
-	ReasonReferenceSetInvalidVerdict = "reference_set_carries_a_verdict_outside_the_closed_vocabulary"
+	ReasonReferenceSetAbsent          = "reference_set_absent"
+	ReasonModelDidNotResolve          = "model_did_not_resolve"
+	ReasonAcquisitionAltered          = "acquisition_contents_do_not_match_its_digest"
+	ReasonReferenceSetAltered         = "reference_set_contents_do_not_match_its_digest"
+	ReasonReferenceSetUnfrozen        = "reference_set_carries_labels_but_no_frozen_identity"
+	ReasonReferenceSetConflicted      = "reference_set_labels_the_same_item_more_than_once"
+	ReasonReferenceSetIncomplete      = "reference_set_omits_required_release_constituents"
+	ReasonReferenceSetInvalidVerdict  = "reference_set_carries_a_verdict_outside_the_closed_vocabulary"
+	ReasonArtifactDoesNotMatchBinding = "frozen_artifact_does_not_hash_to_the_identity_the_binding_claims"
 )
 
 // ScoreAcquisition measures a FROZEN bundle against a FROZEN reference set.
@@ -152,6 +174,17 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 	if a.AcquisitionDigestSHA256 != acquisitionDigest(a) {
 		s.Reason = ReasonAcquisitionAltered
 		return s
+	}
+	// The frozen artifact must still hash to the identity the binding claims.
+	// Keeping the artifact without checking it would preserve the material and
+	// leave the claim about it unverified, which is the same shape as trusting
+	// a stored digest.
+	if a.AcceptedArtifact != nil {
+		recomputed, err := modelexec.ArtifactDigest(*a.AcceptedArtifact)
+		if err != nil || recomputed != a.Model.ArtifactDigestSHA256 {
+			s.Reason = ReasonArtifactDoesNotMatchBinding
+			return s
+		}
 	}
 	if a.Model.Status != investigation.ModelStatusResolved {
 		// A refusal or an error is a real evaluation result. It is reported as
@@ -245,6 +278,28 @@ func ScoreAcquisition(a Acquisition, ref ReferenceSet) Score {
 	for _, item := range a.Baseline.Candidates {
 		tally(labels[BaselineItemKey(a, item)], &s.BaselineSupported, &s.BaselineUnsupported, &s.BaselineAmbiguous, &s.BaselineCannotAdjudicate, &s.BaselineOutsideScope, &s.BaselineUnlabelled)
 	}
+	// The union and the delta, both computed over KEYS. A claim produced by
+	// both lanes appears once in the union and never in the delta.
+	baselineKeys := map[string]bool{}
+	union := map[string]string{}
+	for _, item := range a.Baseline.Candidates {
+		k := BaselineItemKey(a, item)
+		baselineKeys[k] = true
+		union[k] = labels[k]
+	}
+	for _, item := range a.Items {
+		k := ItemKey(a, item)
+		union[k] = labels[k]
+		if baselineKeys[k] {
+			continue
+		}
+		s.DeltaItems++
+		tally(labels[k], &s.DeltaSupported, &s.DeltaUnsupported, &s.DeltaAmbiguous, &s.DeltaCannotAdjudicate, &s.DeltaOutsideScope, &s.DeltaUnlabelled)
+	}
+	for _, verdict := range union {
+		tally(verdict, &s.UnionSupported, &s.UnionUnsupported, &s.UnionAmbiguous, &s.UnionCannotAdjudicate, &s.UnionOutsideScope, &s.UnionUnlabelled)
+	}
+
 	s.Scored = true
 	return s
 }
@@ -291,20 +346,33 @@ func scopedItemKey(a Acquisition, kind, text string, cited, files []string) stri
 	return hex.EncodeToString(sum[:])[:32]
 }
 
-// ReferenceDigest content-addresses an answer key, so a score can name the
-// exact ruler it used and a later edit is visible.
+// ReferenceDigest derives the Section 17 release identity.
+//
+// It hashes EXACTLY the constituents the protocol names — protocol digest,
+// sample manifest digest, label file digests, world binding digests, and the
+// adjudicator-overlap manifest — and nothing else. Hashing this package's own
+// struct instead would produce a scorer-local identity: an externally computed
+// release digest could never match it, which would force every release to be
+// recomputed here rather than verified against what the protocol published.
+//
+// Label CONTENT is bound by LabelFileDigestsSHA256, not by hashing the loaded
+// labels: the release identifies the files, and a loader is responsible for
+// checking the bytes it read against them.
 func ReferenceDigest(ref ReferenceSet) string {
-	ref.DigestSHA256 = ""
-	sort.SliceStable(ref.Labels, func(i, j int) bool {
-		if ref.Labels[i].ItemKey != ref.Labels[j].ItemKey {
-			return ref.Labels[i].ItemKey < ref.Labels[j].ItemKey
-		}
-		return ref.Labels[i].Verdict < ref.Labels[j].Verdict
+	payload, _ := json.Marshal(struct {
+		Protocol       string   `json:"protocol_digest"`
+		SampleManifest string   `json:"sample_manifest_digest"`
+		LabelFiles     []string `json:"label_file_digests"`
+		WorldBindings  []string `json:"world_binding_digests"`
+		Overlap        string   `json:"adjudicator_overlap_digest"`
+	}{
+		strings.TrimSpace(ref.ProtocolDigestSHA256),
+		strings.TrimSpace(ref.SampleManifestDigestSHA256),
+		sortedCopy(ref.LabelFileDigestsSHA256),
+		sortedCopy(ref.WorldBindingDigestsSHA256),
+		strings.TrimSpace(ref.AdjudicatorOverlapDigestSHA256),
 	})
-	ref.LabelFileDigestsSHA256 = sortedCopy(ref.LabelFileDigestsSHA256)
-	ref.WorldBindingDigestsSHA256 = sortedCopy(ref.WorldBindingDigestsSHA256)
-	data, _ := json.Marshal(ref)
-	sum := sha256.Sum256(data)
+	sum := sha256.Sum256(payload)
 	return hex.EncodeToString(sum[:])
 }
 

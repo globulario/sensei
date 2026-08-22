@@ -3,7 +3,12 @@
 package evalmodel
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/investigation"
@@ -12,7 +17,22 @@ import (
 
 const sha = "4a8e63db7cc5173b82bd3ba6019d30ce9e22db84d852bd3ba6019d30ce922db8"
 
+// resolvedOutcome builds an outcome whose binding digest is COMPUTED from its
+// artifact, the way a real execution produces one. A hard-coded digest here
+// would make every test that touches artifact identity pass without ever
+// exercising it — the failure mode already found twice on this branch.
 func resolvedOutcome(text string) modelexec.Outcome {
+	artifact := modelexec.Artifact{
+		SchemaVersion:             modelexec.ArtifactSchemaVersion,
+		NondeterminismDeclaration: "model_response_not_replayable",
+		Items: []modelexec.ArtifactItem{{
+			Kind: modelexec.ItemKindCandidateClaim, Text: text, CitedEvidenceIDs: []string{"ev-1"},
+		}},
+	}
+	digest, err := modelexec.ArtifactDigest(artifact)
+	if err != nil {
+		panic(err)
+	}
 	return modelexec.Outcome{
 		Binding: investigation.ModelBinding{
 			Status:                    investigation.ModelStatusResolved,
@@ -21,17 +41,11 @@ func resolvedOutcome(text string) modelexec.Outcome {
 			ModelName:                 "a-model",
 			ModelDigestAbsence:        investigation.ModelDigestAbsent,
 			RequestDigestSHA256:       sha,
-			ArtifactDigestSHA256:      sha,
+			ArtifactDigestSHA256:      digest,
 			NondeterminismDeclaration: "model_response_not_replayable",
 		},
 		ProviderCalls: 1,
-		Artifact: &modelexec.Artifact{
-			SchemaVersion:             modelexec.ArtifactSchemaVersion,
-			NondeterminismDeclaration: "model_response_not_replayable",
-			Items: []modelexec.ArtifactItem{{
-				Kind: modelexec.ItemKindCandidateClaim, Text: text, CitedEvidenceIDs: []string{"ev-1"},
-			}},
-		},
+		Artifact:      &artifact,
 	}
 }
 
@@ -202,12 +216,17 @@ func TestScorerRefusesFrozenInputsThatDoNotMatchTheirDigest(t *testing.T) {
 		t.Errorf("an edited acquisition scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
 	}
 
-	movedKey := ref
-	movedKey.Labels = append([]ReferenceLabel{}, ref.Labels...)
-	movedKey.Labels[0].Verdict = VerdictUnsupported
-	if s := ScoreAcquisition(a, movedKey); s.Scored || s.Reason != ReasonReferenceSetAltered {
-		t.Errorf("an answer key edited after the fact scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
+	// A release whose constituents were edited after the fact no longer
+	// matches its own published identity.
+	movedRelease := ref
+	movedRelease.SampleManifestDigestSHA256 = "a-different-sample"
+	if s := ScoreAcquisition(a, movedRelease); s.Scored || s.Reason != ReasonReferenceSetAltered {
+		t.Errorf("a release edited after the fact scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
 	}
+
+	// Editing a LABEL deliberately does not move the release identity: the
+	// release identifies label FILES by digest, and checking the bytes against
+	// those digests belongs to whatever loads them. See LoadReferenceSet.
 }
 
 // Two items with the same words but different file attribution are different
@@ -493,5 +512,154 @@ func TestVerdictsOutsideTheClosedVocabularyInvalidateTheKey(t *testing.T) {
 	}
 	if s.Reason != ReasonReferenceSetInvalidVerdict {
 		t.Errorf("reason = %q, want %q", s.Reason, ReasonReferenceSetInvalidVerdict)
+	}
+}
+
+// The bundle must be able to verify the binding's central claim: that this
+// digest identifies what came back. Keeping the artifact without checking it
+// would preserve the material and leave the claim unverified.
+func TestFrozenArtifactIsVerifiedAgainstTheBinding(t *testing.T) {
+	a := NewAcquisition("t", baseline(), resolvedOutcome("A calls B"))
+	ref := frozenRef()
+	ref.Labels = []ReferenceLabel{{ItemKey: ItemKey(a, a.Items[0]), Verdict: VerdictSupported}}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+	if s := ScoreAcquisition(a, ref); !s.Scored {
+		t.Fatalf("an intact acquisition did not score: %+v", s)
+	}
+
+	// Two accepted artifacts differing only in an item's repository domain
+	// project to identical Items but have different artifact identities.
+	tampered := a
+	artifact := *a.AcceptedArtifact
+	artifact.Items = append([]modelexec.ArtifactItem{}, artifact.Items...)
+	artifact.Items[0].RepositoryDomain = "github.com/someone/else"
+	tampered.AcceptedArtifact = &artifact
+	tampered.AcquisitionDigestSHA256 = acquisitionDigest(tampered)
+
+	if s := ScoreAcquisition(tampered, ref); s.Scored || s.Reason != ReasonArtifactDoesNotMatchBinding {
+		t.Errorf("a frozen artifact that does not hash to the binding scored anyway: scored=%v reason=%q", s.Scored, s.Reason)
+	}
+}
+
+// The union is not the sum. A claim produced by both lanes is one claim, and
+// adding counters would inflate whatever an operator reads as coverage.
+func TestUnionIsKeyedAndDeltaExcludesSharedClaims(t *testing.T) {
+	shared := "both lanes said this"
+	base := baseline()
+	base.Candidates = []BaselineItem{
+		{Kind: modelexec.ItemKindCandidateClaim, Text: shared, CitedEvidenceIDs: []string{"ev-1"}},
+		{Kind: modelexec.ItemKindCandidateClaim, Text: "only deterministic", CitedEvidenceIDs: []string{"ev-1"}},
+	}
+	out := resolvedOutcome(shared)
+	out.Artifact.Items = append(out.Artifact.Items, modelexec.ArtifactItem{
+		Kind: modelexec.ItemKindCandidateClaim, Text: "only the model", CitedEvidenceIDs: []string{"ev-1"},
+	})
+	digest, err := modelexec.ArtifactDigest(*out.Artifact)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Binding.ArtifactDigestSHA256 = digest
+	a := NewAcquisition("t", base, out)
+
+	ref := frozenRef()
+	for _, item := range a.Items {
+		ref.Labels = append(ref.Labels, ReferenceLabel{ItemKey: ItemKey(a, item), Verdict: VerdictSupported})
+	}
+	for _, item := range a.Baseline.Candidates {
+		if k := BaselineItemKey(a, item); !hasLabel(ref.Labels, k) {
+			ref.Labels = append(ref.Labels, ReferenceLabel{ItemKey: k, Verdict: VerdictSupported})
+		}
+	}
+	ref.DigestSHA256 = ReferenceDigest(ref)
+
+	s := ScoreAcquisition(a, ref)
+	if !s.Scored {
+		t.Fatalf("not scored: %+v", s)
+	}
+	// Three distinct claims: shared, deterministic-only, model-only.
+	if s.UnionSupported != 3 {
+		t.Errorf("union supported = %d, want 3; the shared claim must be counted once", s.UnionSupported)
+	}
+	if s.BaselineSupported+s.ModelSupported != 4 {
+		t.Errorf("lane totals = %d, want 4; the shared claim appears in both lanes", s.BaselineSupported+s.ModelSupported)
+	}
+	// The delta is what the model ADDED: one claim.
+	if s.DeltaItems != 1 || s.DeltaSupported != 1 {
+		t.Errorf("delta = %d items / %d supported, want 1/1; the shared claim is not an addition", s.DeltaItems, s.DeltaSupported)
+	}
+}
+
+func hasLabel(labels []ReferenceLabel, key string) bool {
+	for _, l := range labels {
+		if l.ItemKey == key {
+			return true
+		}
+	}
+	return false
+}
+
+// The loader is where label BYTES are checked against the release that names
+// them, where a release cannot present itself under someone else's digest, and
+// where a partial adjudication cannot be scored under a full release identity.
+func TestLoadReferenceSetVerifiesBytesAndPublishedIdentity(t *testing.T) {
+	dir := t.TempDir()
+	writeFile := func(name string, v interface{}) (string, string) {
+		t.Helper()
+		data, err := json.MarshalIndent(v, "", "  ")
+		if err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, data, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(data)
+		return path, hex.EncodeToString(sum[:])
+	}
+
+	labelPath, labelDigest := writeFile("labels-a.json", LabelFile{
+		SchemaVersion: "v1", AdjudicatorID: "adjudicator-1",
+		Labels: []ReferenceLabel{{ItemKey: "k", Verdict: VerdictSupported}},
+	})
+
+	release := ReferenceSet{
+		SchemaVersion:              "v1",
+		ProtocolID:                 "phase10-reference-protocol-v1",
+		ProtocolDigestSHA256:       "protocol-digest",
+		SampleManifestDigestSHA256: "sample-manifest-digest",
+		LabelFileDigestsSHA256:     []string{labelDigest},
+		WorldBindingDigestsSHA256:  []string{"world-binding-digest"},
+	}
+	release.DigestSHA256 = ReferenceDigest(release)
+	manifestPath, _ := writeFile("release.json", release)
+
+	loaded, err := LoadReferenceSet(manifestPath, []string{labelPath})
+	if err != nil {
+		t.Fatalf("a well-formed release was refused: %v", err)
+	}
+	if len(loaded.Labels) != 1 {
+		t.Errorf("loaded %d labels, want 1", len(loaded.Labels))
+	}
+
+	// A release presenting a foreign identity.
+	foreign := release
+	foreign.DigestSHA256 = strings.Repeat("0", 64)
+	foreignPath, _ := writeFile("foreign.json", foreign)
+	if _, err := LoadReferenceSet(foreignPath, []string{labelPath}); err == nil {
+		t.Error("a release presenting a foreign identity was accepted")
+	}
+
+	// A label file the release does not name.
+	otherPath, _ := writeFile("labels-b.json", LabelFile{
+		SchemaVersion: "v1", AdjudicatorID: "adjudicator-2",
+		Labels: []ReferenceLabel{{ItemKey: "k", Verdict: VerdictUnsupported}},
+	})
+	if _, err := LoadReferenceSet(manifestPath, []string{otherPath}); err == nil {
+		t.Error("labels were accepted from a file the release does not name")
+	}
+
+	// A release scored against none of its adjudication.
+	if _, err := LoadReferenceSet(manifestPath, nil); err == nil {
+		t.Error("a release was loaded with none of the label files it names")
 	}
 }

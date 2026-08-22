@@ -89,7 +89,20 @@ type Acquisition struct {
 
 	// Items are the accepted model-derived proposals, empty for every
 	// non-resolved outcome. A refusal or an error is a result worth freezing.
+	//
+	// They are a PROJECTION for scoring. They deliberately do not carry every
+	// field the artifact digest covers, which is why the exact artifact is
+	// kept alongside them.
 	Items []AcquiredItem `json:"items,omitempty"`
+
+	// AcceptedArtifact is the exact artifact the executor accepted.
+	//
+	// Without it the bundle cannot recompute Model.ArtifactDigestSHA256, so the
+	// binding's central claim — this digest identifies what came back — would
+	// be unverifiable from the frozen record. Two accepted artifacts differing
+	// only in an item's RepositoryDomain project to identical Items while
+	// having different, uncheckable artifact identities.
+	AcceptedArtifact *modelexec.Artifact `json:"accepted_artifact,omitempty"`
 
 	AcquisitionDigestSHA256 string `json:"acquisition_digest_sha256"`
 }
@@ -108,6 +121,11 @@ func NewAcquisition(capturedAt string, baseline DeterministicBaseline, outcome m
 		Model:         outcome.Binding,
 	}
 	if outcome.Binding.Status == investigation.ModelStatusResolved && outcome.Artifact != nil {
+		// The CANONICAL form, not the provider's arrival order: a frozen record
+		// whose own identity depends on arrival order would reintroduce the
+		// problem canonicalization exists to solve.
+		artifact := modelexec.NormalizeArtifact(*outcome.Artifact)
+		a.AcceptedArtifact = &artifact
 		for _, item := range outcome.Artifact.Items {
 			a.Items = append(a.Items, AcquiredItem{
 				Kind:             item.Kind,

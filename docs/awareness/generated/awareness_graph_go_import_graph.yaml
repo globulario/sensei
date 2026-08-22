@@ -1142,6 +1142,7 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/evalmodel/acquisition.go
+      - golang/architecture/evalmodel/load.go
       - golang/architecture/evalmodel/score.go
     depends_on:
       - component.golang.architecture.investigation

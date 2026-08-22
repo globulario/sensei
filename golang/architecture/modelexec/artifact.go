@@ -105,6 +105,21 @@ func ValidateArtifact(a Artifact, r Request) (reason string, ok bool) {
 // ArtifactDigest content-addresses the NORMALIZED artifact, so two providers
 // returning the same answer in a different order produce the same identity.
 func ArtifactDigest(a Artifact) (string, error) {
+	data, err := json.Marshal(NormalizeArtifact(a))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+// NormalizeArtifact is the canonical form ArtifactDigest hashes.
+//
+// It is exported because anything that FREEZES an artifact must freeze this
+// form: storing the provider's arrival order would make the frozen record's
+// own identity order-sensitive again, defeating the canonicalization at the
+// point it matters most.
+func NormalizeArtifact(a Artifact) Artifact {
 	norm := Artifact{
 		SchemaVersion:             a.SchemaVersion,
 		NondeterminismDeclaration: a.NondeterminismDeclaration,
@@ -140,10 +155,5 @@ func ArtifactDigest(a Artifact) (string, error) {
 		// exactly the artifacts this function is asked to canonicalize.
 		return a.RepositoryDomain < b.RepositoryDomain
 	})
-	data, err := json.Marshal(norm)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+	return norm
 }
