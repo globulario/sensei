@@ -685,26 +685,35 @@ func TestComposedClaimsReachTheSample(t *testing.T) {
 	site := evalharness.CompositionSiteResult{}
 	site.Defect = "one"
 	site.ModelAcquisition.Baseline.Candidates = []evalmodel.BaselineItem{
-		{Kind: "claim", Text: "the boundary is crossed in the helper"},
+		{Kind: "claim", Text: "the boundary is crossed in the helper", CitedEvidenceIDs: []string{"ev-1"}, FilePaths: []string{"a.go"}},
 	}
 	site.ModelAcquisition.Items = []evalmodel.AcquiredItem{
-		{Kind: "claim", Text: "a model-derived proposal"},
+		{Kind: "claim", Text: "a model-derived proposal", FilePaths: []string{"b.go"}},
 	}
 	addComposedClaims(&w, evalharness.CompositionReport{Results: []evalharness.CompositionSiteResult{site}})
 
-	if len(w.CandidateQuestions) != 2 {
-		t.Fatalf("composed claims produced %d sampleable items, want 2", len(w.CandidateQuestions))
+	if len(w.Counterexamples) != 2 {
+		t.Fatalf("composed claims produced %d sampleable items, want 2", len(w.Counterexamples))
 	}
 	var deterministic, model bool
-	for _, q := range w.CandidateQuestions {
-		if strings.Contains(q.QuestionText, "[deterministic") {
+	for _, c := range w.Counterexamples {
+		if strings.Contains(c.Description, "[deterministic") {
 			deterministic = true
 		}
-		if strings.Contains(q.QuestionText, "[model") {
+		if strings.Contains(c.Description, "[model") {
 			model = true
 		}
-		if !strings.HasPrefix(q.ID, "one/") {
-			t.Errorf("claim %q is not attributed to its site", q.ID)
+		if !strings.HasPrefix(c.ID, "one/") {
+			t.Errorf("claim %q is not attributed to its site", c.ID)
+		}
+		// A claim without its evidence is not adjudicable, it is an opinion.
+		if len(c.EvidenceRefIDs) == 0 {
+			t.Errorf("claim %q carries no evidence anchor; an adjudicator cannot open the pinned source", c.ID)
+		}
+		for _, r := range c.EvidenceRefIDs {
+			if r == "a.go" || r == "b.go" {
+				t.Errorf("path %q is not namespaced by site; two mutants' a.go are different files", r)
+			}
 		}
 	}
 	if !deterministic || !model {

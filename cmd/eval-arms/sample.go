@@ -16,6 +16,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/evalharness"
 	"github.com/globulario/sensei/golang/architecture/evalsample"
+	"github.com/globulario/sensei/golang/architecture/investigation"
 )
 
 // protocolPath is the frozen protocol this sample serves. The manifest records
@@ -213,17 +214,38 @@ func addComposedClaims(w *evalsample.World, report evalharness.CompositionReport
 		}
 		acq := ns.site.ModelAcquisition
 		for i, c := range acq.Baseline.Candidates {
-			w.CandidateQuestions = append(w.CandidateQuestions, architecture.OpenQuestion{
-				ID:           fmt.Sprintf("%s/deterministic/%d", ns.name, i),
-				QuestionText: fmt.Sprintf("[deterministic %s] %s", c.Kind, c.Text),
-			})
+			w.Counterexamples = append(w.Counterexamples, composedClaim(ns.name, "deterministic", i, c.Kind, c.Text, c.CitedEvidenceIDs, c.FilePaths))
 		}
 		for i, c := range acq.Items {
-			w.CandidateQuestions = append(w.CandidateQuestions, architecture.OpenQuestion{
-				ID:           fmt.Sprintf("%s/model/%d", ns.name, i),
-				QuestionText: fmt.Sprintf("[model %s] %s", c.Kind, c.Text),
-			})
+			w.Counterexamples = append(w.Counterexamples, composedClaim(ns.name, "model", i, c.Kind, c.Text, c.CitedEvidenceIDs, c.FilePaths))
 		}
+	}
+}
+
+// composedClaim carries a claim into the sample WITH its anchors.
+//
+// A Counterexample rather than an OpenQuestion because only the former has a
+// place for evidence references, and an earlier version lost them: the blind
+// payload arrived with text and no citations, so an adjudicator could not open
+// the pinned source and the label could not validly drive the unsupported-claim
+// rate. A claim without its evidence is not adjudicable, it is just an opinion.
+//
+// Paths are namespaced by site for the same reason the observations are: the
+// citation is repo-relative inside one mutant's tree, and two mutants' "a.go"
+// are different files.
+func composedClaim(site, lane string, i int, kind, text string, cited, paths []string) investigation.Counterexample {
+	refs := make([]string, 0, len(cited)+len(paths))
+	refs = append(refs, cited...)
+	for _, p := range paths {
+		if strings.TrimSpace(p) == "" {
+			continue
+		}
+		refs = append(refs, site+"/"+p)
+	}
+	return investigation.Counterexample{
+		ID:             fmt.Sprintf("%s/%s/%d", site, lane, i),
+		Description:    fmt.Sprintf("[%s %s] %s", lane, kind, text),
+		EvidenceRefIDs: refs,
 	}
 }
 
