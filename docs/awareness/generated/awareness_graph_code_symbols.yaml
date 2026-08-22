@@ -11906,6 +11906,12 @@ test_symbols:
     package: evalsample
     language: go
     doc: "TestAMultiValuedRelationIsNotADisagreement is the defect this package\nshipped and then removed.\n\nTreating every repeated (subject, predicate) with differing objects as a\ncontradiction produced 23,641 \"cases\" from world 1, essentially all of them\ncomponents legitimately depending on many things. That would have handed an\nadjudicator thousands of non-questions and let the lane report a healthy\ndenominator built from nothing.\n\nWhether a predicate is single-valued is a statement about the ontology, so\nit comes from outside — and when nobody supplies it, the lane must say it is\nUNDRAWN rather than clean."
+  - id: golang/architecture/evalsample/sample_test.go:TestAWorldNameCannotEscapeTheOutputDirectory
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestAWorldNameCannotEscapeTheOutputDirectory
+    package: evalsample
+    language: go
+    doc: "TestAWorldNameCannotEscapeTheOutputDirectory.\n\nThe blinded views are written one file per (world, lane), so a world name is\na path component. A name carrying a separator or a parent reference would\nput the adjudicator's payload somewhere the run never said it wrote."
   - id: golang/architecture/evalsample/sample_test.go:TestAnEmptyLaneIsReportedNotOmitted
     file: golang/architecture/evalsample/sample_test.go
     symbol: TestAnEmptyLaneIsReportedNotOmitted
@@ -11936,6 +11942,18 @@ test_symbols:
     package: evalsample
     language: go
     doc: "TestContradictionCasesAreSelectedNotDecided. Section 8 gives the human three\npossible states and no winner. The manifest must therefore present both\nsides and record no verdict."
+  - id: golang/architecture/evalsample/sample_test.go:TestDuplicateWorldNamesAreRefused
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestDuplicateWorldNamesAreRefused
+    package: evalsample
+    language: go
+    doc: "TestDuplicateWorldNamesAreRefused.\n\nTwo worlds under one name keep both sets of items in the manifest while the\nsecond world's blinded views overwrite the first's under the same key. The\nresult is a manifest whose digest describes items that have no adjudication\npayload left — a sample that looks complete and cannot be adjudicated."
+  - id: golang/architecture/evalsample/sample_test.go:TestEveryManifestItemKeepsAnAdjudicationPayload
+    file: golang/architecture/evalsample/sample_test.go
+    symbol: TestEveryManifestItemKeepsAnAdjudicationPayload
+    package: evalsample
+    language: go
+    doc: "TestEveryManifestItemKeepsAnAdjudicationPayload is the property the check\nabove protects, asserted directly rather than only through its refusal."
   - id: golang/architecture/evalsample/sample_test.go:TestOneVerdictCannotMigrateBetweenWorlds
     file: golang/architecture/evalsample/sample_test.go
     symbol: TestOneVerdictCannotMigrateBetweenWorlds
