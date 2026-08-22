@@ -19,6 +19,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigationsurface"
 	"github.com/globulario/sensei/golang/architecture/investigator"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
 	"github.com/globulario/sensei/golang/architecture/whyinvestigation"
 )
 
@@ -53,6 +54,16 @@ const ArmCompositionModelDisabled = "phase10_composition_model_disabled"
 // are comparable field by field rather than by narrative.
 type CompositionSiteResult struct {
 	SiteResult `json:",inline" yaml:",inline"`
+
+	// Model* record the optional lane's outcome for this site, kept SEPARATE
+	// from the deterministic counts below. Merging them would attribute the
+	// deterministic lane's work to the model.
+	ModelStatus               string         `json:"model_status,omitempty" yaml:"model_status,omitempty"`
+	ModelReason               string         `json:"model_reason,omitempty" yaml:"model_reason,omitempty"`
+	ModelRequestDigestSHA256  string         `json:"model_request_digest_sha256,omitempty" yaml:"model_request_digest_sha256,omitempty"`
+	ModelArtifactDigestSHA256 string         `json:"model_artifact_digest_sha256,omitempty" yaml:"model_artifact_digest_sha256,omitempty"`
+	ModelProviderCalls        int            `json:"model_provider_calls,omitempty" yaml:"model_provider_calls,omitempty"`
+	ModelItemsByKind          map[string]int `json:"model_items_by_kind,omitempty" yaml:"model_items_by_kind,omitempty"`
 
 	// Candidates and Challenges are what composition produced. A candidate is
 	// advisory, never a verdict: this arm proposes, it does not admit.
@@ -218,7 +229,19 @@ func emptyInputDigest() string { return investigator.SHA256String("") }
 
 // RunCompositionArm runs the model-disabled Phase 10 composition over the whole
 // mutant suite plus the clean control.
+// RunCompositionArm runs the composition arm with NO model bound. It is the
+// deterministic floor a model-assisted configuration must beat to have earned
+// its cost.
 func RunCompositionArm(opts Options) (CompositionReport, error) {
+	return RunCompositionArmWithModel(opts, whyinvestigation.ModelLane{
+		Config: modelexec.Config{Disabled: true},
+	})
+}
+
+// RunCompositionArmWithModel runs the same arm with an optional model lane
+// threaded into the PRODUCTION investigation path. The evaluator never
+// implements model execution of its own.
+func RunCompositionArmWithModel(opts Options, lane whyinvestigation.ModelLane) (CompositionReport, error) {
 	if strings.TrimSpace(opts.RepositoryDomain) == "" {
 		return CompositionReport{}, fmt.Errorf("evalharness: RepositoryDomain is required; the arm must not resolve identity from its own checkout")
 	}
@@ -241,7 +264,7 @@ func RunCompositionArm(opts Options) (CompositionReport, error) {
 		},
 	}
 
-	control, err := runComposition(opts, "baseline-composition", evalmutant.Baseline())
+	control, err := runComposition(opts, "baseline-composition", evalmutant.Baseline(), lane)
 	if err != nil {
 		return CompositionReport{}, fmt.Errorf("evalharness: composition control: %w", err)
 	}
@@ -252,7 +275,7 @@ func RunCompositionArm(opts Options) (CompositionReport, error) {
 		if err != nil {
 			return CompositionReport{}, fmt.Errorf("evalharness: build %s: %w", d, err)
 		}
-		res, err := runComposition(opts, string(d)+"-composition", m)
+		res, err := runComposition(opts, string(d)+"-composition", m, lane)
 		if err != nil {
 			return CompositionReport{}, fmt.Errorf("evalharness: compose %s: %w", d, err)
 		}
@@ -269,7 +292,7 @@ func RunCompositionArm(opts Options) (CompositionReport, error) {
 // without putting a filesystem path into the reported record.
 type compositionSiteInternal = CompositionSiteResult
 
-func runComposition(opts Options, name string, m evalmutant.Mutant) (CompositionSiteResult, error) {
+func runComposition(opts Options, name string, m evalmutant.Mutant, lane whyinvestigation.ModelLane) (CompositionSiteResult, error) {
 	root, err := opts.MaterializeInto(name)
 	if err != nil {
 		return CompositionSiteResult{}, err
@@ -339,7 +362,7 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 		res.WhyUnavailable = "HOW produced no observations to investigate"
 		return res, nil
 	}
-	why, err := investigationsurface.RunWhy(context.Background(), investigationsurface.WhyRequest{
+	why, modelOutcome, err := investigationsurface.RunWhyWithModel(context.Background(), investigationsurface.WhyRequest{
 		Root:           root,
 		CapturedAt:     opts.CapturedAt,
 		How:            how,
@@ -348,7 +371,21 @@ func runComposition(opts Options, name string, m evalmutant.Mutant) (Composition
 		HistoryStart:   baseRev,
 		HistoryEnd:     headRev,
 		ProviderIDs:    []string{whyinvestigation.GitProviderID},
-	})
+	}, lane)
+	// The model outcome is recorded VERBATIM, including for a WHY that failed:
+	// a refusal or an error is an evaluation result, not a reason to report
+	// nothing about the model lane.
+	res.ModelStatus = modelOutcome.Binding.Status
+	res.ModelReason = modelOutcome.Binding.Reason
+	res.ModelRequestDigestSHA256 = modelOutcome.Binding.RequestDigestSHA256
+	res.ModelArtifactDigestSHA256 = modelOutcome.Binding.ArtifactDigestSHA256
+	res.ModelProviderCalls = modelOutcome.ProviderCalls
+	if modelOutcome.Artifact != nil {
+		res.ModelItemsByKind = map[string]int{}
+		for _, item := range modelOutcome.Artifact.Items {
+			res.ModelItemsByKind[item.Kind]++
+		}
+	}
 	if err != nil {
 		// TYPED, not silent. A WHY that could not run and a WHY that found
 		// nothing are different facts about this arm.

@@ -6156,6 +6156,12 @@ test_symbols:
     symbol: TestDuplicateWorldNameIsRefused
     package: main
     language: go
+  - id: cmd/eval-arms/world_test.go:TestEvaluationConfigCannotStateATerminalModelOutcome
+    file: cmd/eval-arms/world_test.go
+    symbol: TestEvaluationConfigCannotStateATerminalModelOutcome
+    package: main
+    language: go
+    doc: "The evaluator must not be able to state a terminal model outcome. The\nstrongest form of the proof is structural: there is no field for it."
   - id: cmd/eval-arms/world_test.go:TestEveryAbsenceStatusMustCarryAReason
     file: cmd/eval-arms/world_test.go
     symbol: TestEveryAbsenceStatusMustCarryAReason
@@ -6174,6 +6180,18 @@ test_symbols:
     package: main
     language: go
     doc: "TestIndexBindsTheEvaluatingAuthority pins the Sensei-side half of a run's\nidentity into the index.\n\nindex.Revision already binds the evaluator's checkout (#216), but a checkout\nis a different claim from the authority that answered: it can be advanced\nwithout rebuilding, and it names neither the compiled seed nor the authored\ncorpus consulted. #131 requires every run to bind \"revision/tree, graph\ndigest/status, policy/profile, provider versions\"; without this the eval\npath recorded only the first.\n\nThe block is asserted to live in the index, which carries no digest, so it\ncannot perturb the per-arm replay identity CI compares."
+  - id: cmd/eval-arms/world_test.go:TestModelArmIsImplementedButNotRunWithoutAProvider
+    file: cmd/eval-arms/world_test.go
+    symbol: TestModelArmIsImplementedButNotRunWithoutAProvider
+    package: main
+    language: go
+    doc: "TestModelArmIsImplementedButNotRunWithoutAProvider is the status change #258\nasks for, and the reason it is not cosmetic.\n\n`not_implemented_in_evaluated_path` and `not_run` say different things: one\nis \"no such behaviour exists to measure\", the other is \"this run did not\nask\". The first stopped being true when the execution path and a real\nadapter landed. Continuing to report it would understate the system, and\nreporting it while the capability exists would be false."
+  - id: cmd/eval-arms/world_test.go:TestModelArmRefusesAPartialProviderBinding
+    file: cmd/eval-arms/world_test.go
+    symbol: TestModelArmRefusesAPartialProviderBinding
+    package: main
+    language: go
+    doc: "A partially configured provider is still not a provider. Half a binding must\nnot launch anything, and must not look like a measurement."
   - id: cmd/eval-arms/world_test.go:TestParseWorldSpecRejectsIncompleteSpec
     file: cmd/eval-arms/world_test.go
     symbol: TestParseWorldSpecRejectsIncompleteSpec
@@ -11577,6 +11595,42 @@ test_symbols:
     package: evalharness
     language: go
     doc: "A site that did not compose contributes nothing to the grounding rate, so the\nrate must be reported with the count of such sites. Otherwise a run where\nevery site failed reads as \"0/0\" — indistinguishable from a run with no\ncandidates and no problems.\n\nThis matters specifically because Compose ends in Validate, which rejects a\ncandidate carrying a dangling reference and fails the whole site: the defect\nthis metric looks for shows up as a composition failure, never as an\nungrounded candidate."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestAcquisitionIdentityCoversBaselineBindingAndItems
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestAcquisitionIdentityCoversBaselineBindingAndItems
+    package: evalmodel
+    language: go
+    doc: "The acquisition identity must cover everything that makes one measurement\ndifferent from another."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestDeterministicAndModelCountsStaySeparate
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestDeterministicAndModelCountsStaySeparate
+    package: evalmodel
+    language: go
+    doc: "Deterministic and model-derived counts must never be merged into one number."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestNoReferenceSetProducesNoScore
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestNoReferenceSetProducesNoScore
+    package: evalmodel
+    language: go
+    doc: "No answer key means NO score. Inferring correctness from the system's own\noutput is the one thing the protocol forbids."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestNonResolvedOutcomeIsReportedAsItselfNotAsZero
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestNonResolvedOutcomeIsReportedAsItselfNotAsZero
+    package: evalmodel
+    language: go
+    doc: "A refusal or an error is an evaluation RESULT, not a zero score that would\nread like a bad model."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestReAcquisitionWithADifferentAnswerIsANewMeasurement
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestReAcquisitionWithADifferentAnswerIsANewMeasurement
+    package: evalmodel
+    language: go
+    doc: "A live re-acquisition that answers differently is a NEW measurement, not a\nreplay failure. This is the distinction the acquisition/scoring split exists\nto preserve."
+  - id: golang/architecture/evalmodel/acquisition_test.go:TestScorerOverAFrozenBundleIsByteIdentical
+    file: golang/architecture/evalmodel/acquisition_test.go
+    symbol: TestScorerOverAFrozenBundleIsByteIdentical
+    package: evalmodel
+    language: go
+    doc: "The scorer is the half that MUST replay byte-identically."
   - id: golang/architecture/evalmutant/mutant_test.go:TestBaselineIsCoherent
     file: golang/architecture/evalmutant/mutant_test.go
     symbol: TestBaselineIsCoherent

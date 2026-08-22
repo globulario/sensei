@@ -371,3 +371,57 @@ func TestPublishedArmRecordsTheAnsweringServersAuthority(t *testing.T) {
 		t.Error("an unobserved remote authority carries no typed reason")
 	}
 }
+
+// TestModelArmIsImplementedButNotRunWithoutAProvider is the status change #258
+// asks for, and the reason it is not cosmetic.
+//
+// `not_implemented_in_evaluated_path` and `not_run` say different things: one
+// is "no such behaviour exists to measure", the other is "this run did not
+// ask". The first stopped being true when the execution path and a real
+// adapter landed. Continuing to report it would understate the system, and
+// reporting it while the capability exists would be false.
+func TestModelArmIsImplementedButNotRunWithoutAProvider(t *testing.T) {
+	art := runModelBoundArm(t.TempDir(), "2026-01-01T00:00:00Z", modelArmConfig{}, map[string]int64{})
+	if art.Status == statusNotImplemented {
+		t.Fatalf("arm 3 still reports %q, but the evaluated path can now invoke the capability", statusNotImplemented)
+	}
+	if art.Status != statusNotRun {
+		t.Fatalf("status = %q, want %q", art.Status, statusNotRun)
+	}
+	if !strings.Contains(art.Reason, "did not bind a provider") {
+		t.Errorf("reason %q does not say why the arm did not run", art.Reason)
+	}
+}
+
+// A partially configured provider is still not a provider. Half a binding must
+// not launch anything, and must not look like a measurement.
+func TestModelArmRefusesAPartialProviderBinding(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		cfg  modelArmConfig
+	}{
+		{"no path", modelArmConfig{ProviderID: "bridge", ModelName: "m"}},
+		{"no model", modelArmConfig{ProviderID: "bridge", ProviderPath: "/bin/true"}},
+		{"no provider id", modelArmConfig{ProviderPath: "/bin/true", ModelName: "m"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if art := runModelBoundArm(t.TempDir(), "2026-01-01T00:00:00Z", tc.cfg, map[string]int64{}); art.Status != statusNotRun {
+				t.Errorf("status = %q, want %q", art.Status, statusNotRun)
+			}
+		})
+	}
+}
+
+// The evaluator must not be able to state a terminal model outcome. The
+// strongest form of the proof is structural: there is no field for it.
+func TestEvaluationConfigCannotStateATerminalModelOutcome(t *testing.T) {
+	blob, err := json.Marshal(modelArmConfig{ProviderID: "bridge", ProviderPath: "/bin/true", ModelName: "m"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, forbidden := range []string{"resolved", "status", "artifact_digest", "request_digest"} {
+		if strings.Contains(strings.ToLower(string(blob)), forbidden) {
+			t.Errorf("the evaluation arm's configuration carries %q; a terminal outcome is execution evidence, not a setting", forbidden)
+		}
+	}
+}

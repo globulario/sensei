@@ -13,6 +13,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/howextract"
 	"github.com/globulario/sensei/golang/architecture/investigation"
 	"github.com/globulario/sensei/golang/architecture/investigator"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
 	"github.com/globulario/sensei/golang/architecture/whyinvestigation"
 )
 
@@ -75,26 +76,40 @@ func RunHowContext(ctx context.Context, request HowRequest) (investigation.Docum
 	})
 }
 
+// RunWhy runs the deterministic WHY surface with no model bound.
+//
+// It delegates to RunWhyWithModel so there is ONE validation path and one
+// orchestration call. A second copy would be the place where the deterministic
+// surface and the model-capable surface quietly diverge.
 func RunWhy(ctx context.Context, request WhyRequest) (investigation.Document, error) {
+	doc, _, err := RunWhyWithModel(ctx, request, whyinvestigation.ModelLane{
+		Config: modelexec.Config{Disabled: true},
+	})
+	return doc, err
+}
+
+// RunWhyWithModel runs the same surface with an optional model lane. The
+// caller supplies the lane explicitly; nothing here discovers a provider.
+func RunWhyWithModel(ctx context.Context, request WhyRequest, lane whyinvestigation.ModelLane) (investigation.Document, modelexec.Outcome, error) {
 	if err := investigation.Validate(request.How); err != nil {
-		return investigation.Document{}, fmt.Errorf("HOW artifact is invalid: %w", err)
+		return investigation.Document{}, modelexec.Outcome{}, fmt.Errorf("HOW artifact is invalid: %w", err)
 	}
 	if request.How.Mode != investigation.ModeHow {
-		return investigation.Document{}, errors.New("HOW artifact mode is not how")
+		return investigation.Document{}, modelexec.Outcome{}, errors.New("HOW artifact mode is not how")
 	}
 	if strings.TrimSpace(request.QueryID) == "" {
-		return investigation.Document{}, errors.New("query id is required")
+		return investigation.Document{}, modelexec.Outcome{}, errors.New("query id is required")
 	}
 	if len(request.ObservationIDs) == 0 && len(request.EvidenceIDs) == 0 {
-		return investigation.Document{}, errors.New("at least one observation or evidence target is required")
+		return investigation.Document{}, modelexec.Outcome{}, errors.New("at least one observation or evidence target is required")
 	}
 	if strings.TrimSpace(request.HistoryStart) == "" || strings.TrimSpace(request.HistoryEnd) == "" {
-		return investigation.Document{}, errors.New("explicit history start and end are required")
+		return investigation.Document{}, modelexec.Outcome{}, errors.New("explicit history start and end are required")
 	}
 	if len(request.ProviderIDs) == 0 {
-		return investigation.Document{}, errors.New("at least one provider is required")
+		return investigation.Document{}, modelexec.Outcome{}, errors.New("at least one provider is required")
 	}
-	return whyinvestigation.Orchestrate(ctx, request.Root, whyinvestigation.CaptureRequest{Repository: request.How.Binding.Repository, How: request.How, Query: whyinvestigation.Query{ID: request.QueryID, TargetObservationIDs: request.ObservationIDs, TargetEvidenceIDs: request.EvidenceIDs}, Range: whyinvestigation.GitRange{Start: request.HistoryStart, End: request.HistoryEnd}, CapturedAt: request.CapturedAt}, whyinvestigation.Plan{ID: "plan.why.surface.v1", Description: "Phase 10.7 caller-bounded WHY investigation", RequestedProviderIDs: request.ProviderIDs})
+	return whyinvestigation.OrchestrateWithModel(ctx, request.Root, whyinvestigation.CaptureRequest{Repository: request.How.Binding.Repository, How: request.How, Query: whyinvestigation.Query{ID: request.QueryID, TargetObservationIDs: request.ObservationIDs, TargetEvidenceIDs: request.EvidenceIDs}, Range: whyinvestigation.GitRange{Start: request.HistoryStart, End: request.HistoryEnd}, CapturedAt: request.CapturedAt}, whyinvestigation.Plan{ID: "plan.why.surface.v1", Description: "Phase 10.7 caller-bounded WHY investigation", RequestedProviderIDs: request.ProviderIDs}, lane)
 }
 
 func RunArchitecture(request ArchitectureRequest) (investigator.Result, error) {

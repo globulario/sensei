@@ -331,6 +331,8 @@ components:
       - component.golang.architecture.gosemantics
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
+      - component.golang.architecture.modelexec
+      - component.golang.architecture.whyinvestigation
       - component.golang.client
     uml:
       kind: Component
@@ -1125,7 +1127,23 @@ components:
       - component.golang.architecture.investigation
       - component.golang.architecture.investigationsurface
       - component.golang.architecture.investigator
+      - component.golang.architecture.modelexec
       - component.golang.architecture.whyinvestigation
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.evalmodel
+    name: evalmodel
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/evalmodel/acquisition.go
+      - golang/architecture/evalmodel/score.go
+    depends_on:
+      - component.golang.architecture.investigation
+      - component.golang.architecture.modelexec
     uml:
       kind: Component
       stereotype: module
@@ -1458,6 +1476,7 @@ components:
       - component.golang.architecture.howextract
       - component.golang.architecture.investigation
       - component.golang.architecture.investigator
+      - component.golang.architecture.modelexec
       - component.golang.architecture.whyinvestigation
     external_imports:
       - gopkg.in/yaml.v3

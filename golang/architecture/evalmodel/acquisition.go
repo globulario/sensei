@@ -1,0 +1,123 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+
+// Package evalmodel separates a nondeterministic model ACQUISITION from the
+// deterministic SCORING of what it produced.
+//
+// A live model call may legitimately answer differently every time. Pretending
+// otherwise would be fiction, and a benchmark built on that fiction would report
+// replay failures that are really just the model being a model.
+//
+//	LIVE ACQUISITION            (nondeterministic, content-addressed once)
+//	        |
+//	FROZEN ACQUISITION BUNDLE   (immutable input)
+//	        |
+//	DETERMINISTIC SCORING       (must replay byte-identically)
+//
+// So the rule is split in two: a re-acquisition that returns a different
+// artifact gets a DIFFERENT acquisition identity — which is a new measurement,
+// not a failed replay — while the scorer over one frozen bundle and one frozen
+// reference set must produce identical bytes forever.
+package evalmodel
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"sort"
+
+	"github.com/globulario/sensei/golang/architecture/investigation"
+	"github.com/globulario/sensei/golang/architecture/modelexec"
+)
+
+const (
+	AcquisitionSchemaVersion = "sensei.eval_model_acquisition.v1"
+	ScoreSchemaVersion       = "sensei.eval_model_score.v1"
+)
+
+// DeterministicBaseline is what the run recovered WITHOUT the model. It is
+// carried alongside the model result and never merged into it: a reader must
+// always be able to tell which lane produced which item.
+type DeterministicBaseline struct {
+	DocumentDigestSHA256 string `json:"document_digest_sha256"`
+	ObservationCount     int    `json:"observation_count"`
+	CandidateCount       int    `json:"candidate_count"`
+}
+
+// AcquiredItem is one model-derived proposal, recorded with its provenance.
+type AcquiredItem struct {
+	Kind             string   `json:"kind"`
+	Text             string   `json:"text"`
+	CitedEvidenceIDs []string `json:"cited_evidence_ids,omitempty"`
+	FilePaths        []string `json:"file_paths,omitempty"`
+}
+
+// Acquisition is the frozen record of one live model call.
+type Acquisition struct {
+	SchemaVersion string                `json:"schema_version"`
+	CapturedAt    string                `json:"captured_at"`
+	Baseline      DeterministicBaseline `json:"deterministic_baseline"`
+
+	// Model is the terminal binding EXACTLY as modelexec produced it. The
+	// evaluator copies it; it never reinterprets a status or supplies one.
+	Model investigation.ModelBinding `json:"model"`
+
+	// Items are the accepted model-derived proposals, empty for every
+	// non-resolved outcome. A refusal or an error is a result worth freezing.
+	Items []AcquiredItem `json:"items,omitempty"`
+
+	AcquisitionDigestSHA256 string `json:"acquisition_digest_sha256"`
+}
+
+// NewAcquisition freezes one measurement and content-addresses it.
+//
+// The identity covers the deterministic baseline, the model binding (which
+// carries provider, model, request and artifact identity) and the accepted
+// items. Two live calls that answered differently therefore differ here, which
+// is the honest outcome: a new acquisition, not a broken replay.
+func NewAcquisition(capturedAt string, baseline DeterministicBaseline, outcome modelexec.Outcome) Acquisition {
+	a := Acquisition{
+		SchemaVersion: AcquisitionSchemaVersion,
+		CapturedAt:    capturedAt,
+		Baseline:      baseline,
+		Model:         outcome.Binding,
+	}
+	if outcome.Binding.Status == investigation.ModelStatusResolved && outcome.Artifact != nil {
+		for _, item := range outcome.Artifact.Items {
+			a.Items = append(a.Items, AcquiredItem{
+				Kind:             item.Kind,
+				Text:             item.Text,
+				CitedEvidenceIDs: sortedCopy(item.CitedEvidenceIDs),
+				FilePaths:        sortedCopy(item.FilePaths),
+			})
+		}
+		sort.SliceStable(a.Items, func(i, j int) bool {
+			if a.Items[i].Kind != a.Items[j].Kind {
+				return a.Items[i].Kind < a.Items[j].Kind
+			}
+			return a.Items[i].Text < a.Items[j].Text
+		})
+	}
+	a.AcquisitionDigestSHA256 = acquisitionDigest(a)
+	return a
+}
+
+func acquisitionDigest(a Acquisition) string {
+	a.AcquisitionDigestSHA256 = ""
+	// CapturedAt is excluded: when the same model returns the same answer about
+	// the same baseline, that is the same measurement regardless of the clock.
+	// Letting the clock into the identity is the mistake already recorded
+	// against the verification-record path.
+	a.CapturedAt = ""
+	data, _ := json.Marshal(a)
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
+}
+
+func sortedCopy(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := append([]string{}, in...)
+	sort.Strings(out)
+	return out
+}
