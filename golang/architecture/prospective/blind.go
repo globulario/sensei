@@ -21,7 +21,18 @@ type CorpusItem struct {
 	Title     string   `json:"title,omitempty"`
 	Statement string   `json:"statement,omitempty"`
 	Anchors   []string `json:"anchors,omitempty"`
+
+	// Materialization records how the item's readable form was obtained, so a
+	// reader can tell a node that stated its own meaning from one whose
+	// meaning was composed from the law next door.
+	Materialization string `json:"materialization,omitempty"`
 }
+
+// How a corpus item's readable form was obtained.
+const (
+	MaterializedFromNode    = "node_label_and_facts"
+	MaterializedFromRelated = "composed_from_related_governing_nodes"
+)
 
 // Corpus is the frozen set of items an adjudicator may mark applicable.
 //
@@ -36,29 +47,75 @@ type Corpus struct {
 	ProducedBy        string       `json:"produced_by"`
 	Items             []CorpusItem `json:"items"`
 
-	// UnresolvedIDs are eligible items whose detail could not be read.
+	// Excluded names every eligible-class item that could NOT be made
+	// adjudicable, with a stable reason.
 	//
-	// They are recorded rather than dropped, and rather than left to look like
-	// items with nothing to say. An adjudicator handed an identifier with no
-	// statement cannot judge whether it governs a change, so a corpus that
-	// quietly contained hundreds of them would report a healthy denominator
-	// built from rows nobody could act on.
-	UnresolvedIDs []string `json:"unresolved_ids,omitempty"`
+	// An earlier version kept such items in the corpus and counted them
+	// separately. That was worse than it looked: 305 of 423 rows reached the
+	// adjudication package as bare identifiers, so the package advertised a
+	// 423-item denominator while only 118 rows could actually be judged. An
+	// item a human cannot read cannot be marked applicable, so it does not
+	// belong in the set that bounds the denominator — but it must not vanish
+	// either, or the shortfall becomes invisible.
+	Excluded []CorpusExclusion `json:"excluded,omitempty"`
+
+	// Accounting reconciles what the graph holds against what this corpus
+	// could enumerate and materialize, per class.
+	Accounting []ClassAccounting `json:"accounting,omitempty"`
+
+	// QueryRowCap is the production row cap the enumeration ran under. It is
+	// recorded because it, not the graph, is what bounds the enumeration.
+	QueryRowCap int `json:"query_row_cap,omitempty"`
 
 	DigestSHA256 string `json:"digest_sha256"`
 }
 
-// Readable reports how many eligible items carry something an adjudicator can
-// actually read.
-func (c Corpus) Readable() int {
-	n := 0
-	for _, it := range c.Items {
-		if strings.TrimSpace(it.Title) != "" || strings.TrimSpace(it.Statement) != "" {
-			n++
-		}
-	}
-	return n
+// Corpus exclusion reasons. They are constants because a reason a report
+// groups by must mean the same thing in every run.
+const (
+	// CorpusExcludedUnresolvable is an item the pinned world could not resolve
+	// to a node at all.
+	CorpusExcludedUnresolvable = "unresolvable_from_pinned_world"
+	// CorpusExcludedNoStatement is an item that resolved but carries nothing a
+	// human could read and judge.
+	CorpusExcludedNoStatement = "no_human_readable_statement"
+	// CorpusNotEnumerable is counted rather than listed, because the ids are
+	// exactly what the row cap withheld. It is the difference between what the
+	// graph reports holding and what a capped enumeration could see.
+	CorpusNotEnumerable = "not_enumerable_within_query_row_cap"
+)
+
+// CorpusExclusion is one item that could not be made adjudicable.
+type CorpusExclusion struct {
+	ID     string `json:"id"`
+	Class  string `json:"class"`
+	Reason string `json:"reason"`
+	Detail string `json:"detail,omitempty"`
 }
+
+// ClassAccounting reconciles one class's numbers so the effective denominator
+// is unambiguous.
+//
+// GraphTotal comes from the graph's own metadata rather than from the
+// enumeration, which is the whole point: without an independent total, a
+// capped enumeration reports its cap as if it were the population.
+type ClassAccounting struct {
+	Class      string `json:"class"`
+	GraphTotal int    `json:"graph_total"`
+	Enumerated int    `json:"enumerated"`
+	// NotEnumerable is GraphTotal minus Enumerated: items the row cap withheld.
+	NotEnumerable int `json:"not_enumerable_within_query_row_cap"`
+	// Materialized is what reached the eligible corpus, and is the only number
+	// that bounds the recall denominator.
+	Materialized int `json:"materialized"`
+	Excluded     int `json:"excluded"`
+}
+
+// Adjudicable reports the effective eligible-corpus denominator: every item in
+// Items is human-adjudicable by construction, so this is simply their count.
+// It exists as a named method so a report cannot accidentally quote a total
+// that includes rows nobody could judge.
+func (c Corpus) Adjudicable() int { return len(c.Items) }
 
 // NormalizeCorpus sorts, deduplicates by ID and content-addresses the corpus.
 func NormalizeCorpus(c Corpus) (Corpus, error) {
@@ -80,9 +137,42 @@ func NormalizeCorpus(c Corpus) (Corpus, error) {
 	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].ID < out[j].ID })
 	c.Items = out
-	unresolved := append([]string(nil), c.UnresolvedIDs...)
-	sort.Strings(unresolved)
-	c.UnresolvedIDs = unresolved
+	for _, it := range c.Items {
+		// Enforced here rather than trusted from the caller: this is the one
+		// invariant that makes the denominator mean what a report says it
+		// means, and it must hold for every path that builds a corpus.
+		if strings.TrimSpace(it.Title) == "" && strings.TrimSpace(it.Statement) == "" {
+			return Corpus{}, fmt.Errorf("eligible item %s carries neither a title nor a statement: a human cannot judge whether it governs a change, so it may not bound the denominator — exclude it with reason %s instead",
+				it.ID, CorpusExcludedNoStatement)
+		}
+	}
+	excluded := append([]CorpusExclusion(nil), c.Excluded...)
+	sort.SliceStable(excluded, func(i, j int) bool {
+		if excluded[i].Reason != excluded[j].Reason {
+			return excluded[i].Reason < excluded[j].Reason
+		}
+		return excluded[i].ID < excluded[j].ID
+	})
+	c.Excluded = excluded
+	acc := append([]ClassAccounting(nil), c.Accounting...)
+	sort.SliceStable(acc, func(i, j int) bool { return acc[i].Class < acc[j].Class })
+	for _, a := range acc {
+		// Accounting that does not add up is worse than none: it looks like a
+		// reconciliation while hiding whichever rows it fails to mention.
+		if a.Materialized+a.Excluded != a.Enumerated {
+			return Corpus{}, fmt.Errorf("class %s: %d materialized plus %d excluded does not account for the %d rows enumerated",
+				a.Class, a.Materialized, a.Excluded, a.Enumerated)
+		}
+		want := a.GraphTotal - a.Enumerated
+		if want < 0 {
+			want = 0
+		}
+		if a.NotEnumerable != want {
+			return Corpus{}, fmt.Errorf("class %s: the graph reports %d items and %d were enumerated, so %d were beyond the row cap, not %d",
+				a.Class, a.GraphTotal, a.Enumerated, want, a.NotEnumerable)
+		}
+	}
+	c.Accounting = acc
 	c.DigestSHA256 = ""
 	d, err := DigestOf(c)
 	if err != nil {

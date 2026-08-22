@@ -91,7 +91,7 @@ func runFreeze(ctx context.Context, args []string) error {
 	graphDigest := fs.String("graph-digest", "", "live store digest the classification evidence was read from (required)")
 	target := fs.Int("target", prospective.DefaultTargetPerStratum, "per-stratum sampling target")
 	overlap := fs.Float64("overlap", 0.2, "second-adjudicator overlap fraction")
-	corpusLimit := fs.Int("corpus-limit", 500, "per-class cap when reading the eligible corpus")
+	corpusLimit := fs.Int("corpus-limit", 100, "rows requested per class; production caps this server-side, and the shortfall is reconciled against the graph totals")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -140,7 +140,11 @@ func runFreeze(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	fmt.Fprintf(os.Stderr, "  %d eligible items, %d readable, %d unresolved\n", len(corpus.Items), corpus.Readable(), len(corpus.UnresolvedIDs))
+	fmt.Fprintf(os.Stderr, "  %d adjudicable eligible items, %d excluded\n", corpus.Adjudicable(), len(corpus.Excluded))
+	for _, a := range corpus.Accounting {
+		fmt.Fprintf(os.Stderr, "    %-18s graph=%-4d enumerated=%-4d materialized=%-4d excluded=%-3d beyond-row-cap=%d\n",
+			a.Class, a.GraphTotal, a.Enumerated, a.Materialized, a.Excluded, a.NotEnumerable)
+	}
 
 	// The corpus comes first because the anchor index is derived from it. Two
 	// independent reads of the graph could disagree; one read cannot.

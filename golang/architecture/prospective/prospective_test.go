@@ -520,8 +520,8 @@ func TestAnchorIndexIsDerivedFromTheFrozenCorpus(t *testing.T) {
 	corpus, err := NormalizeCorpus(Corpus{
 		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
 		Items: []CorpusItem{
-			{ID: "inv.a", Class: "invariant", Anchors: []string{"anchored.go", "Makefile"}},
-			{ID: "inv.b", Class: "invariant"},
+			{ID: "inv.a", Class: "invariant", Title: "a governs the anchored seam", Anchors: []string{"anchored.go", "Makefile"}},
+			{ID: "inv.b", Class: "invariant", Title: "b governs nothing in particular"},
 		},
 	})
 	if err != nil {
@@ -564,27 +564,109 @@ func TestAnchorsThatNeverMeetThePopulationAreRefused(t *testing.T) {
 	}
 }
 
-// An item a human cannot read still bounds the denominator, so it is counted
-// rather than left looking like an item with nothing to say.
-func TestUnreadableCorpusItemsAreCountedNotHidden(t *testing.T) {
-	c, err := NormalizeCorpus(Corpus{
+// Every item in the corpus must be judgeable. An item a human cannot read
+// cannot be marked applicable, so admitting one would advertise a denominator
+// larger than the set anybody could actually adjudicate.
+func TestAnUnreadableItemMayNotBoundTheDenominator(t *testing.T) {
+	_, err := NormalizeCorpus(Corpus{
 		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
 		Items: []CorpusItem{
 			{ID: "inv.readable", Class: "invariant", Title: "something a human can judge"},
 			{ID: "inv.blank", Class: "invariant"},
 		},
-		UnresolvedIDs: []string{"inv.blank"},
+	})
+	if err == nil {
+		t.Fatal("an item with neither title nor statement was admitted to the corpus")
+	}
+	if !strings.Contains(err.Error(), CorpusExcludedNoStatement) {
+		t.Fatalf("the refusal does not name the exclusion reason to use instead: %v", err)
+	}
+}
+
+// What could not be materialized is excluded with a stable reason and counted,
+// and the accounting reconciles the graph's own total against what a capped
+// enumeration could see. Without an independent total a capped enumeration
+// reports its cap as the population.
+func TestExcludedCorpusItemsAreCountedAndReconciled(t *testing.T) {
+	c, err := NormalizeCorpus(Corpus{
+		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
+		QueryRowCap: 100,
+		Items: []CorpusItem{
+			{ID: "invariant:a", Class: "invariant", Title: "a"},
+			{ID: "invariant:b", Class: "invariant", Statement: "b holds"},
+		},
+		Excluded: []CorpusExclusion{
+			{ID: "invariant:z", Class: "invariant", Reason: CorpusExcludedNoStatement},
+			{ID: "invariant:y", Class: "invariant", Reason: CorpusExcludedUnresolvable},
+		},
+		Accounting: []ClassAccounting{
+			{Class: "invariant", GraphTotal: 292, Enumerated: 4, NotEnumerable: 288, Materialized: 2, Excluded: 2},
+		},
 	})
 	if err != nil {
 		t.Fatalf("corpus: %v", err)
 	}
-	if c.Readable() != 1 {
-		t.Fatalf("readable count is %d, so an unjudgeable row is being counted as judgeable", c.Readable())
+	if c.Adjudicable() != 2 {
+		t.Fatalf("the effective denominator is %d, not the adjudicable count", c.Adjudicable())
 	}
-	if len(c.UnresolvedIDs) != 1 || c.UnresolvedIDs[0] != "inv.blank" {
-		t.Fatal("the unresolved item was dropped from the record")
+	if len(c.Excluded) != 2 {
+		t.Fatal("an exclusion was dropped, so the shortfall would be invisible")
 	}
-	if len(c.Items) != 2 {
-		t.Fatal("an unresolved item left the corpus, which would silently shrink what bounds the denominator")
+	// Sorted by reason then id, so two runs produce the same bytes.
+	if c.Excluded[0].Reason != CorpusExcludedNoStatement || c.Excluded[1].Reason != CorpusExcludedUnresolvable {
+		t.Fatalf("exclusions are not in stable order: %#v", c.Excluded)
+	}
+	a := c.Accounting[0]
+	if a.GraphTotal != 292 || a.Enumerated != 4 || a.NotEnumerable != 288 {
+		t.Fatalf("the accounting does not reconcile the row cap against the graph total: %#v", a)
+	}
+	if a.Materialized+a.Excluded != a.Enumerated {
+		t.Fatalf("materialized plus excluded does not account for everything enumerated: %#v", a)
+	}
+	// Accounting that does not add up is refused rather than published.
+	if _, err := NormalizeCorpus(Corpus{
+		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
+		Items:      []CorpusItem{{ID: "invariant:a", Class: "invariant", Title: "a"}},
+		Accounting: []ClassAccounting{{Class: "invariant", GraphTotal: 10, Enumerated: 5, NotEnumerable: 5, Materialized: 1, Excluded: 0}},
+	}); err == nil {
+		t.Fatal("a corpus whose accounting does not add up was published")
+	}
+	if _, err := NormalizeCorpus(Corpus{
+		RepositoryDomain: "d", GraphDigestSHA256: "g", ProducedBy: "sensei query",
+		Items:      []CorpusItem{{ID: "invariant:a", Class: "invariant", Title: "a"}},
+		Accounting: []ClassAccounting{{Class: "invariant", GraphTotal: 10, Enumerated: 5, NotEnumerable: 0, Materialized: 1, Excluded: 4}},
+	}); err == nil {
+		t.Fatal("a corpus that under-reports what the row cap withheld was published")
+	}
+	if c.QueryRowCap != 100 {
+		t.Fatal("the corpus does not record the row cap that bounded its enumeration")
+	}
+}
+
+// The blind package still carries no anchors, and now also no accounting: what
+// the graph could not materialize is a statement about the graph, not evidence
+// an adjudicator needs.
+func TestCorpusAccountingDoesNotReachTheAdjudicator(t *testing.T) {
+	idx := testIndex(t, "anchored.go")
+	inv := mustInventory(t, idx, []Change{change("c1", newFile("new.go"))})
+	corpus := testCorpus(t)
+	corpus.Excluded = []CorpusExclusion{{ID: "invariant:secret", Class: "invariant", Reason: CorpusExcludedUnresolvable}}
+	corpus.Accounting = []ClassAccounting{{Class: "invariant", GraphTotal: 292, Enumerated: 1, NotEnumerable: 291, Excluded: 1}}
+	frozen, err := NormalizeCorpus(corpus)
+	if err != nil {
+		t.Fatalf("corpus: %v", err)
+	}
+	_, pkgs, err := Build(inv, frozen, testOptions(), lookupContent)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	raw, err := json.Marshal(pkgs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, leak := range []string{"invariant:secret", "graph_total", "not_enumerable", "accounting"} {
+		if strings.Contains(string(raw), leak) {
+			t.Fatalf("the adjudication package leaked %q", leak)
+		}
 	}
 }
