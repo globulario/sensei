@@ -348,12 +348,18 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/eval-prospective/cmd_run.go
+      - cmd/eval-prospective/cmd_score.go
       - cmd/eval-prospective/gitworld.go
       - cmd/eval-prospective/graph.go
       - cmd/eval-prospective/main.go
       - cmd/eval-prospective/protocol.go
+      - cmd/eval-prospective/refset.go
+      - cmd/eval-prospective/retrieval.go
     depends_on:
       - component.golang.architecture.prospective
+      - component.golang.architecture.prospectivelabel
+      - component.golang.architecture.prospectivescore
     uml:
       kind: Component
       stereotype: service
@@ -488,7 +494,6 @@ components:
       - cmd/prospective-label/main.go
       - cmd/prospective-label/ui.go
     depends_on:
-      - component.golang.architecture.prospective
       - component.golang.architecture.prospectivelabel
     uml:
       kind: Component
@@ -1799,7 +1804,26 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/prospectivelabel/labelset.go
       - golang/architecture/prospectivelabel/session.go
+    depends_on:
+      - component.golang.architecture.prospective
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.prospectivescore
+    name: prospectivescore
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/prospectivescore/report.go
+      - golang/architecture/prospectivescore/run.go
+      - golang/architecture/prospectivescore/score.go
+    depends_on:
+      - component.golang.architecture.prospective
+      - component.golang.architecture.prospectivelabel
     uml:
       kind: Component
       stereotype: module

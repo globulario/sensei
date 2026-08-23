@@ -3,12 +3,19 @@
 // Command eval-prospective freezes the prospective authoring-recall sample of
 // docs/evaluation/prospective-recall-protocol-v1.md.
 //
-// It implements Slice 1 of docs/design/prospective-recall-harness-259.md: the
-// steps from "protocol merged" up to and including "blind adjudication package
-// emitted". It stops there. It does not run retrieval, it does not score, and
-// it holds no vocabulary for an applicability label — the freeze order puts
-// human labels between this binary and any number, and a tool able to express
-// an answer is a tool able to leak one.
+// It implements docs/design/prospective-recall-harness-259.md.
+//
+// `freeze` is Slice 1: the steps from "protocol merged" up to and including
+// "blind adjudication package emitted". It stops there, and it holds no
+// vocabulary for an applicability label — a tool able to express an answer is
+// a tool able to leak one.
+//
+// `run`, `score` and `report` are Slice 2. They were written before any label
+// existed and can only execute after the labels are frozen, which is the order
+// the protocol requires rather than the order that happened to be convenient:
+// a grader authored after seeing scores is not a grader. `run` refuses to
+// start until a frozen answer key binds to this exact sample, and no flag
+// bypasses that.
 package main
 
 import (
@@ -38,6 +45,12 @@ func main() {
 		err = runFreeze(ctx, os.Args[2:])
 	case "protocol":
 		err = runProtocol(os.Args[2:])
+	case "run":
+		err = runRun(ctx, os.Args[2:])
+	case "score":
+		err = runScore(os.Args[2:])
+	case "report":
+		err = runReport(os.Args[2:])
 	case "help", "-h", "--help":
 		usage()
 		return
@@ -53,14 +66,19 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprint(os.Stderr, `eval-prospective — freeze the prospective authoring-recall sample (#259, Slice 1)
+	fmt.Fprint(os.Stderr, `eval-prospective — freeze, replay and score the prospective authoring-recall sample (#259)
 
 Usage:
   eval-prospective freeze    [flags]   enumerate, classify, sample, emit blind packages
   eval-prospective protocol            show the registered protocols and verify their digests
+  eval-prospective run       [flags]   replay the frozen retrieval surface over the pinned changes
+  eval-prospective score     [flags]   compare the run against the frozen applicability labels
+  eval-prospective report    [flags]   render the protocol section 12 report from a score
 
-This binary stops at the blind adjudication package. Retrieval execution and
-scoring belong to Slice 2, after the human applicability labels are frozen.
+freeze is Slice 1 and stops at the blind adjudication package. run, score and
+report are Slice 2: written before the labels existed, and refusing to execute
+until a frozen answer key binds to this exact sample. There is no flag that
+bypasses that refusal.
 `)
 }
 
