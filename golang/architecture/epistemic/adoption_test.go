@@ -268,3 +268,39 @@ func TestConservationIsAdoptedOnItsConstraints(t *testing.T) {
 		t.Fatalf("got %v", errs)
 	}
 }
+
+// Conservation's self-confirmation risk is the mirror of exploration's: the
+// experiment is not faked, it is made unnecessary by a constraint the same
+// actor authored. Nothing here can grade constraint provenance — a constraint
+// is free text — so the exposure is counted rather than scored.
+func TestAdoptionBasisCountsTheConservationExposure(t *testing.T) {
+	empty := (&Ledger{}).MeasureAdoptions()
+	if empty.Ratio != nil {
+		t.Fatalf("an empty denominator has no rate, got %v", *empty.Ratio)
+	}
+
+	l := adoptable(t)
+	if errs := l.AddAdoption(goodAdoption(), now()); errs != nil {
+		t.Fatal(errs)
+	}
+	// A second question, settled by constraints, adopted with no evidence.
+	q2 := goodQuestion()
+	q2.ID = "dq.conserved"
+	q2.Alternatives[0].EliminatedBy = "inv.one"
+	if errs := l.AddQuestion(q2); errs != nil {
+		t.Fatal(errs)
+	}
+	a2 := goodAdoption()
+	a2.ID, a2.Question, a2.Hypotheses = "ad.conserved", "dq.conserved", nil
+	if errs := l.AddAdoption(a2, now()); errs != nil {
+		t.Fatal(errs)
+	}
+
+	b := l.MeasureAdoptions()
+	if b.Total != 2 || b.OnSupportedBelief != 1 || b.OnConstraintsAlone != 1 {
+		t.Fatalf("basis = %+v", b)
+	}
+	if b.Ratio == nil || *b.Ratio != 0.5 {
+		t.Fatalf("ratio = %v, want 0.5", b.Ratio)
+	}
+}

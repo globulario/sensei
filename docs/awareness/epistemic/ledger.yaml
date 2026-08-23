@@ -50,6 +50,31 @@ design_questions:
         - effect: adds a record type and a CLI verb; no existing governance changes until something is actually adopted
           reversible: true
       notes: 'Both eliminations are real constraint bindings, not judgment: extraction-driven promotion IS the sediment failure, and automatic promotion on SUPPORTED is the automatic status transition §9 refuses. Only one alternative survives, so this is CONSERVATION — the shape of the answer is already determined and what remains is building it, not choosing it.'
+    - id: dq.conservation_adoption_evidence
+      objective: Decide whether the CONSERVATION exemption in AddAdoption is a correct rule or a convenience granted mid-build (#293)
+      question: What may serve as the evidence basis for adopting a design whose answer came from constraints rather than from an experiment?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T20:41:04Z"
+      alternatives:
+        - id: constraints_implicit
+          statement: A CONSERVATION disposition alone waives the evidence requirement; the basis is the question's constraints, derived from the disposition and not restated in the adoption
+        - id: require_evidence_always
+          statement: Every adoption needs a SUPPORTED hypothesis, including CONSERVATION; a constraint-determined answer must still be predicted, observed and confirmed like any other
+        - id: constraints_explicit
+          statement: Adoption always names its evidence basis, but the basis may be either supported hypotheses OR the specific constraint ids that eliminated the other alternatives — recorded in the adoption rather than inferred from the disposition
+        - id: no_adoption_needed
+          statement: A CONSERVATION question needs no adoption at all; the design inherits the authority of the constraints that determined it
+          eliminated_by: adopted:ad.explicit_adoption_event — promotion to architecture is an explicit epistemic event, not a side effect of implementation
+      constraints:
+        - adopted:ad.explicit_adoption_event — promotion to architecture is an explicit epistemic event, not a side effect of implementation
+        - doc:docs/design/experimental-engineering-epistemology.md#4 — CONSERVATION means constraints left no degree of freedom to explore
+        - doc:docs/design/experimental-engineering-epistemology.md#5 — a falsifier must name an observation that could occur while every existing gate still passes
+      consequences:
+        - effect: changes one validation rule in AddAdoption; the ledger is a file and the rule is a function
+          reversible: true
+        - effect: ad.explicit_adoption_event was itself made under constraints_implicit, so resolving against it would require revisiting that record rather than silently invalidating it
+          reversible: true
+      notes: 'DECLARED AFTER THE FACT, at the repository owner''s request. constraints_implicit is what #293 shipped, and it was invented mid-build to unblock a case the tool could not express — the CONSERVATION question dq.adoption_event could not satisfy ''requires a SUPPORTED hypothesis'', and its code would otherwise have been permanent sediment. Widening the tool rather than declaring a question was the wrong order, and this record is the correction, not a justification. constraints_explicit is a genuine competitor: it puts the provenance in the adoption record instead of deriving it from a computed disposition, which is stronger evidence for the same cost.'
     - id: dq.epistemic_lane_storage
       objective: Give uncertain design belief a first-class home (globulario/sensei#288 slice 1)
       question: Where do DesignQuestion, Hypothesis and Observation live, given they are believed-but-not-established?
@@ -122,6 +147,19 @@ hypotheses:
       declared_by: claude-opus-5
       declared_at: "2026-08-23T19:07:01Z"
       notes: RETROSPECTIVE. The discriminating experiment was the beforeCeilingForTest seam plus reverting the fix in a worktree.
+    - id: h.implicit_basis_cannot_launder_judgment
+      question: dq.conservation_adoption_evidence
+      alternative: constraints_implicit
+      prediction: Waiving the evidence requirement on a computed CONSERVATION disposition will not let an alternative eliminated by judgment be adopted as though constraints had determined it, because ValidateQuestion already requires every eliminated_by to name one of the question's bound constraints.
+      falsifier: An adoption made under the exemption rests on a question whose eliminated_by names something that is not established knowledge — a doc section or a rule authored in the same change as the elimination it justifies — with every existing gate green.
+      horizon:
+        due_at: "2026-12-01T00:00:00Z"
+        condition: at the third adoption made under the exemption, whichever comes first
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T20:41:39Z"
+      experimental_scope:
+        - golang/architecture/epistemic/adoption.go
+      notes: 'The failure mode is known to be live: dq.epistemic_lane_storage deliberately left ''candidates'' VIABLE because it was set aside by judgment rather than by a constraint. Had that been recorded as an elimination instead, the exemption would have adopted it with no evidence at all.'
     - id: h.own_lane_prevents_masquerade
       question: dq.epistemic_lane_storage
       alternative: own_lane
@@ -133,6 +171,15 @@ hypotheses:
       declared_by: claude-opus-5
       declared_at: "2026-08-23T19:07:01Z"
 observations:
+    - id: o.first_exemption_rests_on_a_same_session_rule
+      hypothesis: h.implicit_basis_cannot_launder_judgment
+      observed_at: "2026-08-23T20:41:39Z"
+      what: 'The only adoption made under the exemption so far, ad.explicit_adoption_event, rests on dq.adoption_event, whose elimination of the ''extraction'' alternative cites ''rule:promotion to architecture is an epistemic event, not a side effect of implementation''. That rule was stated by the repository owner, but it was authored in the same session as the elimination it justifies and exists in no graph node. It matches the falsifier''s shape without matching its intent: owner-stated law is not a rule invented to justify an elimination. One case, and it does not decide the question either way.'
+      outcome: inconclusive
+      evidence:
+        - docs/awareness/epistemic/ledger.yaml — dq.adoption_event constraints, ad.explicit_adoption_event
+        - 'PR #293'
+      observed_by: claude-opus-5
     - id: o.reverted_fix_failed_on_run_zero
       hypothesis: h.abandon_is_a_real_select_race
       observed_at: "2026-08-23T19:07:01Z"
