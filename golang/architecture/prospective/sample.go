@@ -95,6 +95,8 @@ type Manifest struct {
 	ClassificationRuleDescription string `json:"classification_rule_description"`
 	AnchorIndexDigestSHA256       string `json:"anchor_index_digest_sha256"`
 	CorpusDigestSHA256            string `json:"corpus_digest_sha256"`
+	// BlindCorpusDigestSHA256 binds the shared view the adjudicators read.
+	BlindCorpusDigestSHA256 string `json:"blind_corpus_digest_sha256"`
 
 	RetrievalSurface RetrievalSurface `json:"retrieval_surface"`
 
@@ -113,25 +115,29 @@ type Manifest struct {
 // Build draws the sample and returns the manifest together with the blind
 // packages, in one pass so the digest recorded for a package is the digest of
 // the package actually emitted.
-func Build(inv Inventory, corpus Corpus, opts Options, content ContentLookup) (Manifest, []BlindPackage, error) {
+func Build(inv Inventory, corpus Corpus, opts Options, content ContentLookup) (Manifest, BlindCorpus, []BlindPackage, error) {
 	if strings.TrimSpace(opts.Seed) == "" {
-		return Manifest{}, nil, fmt.Errorf("selection seed is required: an unseeded sample cannot be recomputed, and a sample nobody can recompute cannot be audited")
+		return Manifest{}, BlindCorpus{}, nil, fmt.Errorf("selection seed is required: an unseeded sample cannot be recomputed, and a sample nobody can recompute cannot be audited")
 	}
 	if strings.TrimSpace(opts.GeneratedAt) == "" {
-		return Manifest{}, nil, fmt.Errorf("generated-at timestamp is required: a self-stamped manifest is not reproducible")
+		return Manifest{}, BlindCorpus{}, nil, fmt.Errorf("generated-at timestamp is required: a self-stamped manifest is not reproducible")
 	}
 	if strings.TrimSpace(opts.ProtocolDigestSHA256) == "" {
-		return Manifest{}, nil, fmt.Errorf("protocol digest is required: a sample that does not name the protocol it serves cannot be shown to obey it")
+		return Manifest{}, BlindCorpus{}, nil, fmt.Errorf("protocol digest is required: a sample that does not name the protocol it serves cannot be shown to obey it")
 	}
 	if strings.TrimSpace(opts.RetrievalSurface.ID) == "" {
-		return Manifest{}, nil, fmt.Errorf("retrieval surface is required: section 3.1 is resolved before the sample is frozen, not after a score exists")
+		return Manifest{}, BlindCorpus{}, nil, fmt.Errorf("retrieval surface is required: section 3.1 is resolved before the sample is frozen, not after a score exists")
 	}
 	if corpus.DigestSHA256 == "" {
-		return Manifest{}, nil, fmt.Errorf("eligible corpus is not content-addressed: it bounds what an adjudicator could mark applicable, so a sample that does not name it describes a different denominator")
+		return Manifest{}, BlindCorpus{}, nil, fmt.Errorf("eligible corpus is not content-addressed: it bounds what an adjudicator could mark applicable, so a sample that does not name it describes a different denominator")
 	}
 	target := opts.TargetPerStratum
 	if target <= 0 {
 		target = DefaultTargetPerStratum
+	}
+	blind, err := NewBlindCorpus(corpus)
+	if err != nil {
+		return Manifest{}, BlindCorpus{}, nil, err
 	}
 
 	m := Manifest{
@@ -145,6 +151,7 @@ func Build(inv Inventory, corpus Corpus, opts Options, content ContentLookup) (M
 		ClassificationRuleDescription: ClassificationRuleDescription,
 		AnchorIndexDigestSHA256:       inv.AnchorIndexDigestSHA256,
 		CorpusDigestSHA256:            corpus.DigestSHA256,
+		BlindCorpusDigestSHA256:       blind.DigestSHA256,
 		RetrievalSurface:              opts.RetrievalSurface,
 		TargetPerStratum:              target,
 		Exclusions:                    inv.ExclusionCounts(),
@@ -179,13 +186,13 @@ func Build(inv Inventory, corpus Corpus, opts Options, content ContentLookup) (M
 			st.Status = StatusSampled
 		}
 		for _, cl := range drawn {
-			pkg, err := attachContent(buildBlindPackage(inv.World, corpus, cl), content)
+			pkg, err := attachContent(buildBlindPackage(inv.World, corpus, blind, cl), content)
 			if err != nil {
-				return Manifest{}, nil, err
+				return Manifest{}, BlindCorpus{}, nil, err
 			}
 			d, err := DigestOf(pkg)
 			if err != nil {
-				return Manifest{}, nil, err
+				return Manifest{}, BlindCorpus{}, nil, err
 			}
 			pkg.DigestSHA256 = d
 			packages = append(packages, pkg)
@@ -207,10 +214,10 @@ func Build(inv Inventory, corpus Corpus, opts Options, content ContentLookup) (M
 	m.DigestSHA256 = ""
 	d, err := DigestOf(m)
 	if err != nil {
-		return Manifest{}, nil, err
+		return Manifest{}, BlindCorpus{}, nil, err
 	}
 	m.DigestSHA256 = d
-	return m, packages, nil
+	return m, blind, packages, nil
 }
 
 // draw applies section 8.2: a stable key from the committed seed and the

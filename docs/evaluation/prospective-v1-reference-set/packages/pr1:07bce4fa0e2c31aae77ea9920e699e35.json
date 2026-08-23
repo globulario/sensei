@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:07bce4fa0e2c31aae77ea9920e699e35",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:84defbcd0c7e8dfab10f61f6879aa3b96b3a6630",
+    "base_revision": "033eb1efb396bbe848754b3f5f0f567d4796823c",
+    "base_tree_digest_sha256": "b640a5bfbdcad3e2c75db6e0ce0c586870e37c49",
+    "paths": [
+      {
+        "path": "docs/design/phase8-discovery.md",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/design/phase8-discovery.md b/docs/design/phase8-discovery.md\nindex 5e7207f8..e3789681 100644\n--- a/docs/design/phase8-discovery.md\n+++ b/docs/design/phase8-discovery.md\n@@ -179,14 +179,24 @@ events/receipts; nothing shows them atomic).\n   (preflight/briefings EMPTY). Should Slice 8.1 also author governed knowledge\n   (invariants/failure modes/required tests) for completion, and if so, does that block\n   implementation or follow it? (No awareness mutation was made during discovery.)\n-- **Q2 — evidence/proof operational producers.** No operational producer was found that\n-  appends `evidence_recorded` or `proof_discharged`. Does `certification.CertifyTask`\n-  obtain evidence and proof-discharge records from those **ledger events**, or from a\n-  `certification-request.yaml` / graph / YAML source? If the ledger events have no\n-  producer, there is a **gap between `proving` and `certified`** that precedes Phase 8 —\n-  is that gap in Phase 8's scope, a separate phase, or already satisfied by\n-  certification's record sources? *(Pending the reference sweep; stated as a question,\n-  not assumed.)*\n+- **Q2 — the unused `evidence_recorded`/`proof_discharged` events (resolved by an\n+  exhaustive reference sweep; one residual question).** These two events have **zero\n+  operational producers**: a whole-tree grep for `EventType: closureprotocol.LedgerEvent…`\n+  finds exactly two post-scope-verified appends — `result_transition_recorded`\n+  (`resultrecording/record.go:130,151`) and `certified` (`certification/ledger.go:155,158`);\n+  `evidence_recorded`, `proof_discharged`, `completed`, `revoked`, `migration_executed`\n+  are declared constants only, with no append site and no payload-validator branch\n+  (`ledger/event.go` special-cases only `result_transition_recorded`). Certification does\n+  **not** consume evidence/proof as ledger events: `certification.CertifyTask` resolves\n+  evidence-receipt and proof-discharge records as **content-addressed artifacts**\n+  referenced by digest in `certification-request.yaml` (`certification/source.go:43-224`),\n+  each independently digest-verified. So Phase 8 completion consumes the **certification\n+  receipt** (via `certification.VerifyReceipt`), not any evidence/proof event, and there is\n+  **no** `proving → certified` ledger-event gap that Phase 8 must fill. Residual architect\n+  question: are `evidence_recorded`/`proof_discharged` **dead reserved vocabulary**, or\n+  intended for a future phase that records evidence/proof *as ledger events* rather than\n+  artifacts? Completion does not need them; their status only determines whether\n+  completion's boundary test should also forbid them.\n - **Q3 — completion inputs.** Does completion require a `completion-request.yaml`\n   (analogous to `certification-request.yaml`), or does it derive the policy + completing\n   actor entirely from the certified event + base binding? Where does `CompletingActor`\n",
+    "content_digest_sha256": "2112997be15ad99b45d6fae3ca7a881cd97799ca30b31b66473e1548651ba599"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "eefa8e257bc07cc5e197f8c6d49ed5b332ef7e1d4e5390e663c24e5d13a87547"
+}

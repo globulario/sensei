@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:c9be82144a6670f9287f85c17bc184c3",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:66fc71b44d46de0a5ecc73d6f32118c6c3497ee2",
+    "base_revision": "e97603a60ae784ff3c6c21273e091c476f24eb0a",
+    "base_tree_digest_sha256": "1faa541942d135180c3bfed6f8869648b8b7dee6",
+    "paths": [
+      {
+        "path": "golang/architecture/interpretationclosure/go_checker_test.go",
+        "existed_before": false,
+        "status": "A"
+      }
+    ],
+    "content": "diff --git a/golang/architecture/interpretationclosure/go_checker_test.go b/golang/architecture/interpretationclosure/go_checker_test.go\nnew file mode 100644\nindex 00000000..e12be21c\n--- /dev/null\n+++ b/golang/architecture/interpretationclosure/go_checker_test.go\n@@ -0,0 +1,61 @@\n+// SPDX-License-Identifier: AGPL-3.0-only\n+\n+package interpretationclosure\n+\n+import (\n+\t\"context\"\n+\t\"os\"\n+\t\"path/filepath\"\n+\t\"testing\"\n+)\n+\n+func TestGoCheckerDistinguishesContradictionFromUnknown(t *testing.T) {\n+\troot := t.TempDir()\n+\tif err := os.WriteFile(filepath.Join(root, \"go.mod\"), []byte(\"module example.com/interpretation-probe\\n\\ngo 1.25\\n\"), 0o644); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif err := os.MkdirAll(filepath.Join(root, \"fixture\"), 0o755); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif err := os.WriteFile(filepath.Join(root, \"fixture\", \"types.go\"), []byte(\"package fixture\\n\\ntype NamedString string\\n\"), 0o644); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\n+\tfindings := CheckGoTruth(context.Background(), root, []GoProbe{\n+\t\t{\n+\t\t\tClaimID:          \"invariant.named-type-implements-text-unmarshaler\",\n+\t\t\tKind:             GoProbeImplementsInterface,\n+\t\t\tPackagePattern:   \"example.com/interpretation-probe/fixture\",\n+\t\t\tTypeName:         \"NamedString\",\n+\t\t\tExpected:         \"true\",\n+\t\t\tInterfacePackage: \"encoding\",\n+\t\t\tInterfaceName:    \"TextUnmarshaler\",\n+\t\t},\n+\t\t{\n+\t\t\tClaimID:        \"invariant.named-type-has-string-underlying-kind\",\n+\t\t\tKind:           GoProbeUnderlyingTypeEquals,\n+\t\t\tPackagePattern: \"example.com/interpretation-probe/fixture\",\n+\t\t\tTypeName:       \"NamedString\",\n+\t\t\tExpected:       \"string\",\n+\t\t},\n+\t\t{\n+\t\t\tClaimID:        \"invariant.unresolvable-package-remains-unknown\",\n+\t\t\tKind:           GoProbeTypeExists,\n+\t\t\tPackagePattern: \"example.com/interpretation-probe/does-not-exist\",\n+\t\t\tTypeName:       \"Missing\",\n+\t\t\tExpected:       \"true\",\n+\t\t},\n+\t})\n+\tif len(findings) != 3 {\n+\t\tt.Fatalf(\"findings=%d\", len(findings))\n+\t}\n+\tif findings[0].Status != TruthContradicted {\n+\t\tt.Fatalf(\"interface premise status=%q detail=%q, want contradicted\", findings[0].Status, findings[0].Detail)\n+\t}\n+\tif findings[1].Status != TruthSupported {\n+\t\tt.Fatalf(\"underlying-type premise status=%q detail=%q, want supported\", findings[1].Status, findings[1].Detail)\n+\t}\n+\tif findings[2].Status != TruthUnknown {\n+\t\tt.Fatalf(\"unresolvable package status=%q detail=%q, want unknown\", findings[2].Status, findings[2].Detail)\n+\t}\n+}\n",
+    "content_digest_sha256": "e0b944b6d8c619f3fbc42d1aad1aec25d51a1c5150afce616f3e676880a4fa74"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "90ea9f1c73fd2908681e1e930d684637a46f0a232ef3b36eabbcbf02fcc9579e"
+}

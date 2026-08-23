@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:5bfc2462a74a582770319404a1548239",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:81e4656730e3b231d21839912d00a9ad01c3b4fa",
+    "base_revision": "d57a3da92b6dcdc9655217c1bb16537ddbfb7d81",
+    "base_tree_digest_sha256": "bc5d7a30dfa81caf65eaaf0f1925607549467265",
+    "paths": [
+      {
+        "path": ".github/o8-format-final-trigger",
+        "existed_before": false,
+        "status": "A"
+      }
+    ],
+    "content": "diff --git a/.github/o8-format-final-trigger b/.github/o8-format-final-trigger\nnew file mode 100644\nindex 00000000..2a1064fa\n--- /dev/null\n+++ b/.github/o8-format-final-trigger\n@@ -0,0 +1 @@\n+format O8 sources and refresh generated import graph\n",
+    "content_digest_sha256": "d53833b599ffd2810f27e245e5b9694cecdd164dc7c83fe95024333d4ca8a11f"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "2acf05e8c8cc943b1d049017481010c39a2c3aecc529fc596b6b61fa2a33333a"
+}

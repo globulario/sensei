@@ -1,0 +1,38 @@
+{
+  "item_key": "pr1:ba574c8b79ed4fe5023966a613b44d80",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:55b7e004f8a389b395ec33303badccddbf117543",
+    "base_revision": "9cce0f6f80c632360ad22d9de299801c89273c16",
+    "base_tree_digest_sha256": "22f9b1b065f0e5dc75c25d2827a8764e338f0838",
+    "paths": [
+      {
+        "path": "docs/awareness/generated/awareness_graph_annotation_report.yaml",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "docs/awareness/generated/awareness_graph_code_symbols.yaml",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "golang/server/embeddata/awareness.transaction.tsv",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness/generated/awareness_graph_annotation_report.yaml b/docs/awareness/generated/awareness_graph_annotation_report.yaml\nindex d6c08544..0bfbefa1 100644\n--- a/docs/awareness/generated/awareness_graph_annotation_report.yaml\n+++ b/docs/awareness/generated/awareness_graph_annotation_report.yaml\n@@ -1,7 +1,7 @@\n-scanned_files: 524\n+scanned_files: 525\n annotated_symbols: 13\n imported_annotations: 37\n-discovered_tests: 1101\n+discovered_tests: 1102\n missing_namespace:\n   []\n unknown_namespace:\ndiff --git a/docs/awareness/generated/awareness_graph_code_symbols.yaml b/docs/awareness/generated/awareness_graph_code_symbols.yaml\nindex 52b14e2a..1d90b25a 100644\n--- a/docs/awareness/generated/awareness_graph_code_symbols.yaml\n+++ b/docs/awareness/generated/awareness_graph_code_symbols.yaml\n@@ -767,6 +767,11 @@ test_symbols:\n     symbol: TestRepairLegacyStarterTemplates_RefreshesUntouchedExamplesOnly\n     package: main\n     language: go\n+  - id: cmd/awg/cmd_build_query_endpoint_test.go:TestQueryEndpointPath\n+    file: cmd/awg/cmd_build_query_endpoint_test.go\n+    symbol: TestQueryEndpointPath\n+    package: main\n+    language: go\n   - id: cmd/awg/cmd_build_test.go:TestFinalizeBuildArtifact_DedupsBeforeMarker\n     file: cmd/awg/cmd_build_test.go\n     symbol: TestFinalizeBuildArtifact_DedupsBeforeMarker\ndiff --git a/golang/server/embeddata/awareness.transaction.tsv b/golang/server/embeddata/awareness.transaction.tsv\nindex e341f3e1..9f37c318 100644\n--- a/golang/server/embeddata/awareness.transaction.tsv\n+++ b/golang/server/embeddata/awareness.transaction.tsv\n@@ -1,6 +1,6 @@\n format\tv1\n seed\tdigest_sha256\t703f05169ff8a680413dd389e73511298abd6feb23312f3fc74b844cf5871b39\n seed\ttriple_count\t3783\n-repo\tawareness-graph\t999b2fe3a1ed6ed17e217d3c0f7d403b8c79b1e2\n+repo\tawareness-graph\t9cce0f6f80c632360ad22d9de299801c89273c16\n repo\tservices\tstandalone\n-tool\tyaml2nt\t3e95eaca264eb72d52bcbee071e0a465262f6266a3f608af1686aeac1f35fd31\n+tool\tyaml2nt\t76dc6b813263b17cf715fe944487aaf5cdb9e1f409fe5c97cbc1034bfac856ea\n",
+    "content_digest_sha256": "4afc12cb55ab3dedca4e35159001292afe626af93b8554aa134ede93912a9af1"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "556857bfb08596990d6bf6e67d932fee5fd72c1812c1790525f88f5de384e172"
+}

@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:187bd4484f85fe3aca4687a0452ac61c",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:5f96a8afc6c4cf749759a943c28a5b426046b739",
+    "base_revision": "13e43d82dc1c950d3da96d4a467b63eebfc6560d",
+    "base_tree_digest_sha256": "3de09161ba34df66b84ce17588b30f2e3ad7986a",
+    "paths": [
+      {
+        "path": ".github/workflows/ci.yml",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml\nindex e4c25d8e..743d5e86 100644\n--- a/.github/workflows/ci.yml\n+++ b/.github/workflows/ci.yml\n@@ -76,6 +76,33 @@ jobs:\n       - name: Run tests\n         run: go test ./... -count=1 -timeout 300s\n \n+      - name: \"Sensei gates its own diff (report-only)\"\n+        # Advisory only: never blocks CI (see --report-only in `sensei gate\n+        # --help`). This repo has never gated its own PRs before -- this step\n+        # exists to let real findings accumulate and be seen before any future\n+        # decision to switch this same diff check to --enforce.\n+        run: |\n+          scripts/fetch-oxigraph.sh\n+          make sensei\n+          DATA_DIR=\"$(mktemp -d)\"\n+          MARKER_FILE=\"$(mktemp)\"\n+          ./bin/sensei serve -no-seed -allow-stale-seed \\\n+            -data \"$DATA_DIR\" -addr :19120 -oxigraph-bind 127.0.0.1:19878 \\\n+            -graph-marker-file \"$MARKER_FILE\" \\\n+            \u003e /tmp/sensei-gate-serve.log 2\u003e\u00261 \u0026\n+          SERVER_PID=$!\n+          trap 'kill \"$SERVER_PID\" 2\u003e/dev/null || true' EXIT\n+          sleep 3\n+          ./bin/sensei build --all -store-url \"http://127.0.0.1:19878/store?default\" -graph-marker-file \"$MARKER_FILE\"\n+          if [ \"${{ github.event_name }}\" = \"pull_request\" ]; then\n+            git fetch origin \"${{ github.event.pull_request.base.ref }}\" --depth=200 --quiet\n+            DIFF_RANGE=\"origin/${{ github.event.pull_request.base.ref }}...HEAD\"\n+          else\n+            DIFF_RANGE=\"HEAD~1...HEAD\"\n+          fi\n+          echo \"diff range: ${DIFF_RANGE}\"\n+          ./bin/sensei gate --diff \"${DIFF_RANGE}\" --report-only --addr localhost:19120\n+\n       - name: \"Cold-start smoke (stranger path: init -\u003e serve -no-seed -\u003e build -\u003e briefing)\"\n         # Fetches the upstream Oxigraph binary, scaffolds a throwaway project in\n         # /tmp, and proves the standalone path end to end.\n",
+    "content_digest_sha256": "bff7fb1fa10b0927fe859d873657f0de325da52240f4e983b636138dfd302576"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "1e5c35bd8bd067f6f17a18c3798a8b8a649721342830610efd99418756116bc7"
+}

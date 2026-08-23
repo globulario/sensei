@@ -1,0 +1,33 @@
+{
+  "item_key": "pr1:7b06a3ca309fc9d4a0c4d42abb290749",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:ee16976c0ba41a5f57c7369ffe604dc99a826f9c",
+    "base_revision": "ddd0b37cf966bdf86900219f3b9e1c7dbf4b31f8",
+    "base_tree_digest_sha256": "382d74989bef256b18106234ad4e9d95721fc6e3",
+    "paths": [
+      {
+        "path": "cmd/eval-arms/sample.go",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "cmd/eval-arms/sample_test.go",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/cmd/eval-arms/sample.go b/cmd/eval-arms/sample.go\nindex 41510e44..2eebdac5 100644\n--- a/cmd/eval-arms/sample.go\n+++ b/cmd/eval-arms/sample.go\n@@ -166,7 +166,13 @@ func mutantSuiteWorld(report evalharness.Report, domain string) evalsample.World\n \t\tfor _, p := range site.DefectPaths {\n \t\t\tinventory[ns.name+\"/\"+p] = true\n \t\t}\n-\t\tfmt.Fprintf(digest, \"%s:%s\\n\", ns.name, site.DocumentDigest)\n+\t\t// The site's TREE digest, not its document digest. The document digest\n+\t\t// covers receipt and evidence timestamps, so it changes with\n+\t\t// --captured-at even when the tree is byte-identical — and\n+\t\t// evalsample.selectionKey hashes this binding, so the same committed\n+\t\t// seed would have drawn different claims from an unchanged suite. A\n+\t\t// world's identity is what it IS, not when it was last looked at.\n+\t\tfmt.Fprintf(digest, \"%s:%s\\n\", ns.name, site.Document.Binding.Repository.TreeDigestSHA256)\n \t}\n \tfor unit := range inventory {\n \t\tw.RecallInventory = append(w.RecallInventory, unit)\ndiff --git a/cmd/eval-arms/sample_test.go b/cmd/eval-arms/sample_test.go\nindex fcef038b..fad029fa 100644\n--- a/cmd/eval-arms/sample_test.go\n+++ b/cmd/eval-arms/sample_test.go\n@@ -639,3 +639,35 @@ func TestTheMutantWorldNamespacesThroughItsBuilder(t *testing.T) {\n \t\tt.Error(\"the suite world carries no identity\")\n \t}\n }\n+\n+// TestTheSuiteBindingIsTheTreeNotTheRunTimestamp.\n+//\n+// The document digest covers receipt and evidence timestamps, so it changes\n+// with --captured-at even when the tree is byte-identical. evalsample's\n+// selection key hashes the world binding, so deriving the binding from\n+// document digests meant the same committed seed could draw different claims\n+// from an unchanged suite — which is the one property the frozen sample\n+// depends on.\n+func TestTheSuiteBindingIsTheTreeNotTheRunTimestamp(t *testing.T) {\n+\tbuild := func(documentDigest string) evalharness.Report {\n+\t\tsite := evalharness.SiteResult{Defect: \"one\", DefectPaths: []string{\"a.go\"}, DocumentDigest: documentDigest}\n+\t\tsite.Document.Binding.Repository.TreeDigestSHA256 = \"the-tree-is-unchanged\"\n+\t\tbase := evalharness.SiteResult{DefectPaths: []string{\"a.go\"}, DocumentDigest: documentDigest}\n+\t\tbase.Document.Binding.Repository.TreeDigestSHA256 = \"baseline-tree\"\n+\t\treturn evalharness.Report{Baseline: base, Results: []evalharness.SiteResult{site}}\n+\t}\n+\tfirst := mutantSuiteWorld(build(\"run-one-document-digest\"), \"example.com/eval\")\n+\tsecond := mutantSuiteWorld(build(\"run-two-document-digest\"), \"example.com/eval\")\n+\n+\tif first.Binding.TreeDigestSHA256 != second.Binding.TreeDigestSHA256 {\n+\t\tt.Fatalf(\"two runs over an identical suite produced different bindings:\\n  %s\\n  %s\\nthe same seed would draw different claims\",\n+\t\t\tfirst.Binding.TreeDigestSHA256, second.Binding.TreeDigestSHA256)\n+\t}\n+\n+\t// A genuinely different tree must still change the binding.\n+\tchanged := build(\"run-one-document-digest\")\n+\tchanged.Results[0].Document.Binding.Repository.TreeDigestSHA256 = \"a-different-tree\"\n+\tif mutantSuiteWorld(changed, \"example.com/eval\").Binding.TreeDigestSHA256 == first.Binding.TreeDigestSHA256 {\n+\t\tt.Error(\"a changed tree produced the same binding; the identity tracks nothing\")\n+\t}\n+}\n",
+    "content_digest_sha256": "68ddaa406e788661864af984c71bdf7e1c2094bbb3f618e532310d4d167d8bcf"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "5983d945e5bf98f446a25df82687300c4a287b187a199b3c8b2f4ff983e04d26"
+}

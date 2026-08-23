@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:c903750225e7898b3fafada839c38121",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:a51be293a75156088e046f4c6849c7bb1572a00d",
+    "base_revision": "23d9adfe8b7201077873b6d587bfd9a049a30332",
+    "base_tree_digest_sha256": "a3fd878f69535af4e21aa75c9c0c57423d414695",
+    "paths": [
+      {
+        "path": "docs/awareness-control/meta_principle_coverage.yaml",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness-control/meta_principle_coverage.yaml b/docs/awareness-control/meta_principle_coverage.yaml\nindex 6d2ce708..64c63e36 100644\n--- a/docs/awareness-control/meta_principle_coverage.yaml\n+++ b/docs/awareness-control/meta_principle_coverage.yaml\n@@ -55,7 +55,10 @@ enforcement_ratchet:\n   # review_only — a cross-language (etcd/Go + vite/TS) identity/aliasing\n   # principle that is design judgement, not yet a scannable property. Conscious\n   # bump; revisit if a copylock-style scanner is later wired (→ behavioral).\n-  max_review_only: 43\n+  # 43 → 46: added meta.existence_checks_must_not_substitute_for_cardinality_proofs,\n+  # meta.omission_is_an_invisible_state_mapping, and\n+  # meta.validation_must_govern_construction_not_merely_detect as review_only.\n+  max_review_only: 46\n \n meta_principle_coverage:\n \n@@ -1205,3 +1208,12 @@ meta_principle_coverage:\n       invalid or a legitimate defensive copy. Corroborated independently in\n       Go/etcd and TypeScript/Vite. Candidate pending review and future\n       mechanization strategy.\n+  - principle: meta.existence_checks_must_not_substitute_for_cardinality_proofs\n+    tier: review_only\n+    reason: Checking whether a record exists does not prove that its cardinality is exactly one; requires mathematical or state-flow proof.\n+  - principle: meta.omission_is_an_invisible_state_mapping\n+    tier: review_only\n+    reason: Designing around what is omitted requires design review to ensure unstated assumptions do not cause semantic drifts.\n+  - principle: meta.validation_must_govern_construction_not_merely_detect\n+    tier: review_only\n+    reason: Constructors must enforce validation rules rather than relying on external downstream validation checkers.\n",
+    "content_digest_sha256": "c7d51425c5b3ddf0e0584d04d553a0d16a49c09d01098ed2e48c28c61a6310a1"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "4cbe9d2801ab9fdcc6b4eb7d13b5f338d98010c1befe6091881cbe5b730e96b4"
+}

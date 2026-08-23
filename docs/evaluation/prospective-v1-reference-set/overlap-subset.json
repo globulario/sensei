@@ -1,0 +1,18 @@
+{
+  "schema_version": "sensei.prospective_overlap_subset.v1",
+  "sample_manifest_digest_sha256": "a6fc72d75ef6fc080f129ed2de06c85742a35617487321f041904ac48d8c0364",
+  "fraction": 0.2,
+  "item_keys": [
+    "pr1:29331724e30b863240b6f9669518e56b",
+    "pr1:3b11e25ca7527ccc696ce83a42a69b81",
+    "pr1:47a39c823b2f72be6d781ac96420fab2",
+    "pr1:4f4c02037701c088be5eaab98fbf3d7b",
+    "pr1:6f21e09c69585de35a2751eafa3acd61",
+    "pr1:8104cafb15dcc6fafc52e3dc6c896c10",
+    "pr1:ba574c8b79ed4fe5023966a613b44d80",
+    "pr1:bfce7482832e79f5391a34102277fef9",
+    "pr1:cb5ac2a5ebbb89b8763bbc86e4c92711",
+    "pr1:f17e801c948a7d056fe9d2956edaac9a"
+  ],
+  "second_adjudicator_status": "second_adjudicator_unavailable"
+}

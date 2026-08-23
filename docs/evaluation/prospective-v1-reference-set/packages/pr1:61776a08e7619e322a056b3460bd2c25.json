@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:61776a08e7619e322a056b3460bd2c25",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:5eff20d734189998031488b14f874bbbc472e5cf",
+    "base_revision": "897edaeba778c9ac82d591c819988e7f379d0688",
+    "base_tree_digest_sha256": "52ade627abfa20cd7946e2dc0791785f57c7a0cf",
+    "paths": [
+      {
+        "path": "README.md",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/README.md b/README.md\nindex 9229c032..0568a204 100644\n--- a/README.md\n+++ b/README.md\n@@ -320,7 +320,7 @@ distilled from real production incidents and portable to any system:\n \n | Category | Count | Examples |\n |---|---|---|\n-| **Authority** | 20 | wrong actor writes truth; one value, two meanings |\n+| **Authority** | 21 | wrong actor writes truth; one value, two meanings |\n | **Signal** | 19 | a fallback that looks like truth; errors absorbed into timeouts |\n | **Lifecycle** | 38 | a write with no cleanup; intermediate state that looks done |\n | **Dependency** | 7 | critical path blocked by a non-critical service |\n",
+    "content_digest_sha256": "c739ac1fbe5367d5c22534e7977f57fb99fcc1b8df8c7dea21dba8f13e13ea32"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "b74ceb7f2f4750fd9080d474bfbfabbdda1fe56af70f533f0794e09c2e54351c"
+}
