@@ -50,13 +50,18 @@ input[type=search]{background:#0d1117;color:var(--fg);border:1px solid var(--lin
   </div>
 </main>
 <script>
-let D=null,cur=null,mode="traverse",page=0,q="",PAGE=50;
+let D=null,cur=null,mode="traverse",page=0,q="",PAGE=50; // replaced by the corpus size in boot()
 const g=id=>document.getElementById(id);
 
 async function post(u,b){const r=await fetch(u,{method:"POST",body:JSON.stringify(b)});const j=await r.json();
   if(j.error){alert(j.error);return null}return j}
 
 async function boot(){D=await (await fetch("/api/bootstrap")).json();
+  // One full unfiltered traversal per change. "Presented" means the software
+  // rendered the item, and one complete page proves the corpus was never
+  // withheld exactly as well as eighteen partial ones do — the extra pages
+  // only cost the adjudicator clicks that decide nothing.
+  PAGE=D.corpus.length;
   g("who").textContent="adjudicator: "+D.adjudicator;
   g("digests").textContent="manifest "+D.manifest.slice(0,10)+"…  blind corpus "+D.blind_corpus.slice(0,10)+"…";
   D.labelMap={};for(const l of D.labels){D.labelMap[l.item_key+"|"+l.corpus_item_id]=l}
@@ -100,7 +105,7 @@ function renderPanel(){const c2=cov(cur);const notPresented=c2.eligible_items-c2
     renderChanges();renderPanel();renderList()}}
 
 function visible(){if(mode==="search"&&q){const s=q.toLowerCase();
-    return D.corpus.filter(i=>(i.id+" "+i.class+" "+i.title+" "+i.statement).toLowerCase().includes(s))}
+    return D.corpus.filter(i=>(i.id+" "+i.class+" "+i.title+" "+(i.statement||"")).toLowerCase().includes(s))}
   return D.corpus}
 
 async function renderList(){const items=visible();const el=g("list");
