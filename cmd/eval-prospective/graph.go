@@ -72,6 +72,75 @@ type queryResult struct {
 		ID    string `json:"id"`
 		Class string `json:"class"`
 	} `json:"rows"`
+	Total      int  `json:"total"`
+	TotalKnown bool `json:"total_known"`
+	Truncated  bool `json:"truncated"`
+}
+
+// classRows is a complete class listing, or an honest account of why it is not.
+type classRows struct {
+	IDs        []string
+	Classes    map[string]string
+	Total      int
+	TotalKnown bool
+	// Complete is true only when the server said there was nothing left. It is
+	// never inferred from the row count, because a listing that happens to end
+	// on a page boundary looks identical to one that was cut there.
+	Complete bool
+}
+
+// enumerateClass walks a class to the end, one page at a time.
+//
+// Before by_class could page, the harness took the first page and recorded the
+// cap as the population -- which made "the first N rows the API returned" the
+// selection rule for a measurement denominator. Paging is why the eligible
+// corpus can now be the population rather than a page of it.
+func (g Graph) enumerateClass(ctx context.Context, class string, pageSize int) (classRows, error) {
+	out := classRows{Classes: map[string]string{}}
+	seen := map[string]bool{}
+	offset := 0
+	for page := 0; ; page++ {
+		if page > 1000 {
+			return out, fmt.Errorf("class %s: paging did not terminate after %d pages", class, page)
+		}
+		raw, err := g.run(ctx, "query", "--mode", "by_class", "--class", class,
+			"--limit", fmt.Sprint(pageSize), "--offset", fmt.Sprint(offset), "--json")
+		if err != nil {
+			if offset == 0 {
+				return out, fmt.Errorf("class %s: %w", class, err)
+			}
+			// The server stopped answering mid-walk. Whatever was collected is
+			// kept, but the listing is not claimed complete.
+			return out, nil
+		}
+		var res queryResult
+		if err := json.Unmarshal(raw, &res); err != nil {
+			return out, fmt.Errorf("class %s: %w", class, err)
+		}
+		if res.TotalKnown {
+			out.Total, out.TotalKnown = res.Total, true
+		}
+		added := 0
+		for _, row := range res.Rows {
+			if seen[row.ID] {
+				continue
+			}
+			seen[row.ID] = true
+			out.IDs = append(out.IDs, row.ID)
+			out.Classes[row.ID] = row.Class
+			added++
+		}
+		offset += len(res.Rows)
+		if !res.Truncated {
+			out.Complete = true
+			return out, nil
+		}
+		if len(res.Rows) == 0 || added == 0 {
+			// Truncated but nothing new: a server that cannot page would loop
+			// here forever, serving page 0 each time.
+			return out, nil
+		}
+	}
 }
 
 type resolveResult struct {
@@ -101,48 +170,51 @@ func (g Graph) BuildCorpus(ctx context.Context, graphDigest string, rowCap int) 
 	var accounting []prospective.ClassAccounting
 
 	for _, class := range governingClasses {
-		raw, err := g.run(ctx, "query", "--mode", "by_class", "--class", class, "--limit", fmt.Sprint(rowCap), "--json")
+		listing, err := g.enumerateClass(ctx, class, rowCap)
 		if err != nil {
-			return prospective.Corpus{}, fmt.Errorf("corpus class %s: %w", class, err)
+			return prospective.Corpus{}, err
 		}
-		var res queryResult
-		if err := json.Unmarshal(raw, &res); err != nil {
-			return prospective.Corpus{}, fmt.Errorf("corpus class %s: %w", class, err)
+		graphTotal := totals[class]
+		if listing.TotalKnown {
+			// The listing's own total is preferred: it is scoped exactly like
+			// the rows it accompanies, whereas the metadata count is a
+			// graph-wide figure that can be scoped differently.
+			graphTotal = listing.Total
 		}
-		acc := prospective.ClassAccounting{Class: class, GraphTotal: totals[class], Enumerated: len(res.Rows)}
+		acc := prospective.ClassAccounting{Class: class, GraphTotal: graphTotal, Enumerated: len(listing.IDs)}
 		if acc.GraphTotal > acc.Enumerated {
 			acc.NotEnumerable = acc.GraphTotal - acc.Enumerated
 		}
-		for _, row := range res.Rows {
-			id := strings.TrimPrefix(row.ID, class+":")
+		if !listing.Complete && acc.NotEnumerable == 0 && acc.GraphTotal > 0 {
+			// The walk did not finish but the numbers happen to line up. Say so
+			// rather than let a coincidence read as completeness.
+			return prospective.Corpus{}, fmt.Errorf("class %s: enumeration did not report completion; refusing to record %d rows as the whole population",
+				class, len(listing.IDs))
+		}
+		for _, qualified := range listing.IDs {
+			id := strings.TrimPrefix(qualified, class+":")
 			node, err := g.resolve(ctx, resolveClass(class), id)
 			if err != nil {
 				excluded = append(excluded, prospective.CorpusExclusion{
-					ID: row.ID, Class: class, Reason: prospective.CorpusExcludedUnresolvable, Detail: err.Error(),
+					ID: qualified, Class: class, Reason: prospective.CorpusExcludedUnresolvable, Detail: err.Error(),
 				})
 				continue
 			}
 			item := prospective.CorpusItem{
-				ID:        row.ID,
-				Class:     row.Class,
+				ID:        qualified,
+				Class:     listing.Classes[qualified],
 				Title:     node.Label,
 				Statement: statementOf(node),
 				Anchors:   anchorsOf(node),
 			}
 			item.Materialization = prospective.MaterializedFromNode
 			if strings.TrimSpace(item.Title) == "" && strings.TrimSpace(item.Statement) == "" {
-				// Some nodes carry only an IRI and a class -- most forbidden
-				// fixes in this graph do. Their meaning is not missing, it is
-				// held next door: the id is a readable slug and `related`
-				// returns the law they hang off. Composing those is a reading
-				// fix, not an edit to the knowledge, and it is the difference
-				// between 4 and 100 adjudicable forbidden fixes.
 				item.Title = humanizeSlug(id)
-				item.Statement, err = g.relatedStatement(ctx, row.ID)
+				item.Statement, err = g.relatedStatement(ctx, qualified)
 				item.Materialization = prospective.MaterializedFromRelated
 				if err != nil || strings.TrimSpace(item.Statement) == "" {
 					excluded = append(excluded, prospective.CorpusExclusion{
-						ID: row.ID, Class: class, Reason: prospective.CorpusExcludedNoStatement,
+						ID: qualified, Class: class, Reason: prospective.CorpusExcludedNoStatement,
 						Detail: "the node carries no label and no facts, and nothing governing relates to it, so nothing in the pinned world says what it means",
 					})
 					continue
