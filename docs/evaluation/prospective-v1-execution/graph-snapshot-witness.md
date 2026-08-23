@@ -130,9 +130,10 @@ and a swap passes it.
 For the freeze package the consequence is already handled — snapshot SHA
 answers integrity, the world identity answers recognition, and the restore
 proof answers reproducibility, which is why all three belong together. For
-Sensei generally it is worth a separate look: an `authoritative` verdict
-asserting "live store matches expected validated graph artifact" is a stronger
-claim than a count comparison can support.
+Sensei generally this is filed as **#282**: an `authoritative` verdict asserting
+"live store matches expected validated graph artifact" is a stronger claim than
+a count comparison can support, and that verdict is read first by `decideRoute`
+before every other judgement, so everything downstream inherits it.
 
 ## Versions
 
