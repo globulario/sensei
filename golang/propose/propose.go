@@ -51,12 +51,62 @@ type Request struct {
 	// repair from an anecdote about one. Required for applied_repair.
 	SurvivalEvidence []string `json:"survival_evidence,omitempty" yaml:"survival_evidence,omitempty"`
 
+	// IntroducedBy is what the filer explicitly attributes this failure's
+	// introduction to. It is a list because real failures have compound
+	// ancestry — one change introduces unsafe state, another removes the check
+	// that compensated for it — and a one-scar-one-commit model would force
+	// somebody to pick a favourite and drop the rest.
+	IntroducedBy []Attribution `json:"introduced_by,omitempty" yaml:"introduced_by,omitempty"`
+
 	Repo   string `json:"repo,omitempty" yaml:"repo,omitempty"`
 	Domain string `json:"domain,omitempty" yaml:"domain,omitempty"`
 
 	Contract         string `json:"contract,omitempty" yaml:"contract,omitempty"`
 	ProposedContract string `json:"proposed_contract,omitempty" yaml:"proposed_contract,omitempty"`
 	RevisionRequest  string `json:"revision_request,omitempty" yaml:"revision_request,omitempty"`
+}
+
+// Attribution names one change a failure is explicitly attributed to.
+//
+// The identity is repository plus immutable commit SHA, never the SHA alone.
+// The same abbreviated hash occurs in more than one repository, and a causal
+// relation that cannot say which one is not evidence. The CLI may accept only
+// the SHA because repository context is already known; what gets PERSISTED
+// carries both.
+type Attribution struct {
+	Repo   string `json:"repo" yaml:"repo"`
+	Commit string `json:"commit" yaml:"commit"`
+}
+
+// commitSHA is what may be recorded as an immutable change identity.
+//
+// Branch names, tags and HEAD are refused deliberately: all three move, and an
+// attribution that silently repoints later is worse than none, because it
+// still looks like a record of what happened.
+var commitSHA = regexp.MustCompile(`^[0-9a-f]{7,40}$`)
+
+// NormalizeAttributions trims, lowercases, defaults the repository and drops
+// duplicates, preserving order.
+func NormalizeAttributions(in []Attribution, defaultRepo string) []Attribution {
+	seen := map[string]bool{}
+	var out []Attribution
+	for _, a := range in {
+		a.Commit = strings.ToLower(strings.TrimSpace(a.Commit))
+		a.Repo = strings.TrimSpace(a.Repo)
+		if a.Repo == "" {
+			a.Repo = strings.TrimSpace(defaultRepo)
+		}
+		if a.Commit == "" && a.Repo == "" {
+			continue
+		}
+		key := a.Repo + "@" + a.Commit
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, a)
+	}
+	return out
 }
 
 // Kinds returns the accepted entry kinds.
@@ -94,6 +144,7 @@ func Normalize(r *Request) {
 	r.RequiredTests = cleanList(r.RequiredTests)
 	r.ForbiddenFixes = cleanList(r.ForbiddenFixes)
 	r.Evidence = cleanList(r.Evidence)
+	r.IntroducedBy = NormalizeAttributions(r.IntroducedBy, r.Repo)
 	r.DefinesBoundaries = cleanList(r.DefinesBoundaries)
 	r.DefinesContracts = cleanList(r.DefinesContracts)
 	r.AffectsComponents = cleanList(r.AffectsComponents)
@@ -113,6 +164,13 @@ func Validate(r Request) []string {
 		return []string{fmt.Sprintf("unknown kind %q", r.Kind)}
 	}
 
+	if r.Kind != "failure_mode" && len(r.IntroducedBy) != 0 {
+		// Narrow on purpose. introduced_by asserts that a change introduced a
+		// FAILURE; what it would mean on an invariant or a required_test has
+		// not been decided, and inventing a meaning here would put edges in
+		// the graph that nobody defined.
+		errs = append(errs, "introduced_by is only accepted on failure_mode; what it asserts for "+quote(r.Kind)+" is undefined")
+	}
 	if r.Title == "" {
 		errs = append(errs, "title is required")
 	}
@@ -140,6 +198,14 @@ func Validate(r Request) []string {
 
 	switch r.Kind {
 	case "failure_mode":
+		for _, a := range r.IntroducedBy {
+			if !commitSHA.MatchString(a.Commit) {
+				errs = append(errs, "introduced_by: "+quote(a.Commit)+" is not a commit SHA (7-40 hex); a branch, tag or HEAD moves, and an attribution that repoints later still looks like a record of what happened")
+			}
+			if strings.TrimSpace(a.Repo) == "" {
+				errs = append(errs, "introduced_by: "+quote(a.Commit)+" names no repository; the identity is repository plus commit, because the same short hash occurs in more than one repository")
+			}
+		}
 		if len(r.RelatedInvariants) == 0 && r.Contract == "" {
 			errs = append(errs, "failure_mode: name the invariant it violates via related_invariant (or contract)")
 		}
@@ -235,31 +301,32 @@ type candidateDoc struct {
 }
 
 type candidateRequest struct {
-	Kind               string   `yaml:"kind,omitempty"`
-	ID                 string   `yaml:"id,omitempty"`
-	Title              string   `yaml:"title,omitempty"`
-	Description        string   `yaml:"description,omitempty"`
-	Severity           string   `yaml:"severity,omitempty"`
-	RecordStatus       string   `yaml:"record_status,omitempty"`
-	Context            string   `yaml:"context,omitempty"`
-	Consequences       string   `yaml:"consequences,omitempty"`
-	ArchitecturalPlane string   `yaml:"architectural_plane,omitempty"`
-	SourceFiles        []string `yaml:"source_files,omitempty"`
-	RelatedInvariants  []string `yaml:"related_invariants,omitempty"`
-	RelatedFailures    []string `yaml:"related_failures,omitempty"`
-	RequiredTests      []string `yaml:"required_tests,omitempty"`
-	ForbiddenFixes     []string `yaml:"forbidden_fixes,omitempty"`
-	Evidence           []string `yaml:"evidence,omitempty"`
-	DefinesBoundaries  []string `yaml:"defines_boundaries,omitempty"`
-	DefinesContracts   []string `yaml:"defines_contracts,omitempty"`
-	AffectsComponents  []string `yaml:"affects_components,omitempty"`
-	SupportedEvidence  []string `yaml:"supported_by_evidence,omitempty"`
-	SurvivalEvidence   []string `yaml:"survival_evidence,omitempty"`
-	Repo               string   `yaml:"repo,omitempty"`
-	Domain             string   `yaml:"domain,omitempty"`
-	Contract           string   `yaml:"contract,omitempty"`
-	ProposedContract   string   `yaml:"proposed_contract,omitempty"`
-	RevisionRequest    string   `yaml:"revision_request,omitempty"`
+	Kind               string        `yaml:"kind,omitempty"`
+	ID                 string        `yaml:"id,omitempty"`
+	Title              string        `yaml:"title,omitempty"`
+	Description        string        `yaml:"description,omitempty"`
+	Severity           string        `yaml:"severity,omitempty"`
+	RecordStatus       string        `yaml:"record_status,omitempty"`
+	Context            string        `yaml:"context,omitempty"`
+	Consequences       string        `yaml:"consequences,omitempty"`
+	ArchitecturalPlane string        `yaml:"architectural_plane,omitempty"`
+	SourceFiles        []string      `yaml:"source_files,omitempty"`
+	RelatedInvariants  []string      `yaml:"related_invariants,omitempty"`
+	RelatedFailures    []string      `yaml:"related_failures,omitempty"`
+	RequiredTests      []string      `yaml:"required_tests,omitempty"`
+	ForbiddenFixes     []string      `yaml:"forbidden_fixes,omitempty"`
+	Evidence           []string      `yaml:"evidence,omitempty"`
+	DefinesBoundaries  []string      `yaml:"defines_boundaries,omitempty"`
+	DefinesContracts   []string      `yaml:"defines_contracts,omitempty"`
+	AffectsComponents  []string      `yaml:"affects_components,omitempty"`
+	SupportedEvidence  []string      `yaml:"supported_by_evidence,omitempty"`
+	SurvivalEvidence   []string      `yaml:"survival_evidence,omitempty"`
+	IntroducedBy       []Attribution `yaml:"introduced_by,omitempty"`
+	Repo               string        `yaml:"repo,omitempty"`
+	Domain             string        `yaml:"domain,omitempty"`
+	Contract           string        `yaml:"contract,omitempty"`
+	ProposedContract   string        `yaml:"proposed_contract,omitempty"`
+	RevisionRequest    string        `yaml:"revision_request,omitempty"`
 }
 
 type candidateEntry struct {
@@ -313,6 +380,7 @@ func candidateRequestFromRequest(r Request) candidateRequest {
 		AffectsComponents:  r.AffectsComponents,
 		SupportedEvidence:  r.SupportedEvidence,
 		SurvivalEvidence:   r.SurvivalEvidence,
+		IntroducedBy:       r.IntroducedBy,
 		Repo:               r.Repo,
 		Domain:             r.Domain,
 		Contract:           r.Contract,
@@ -384,3 +452,6 @@ func cleanList(in []string) []string {
 	}
 	return out
 }
+
+// quote renders a value inside an error without pulling in fmt at each site.
+func quote(s string) string { return "\"" + s + "\"" }

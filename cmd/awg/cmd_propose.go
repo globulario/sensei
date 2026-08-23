@@ -98,13 +98,14 @@ func runPropose(args []string) int {
 	revisionRequest := fs.String("revision-request", "", "contract_unknown: a request to revise an existing contract")
 
 	var sourceFiles, relatedInvariants, relatedFailures multiString
-	var requiredTests, forbiddenFixes, evidence multiString
+	var requiredTests, forbiddenFixes, evidence, introducedBy multiString
 	var definesBoundaries, definesContracts, affectsComponents, supportedEvidence multiString
 	var survivalEvidence multiString
 	fs.Var(&sourceFiles, "source-file", "source file the entry anchors to (repeatable)")
 	fs.Var(&relatedInvariants, "related-invariant", "related invariant id (repeatable)")
 	fs.Var(&relatedFailures, "related-failure", "related failure_mode id (repeatable)")
 	fs.Var(&requiredTests, "required-test", "required test ref, file.go:TestName (repeatable)")
+	fs.Var(&introducedBy, "introduced-by", "failure_mode: commit SHA this failure's introduction is attributed to (repeatable). An explicit assertion by the filer — never inferred from file overlap or nearby commits")
 	fs.Var(&forbiddenFixes, "forbidden-fix", "forbidden fix id or note (repeatable)")
 	fs.Var(&evidence, "evidence", "evidence line (repeatable)")
 	fs.Var(&definesBoundaries, "defines-boundary", "decision: boundary id defined by the decision (repeatable)")
@@ -185,13 +186,22 @@ Flags:
 		"related-invariant":   func() { req.RelatedInvariants = append(req.RelatedInvariants, relatedInvariants...) },
 		"related-failure":     func() { req.RelatedFailures = append(req.RelatedFailures, relatedFailures...) },
 		"required-test":       func() { req.RequiredTests = append(req.RequiredTests, requiredTests...) },
-		"forbidden-fix":       func() { req.ForbiddenFixes = append(req.ForbiddenFixes, forbiddenFixes...) },
-		"evidence":            func() { req.Evidence = append(req.Evidence, evidence...) },
-		"defines-boundary":    func() { req.DefinesBoundaries = append(req.DefinesBoundaries, definesBoundaries...) },
-		"defines-contract":    func() { req.DefinesContracts = append(req.DefinesContracts, definesContracts...) },
-		"affects-component":   func() { req.AffectsComponents = append(req.AffectsComponents, affectsComponents...) },
-		"supported-evidence":  func() { req.SupportedEvidence = append(req.SupportedEvidence, supportedEvidence...) },
-		"survival-evidence":   func() { req.SurvivalEvidence = append(req.SurvivalEvidence, survivalEvidence...) },
+		"introduced-by": func() {
+			for _, sha := range introducedBy {
+				// Repo is left empty here and defaulted during normalization
+				// from the request's repository context: the CLI accepts the
+				// SHA alone because the repository is already known, while
+				// what gets persisted carries both.
+				req.IntroducedBy = append(req.IntroducedBy, propose.Attribution{Commit: sha})
+			}
+		},
+		"forbidden-fix":      func() { req.ForbiddenFixes = append(req.ForbiddenFixes, forbiddenFixes...) },
+		"evidence":           func() { req.Evidence = append(req.Evidence, evidence...) },
+		"defines-boundary":   func() { req.DefinesBoundaries = append(req.DefinesBoundaries, definesBoundaries...) },
+		"defines-contract":   func() { req.DefinesContracts = append(req.DefinesContracts, definesContracts...) },
+		"affects-component":  func() { req.AffectsComponents = append(req.AffectsComponents, affectsComponents...) },
+		"supported-evidence": func() { req.SupportedEvidence = append(req.SupportedEvidence, supportedEvidence...) },
+		"survival-evidence":  func() { req.SurvivalEvidence = append(req.SurvivalEvidence, survivalEvidence...) },
 	})
 
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)

@@ -87,10 +87,21 @@ type yamlFailureMode struct {
 	// ViolatesContracts links a failure mode UP to the architectural contract(s)
 	// it breaks — the spine that makes "not just a failing test, a violation of
 	// contract X guarded by invariant Y" traversable.
-	ViolatesContracts []string   `yaml:"violates_contracts"`
-	RequiredTests     []string   `yaml:"required_tests"`
-	Uml               umlProfile `yaml:"uml"`
-	domainScope       `yaml:",inline"`
+	ViolatesContracts []string `yaml:"violates_contracts"`
+	RequiredTests     []string `yaml:"required_tests"`
+	// IntroducedBy is what the filer attributed this failure's introduction
+	// to. Never inferred here: this importer reads what somebody asserted.
+	IntroducedBy []yamlAttribution `yaml:"introduced_by"`
+	Uml          umlProfile        `yaml:"uml"`
+	domainScope  `yaml:",inline"`
+}
+
+// yamlAttribution is repository plus immutable commit SHA. Both, always: the
+// same short hash occurs in more than one repository, and a causal relation
+// that cannot say which one is not evidence.
+type yamlAttribution struct {
+	Repo   string `yaml:"repo"`
+	Commit string `yaml:"commit"`
 }
 
 type yamlIncidentPattern struct {
@@ -308,6 +319,25 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 		for _, t := range fm.RequiredTests {
 			ensureNode(e, rdf.ClassTest, t)
 			e.Triple(subj, rdf.IRI(rdf.PropRequiresTest), rdf.MintIRI(rdf.ClassTest, t))
+		}
+		// FailureMode → Change. A first-class relation rather than prose in an
+		// evidence line, so it can be traversed, counted and disputed. Minted
+		// only from an explicit attribution: nothing here walks history, and a
+		// heuristic that minted these would produce a graph confidently wrong
+		// about its own past.
+		for _, a := range fm.IntroducedBy {
+			repo := strings.TrimSpace(a.Repo)
+			commit := strings.ToLower(strings.TrimSpace(a.Commit))
+			if repo == "" || commit == "" {
+				// Half an identity is not one. Skipping is right: emitting a
+				// Change node keyed on a bare SHA would collide across
+				// repositories and quietly merge two histories.
+				continue
+			}
+			changeIRI := rdf.MintIRI(rdf.ClassChange, repo+"@"+commit)
+			e.Typed(changeIRI, rdf.ClassChange)
+			e.Triple(changeIRI, rdf.IRI(rdf.PropLabel), rdf.Lit(repo+"@"+commit))
+			e.Triple(subj, rdf.IRI(rdf.PropIntroducedBy), changeIRI)
 		}
 		// Spine ligament: FM → architectural contract it violates, plus the
 		// reverse Contract → violatedBy → FM so the contract side (and the

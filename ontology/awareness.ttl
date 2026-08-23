@@ -96,6 +96,13 @@ aw:Service    a owl:Class ; rdfs:label "Service" ;
 aw:Incident   a owl:Class ; rdfs:label "Incident" ;
     rdfs:comment "An individual incident record with status, severity, and related source files." .
 
+aw:Change     a owl:Class ; rdfs:label "Change" ;
+    rdfs:comment """One landed repository change, identified by repository plus immutable commit SHA.
+
+      It exists so a governed failure can name what introduced it. The identity is the pair, never the SHA alone: the same abbreviated hash can occur in two repositories, and a relation that cannot say which one is not evidence.
+
+      A Change node is minted only when something explicitly attributes to it. Nothing walks history to create these — an attribution nobody made is not knowledge.""" .
+
 # ── Architectural spine (Stage A) ─────────────────────────────────────────
 # A minimal "architectural nervous system" layered over the existing safety
 # nodes so agents reason about ownership, boundaries, contracts, decisions, and
@@ -532,6 +539,15 @@ aw:forbids        a owl:ObjectProperty ; rdfs:label "forbids" ;
 
 aw:requiresTest   a owl:ObjectProperty ; rdfs:label "requires test" ;
     rdfs:comment "An invariant or failure_mode requires a named regression test. The test's existence pins the rule." .
+
+aw:introducedBy   a owl:ObjectProperty ; rdfs:label "introduced by" ;
+    rdfs:comment """FailureMode → Change. The actor filing this governed failure explicitly attributes its introduction to that change.
+
+      It is an assertion somebody made, not an inference. File overlap, temporal proximity and corrective-looking commit subjects may suggest candidates for a human or agent to confirm, and may never create this relation on their own — a heuristic that mints causal edges produces a graph that is confidently wrong about its own history.
+
+      A failure may carry more than one, because real failures have compound ancestry: one change introduces unsafe state, another removes the check that compensated for it.
+
+      Its ABSENCE means only that nobody recorded an attribution. It is not evidence that a change was correct, and must never be read as one.""" .
 
 aw:affects        a owl:ObjectProperty ; rdfs:label "affects" ;
     rdfs:comment """Generic directed relationship between awareness knowledge nodes. Used uniformly for:
