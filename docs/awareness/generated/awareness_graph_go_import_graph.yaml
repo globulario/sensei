@@ -343,6 +343,19 @@ components:
       stereotype: service
       view: structural
       confidence: inferred
+  - id: component.cmd.eval_phase10_score
+    name: eval-phase10-score
+    kind: service
+    assertion: inferred
+    source_files:
+      - cmd/eval-phase10-score/main.go
+    depends_on:
+      - component.golang.architecture.phase10score
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.cmd.eval_prospective
     name: eval-prospective
     kind: service
@@ -1671,6 +1684,19 @@ components:
       - component.golang.statedir
     external_imports:
       - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.phase10score
+    name: phase10score
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/phase10score/labels.go
+      - golang/architecture/phase10score/report.go
+      - golang/architecture/phase10score/score.go
     uml:
       kind: Component
       stereotype: module
