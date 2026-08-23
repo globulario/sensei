@@ -1,6 +1,6 @@
-# Experimental engineering epistemology
-
 **Status: DESIGN HYPOTHESIS. Not implemented. Not governing law. Not authority policy.**
+
+# Experimental engineering epistemology
 
 Nothing in this document has been built, and nothing in it constrains any change.
 It records a line of reasoning, the evidence that produced it, and the claims it
@@ -55,11 +55,21 @@ touching a file it names marks 73% of commits as corrected: a label that fits
 almost everything distinguishes nothing.
 
 **Human-as-oracle has limits.** #259's adjudication asks one person to judge
-48 × 866 = 41,568 applicability pairs. At that scale a human is guessing and
-sweeping, and a denominator built from fatigue reported as ground truth is worse
-than no measurement. Whether an item governs a change also sometimes cannot be
-decided from the frozen evidence at all — which is information about the
-reference material, not about the adjudicator.
+48 × 866 = 41,568 applicability pairs.
+
+Observed, on first contact with the tool: some corpus items carry too little
+semantic content for applicability to be decided confidently from the frozen
+evidence — which is information about the reference material, not about the
+adjudicator.
+
+Inferred, not demonstrated: at that scale, fatigue and bulk sweeping are a
+plausible failure mode for the denominator. Nobody has shown that all 41,568
+judgements reduce to guessing, and this document should not claim it.
+
+What follows from both together is narrower and enough: human labels cannot be
+equated with architectural truth. What they can honestly establish is human
+judgement from the frozen evidence presented, which is a different and weaker
+thing than a complete applicability set.
 
 ## 2. Two laws
 
@@ -92,10 +102,20 @@ Both sides are positive statements somebody made. Exploration is then reached by
 
 ## 3. Four epistemic objects
 
-Today the graph carries one kind of thing (established law) with two lifecycle
-states (candidate awaiting review, canonical). The hypothesis is that at least
-four kinds are needed, and that collapsing them is what makes uncertainty look
-like either law or nothing.
+Sensei already has rich classes for established architectural knowledge —
+invariants, contracts, failure modes, forbidden fixes, decisions, patterns and
+more. The gap is narrower than "one kind of thing", and stating it broadly would
+make this section easy to dismiss.
+
+What is missing is an epistemic lifecycle for *uncertain design belief*. A claim
+that is believed, testable and not established has only one path available to
+it: candidate awaiting review, then canonical knowledge. There is no first-class
+state for "believed, testable, but not yet established", so an uncertain claim
+must either masquerade as law or remain unrecorded.
+
+The hypothesis is that at least four kinds are needed, and that having nowhere
+to put the middle ones is what forces uncertainty to look like either law or
+nothing.
 
 ```
 CONSTRAINT        what must remain true            established knowledge
@@ -226,6 +246,22 @@ distinct alternatives survive established constraints.
 file refresh, a typo fix or a mechanical rename may legitimately contain no
 design question; requiring one would recreate ceremony.
 
+*Anti-circularity requirement.* The rule that decides which changes are
+design-bearing must be fixed **before** any DesignQuestion is looked for, and
+must not consult whether one was found. Selecting changes because they "look
+like they contain real choices" selects on the presence of the very thing being
+measured, and the claim then confirms itself:
+
+```
+select changes that appear to contain design decisions
+        ↓
+discover they contain design questions
+```
+
+The selection rule is deliberately not specified here. Specifying it is part of
+testing the claim, and it must be frozen and published before the sample is
+drawn — the same discipline #259 applies to its own inventory.
+
 *If false:* DesignQuestion adds cost to every plan and buys nothing, and the
 interesting uncertainty lives somewhere this model does not look.
 
@@ -290,11 +326,20 @@ building doors before the rooms exist.
 ## Provenance
 
 Reasoning developed in a working session on 2026-08-22/23 between the repository
-owner and Claude (Opus 5), alongside the sensei-code headless-execution work
-(#64, #65, #66) and the causal-attribution write path (#279). The measurements in
+owner, Claude (Opus 5) and ChatGPT (GPT-5.6 Sol), alongside the sensei-code
+headless-execution work (#64, #65, #66) and the causal-attribution write path
+(#279).
+
+Several of the formulations this document rests on arrived through that
+three-way exchange rather than from any one participant: the
+conservation/exploration/authority distinction, both laws in §2, the correction
+that a residual cannot be computed from retrieval's silence, and the
+hypothesis/observation framing in §3. Recording that is not credit bookkeeping.
+A document arguing that knowledge must carry its causal provenance should carry
+its own. The measurements in
 §1 are reproducible: file-level probes via `sensei preflight` against the graph
 digest named there, and commit-level counts via `git log` over the ranges stated.
 
-An AI participated in producing this document. It is a design hypothesis for
-humans to accept, reject or amend — not architecture already accepted, and not
-knowledge.
+AI systems participated in producing this document. It is a design hypothesis
+for humans to accept, reject or amend — not architecture already accepted, and
+not knowledge.
