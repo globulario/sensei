@@ -763,3 +763,12 @@ forbidden_fixes:
     related_invariants:
       - awareness.missing_evidence_produces_unknown
     reason: 'Marking TestExtractContextAbandonsTheSemanticStageAtTheCeiling flaky, retrying it, accepting either limitation shape, or skipping it under load. The intermittency was the defect reporting itself: the production answer depended on which select arm won, and a test that tolerates both outcomes certifies a caller being told its document is whole at a moment the clock says it cannot be. The abandonment decision must not depend on scheduling — consult the context after the load returns, and abandon on an expired ceiling whichever arm fired.'
+  - id: forbidden_fix.sensei.take_the_expected_digest_from_the_same_response_that_supplie
+    title: Take the expected digest from the same response that supplied the artifact
+    summary: 'Fetching an artifact''s expected sha256 out of the same API response that supplied its download URL, then checking the download against it. That detects a corrupted transfer and nothing else: whatever changes the asset changes the metadata describing it, and the comparison still passes. The Dockerfile comment claimed to ''verify the exact GitHub release asset digest'' — a stronger claim than a self-referential comparison can support, which is the failure_mode.count_preserving_graph_mutation shape in a different mechanism. Pin the digest in this repository instead, so the expected value is independent of the host serving the bytes.'
+    protects:
+      files:
+        - deploy/Dockerfile
+    related_invariants:
+      - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    reason: 'Fetching an artifact''s expected sha256 out of the same API response that supplied its download URL, then checking the download against it. That detects a corrupted transfer and nothing else: whatever changes the asset changes the metadata describing it, and the comparison still passes. The Dockerfile comment claimed to ''verify the exact GitHub release asset digest'' — a stronger claim than a self-referential comparison can support, which is the failure_mode.count_preserving_graph_mutation shape in a different mechanism. Pin the digest in this repository instead, so the expected value is independent of the host serving the bytes.'

@@ -9,13 +9,18 @@ FROM golang:1.25-bookworm AS build
 # x86_64 ELF interpreter). Declare it bare so buildx supplies the real arch.
 ARG TARGETARCH
 ARG OXIGRAPH_VERSION=0.5.9
+# Digests of the linux release assets for OXIGRAPH_VERSION, pinned here so the
+# integrity check is independent of the host serving the bytes. Regenerate with
+# deploy/oxigraph-digests.txt when the version moves.
+ARG OXIGRAPH_SHA256_AMD64=4be355715ba3945e8fb8c94a06662a29808683bf2ec355894dba9e82762e7cc7
+ARG OXIGRAPH_SHA256_ARM64=dc17e58cf65d74f89853bb8b49180099399a53b9df7f1671a4a9ca188208d794
 ARG SENSEI_VERSION=0.0.0-dev
 ARG VCS_REF=unknown
 
 WORKDIR /src
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl jq \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY go.mod go.sum ./
@@ -39,26 +44,54 @@ RUN set -eux; \
     ldd /out/awareness-graph; \
     ldd /out/awareness-mcp
 
-# Pin Oxigraph and verify the exact GitHub release asset digest before it enters
-# the runtime image. TARGETARCH is supplied automatically by BuildKit/buildx.
+# Fetch Oxigraph from the release download URL and check it against a digest
+# pinned in this file. TARGETARCH is supplied automatically by BuildKit/buildx.
+#
+# Two things changed here, and the first is why the second was worth doing.
+#
+# 1. No Releases JSON API call. api.github.com is rate-limited PER IP for
+#    unauthenticated callers, and shared CI runners exhaust that quota: the
+#    appliance build failed with `curl: (22) ... error: 403` while a sibling job
+#    on the same commit passed. A build that fails on someone else's traffic is
+#    not reproducible. scripts/fetch-oxigraph.sh already avoided the API for
+#    exactly this reason -- "It deliberately avoids the rate-limited Releases
+#    JSON API" -- and this is the same repository learning the same lesson
+#    twice. The download host serves the asset from a stable, documented URL
+#    that needs no API to construct.
+#
+# 2. The digest is pinned HERE rather than read from the release metadata.
+#    The old code fetched the expected digest from the same API response that
+#    gave it the URL, then checked the download against it. That detects a
+#    corrupted transfer and nothing else: an attacker or mistake that changes
+#    the asset changes the metadata describing it, and the check still passes.
+#    The comment above it claimed to "verify the exact GitHub release asset
+#    digest", which was a stronger claim than a self-referential comparison can
+#    support. A value committed to this repository is independent of the host
+#    serving the bytes, so it is evidence about the artifact rather than about
+#    the transfer.
+#
+# The cost is that these digests must be updated with OXIGRAPH_VERSION. That
+# failure is loud (sha256sum -c fails the build and prints the mismatch) and
+# deploy/oxigraph-digests.txt records how to regenerate them.
 RUN set -eux; \
     case "${TARGETARCH}" in \
-      amd64) oxi_arch="x86_64_linux_gnu" ;; \
-      arm64) oxi_arch="aarch64_linux_gnu" ;; \
+      amd64) oxi_arch="x86_64_linux_gnu";  oxi_sha256="${OXIGRAPH_SHA256_AMD64}" ;; \
+      arm64) oxi_arch="aarch64_linux_gnu"; oxi_sha256="${OXIGRAPH_SHA256_ARM64}" ;; \
       *) echo "unsupported TARGETARCH=${TARGETARCH}" >&2; exit 1 ;; \
     esac; \
+    test -n "${oxi_sha256}"; \
     asset="oxigraph_v${OXIGRAPH_VERSION}_${oxi_arch}"; \
-    release="$(curl -fsSL "https://api.github.com/repos/oxigraph/oxigraph/releases/tags/v${OXIGRAPH_VERSION}")"; \
-    url="$(printf '%s' "${release}" | jq -er --arg asset "${asset}" '.assets[] | select(.name == $asset) | .browser_download_url')"; \
-    digest="$(printf '%s' "${release}" | jq -er --arg asset "${asset}" '.assets[] | select(.name == $asset) | .digest' | sed 's/^sha256://')"; \
-    test -n "${digest}"; \
-    curl -fsSL "${url}" -o /out/oxigraph; \
-    printf '%s  %s\n' "${digest}" /out/oxigraph | sha256sum -c -; \
+    url="https://github.com/oxigraph/oxigraph/releases/download/v${OXIGRAPH_VERSION}/${asset}"; \
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+      --connect-timeout 15 --max-time 300 "${url}" -o /out/oxigraph; \
+    printf '%s  %s\n' "${oxi_sha256}" /out/oxigraph | sha256sum -c -; \
     chmod 0755 /out/oxigraph; \
     /out/oxigraph --version; \
     mkdir -p /out/licenses/oxigraph; \
-    curl -fsSL "https://raw.githubusercontent.com/oxigraph/oxigraph/v${OXIGRAPH_VERSION}/LICENSE-APACHE" -o /out/licenses/oxigraph/LICENSE-APACHE; \
-    curl -fsSL "https://raw.githubusercontent.com/oxigraph/oxigraph/v${OXIGRAPH_VERSION}/LICENSE-MIT" -o /out/licenses/oxigraph/LICENSE-MIT
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+      "https://raw.githubusercontent.com/oxigraph/oxigraph/v${OXIGRAPH_VERSION}/LICENSE-APACHE" -o /out/licenses/oxigraph/LICENSE-APACHE; \
+    curl -fsSL --retry 3 --retry-delay 2 --retry-all-errors \
+      "https://raw.githubusercontent.com/oxigraph/oxigraph/v${OXIGRAPH_VERSION}/LICENSE-MIT" -o /out/licenses/oxigraph/LICENSE-MIT
 
 FROM debian:bookworm-slim AS runtime
 

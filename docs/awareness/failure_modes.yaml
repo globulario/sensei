@@ -2070,3 +2070,15 @@ failure_modes:
       - 'CI run 32657471809 on main 1a9efc93: TestExtractContextAbandonsTheSemanticStageAtTheCeiling failed with go_semantic_extractor limitation ''semantic package load stopped by the caller: context canceled'' Blocking:false'
       - not reproducible on a 16-core idle machine (0 of 3200 cancelled runs took the wrong arm); reproduced within 60 runs under nproc-wide CPU contention, and on a loaded two-core GitHub runner
       - the defect predates the merge that exposed it; no change in that merge touched Go code
+  - id: failure.sensei.a_build_depends_on_the_unauthenticated_github_rest_api_and_f
+    title: A build depends on the unauthenticated GitHub REST API and fails on unrelated traffic
+    severity: warning
+    description: 'deploy/Dockerfile resolved the Oxigraph download URL through api.github.com, which is rate-limited PER IP for unauthenticated callers. On a shared CI runner the quota is somebody else''s to exhaust: the appliance build died with ''curl: (22) ... error: 403'' while a sibling job on the same commit passed. A build whose success depends on unrelated traffic from other tenants is not reproducible, and the failure looks like a defect in the change under test.'
+    protects:
+      files:
+        - deploy/Dockerfile
+    related_invariants:
+      - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    evidence:
+      - 'CI run 32665423125 on PR #294: build-and-smoke failed at the Releases JSON API with 403; run 32665437458 on the same commit passed'
+      - scripts/fetch-oxigraph.sh had already avoided this API and says so in its header — the same repository learned the same lesson twice, in two places, without one informing the other

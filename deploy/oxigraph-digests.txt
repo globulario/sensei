@@ -1,0 +1,43 @@
+# Regenerating the pinned Oxigraph digests
+#
+# The digests themselves live in deploy/Dockerfile, as
+# ARG OXIGRAPH_SHA256_AMD64 / ARG OXIGRAPH_SHA256_ARM64. They are NOT repeated
+# here: two copies of the same value drift, and a check that compares a file to
+# itself proves nothing. The Dockerfile is the single source.
+#
+# WHY THEY ARE PINNED AT ALL
+#
+# The build used to read the expected digest out of the same api.github.com
+# response that gave it the download URL, then check the download against it.
+# That detects a corrupted transfer and nothing else: anything that changes the
+# asset changes the metadata describing it, and the comparison still passes.
+# The comment above it claimed to "verify the exact GitHub release asset
+# digest" -- a stronger claim than a self-referential comparison can support.
+#
+# A value committed to this repository is independent of the host serving the
+# bytes, so it is evidence about the artifact rather than about the transfer.
+#
+# Removing the API call was the immediate reason. api.github.com is rate-limited
+# per IP for unauthenticated callers, and a shared CI runner exhausted the quota:
+# the appliance build failed with `curl: (22) ... error: 403` while a sibling job
+# on the same commit passed. A build that fails on someone else's traffic is not
+# reproducible. scripts/fetch-oxigraph.sh had already avoided the Releases JSON
+# API for exactly this reason; the Dockerfile had not.
+#
+# WHEN OXIGRAPH_VERSION CHANGES
+#
+# Update ARG OXIGRAPH_VERSION in deploy/Dockerfile, then regenerate both pins:
+#
+#   VER=0.5.9   # the new version
+#   for a in x86_64_linux_gnu aarch64_linux_gnu; do
+#     printf '%s  %s\n' \
+#       "$(curl -fsSL "https://github.com/oxigraph/oxigraph/releases/download/v${VER}/oxigraph_v${VER}_${a}" | sha256sum | cut -d' ' -f1)" \
+#       "oxigraph_v${VER}_${a}"
+#   done
+#
+# and paste the two values into the ARGs.
+#
+# Forgetting is loud, not silent: sha256sum -c fails the build and prints the
+# mismatch. That is the intended failure mode. A stale pin must stop the build
+# -- never be worked around by reading the digest back off the network, which is
+# precisely the check this replaced.
