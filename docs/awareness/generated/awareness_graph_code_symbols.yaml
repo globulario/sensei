@@ -13304,6 +13304,12 @@ test_symbols:
     symbol: TestRegenerateAndVerifyStale
     package: generatedartifact
     language: go
+  - id: golang/architecture/gosemantics/abandon_test.go:TestExtractBoundedOrAbandonAbandonsWhenBothArmsAreReady
+    file: golang/architecture/gosemantics/abandon_test.go
+    symbol: TestExtractBoundedOrAbandonAbandonsWhenBothArmsAreReady
+    package: gosemantics
+    language: go
+    doc: "The test above passes whichever way the race falls, because on an idle\nmachine the load never finishes before the ceiling is consulted. On a loaded\ntwo-core CI runner it did, both select arms were ready, and Go chose between\nthem at random — so the same cancelled run reported abandonment or completion\ndepending on the scheduler.\n\nThe two answers are not interchangeable. Abandonment is a BLOCKING limitation\nnaming a document with no semantic observations; a load that \"completed\"\nreturns its stop as a NON-blocking note instead (factextract/invariants.go\nrecords the two differently). Deciding between them by scheduler tells a\ncaller its document is whole at a moment the clock says it cannot be.\n\nbeforeCeilingForTest puts the run in exactly that state — load delivered,\nceiling expired, both arms ready — on every iteration. Repeated, because a\nbare select would take the wrong arm about half the time and once is not\nevidence."
   - id: golang/architecture/gosemantics/abandon_test.go:TestExtractBoundedOrAbandonReturnsAtTheCeiling
     file: golang/architecture/gosemantics/abandon_test.go
     symbol: TestExtractBoundedOrAbandonReturnsAtTheCeiling

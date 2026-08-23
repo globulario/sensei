@@ -93,6 +93,14 @@ func Extract(root string) (result Result, err error) {
 	return ExtractBounded(context.Background(), root, extractbudget.Budget{})
 }
 
+// beforeCeilingForTest runs after the load goroutine is started and before the
+// ceiling is consulted, receiving a channel closed once that goroutine has
+// delivered its outcome. It is nil in every non-test build, and exists because
+// the defect it guards is otherwise unobservable: the wrong answer requires
+// both select arms to be ready at the same moment, which an idle machine never
+// produces and a loaded CI runner produced once.
+var beforeCeilingForTest func(loadDelivered <-chan struct{})
+
 // ExtractBoundedOrAbandon is ExtractBounded with the ceiling applied to the
 // ANSWER rather than to the loader.
 //
@@ -112,6 +120,16 @@ func Extract(root string) (result Result, err error) {
 //
 // A context with no deadline and no cancellation runs inline, so an unbounded
 // caller is byte-for-byte unchanged.
+//
+// Which arm of the select wins does not decide the answer. When both the load
+// and the ceiling are ready, Go picks between them at random, so a bare select
+// would report abandonment or completion for the same run depending on the
+// scheduler -- and the two are not interchangeable: abandonment is a BLOCKING
+// limitation naming a document with no semantic observations, while a completed
+// load carries a non-blocking note. A coin flip between those is a caller told
+// its document is whole when the clock says it cannot be. So the context is
+// consulted again after the load returns, and an expired ceiling abandons
+// whichever arm fired.
 func ExtractBoundedOrAbandon(ctx context.Context, root string, budget extractbudget.Budget) (result Result, err error, abandoned bool) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -125,12 +143,34 @@ func ExtractBoundedOrAbandon(ctx context.Context, root string, budget extractbud
 		err error
 	}
 	done := make(chan outcome, 1)
+	// The state that has to be stable -- both arms ready at once -- is not
+	// reachable from a test on an idle machine: the load never wins there, and
+	// it only won on a loaded two-core CI runner. So the ordering is made
+	// observable rather than left to the scheduler to demonstrate.
+	var delivered chan struct{}
+	if beforeCeilingForTest != nil {
+		delivered = make(chan struct{})
+	}
 	go func() {
 		res, err := ExtractBounded(ctx, root, budget)
 		done <- outcome{res: res, err: err}
+		if delivered != nil {
+			close(delivered)
+		}
 	}()
+	if beforeCeilingForTest != nil {
+		beforeCeilingForTest(delivered)
+	}
 	select {
 	case out := <-done:
+		// The load returned, but that does not mean it returned in time. If
+		// the ceiling has passed, whatever came back was produced against a
+		// cancelled context -- partial, or an error naming the cancellation --
+		// and claiming it as a completed stage would report the clock's
+		// absence as the repository's.
+		if ctx.Err() != nil {
+			return Result{}, nil, true
+		}
 		return out.res, out.err, false
 	case <-ctx.Done():
 		return Result{}, nil, true

@@ -2055,3 +2055,18 @@ failure_modes:
       - golang/seedmeta/verify_test.go:TestVerifyLiveContent_CountPreservingMutationIsRefused
     evidence:
       - 'Reproduced on an isolated restored copy of graph def94857 (158349 triples): deleting one codeSymbol triple and inserting one unrelated triple left freshness=current, verdict=authoritative, detail=''live store matches expected validated graph artifact'' (#282, witnessed in docs/evaluation/prospective-v1-execution/graph-snapshot-witness.md)'
+  - id: failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
+    title: A scheduler race reports a load past its ceiling as a completed stage
+    severity: high
+    description: ExtractBoundedOrAbandon selected between the finished load and the expired ceiling with a bare two-arm select. When both were ready Go chose at random, so one cancelled run reported abandonment (a BLOCKING limitation naming a document with no semantic observations) and the next reported completion, whose stop reaches factextract as a NON-blocking note. Partial evidence was therefore presented as a whole stage, decided by the scheduler.
+    protects:
+      files:
+        - golang/architecture/gosemantics/extract.go
+    related_invariants:
+      - awareness.missing_evidence_produces_unknown
+    required_tests:
+      - golang/architecture/gosemantics/abandon_test.go:TestExtractBoundedOrAbandonAbandonsWhenBothArmsAreReady
+    evidence:
+      - 'CI run 32657471809 on main 1a9efc93: TestExtractContextAbandonsTheSemanticStageAtTheCeiling failed with go_semantic_extractor limitation ''semantic package load stopped by the caller: context canceled'' Blocking:false'
+      - not reproducible on a 16-core idle machine (0 of 3200 cancelled runs took the wrong arm); reproduced within 60 runs under nproc-wide CPU contention, and on a loaded two-core GitHub runner
+      - the defect predates the merge that exposed it; no change in that merge touched Go code
