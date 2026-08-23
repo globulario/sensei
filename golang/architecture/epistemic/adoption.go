@@ -262,3 +262,49 @@ func (l *Ledger) adoptedPaths() map[string]string {
 	}
 	return out
 }
+
+// AdoptionBasis counts how adoptions were justified.
+//
+// The two adoption paths carry mirror-image self-confirmation risks, and only
+// one of them was already being counted:
+//
+//	EXPLORATION    AI hypothesis → AI experiment → AI interpretation → AI adopts
+//	               → guarded, weakly, by Liveness.SelfConfirmed
+//
+//	CONSERVATION   AI wants design C → AI authors a constraint implying C
+//	               → question computes CONSERVATION → AI adopts C with no evidence
+//	               → guarded by nothing
+//
+// The second reconstructs self-confirmation through a different door: the
+// experiment is not faked, it is made unnecessary. What would close it is the
+// constraints being INDEPENDENTLY established enough to carry the decision, and
+// nothing here can measure that — a constraint is free text, and its provenance
+// strength is not a number.
+//
+// So this counts the exposure rather than grading it. OnConstraintsAlone is how
+// many adoptions skipped the evidence requirement; it is reported, never gated,
+// and a high count is a prompt to look at where those constraints came from.
+type AdoptionBasis struct {
+	Total              int      `json:"total"`
+	OnSupportedBelief  int      `json:"on_supported_belief"`
+	OnConstraintsAlone int      `json:"on_constraints_alone"`
+	Ratio              *float64 `json:"on_constraints_alone_over_total,omitempty"`
+}
+
+// MeasureAdoptions reports how the ledger's adoptions were justified.
+func (l *Ledger) MeasureAdoptions() AdoptionBasis {
+	var b AdoptionBasis
+	b.Total = len(l.Adoptions)
+	for _, a := range l.Adoptions {
+		if len(a.Hypotheses) == 0 {
+			b.OnConstraintsAlone++
+			continue
+		}
+		b.OnSupportedBelief++
+	}
+	if b.Total > 0 {
+		r := float64(b.OnConstraintsAlone) / float64(b.Total)
+		b.Ratio = &r
+	}
+	return b
+}

@@ -473,6 +473,20 @@ func printEpistemicStatus(l epistemic.Ledger, live epistemic.Liveness, now time.
 	// The shape of a fake reasoning loop, counted rather than gated. It is also
 	// the shape of an honest one-person project, which is why this reports and
 	// never fails: a number nobody can see is how the shape becomes normal.
+	if b := l.MeasureAdoptions(); b.Total > 0 {
+		fmt.Printf("adopted:           %d — %d on a supported belief, %d on constraints alone\n",
+			b.Total, b.OnSupportedBelief, b.OnConstraintsAlone)
+		if b.OnConstraintsAlone > 0 {
+			// The mirror of self-confirmation. Exploration can fake the
+			// experiment; conservation can make it unnecessary by authoring the
+			// constraint that forces the answer. Nothing here grades constraint
+			// provenance, so the exposure is counted and the reader is pointed
+			// at the question rather than given a verdict.
+			fmt.Println("                   constraints-alone adoptions skip the evidence requirement; whether that is")
+			fmt.Println("                   sound depends on the constraints being independently established — see")
+			fmt.Println("                   dq.conservation_adoption_evidence.")
+		}
+	}
 	if live.SelfConfirmedRatio == nil {
 		fmt.Println("self-confirmed:    absent (nothing supported yet)")
 	} else {

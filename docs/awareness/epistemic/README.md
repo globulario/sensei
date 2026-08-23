@@ -209,9 +209,52 @@ authority. When the question reached `AUTHORITY` — an irreversible consequence
 person agreed. It records an attribution, and treating the field as proof would
 be the too-strong claim this lane exists to avoid.
 
+### Two adoption paths, and their mirror-image risks
+
 A `CONSERVATION` question needs no `--evidence`: its answer came from the
 constraints rather than from an experiment, and demanding a hypothesis would
-force a fake one to confirm what was already decided.
+force a fake one to confirm what was already decided — epistemic ceremony.
+
+```
+EXPLORATION   multiple viable alternatives → hypothesis → experiment
+              → observation → SUPPORTED → adoption
+
+CONSERVATION  established constraints → exactly one viable alternative
+              → adoption
+```
+
+Both require explicit adoption. Only the evidence basis differs.
+
+The dangerous part is not the exemption. It is **how something earns
+`CONSERVATION`**:
+
+```
+EXPLORATION risk   AI hypothesis → AI experiment → AI interpretation → AI adopts
+CONSERVATION risk  AI wants design C → AI authors a constraint implying C
+                   → question computes CONSERVATION → AI adopts with no evidence
+```
+
+The second reconstructs self-confirmation through a different door: the
+experiment is not faked, it is made *unnecessary*. Both need something outside
+the local reasoning loop — for exploration that is **observation**, for
+conservation it is **established constraint provenance**.
+
+> Conservation may bypass experimental evidence only to the extent that the
+> constraints resolving the question are independently established enough to
+> carry that decision.
+
+*Independently* is the load-bearing word, and nothing here measures it: a
+constraint is free text, and provenance strength is not a number. So `status`
+counts the **exposure** rather than grading it —
+
+```
+adopted:  1 — 0 on a supported belief, 1 on constraints alone
+```
+
+— and `dq.conservation_adoption_evidence` records the question rather than
+settling it. The one adoption made this way rests partly on a rule authored in
+the same session as the elimination it justifies, which is weaker evidence and
+is written down as such.
 
 ## Failed designs are kept, not erased
 
