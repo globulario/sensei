@@ -99,6 +99,23 @@ type ExpectedFact struct {
 	Matched *bool  `json:"matched"`
 }
 
+// Container schema versions this scorer understands.
+//
+// v1 carries only `label`, so sections 5.2, 10 and 11 have no field to be
+// recorded in. v2 adds `expected_facts`, `action_taken`,
+// `required_correction` and `active_seconds`. Both are readable, and the
+// report says which metrics the version in front of it can produce — an
+// unreadable metric is a property of the ruler, and a scorer that hid the
+// difference would attribute it to the system being graded.
+const (
+	ContainerV1 = "sensei.eval_labels.v1"
+	ContainerV2 = "sensei.eval_labels.v2"
+)
+
+// HoldsExtendedFields reports whether this container has somewhere to put the
+// expected-fact set, the challenge action, and the correction flag.
+func (lf LabelFile) HoldsExtendedFields() bool { return lf.SchemaVersion == ContainerV2 }
+
 // LabelFile is one container.
 type LabelFile struct {
 	SchemaVersion              string        `json:"schema_version"`
@@ -231,6 +248,10 @@ func Load(root string) (*ReferenceSet, error) {
 		if lf.SampleManifestDigestSHA256 != rs.Manifest.DigestSHA256 {
 			return nil, fmt.Errorf("label container %s answers sample manifest %s, not %s: labels bound to a different sample are answers to a question nobody asked",
 				e.Name(), lf.SampleManifestDigestSHA256, rs.Manifest.DigestSHA256)
+		}
+		if lf.SchemaVersion != ContainerV1 && lf.SchemaVersion != ContainerV2 {
+			return nil, fmt.Errorf("label container %s carries schema %q, which this scorer does not know: a reader that does not know a version must refuse rather than interpret fields positionally",
+				e.Name(), lf.SchemaVersion)
 		}
 		if lf.ProtocolDigestSHA256 != rs.Manifest.ProtocolDigestSHA256 {
 			return nil, fmt.Errorf("label container %s was generated under protocol digest %s, not %s",

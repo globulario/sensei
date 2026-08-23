@@ -40,6 +40,7 @@ Quote the declared identity when recording what a score consumed.
 sample/sample-manifest.json    805 items, 37 strata (§15)
 sample/blind/*.json            9 blinded views — what the adjudicator reads (§12)
 labels/*.labels.json           9 empty containers, one record per item (§16)
+                               container schema v2 — see "Container schema" below
 adjudicator-overlap.json       §13 second-adjudicator subset, 150 items
 worlds/*.json                  the four world reports and the run index
 make-adjudication-package.py   regenerates labels/ and the overlap from the manifest
@@ -71,11 +72,18 @@ to flatter an agreement rate.
 2. Record each judgment in the matching `labels/<world>.<lane>.labels.json`
    record, keyed by `item_key`. Fill `adjudicator_id`, `label`,
    `evidence_ids_inspected`, `adjudicated_at`, `adjudicated_at_source`,
-   `blinded_at_decision_time`, and optionally `rationale`. Update
-   `labelled_count`.
+   `blinded_at_decision_time`, `required_correction`, and optionally
+   `rationale` and `active_seconds`. On a challenge item also fill
+   `action_taken`. Update `labelled_count`.
 3. **Recall lanes first, and in order.** §12 requires Sensei's output for a
-   recall unit to stay hidden until the expected facts are frozen. Freeze the
-   expected facts for a unit before looking at what Sensei produced for it.
+   recall unit to stay hidden until the expected facts are frozen. Write the
+   expected facts into that unit's `expected_facts` — each entry `{"id": …,
+   "state": expected_supported | expected_ambiguous | expected_outside_scope,
+   "matched": null}` — before looking at what Sensei produced for it. Only
+   afterwards set each `matched`. §5.2's primary recall is matched
+   `expected_supported` facts over total `expected_supported` facts, so a unit
+   with no expected set has no recall, and a set written after seeing Sensei's
+   output is not a blind one.
 4. For the 150 overlap items, have the second adjudicator label independently
    from the same blinded views. Do not reconcile in place: §13 requires both
    original labels preserved and any resolution recorded as its own decision.
@@ -84,6 +92,28 @@ to flatter an agreement rate.
 5. A label file becomes immutable once it is part of a scored reference set.
    Corrections append a new reference-set version (§16).
 
+## Container schema
+
+The containers are **v2** (`sensei.eval_labels.v2`). v1 carried only
+`label`, so §5.2's expected-fact set, §10's action field and §11's correction
+flag had nowhere to be recorded, and three of the six metrics §4 calls out as
+requiring human truth could not have been produced from a fully labelled set.
+
+v2 adds `required_correction` and `active_seconds` to every record,
+`expected_facts` to recall units, and `action_taken` to challenge items.
+
+The change was made while `labelled_count` was 0 in all nine containers. §16
+makes a label file immutable once scored and §21 freezes the protocol at the
+first label, so this shape change cost nothing then and would have cost a new
+reference-set version and re-adjudication of all 805 items later. Nothing else
+moved: the sample manifest and blinded views are untouched, the item counts are
+unchanged, `adjudicator-overlap.json` is byte-identical, and adding a field an
+adjudicator fills in later cannot tell them anything, so the blinding order is
+unaffected.
+
+`cmd/eval-phase10-score` reads either schema and reports which metrics a given
+container version can produce.
+
 ## Not yet computable — stated rather than left to surface during scoring
 
 - **§18 model delta.** All 12 sampled challenge items came from the
@@ -91,12 +121,12 @@ to flatter an agreement rate.
   model provider was bound for this run (`phase10_composition_model_bound`:
   `not_run`). The delta has no second population to compare against and should
   be reported unavailable, not as zero.
-- **§17 reference-set digest.** Not computed here, deliberately. It is
+- **§17 reference-set digest.** Not frozen here, deliberately. It is
   content-addressed over the label file digests, which do not exist until the
   labels do. Freezing it now would content-address a set of empty containers.
-  Compute it after step 4, over: protocol digest, the manifest's declared
-  identity, the label file digests, the world binding digests, and
-  `adjudicator-overlap.json`.
+  `cmd/eval-phase10-score` computes it at the moment a score consumes the set,
+  over: protocol digest, the manifest's declared identity, the label file
+  digests, the world binding digests, and `adjudicator-overlap.json`.
 - **`briefing_and_impact_surfaces`.** Reported
   `unavailable_by_authority_model`, not failed: the operational surfaces need an
   admitted, current, published graph, and publishing a synthetic mutant domain is

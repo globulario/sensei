@@ -220,6 +220,7 @@ func Compute(rs *ReferenceSet, second *ReferenceSet) (Score, error) {
 		expectedTotal     = map[string]int{}
 		expectedMatched   = map[string]int{}
 		expectedFactsSeen bool
+		extendedLanes     = map[string]map[string]bool{}
 		ratings           = map[string][]float64{}
 		actionCounts      = map[string]map[string]int{}
 		actionsSeen       bool
@@ -235,6 +236,10 @@ func Compute(rs *ReferenceSet, second *ReferenceSet) (Score, error) {
 	}
 
 	for _, lf := range rs.Labels {
+		if extendedLanes[lf.World] == nil {
+			extendedLanes[lf.World] = map[string]bool{}
+		}
+		extendedLanes[lf.World][lf.Lane] = lf.HoldsExtendedFields()
 		ws, ok := worlds[lf.World]
 		if !ok {
 			return Score{}, fmt.Errorf("label container %s names world %q, which the manifest does not bind", lf.Path, lf.World)
@@ -373,21 +378,30 @@ func Compute(rs *ReferenceSet, second *ReferenceSet) (Score, error) {
 			score.HeadlineWorlds = append(score.HeadlineWorlds, name)
 		}
 
-		if expectedFactsSeen {
+		switch {
+		case expectedFactsSeen:
 			ws.Recall = computed(expectedMatched[name], expectedTotal[name])
-		} else {
+		case extendedLanes[name][LaneRecallUnit]:
+			ws.Recall = absent(NoAdjudicableSample,
+				"the recall container can hold an expected-fact set (section 5.2) but no unit has one recorded yet")
+		default:
 			ws.Recall = absent(NotCapturedByContainer,
-				"primary recall is matched expected_supported facts over total expected_supported facts (section 5.2), and this reference set's recall containers carry one label per unit with no field for the frozen expected-fact set")
+				"primary recall is matched expected_supported facts over total expected_supported facts (section 5.2), and this container version carries one label per unit with no field for the frozen expected-fact set")
 		}
-		ws.ChallengeUsefulness = usefulness(ratings[name], actionsSeen, actionCounts[name], ws.RecallUnits)
+		_, hasChallengeLane := extendedLanes[name][LaneChallenge]
+		ws.ChallengeUsefulness = usefulness(ratings[name], actionsSeen, hasChallengeLane, extendedLanes[name][LaneChallenge], actionCounts[name])
 		b := burden[name]
 		b.EvidenceLookupsPer100 = per100(b.RequiringEvidenceLookup, b.ItemsReviewed)
 		b.AmbiguousRate = computed(b.AmbiguousOrCannot, b.ItemsReviewed)
-		if correctionSeen {
+		switch {
+		case correctionSeen:
 			b.CorrectionsPer100 = per100(corrections[name], b.ItemsReviewed)
-		} else {
+		case anyExtended(extendedLanes[name]):
+			b.CorrectionsPer100 = absent(NoAdjudicableSample,
+				"the container can record whether an item required correction (section 11) but no item does yet")
+		default:
 			b.CorrectionsPer100 = absent(NotCapturedByContainer,
-				"section 11 counts items requiring correction, and the label container carries no field recording one")
+				"section 11 counts items requiring correction, and this container version carries no field recording one")
 		}
 		b.MedianActiveSecondsPerItem = medianMetric(activeSeconds[name])
 		ws.Burden = *b
@@ -416,10 +430,10 @@ func uncomputable(s Score) []string {
 		if w.Recall.Availability != Computed {
 			out = append(out, fmt.Sprintf("%s recall: %s — %s", w.World, w.Recall.Availability, w.Recall.Reason))
 		}
-		if w.Burden.CorrectionsPer100.Availability == NotCapturedByContainer {
+		if w.Burden.CorrectionsPer100.Availability != Computed {
 			out = append(out, fmt.Sprintf("%s corrections per 100: %s — %s", w.World, w.Burden.CorrectionsPer100.Availability, w.Burden.CorrectionsPer100.Reason))
 		}
-		if w.ChallengeUsefulness.Actions.Availability == NotCapturedByContainer {
+		if w.ChallengeUsefulness.Actions.Availability != Computed {
 			out = append(out, fmt.Sprintf("%s challenge action distribution: %s — %s", w.World, w.ChallengeUsefulness.Actions.Availability, w.ChallengeUsefulness.Actions.Reason))
 		}
 	}
@@ -436,12 +450,25 @@ func uncomputable(s Score) []string {
 	return out
 }
 
-func usefulness(ratings []float64, actionsSeen bool, actions map[string]int, _ int) Usefulness {
+func anyExtended(lanes map[string]bool) bool {
+	for _, v := range lanes {
+		if v {
+			return true
+		}
+	}
+	return false
+}
+
+func usefulness(ratings []float64, actionsSeen, laneExists, containerHolds bool, actions map[string]int) Usefulness {
 	u := Usefulness{Distribution: map[string]int{}, Rated: len(ratings)}
-	if len(ratings) == 0 {
+	switch {
+	case !laneExists:
+		u.Availability = NotSampled
+		u.Reason = "this world draws no challenge lane, so section 10 has no item to rate here"
+	case len(ratings) == 0:
 		u.Availability = NoAdjudicableSample
 		u.Reason = "no challenge item in this world carries a rating"
-	} else {
+	default:
 		u.Availability = Computed
 		for _, r := range ratings {
 			u.Distribution[strconv.Itoa(int(r))]++
@@ -449,12 +476,18 @@ func usefulness(ratings []float64, actionsSeen bool, actions map[string]int, _ i
 		u.Mean = mean(ratings)
 		u.Median = median(ratings)
 	}
-	if actionsSeen {
+	switch {
+	case !laneExists:
+		u.Actions = absent(NotSampled, "this world draws no challenge lane")
+	case actionsSeen:
 		u.Actions = Metric{Availability: Computed, Denominator: len(actions)}
 		u.ActionCounts = actions
-	} else {
+	case containerHolds:
+		u.Actions = absent(NoAdjudicableSample,
+			"the challenge container can record the action a challenge caused (section 10) but no item does yet")
+	default:
 		u.Actions = absent(NotCapturedByContainer,
-			"section 10 requires recording whether a challenge caused no action, an evidence lookup, code inspection, a correction, or an escalation, and the label container carries no field for it")
+			"section 10 requires recording whether a challenge caused no action, an evidence lookup, code inspection, a correction, or an escalation, and this container version carries no field for it")
 	}
 	return u
 }

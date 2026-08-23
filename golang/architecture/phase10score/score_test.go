@@ -358,3 +358,44 @@ func TestRender_CarriesSection20Requirements(t *testing.T) {
 		}
 	}
 }
+
+// The two container versions are different findings. v1 cannot hold an
+// expected-fact set at all; a v2 container with none recorded is a set nobody
+// has adjudicated yet. Attributing the first to the second would blame the
+// ruler for the human's pending work, and the second to the first would blame
+// the human for a schema gap.
+func TestCompute_ContainerVersionDistinguishesCannotFromNotYet(t *testing.T) {
+	for _, tc := range []struct {
+		schema string
+		want   string
+	}{
+		{ContainerV1, NotCapturedByContainer},
+		{ContainerV2, NoAdjudicableSample},
+	} {
+		f := newFixture(t)
+		f.precision(t, "w1", "state_extractor", 10, 1, LabelSupported)
+		f.files["w1.recall_unit.labels.json"] = &LabelFile{
+			SchemaVersion: tc.schema, ProtocolID: "p", ProtocolDigestSHA256: testProtocolDigest,
+			SampleManifestDigestSHA256: testManifestID, World: "w1", Lane: LaneRecallUnit, ItemCount: 1,
+			Labels: []LabelRecord{{ItemKey: "w1:recall:0", World: "w1", Lane: LaneRecallUnit}},
+		}
+		f.items = append(f.items, SampleItem{ItemKey: "w1:recall:0", World: "w1", Lane: LaneRecallUnit, Multiplicity: 1})
+		s, err := Compute(f.write(t), nil)
+		if err != nil {
+			t.Fatalf("%s: Compute: %v", tc.schema, err)
+		}
+		if got := world(t, s, "w1").Recall.Availability; got != tc.want {
+			t.Fatalf("%s recall availability=%s, want %s", tc.schema, got, tc.want)
+		}
+	}
+}
+
+// A container version this scorer does not know is refused, not interpreted.
+func TestLoad_RefusesAnUnknownContainerSchema(t *testing.T) {
+	f := newFixture(t)
+	f.precision(t, "w1", "state_extractor", 10, 1, LabelSupported)
+	f.files["w1.precision.labels.json"].SchemaVersion = "sensei.eval_labels.v99"
+	if _, err := Load(f.rootAfterWrite(t)); err == nil {
+		t.Fatal("an unknown container schema was accepted")
+	}
+}

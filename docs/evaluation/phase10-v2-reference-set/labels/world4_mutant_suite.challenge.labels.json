@@ -3,6 +3,8 @@
  "labelled_count": 0,
  "labels": [
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -13,9 +15,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -26,9 +31,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -39,9 +47,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -52,9 +63,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -65,9 +79,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -78,9 +95,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -91,9 +111,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -104,9 +127,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -117,9 +143,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -130,9 +159,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -143,9 +175,12 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   },
   {
+   "action_taken": null,
+   "active_seconds": null,
    "adjudicated_at": null,
    "adjudicated_at_source": null,
    "adjudicator_id": null,
@@ -156,6 +191,7 @@
    "label": null,
    "lane": "challenge",
    "rationale": null,
+   "required_correction": null,
    "world": "world4_mutant_suite"
   }
  ],
@@ -163,6 +199,6 @@
  "protocol_digest_sha256": "6afaf6ec1cebc73c72df43cb8c6e4842e2ea46356cc64ced61252a8ad620929d",
  "protocol_id": "phase10-reference-protocol-v2",
  "sample_manifest_digest_sha256": "1621f3e89e6829f2ab0efb330f04231177ece580b01a5c3f7cb32946bad29beb",
- "schema_version": "sensei.eval_labels.v1",
+ "schema_version": "sensei.eval_labels.v2",
  "world": "world4_mutant_suite"
 }
