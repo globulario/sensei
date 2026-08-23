@@ -28,6 +28,27 @@ design_questions:
         - effect: temporarily reverts one function body in a worktree to observe the difference
           reversible: true
       notes: 'RETROSPECTIVE RECONSTRUCTION, written down after the fact. This is what actually happened while investigating #289, but it was not declared through this lane at the time because the lane did not exist yet. declared_at is when it was recorded, not when it was decided — and the same caveat applies to the observation''s observed_at.'
+    - id: dq.adoption_event
+      objective: Let a supported design become architecture without letting every implemented guess become architecture (#288)
+      question: What event promotes an experimental design into governed architecture, and what must it carry?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:31:24Z"
+      alternatives:
+        - id: extraction
+          statement: 'Let code extraction promote it: once the implementation is stable and observed, canonical architecture picks it up as it does any other code'
+          eliminated_by: rule:promotion to architecture is an epistemic event, not a side effect of implementation
+        - id: supported_auto
+          statement: Promote automatically when a hypothesis reaches SUPPORTED past its horizon
+          eliminated_by: doc:docs/design/experimental-engineering-epistemology.md#9 — no automatic promotion, no automatic status transitions
+        - id: explicit_adopt
+          statement: An explicit adoption record citing the hypothesis, the observations, the horizon reached, and the uncertainty that remains
+      constraints:
+        - doc:docs/design/experimental-engineering-epistemology.md#9 — no automatic promotion, no automatic status transitions
+        - rule:promotion to architecture is an epistemic event, not a side effect of implementation
+      consequences:
+        - effect: adds a record type and a CLI verb; no existing governance changes until something is actually adopted
+          reversible: true
+      notes: 'Both eliminations are real constraint bindings, not judgment: extraction-driven promotion IS the sediment failure, and automatic promotion on SUPPORTED is the automatic status transition §9 refuses. Only one alternative survives, so this is CONSERVATION — the shape of the answer is already determined and what remains is building it, not choosing it.'
     - id: dq.epistemic_lane_storage
       objective: Give uncertain design belief a first-class home (globulario/sensei#288 slice 1)
       question: Where do DesignQuestion, Hypothesis and Observation live, given they are believed-but-not-established?
@@ -51,6 +72,44 @@ design_questions:
         - effect: 'no external effect: nothing is published, sent, or written outside this repository'
           reversible: true
       notes: candidates/ was not eliminated by a constraint — it was set aside by judgment, because that queue means 'awaiting promotion to canonical' and a design question is never promoted. Recorded as still viable so the belief in own_lane stays falsifiable.
+    - id: dq.failed_design_versus_scar
+      objective: Keep what a failed experiment taught, without turning every failure into a prohibition (#288)
+      question: Does a refuted design become a distinct FailedDesign record, or is the refuted hypothesis plus its observation already that record?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:31:47Z"
+      alternatives:
+        - id: reuse
+          statement: The refuted hypothesis, its failure_conditions and its remaining_applicability ARE the record; retrieval reads them directly
+        - id: distinct
+          statement: A separate FailedDesign record carrying design identity, alternatives considered, the change that implemented it, and a disposition of refuted/weakened/superseded/scarred
+        - id: promote_to_scar
+          statement: Refutation files a scar and a forbidden_fix, reusing the machinery that already exists
+          eliminated_by: rule:a refutation is evidence against one claim under stated conditions, not a standing ban on a mechanism
+      constraints:
+        - rule:a refutation is evidence against one claim under stated conditions, not a standing ban on a mechanism
+        - existing:scar + forbidden_fix already exist for expensive failures that must not be rediscovered
+      consequences:
+        - effect: adds retrieval surface; nothing existing is reinterpreted
+          reversible: true
+      notes: A failed design and a scar are not the same severity. 'Append-only receipts produced unacceptable write amplification under workload X' is worth keeping and is not 'this caused split-brain and corrupted state'. Collapsing the first into the second would make failed designs a second kind of frozen dogma.
+    - id: dq.governance_axes
+      objective: Express 'may be rewritten freely, but still inside its established envelope' without another one-dimensional verdict (#288)
+      question: Is an implementation's governance one scalar, or are epistemic status and mutation protection independent axes?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:31:47Z"
+      alternatives:
+        - id: scalar
+          statement: One status per implementation — experimental or established — with mutation protection derived from it
+        - id: two_axes
+          statement: Epistemic status (HYPOTHETICAL/EXPERIMENTAL/SUPPORTED/ESTABLISHED/REFUTED) and mutation protection (FREE/CONSTRAINED/GOVERNED/RETIRED) recorded independently
+        - id: envelope_only
+          statement: No per-implementation status at all — an implementation is experimental exactly while some open hypothesis names it in scope, and governance stays whatever the surrounding envelope already says
+      constraints:
+        - history:file -> grant/refuse, change -> grant/refuse, risk -> human/not-human each broke against reality (design doc §8a)
+      consequences:
+        - effect: changes what the ledger records; no established invariant, contract or gate is touched either way
+          reversible: true
+      notes: envelope_only is what slice 1 actually built, so this question is partly a review of a choice already made under time pressure rather than a fresh one. Recording it that way instead of retrofitting a justification. §8a warns that every scalar this project tried broke against reality, which is an argument against scalar but not yet evidence for two_axes over envelope_only.
 hypotheses:
     - id: h.abandon_is_a_real_select_race
       question: dq.abandon_ceiling_intermittency

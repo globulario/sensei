@@ -108,6 +108,84 @@ It is reported and never gated, because the same shape is what an honest
 one-person project looks like. A count nobody can see is how the shape becomes
 normal. The current reading is `1 of 1`, on this lane's own first record.
 
+## Experimental code, and the sediment barrier
+
+The danger this lane creates if left alone:
+
+```
+agent guesses B → implements B → extraction records that B exists
+    → B becomes architecture → agent can no longer replace its own guess
+```
+
+Architecture by sediment. Sensei would start defending experiments before
+anyone knows whether they were any good, and every guess would become permanent
+by the act of having been made.
+
+So a hypothesis may name the code that exists **only** to test it:
+
+```yaml
+experimental_scope:
+  - golang/placement/v2
+```
+
+> Code created to test a hypothesis must not become governing architecture
+> merely because it exists. It remains mutable under its established
+> architectural envelope until an explicit evidence-backed adoption promotes it.
+
+> Promotion to architecture is an epistemic event, not a side effect of
+> implementation.
+
+**Naming a scope does not remove governance.** The established envelope still
+holds — surrounding invariants, contracts and forbidden fixes apply exactly as
+before. What it says is narrower: the design *inside* that envelope is
+provisional and may be rewritten freely while the question is open.
+
+```
+        ESTABLISHED ARCHITECTURE
+┌────────────────────────────────────┐
+│ invariant A                        │
+│ contract C                         │
+│    ┌─────────────────────────┐     │
+│    │ EXPERIMENTAL DESIGN     │     │
+│    │ hypothesis H17          │     │
+│    │ rewrite freely in here  │     │
+│    └─────────────────────────┘     │
+└────────────────────────────────────┘
+
+        Conserve the envelope. Explore inside it.
+```
+
+`sensei epistemic scope` reports two things, and CI runs it:
+
+| finding | meaning |
+|---|---|
+| `ARCHITECTURE_BY_SEDIMENT` | canonical architecture cites a path that exists only to test a **still-open** hypothesis |
+| `ORPHANED_EXPERIMENT` | the hypothesis was refuted; the code written to test it is still declared as its scope |
+
+A **settled** hypothesis produces no sediment finding. Once a belief is
+`SUPPORTED` the question is closed, and adoption is what should follow —
+reporting sediment there would be telling the project off for finishing an
+experiment.
+
+## Failed designs are kept, not erased
+
+A refutation retires a design from architectural authority and **gains** it
+value as evidence. So a refuting observation must carry its conditions:
+
+```yaml
+outcome: refutes
+failure_conditions:
+  - network partition with leader turnover
+remaining_applicability: may still hold for non-authoritative cache placement
+```
+
+`"design B is bad"` is almost never what was observed. B failed under partition
+plus leader turnover, or above some write volume — and a record that drops the
+condition turns one experiment into a universal prohibition nobody tested. That
+would make failed designs a *second* kind of frozen dogma.
+
+`remaining_applicability` is optional and may be blank when nothing survives.
+
 ## What is deliberately not decided here
 
 Whether any of this should ever inform routing. #288 is explicit that it must
@@ -121,6 +199,19 @@ The router would currently have nothing to route.
   `awareness.missing_evidence_produces_unknown` exists or that a `doc:` reference
   points at a real file. An id here looks authoritative and is not, which is why
   it is written down rather than left for a reader to discover.
+- **There is no adoption event.** `dq.adoption_event` in the ledger computes
+  `CONSERVATION` — extraction-driven promotion *is* the sediment failure, and
+  automatic promotion on `SUPPORTED` is the automatic status transition §9
+  refuses, so only the explicit evidence-backed record survives. The shape is
+  determined; it is not built.
+- **Whether governance needs two axes is open.** `dq.governance_axes` records
+  what slice 1 actually did (an implementation is experimental exactly while an
+  open hypothesis names it) beside the alternatives, rather than retrofitting a
+  justification for it.
+- **There is no supersession.** An established design cannot yet be challenged
+  and retired with its history kept. The lifecycle here runs one way —
+  candidate → experimental → supported → (adoption, unbuilt) — and architecture
+  should not become immortal merely because it was once established.
 - **There is no ExperimentPlan.** The falsifier carries the preregistration
   burden today. A separate plan object only means something once an experiment
   can be *executed* by something other than the agent proposing it, which is the

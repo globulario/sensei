@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/globulario/sensei/golang/architecture/epistemic"
 )
 
@@ -42,8 +44,10 @@ func runEpistemic(args []string) int {
 		return runEpistemicObserve(args[1:])
 	case "status":
 		return runEpistemicStatus(args[1:])
+	case "scope":
+		return runEpistemicScope(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|hypothesize|observe|status)\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|hypothesize|observe|status|scope)\n", args[0])
 		return 2
 	}
 }
@@ -216,6 +220,8 @@ func runEpistemicHypothesize(args []string) int {
 	condition := fs.String("condition", "", "the real trigger, e.g. 'after 100 reconciliation cycles' (the date is the backstop)")
 	declaredBy := fs.String("declared-by", defaultActor(), "who holds this belief")
 	notes := fs.String("notes", "", "free notes")
+	var scope repeatable
+	fs.Var(&scope, "scope", "a repository path that exists ONLY to test this hypothesis (repeat)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Record a falsifiable belief about one alternative.
 
@@ -232,6 +238,11 @@ about the architectural claim; that shape is refused.
 can detect can never be reported overdue, and an undetectable horizon is
 decoration.
 
+--scope names code that exists ONLY to test this belief. It does not remove
+governance: the established envelope still holds, and what it says is that the
+design inside that envelope is provisional. "sensei epistemic scope" reports
+when canonical architecture starts defending it anyway.
+
 `)
 		fs.PrintDefaults()
 	}
@@ -245,7 +256,7 @@ decoration.
 		Falsifier:  strings.TrimSpace(*falsifier),
 		Horizon:    epistemic.Horizon{DueAt: strings.TrimSpace(*due), Condition: strings.TrimSpace(*condition)},
 		DeclaredBy: strings.TrimSpace(*declaredBy), DeclaredAt: time.Now().UTC().Format(time.RFC3339),
-		Notes: strings.TrimSpace(*notes),
+		ExperimentalScope: scope, Notes: strings.TrimSpace(*notes),
 	}
 	l, err := loadLedger(*ledgerPath)
 	if err != nil {
@@ -281,8 +292,10 @@ func runEpistemicObserve(args []string) int {
 	what := fs.String("what", "", "what actually happened")
 	outcome := fs.String("outcome", "", "refutes | supports | inconclusive")
 	observedBy := fs.String("observed-by", defaultActor(), "who observed it")
-	var evidence repeatable
+	viableFor := fs.String("still-viable-for", "", "where a refuted design may still apply (optional)")
+	var evidence, conditions repeatable
 	fs.Var(&evidence, "evidence", "where someone else can go and check (repeat; at least one)")
+	fs.Var(&conditions, "conditions", "the circumstances the prediction failed under (repeat; required on --outcome refutes)")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Record what actually happened, and let it move the belief.
 
@@ -292,6 +305,12 @@ and without it a hypothesis table is a filing cabinet.
 
 Evidence is required. An observation nobody can go and check is a claim, and
 keeping those two apart is the whole point of this lane.
+
+A refutation must carry --conditions. "Design B is bad" is almost never what was
+observed: B failed under partition plus leader turnover, or above some write
+volume. Dropping the condition turns one experiment into a universal
+prohibition nobody tested, which would make failed designs a second kind of
+frozen dogma. --still-viable-for records what survives.
 
 `)
 		fs.PrintDefaults()
@@ -304,7 +323,8 @@ keeping those two apart is the whole point of this lane.
 		ID: strings.TrimSpace(*id), Hypothesis: strings.TrimSpace(*hypothesis),
 		ObservedAt: time.Now().UTC().Format(time.RFC3339), What: strings.TrimSpace(*what),
 		Outcome: epistemic.Outcome(strings.TrimSpace(*outcome)), Evidence: evidence,
-		ObservedBy: strings.TrimSpace(*observedBy),
+		ObservedBy:        strings.TrimSpace(*observedBy),
+		FailureConditions: conditions, RemainingApplicability: strings.TrimSpace(*viableFor),
 	}
 	l, err := loadLedger(*ledgerPath)
 	if err != nil {
@@ -456,4 +476,134 @@ func printEpistemicStatus(l epistemic.Ledger, live epistemic.Liveness, now time.
 			fmt.Println("                   reasoning has not yet escaped the reasoner here.")
 		}
 	}
+}
+
+// -----------------------------------------------------------------------------
+// scope — the anti-sediment check
+// -----------------------------------------------------------------------------
+
+// runEpistemicScope reports experimental code that canonical architecture has
+// begun to defend, and experimental code whose hypothesis was refuted.
+//
+// Code written to test a belief must not become governing architecture merely
+// because it exists. Otherwise the loop closes on itself: an agent guesses B,
+// implements B, extraction records that B exists, B becomes architecture, and
+// the agent can no longer replace its own guess.
+func runEpistemicScope(args []string) int {
+	fs := flag.NewFlagSet("sensei epistemic scope", flag.ContinueOnError)
+	ledgerPath := fs.String("ledger", DefaultEpistemicLedger, "epistemic ledger path")
+	repoRoot := fs.String("repo-root", ".", "repository root holding docs/awareness/")
+	asJSON := fs.Bool("json", false, "machine-readable output")
+	tripwire := fs.Bool("tripwire", false, "exit 1 when any finding is reported")
+	fs.Usage = func() {
+		fmt.Fprint(os.Stderr, `Report experimental code that established architecture has started to defend.
+
+Naming an experimental scope does NOT remove governance. The established
+envelope still holds — surrounding invariants, contracts and forbidden fixes
+apply exactly as before. What it says is narrower: the design inside that
+envelope is provisional and may be rewritten while the question is open.
+
+  Conserve the envelope. Explore inside it.
+
+ARCHITECTURE_BY_SEDIMENT  canonical architecture cites a path that exists only
+                          to test a hypothesis that is still open
+ORPHANED_EXPERIMENT       the hypothesis was refuted; the code written to test
+                          it is still declared as its scope
+
+`)
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	l, err := loadLedger(*ledgerPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	established, err := establishedAnchors(*repoRoot)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
+	findings := epistemic.CheckSediment(l.Hypotheses, l.Observations, established, time.Now().UTC())
+
+	if *asJSON {
+		b, _ := json.MarshalIndent(struct {
+			AnchoredPaths int                         `json:"anchored_paths"`
+			Findings      []epistemic.SedimentFinding `json:"findings"`
+		}{len(established), findings}, "", "  ")
+		fmt.Println(string(b))
+	} else {
+		fmt.Printf("\nExperimental scope — %d hypothesis(es), %d canonical anchor path(s) read\n",
+			len(l.Hypotheses), len(established))
+		if len(findings) == 0 {
+			fmt.Println("No experimental code is being defended as established architecture.")
+		}
+		for _, f := range findings {
+			fmt.Printf("\n%s\n  path:       %s\n  hypothesis: %s (%s)\n", f.Kind, f.Path, f.Hypothesis, f.State)
+			if len(f.CitedBy) > 0 {
+				fmt.Printf("  cited by:   %s\n", strings.Join(f.CitedBy, ", "))
+			}
+			fmt.Printf("  %s\n", f.Detail)
+		}
+	}
+	if *tripwire && len(findings) > 0 {
+		return 1
+	}
+	return 0
+}
+
+// establishedAnchors reads the canonical corpus for paths it treats as
+// established architecture, mapped to the entries citing them.
+//
+// Deliberately narrow: an invariant's protects.files and the high-risk list.
+// Those are the two surfaces that say "this path is load-bearing", which is
+// exactly the claim experimental code must not acquire by existing. Widening
+// this later is additive; guessing at more surfaces now would report findings
+// nobody can act on.
+func establishedAnchors(repoRoot string) (map[string][]string, error) {
+	out := map[string][]string{}
+
+	var inv struct {
+		Invariants []struct {
+			ID       string `yaml:"id"`
+			Protects struct {
+				Files []string `yaml:"files"`
+			} `yaml:"protects"`
+		} `yaml:"invariants"`
+	}
+	if err := readYAML(filepath.Join(repoRoot, "docs", "awareness", "invariants.yaml"), &inv); err != nil {
+		return nil, err
+	}
+	for _, i := range inv.Invariants {
+		for _, f := range i.Protects.Files {
+			out[f] = append(out[f], "invariant:"+i.ID)
+		}
+	}
+
+	var hrf struct {
+		Files []string `yaml:"files"`
+	}
+	if err := readYAML(filepath.Join(repoRoot, "docs", "awareness", "high_risk_files.yaml"), &hrf); err != nil {
+		return nil, err
+	}
+	for _, f := range hrf.Files {
+		out[f] = append(out[f], "high_risk_files")
+	}
+	return out, nil
+}
+
+func readYAML(path string, into any) error {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// A repository without this surface simply anchors nothing. That is
+			// not an error, and reporting it as one would make the check
+			// unusable everywhere except this repository.
+			return nil
+		}
+		return err
+	}
+	return yaml.Unmarshal(b, into)
 }
