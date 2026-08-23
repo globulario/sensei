@@ -78,7 +78,7 @@
 //	sensei promote <id>                     Promote a candidate to canonical YAML
 //	sensei propose --kind <kind> ...        Append one typed feedback entry (scar) and rebuild
 //	sensei feedback-check                   Warn when a fix added durable knowledge but no graph feedback
-//	sensei epistemic <declare|hypothesize|observe|status>
+//	sensei epistemic <declare|hypothesize|observe|adopt|status|scope>
 //	                                        Uncertain design belief: what must be resolved, what is
 //	                                        believed and what would refute it, what actually happened
 //	sensei ingest --from-file <path>        Feed new knowledge into the graph
@@ -422,6 +422,10 @@ Resolve uncertainty (not canonical knowledge; no routing surface reads it):
   epistemic hypothesize  A belief reality can disagree with: observable prediction,
                          falsifier, horizon.
   epistemic observe      What actually happened. The back-edge that closes the loop.
+  epistemic adopt        The event between SUPPORTED and ESTABLISHED. Required:
+                         nothing becomes architecture by being implemented.
+  epistemic scope        Report experimental code that established architecture
+                         has begun to defend without an adoption.
   epistemic status       Dispositions, hypothesis states, liveness. --tripwire fails
                          when a horizon passed with nothing observed.
   promote        Promote a candidate into canonical awareness YAML

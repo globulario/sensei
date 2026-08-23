@@ -98,6 +98,7 @@ components:
       - cmd/awg/cmd_edit_guard.go
       - cmd/awg/cmd_enroll_agent.go
       - cmd/awg/cmd_epistemic.go
+      - cmd/awg/cmd_epistemic_adopt.go
       - cmd/awg/cmd_evidence.go
       - cmd/awg/cmd_evidence_phase10.go
       - cmd/awg/cmd_feedback_check.go
@@ -1173,6 +1174,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/epistemic/adoption.go
       - golang/architecture/epistemic/epistemic.go
       - golang/architecture/epistemic/ledger.go
       - golang/architecture/epistemic/sediment.go

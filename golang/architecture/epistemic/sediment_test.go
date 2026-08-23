@@ -3,6 +3,7 @@
 package epistemic
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,7 +26,7 @@ func TestOpenHypothesisDefendedByCanonicalArchitectureIsSediment(t *testing.T) {
 	established := map[string][]string{
 		"golang/placement/v2/assign.go": {"invariant.placement_is_deterministic"},
 	}
-	got := CheckSediment(hs, nil, established, now())
+	got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(nil)}).CheckSediment(established, now())
 	if len(got) != 1 {
 		t.Fatalf("want 1 finding, got %+v", got)
 	}
@@ -46,21 +47,21 @@ func TestScopeAndAnchorOverlapInBothDirections(t *testing.T) {
 	t.Run("a canonical directory covers an experimental file inside it", func(t *testing.T) {
 		hs := []Hypothesis{scoped("h.a", future, "golang/server/reload_v2.go")}
 		est := map[string][]string{"golang/server/": {"high_risk_files"}}
-		if got := CheckSediment(hs, nil, est, now()); len(got) != 1 {
+		if got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(nil)}).CheckSediment(est, now()); len(got) != 1 {
 			t.Fatalf("want 1 finding, got %+v", got)
 		}
 	})
 	t.Run("an experimental directory covers a canonical file inside it", func(t *testing.T) {
 		hs := []Hypothesis{scoped("h.b", future, "golang/placement/v2")}
 		est := map[string][]string{"golang/placement/v2/assign.go": {"invariant.x"}}
-		if got := CheckSediment(hs, nil, est, now()); len(got) != 1 {
+		if got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(nil)}).CheckSediment(est, now()); len(got) != 1 {
 			t.Fatalf("want 1 finding, got %+v", got)
 		}
 	})
 	t.Run("a sibling path is not an overlap", func(t *testing.T) {
 		hs := []Hypothesis{scoped("h.c", future, "golang/placement/v2")}
 		est := map[string][]string{"golang/placement/v20_legacy.go": {"invariant.x"}}
-		if got := CheckSediment(hs, nil, est, now()); len(got) != 0 {
+		if got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(nil)}).CheckSediment(est, now()); len(got) != 0 {
 			t.Fatalf("a prefix that is not a path boundary must not match: %+v", got)
 		}
 	})
@@ -72,7 +73,7 @@ func TestScopeAndAnchorOverlapInBothDirections(t *testing.T) {
 func TestExperimentalScopeWithNoCanonicalClaimIsClean(t *testing.T) {
 	hs := []Hypothesis{scoped("h.free", future, "golang/placement/v2")}
 	est := map[string][]string{"golang/server/": {"high_risk_files"}}
-	if got := CheckSediment(hs, nil, est, now()); len(got) != 0 {
+	if got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(nil)}).CheckSediment(est, now()); len(got) != 0 {
 		t.Fatalf("want no findings, got %+v", got)
 	}
 }
@@ -80,7 +81,7 @@ func TestExperimentalScopeWithNoCanonicalClaimIsClean(t *testing.T) {
 func TestRefutedHypothesisLeavesItsCodeOrphaned(t *testing.T) {
 	hs := []Hypothesis{scoped("h.dead", "2026-09-01T00:00:00Z", "golang/placement/v2")}
 	obs := []Observation{{ID: "o1", Hypothesis: "h.dead", Outcome: OutcomeRefutes}}
-	got := CheckSediment(hs, obs, nil, now())
+	got := (&Ledger{Hypotheses: hs, Observations: obsOrNil(obs)}).CheckSediment(nil, now())
 	if len(got) != 1 || got[0].Kind != KindOrphaned {
 		t.Fatalf("want an orphaned-experiment finding, got %+v", got)
 	}
@@ -89,15 +90,41 @@ func TestRefutedHypothesisLeavesItsCodeOrphaned(t *testing.T) {
 	}
 }
 
-// Once a belief is settled the question is no longer open, and adoption -- not
-// this check -- is what should follow. Reporting sediment here would be telling
-// the project off for finishing an experiment.
-func TestSupportedHypothesisIsNotSediment(t *testing.T) {
-	hs := []Hypothesis{scoped("h.done", "2026-09-01T00:00:00Z", "golang/placement/v2")}
-	obs := []Observation{{ID: "o1", Hypothesis: "h.done", Outcome: OutcomeSupports}}
+// SUPPORTED is not ESTABLISHED, and the check must NOT go quiet in between.
+//
+// Reaching SUPPORTED earns a design the right to be adopted; it does not adopt
+// it. An earlier version of this test asserted the opposite and encoded the
+// hole: promotion-on-SUPPORTED is exactly the automatic status transition the
+// adoption event exists to refuse.
+func TestSupportedIsStillSedimentUntilItIsAdopted(t *testing.T) {
+	q := goodQuestion()
+	h := scoped("h.done", "2026-09-01T00:00:00Z", "golang/placement/v2")
+	h.Question, h.Alternative = q.ID, "b"
+	l := &Ledger{
+		Version: LedgerVersion, Questions: []DesignQuestion{q}, Hypotheses: []Hypothesis{h},
+		Observations: []Observation{{ID: "o1", Hypothesis: "h.done", Outcome: OutcomeSupports}},
+	}
 	est := map[string][]string{"golang/placement/v2": {"invariant.x"}}
-	if got := CheckSediment(hs, obs, est, now()); len(got) != 0 {
-		t.Fatalf("want no findings, got %+v", got)
+
+	got := l.CheckSediment(est, now())
+	if len(got) != 1 || got[0].State != StateSupported {
+		t.Fatalf("a supported-but-unadopted design defended as architecture must still be sediment: %+v", got)
+	}
+	if !strings.Contains(got[0].Detail, "SUPPORTED is not ESTABLISHED") {
+		t.Fatalf("the finding must say what is missing: %q", got[0].Detail)
+	}
+
+	// Adoption is the only way out.
+	a := Adoption{
+		ID: "ad.placement", Question: q.ID, Alternative: "b",
+		Hypotheses: []string{"h.done"}, RemainingUncertainty: "none identified",
+		AdoptedBy: "agent", AdoptedAt: "2026-10-01T00:00:00Z",
+	}
+	if errs := l.AddAdoption(a, now()); errs != nil {
+		t.Fatalf("adopt: %v", errs)
+	}
+	if got := l.CheckSediment(est, now()); len(got) != 0 {
+		t.Fatalf("an adopted path is established architecture with a provenance trail: %+v", got)
 	}
 }
 
@@ -125,3 +152,5 @@ func TestRefutationMustCarryItsConditions(t *testing.T) {
 		t.Fatalf("unexpected errors: %v", errs)
 	}
 }
+
+func obsOrNil(o []Observation) []Observation { return o }
