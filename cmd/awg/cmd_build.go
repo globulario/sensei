@@ -427,11 +427,21 @@ func verifyLoadedGraph(storeEndpoint string, ntBytes []byte) error {
 		return err
 	}
 	defer client.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// A content check serializes the whole store, so the load path gets a
+	// budget proportional to the artifact it just wrote, not the 15s a marker
+	// lookup needed.
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	verification := seedmeta.VerifyLiveStore(ctx, client, expected)
+	// Load is where the expected digest and the live bytes are both in hand, so
+	// it is where integrity is provable rather than assumed. A count comparison
+	// cannot see a count-preserving mutation (#282); a recomputed content digest
+	// can.
+	verification := seedmeta.VerifyLiveContent(ctx, client, expected)
 	if verification.State != seedmeta.FreshnessCurrent {
 		return fmt.Errorf("%s", verification.Detail)
+	}
+	if !verification.ContentProven() {
+		return fmt.Errorf("loaded graph could not be content-verified: %s", verification.ContentDetail)
 	}
 	return nil
 }
@@ -563,10 +573,10 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		// transaction before the client observed the transport failure. Resolve the
 		// outcome with a fresh context because the promotion context itself may have
 		// expired even though Oxigraph committed before the connection was lost.
-		verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 15*time.Second)
-		verification := seedmeta.VerifyLiveStore(verifyCtx, client, marker)
+		verifyCtx, verifyCancel := context.WithTimeout(context.Background(), 120*time.Second)
+		verification := seedmeta.VerifyLiveContent(verifyCtx, client, marker)
 		verifyCancel()
-		if verification.State != seedmeta.FreshnessCurrent {
+		if !verification.ContentProven() {
 			_ = deleteNamedGraph(context.Background(), storeEndpoint, stagingIRI)
 			fmt.Fprintf(os.Stderr, "sensei build: promote staged generation for %s: %v\n", domain, promotionErr)
 			return 1
@@ -574,10 +584,18 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		fmt.Fprintf(os.Stderr, "  promotion response was ambiguous, but live marker %s verifies the transaction committed\n", marker.Digest[:12])
 	}
 
-	verification := seedmeta.VerifyLiveStore(ctx, client, marker)
-	if verification.State != seedmeta.FreshnessCurrent {
+	// Post-publication verification recomputes the artifact digest over the
+	// promoted store. The candidate generation's digest was computed over these
+	// exact bytes moments ago, so anything but a match means the store does not
+	// hold what this publication is about to certify (#282).
+	verification := seedmeta.VerifyLiveContent(ctx, client, marker)
+	if !verification.ContentProven() {
 		_ = deleteNamedGraph(context.Background(), storeEndpoint, stagingIRI)
-		fmt.Fprintf(os.Stderr, "sensei build: post-publication verification failed: %s\n", verification.Detail)
+		detail := verification.Detail
+		if verification.Content != seedmeta.ContentMatch && strings.TrimSpace(verification.ContentDetail) != "" {
+			detail = verification.ContentDetail
+		}
+		fmt.Fprintf(os.Stderr, "sensei build: post-publication verification failed: %s\n", detail)
 		return 1
 	}
 	// The transactional update drops the staging graph. DELETE is an idempotent

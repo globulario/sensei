@@ -4361,6 +4361,12 @@ test_symbols:
     symbol: TestSeedStatus_BlockedWhenCombinedSeedLosesServicesRepo
     package: main
     language: go
+  - id: cmd/awg/cmd_seed_status_test.go:TestSeedStatus_ContentDriftWithPreservedTripleCount
+    file: cmd/awg/cmd_seed_status_test.go
+    symbol: TestSeedStatus_ContentDriftWithPreservedTripleCount
+    package: main
+    language: go
+    doc: "TestSeedStatus_ContentDriftWithPreservedTripleCount is #282 end to end: a\nlive store that lost one real triple and gained one unrelated triple keeps\nits marker and its count, so every identity lane still lines up. Only a\nrecomputed content digest can see it."
   - id: cmd/awg/cmd_seed_status_test.go:TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive
     file: cmd/awg/cmd_seed_status_test.go
     symbol: TestSeedStatus_CurrentAcrossGeneratedCommittedAndLive
@@ -25012,6 +25018,41 @@ test_symbols:
     symbol: TestParseTransactionStamp
     package: seedmeta
     language: go
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_BackendWithoutDumpIsNotProven
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveContent_BackendWithoutDumpIsNotProven
+    package: seedmeta
+    language: go
+    doc: "A backend with no serialization capability leaves the content unchecked. It\nmust not inherit \"proven\" from the count check that did pass."
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_CountPreservingMutationIsRefused
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveContent_CountPreservingMutationIsRefused
+    package: seedmeta
+    language: go
+    doc: "TestVerifyLiveContent_CountPreservingMutationIsRefused is the reproduction\nfrom #282 as a test: delete one real triple, insert one unrelated triple,\nleave the marker and the count untouched. The count channel cannot see it."
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_DumpErrorFailsClosed
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveContent_DumpErrorFailsClosed
+    package: seedmeta
+    language: go
+    doc: "A dump the store cannot produce is not evidence of a match. Fail closed."
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_StaleCountRefusesWithoutDumping
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveContent_StaleCountRefusesWithoutDumping
+    package: seedmeta
+    language: go
+    doc: "VerifyLiveContent refuses on the cheap channel before paying for a dump."
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_UnmutatedStoreIsProven
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveContent_UnmutatedStoreIsProven
+    package: seedmeta
+    language: go
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveStore_CurrentDetailDoesNotClaimContentMatch
+    file: golang/seedmeta/verify_test.go
+    symbol: TestVerifyLiveStore_CurrentDetailDoesNotClaimContentMatch
+    package: seedmeta
+    language: go
+    doc: "TestVerifyLiveStore_CurrentDetailDoesNotClaimContentMatch pins the #282\nfinding: the count-and-marker check must describe the evidence it actually\nhas. It compared a marker and a number; it did not compare the store."
   - id: golang/server/architecture_claim_server_test.go:TestArchitectureClaimDoesNotAffectCoverageState
     file: golang/server/architecture_claim_server_test.go
     symbol: TestArchitectureClaimDoesNotAffectCoverageState
@@ -26641,6 +26682,18 @@ test_symbols:
     symbol: TestEnforceCurrentSeed_AllowStaleSeedWarns
     package: main
     language: go
+  - id: golang/server/packaging_test.go:TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift
+    file: golang/server/packaging_test.go
+    symbol: TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift
+    package: main
+    language: go
+    doc: "TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift is #282 at\nthe startup boundary: the store answers with the expected marker and the\nexpected triple count, and still does not hold the expected graph."
+  - id: golang/server/packaging_test.go:TestEnforceCurrentSeed_FailsClosedWhenContentCannotBeVerified
+    file: golang/server/packaging_test.go
+    symbol: TestEnforceCurrentSeed_FailsClosedWhenContentCannotBeVerified
+    package: main
+    language: go
+    doc: "A backend that cannot serialize itself yields no integrity evidence. Absence\nof evidence is not a pass."
   - id: golang/server/packaging_test.go:TestEnforceCurrentSeed_FailsClosedWhenMarkerMissing
     file: golang/server/packaging_test.go
     symbol: TestEnforceCurrentSeed_FailsClosedWhenMarkerMissing

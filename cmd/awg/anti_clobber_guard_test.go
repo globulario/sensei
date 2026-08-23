@@ -23,6 +23,9 @@ func countOnlyServer(t *testing.T, initialCount int64) *httptest.Server {
 	var loaded []byte
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {
+		case r.URL.Path == "/store" && r.Method == http.MethodGet:
+			w.Header().Set("Content-Type", "application/n-triples")
+			_, _ = w.Write(loaded)
 		case r.URL.Path == "/store" && r.Method == http.MethodPut:
 			body, err := io.ReadAll(r.Body)
 			if err != nil {

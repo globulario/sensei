@@ -37,6 +37,38 @@ func (s FreshnessState) String() string {
 	}
 }
 
+// ContentState records whether the live store's CONTENT was compared against
+// the expected artifact digest, and what that comparison found. It is separate
+// from FreshnessState because the two answer different questions: freshness
+// asks whether the live store carries the expected identity, integrity asks
+// whether it still holds the bytes that identity was computed over.
+type ContentState int
+
+const (
+	// ContentUnchecked means no content comparison was attempted or possible.
+	// It is the state of every VerifyLiveStore result: that check compares the
+	// marker and the triple count, never the content.
+	ContentUnchecked ContentState = iota
+	ContentMatch
+	ContentMismatch
+	ContentCheckError
+)
+
+func (s ContentState) String() string {
+	switch s {
+	case ContentMatch:
+		return "match"
+	case ContentMismatch:
+		return "mismatch"
+	case ContentCheckError:
+		return "check_error"
+	case ContentUnchecked:
+		return "unchecked"
+	default:
+		return "unspecified"
+	}
+}
+
 type Verification struct {
 	State           FreshnessState
 	Expected        Marker
@@ -45,6 +77,26 @@ type Verification struct {
 	MarkerPresent   bool
 	SeedBuildCount  int64
 	Detail          string
+
+	// Content, ContentDigest and ContentDetail are populated only by
+	// VerifyLiveContent. A zero ContentState means the content was never
+	// compared — never that it matched.
+	Content       ContentState
+	ContentDigest string
+	ContentDetail string
+}
+
+// ContentProven reports whether this verification carries a recomputed
+// content digest that matched the expected artifact. A count-and-marker
+// verification is never content-proven, however current it is.
+func (v Verification) ContentProven() bool {
+	return v.State == FreshnessCurrent && v.Content == ContentMatch
+}
+
+// ContentDumper is the optional store capability a full-content integrity
+// check needs: a complete N-Triples serialization of the live dataset.
+type ContentDumper interface {
+	DumpNTriples(context.Context) ([]byte, error)
 }
 
 type VerifierStore interface {
@@ -120,7 +172,72 @@ func VerifyLiveStore(ctx context.Context, s VerifierStore, expected Marker) Veri
 		return ver
 	}
 	ver.State = FreshnessCurrent
-	ver.Detail = "live store matches expected validated graph artifact"
+	ver.Detail = liveCountAndMarkerDetail(expected)
+	return ver
+}
+
+// liveCountAndMarkerDetail states exactly what VerifyLiveStore compared.
+//
+// It used to read "live store matches expected validated graph artifact",
+// which is a stronger claim than a marker lookup and a triple count can
+// support: a mutation that deletes one triple and inserts another keeps the
+// count and the marker intact, and was reported as a match (#282). The
+// detail now names its own evidence, so a reader can tell a count comparison
+// from an integrity proof.
+func liveCountAndMarkerDetail(expected Marker) string {
+	return fmt.Sprintf("live graph marker %s and triple count %d match the expected artifact; store content not compared",
+		shortDigest(expected.Digest), expected.TripleCount)
+}
+
+func shortDigest(digest string) string {
+	if len(digest) > 12 {
+		return digest[:12]
+	}
+	return digest
+}
+
+// VerifyLiveContent is VerifyLiveStore plus the integrity check the count
+// cannot perform: it serializes the live store and recomputes the canonical
+// artifact digest over it, exactly as the build path computed the expected
+// digest in the first place (AppendMarker over canonicalized, marker-stripped
+// N-Triples). Any drift in the dataset changes that digest.
+//
+// It costs a full serialization of the store, so it belongs on the load,
+// publication and operator-diagnostic paths — not on a per-request one. The
+// cheap checks run first and refuse before any dump is read.
+func VerifyLiveContent(ctx context.Context, s VerifierStore, expected Marker) Verification {
+	ver := VerifyLiveStore(ctx, s, expected)
+	if ver.State != FreshnessCurrent {
+		return ver
+	}
+	dumper, ok := s.(ContentDumper)
+	if !ok {
+		ver.Content = ContentUnchecked
+		ver.ContentDetail = "store backend cannot serialize its content for an integrity check"
+		return ver
+	}
+	dump, err := dumper.DumpNTriples(ctx)
+	if err != nil {
+		ver.State = FreshnessCheckError
+		ver.Content = ContentCheckError
+		ver.ContentDetail = fmt.Sprintf("dump live store for integrity check: %v", err)
+		ver.Detail = ver.ContentDetail
+		return ver
+	}
+	_, recomputed := AppendMarker(dump)
+	ver.ContentDigest = recomputed.Digest
+	if recomputed.Digest != expected.Digest {
+		ver.State = FreshnessStale
+		ver.Content = ContentMismatch
+		ver.ContentDetail = fmt.Sprintf("live store content digest %s != expected %s", shortDigest(recomputed.Digest), shortDigest(expected.Digest))
+		ver.Detail = fmt.Sprintf("live store drifted with its triple count intact: marker %s and count %d still match, but the content recomputes to %s",
+			shortDigest(expected.Digest), expected.TripleCount, shortDigest(recomputed.Digest))
+		return ver
+	}
+	ver.Content = ContentMatch
+	ver.ContentDetail = fmt.Sprintf("live store content digest recomputes to %s", shortDigest(recomputed.Digest))
+	ver.Detail = fmt.Sprintf("live store content recomputes to the expected validated graph artifact %s (%d triples)",
+		shortDigest(expected.Digest), expected.TripleCount)
 	return ver
 }
 

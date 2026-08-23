@@ -1863,3 +1863,8 @@ required_tests:
         - invariant.a_blinded_adjudication_view_must_not_carry_provenance_the_ma
       failure_modes:
         - failure.composed_claim_baked_its_lane_into_the_description_the_blind
+  - id: golang/seedmeta/verify_test.go:TestVerifyLiveContent_CountPreservingMutationIsRefused
+    title: A count-preserving store mutation is refused by the content digest
+    protects:
+      failure_modes:
+        - failure.count_preserving_graph_mutation_is_certified_as_authoritativ

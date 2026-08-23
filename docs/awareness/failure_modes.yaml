@@ -2043,3 +2043,15 @@ failure_modes:
       - cmd/eval-arms/sample_test.go:TestComposedClaimsReachTheSample
     evidence:
       - every sampled challenge item opened '[deterministic candidate_claim] ...' in sample/blind/world4_mutant_suite.challenge.json, so the adjudicator was told the producing lane before assigning a support label or usefulness rating
+  - id: failure.count_preserving_graph_mutation_is_certified_as_authoritativ
+    title: Count-preserving graph mutation is certified as authoritative
+    description: Live-store freshness compared only the SeedBuild marker and the triple count, then reported 'live store matches expected validated graph artifact'. A mutation that deletes one real triple and inserts one unrelated triple preserves both signals, so the store drifts while decideRoute keeps reading AUTHORITY_VERDICT_AUTHORITATIVE and every briefing, preflight and admission decision downstream inherits it.
+    protects:
+      files:
+        - golang/seedmeta/verify.go
+    related_invariants:
+      - graph.certified_domain_must_match_published_domain_content
+    required_tests:
+      - golang/seedmeta/verify_test.go:TestVerifyLiveContent_CountPreservingMutationIsRefused
+    evidence:
+      - 'Reproduced on an isolated restored copy of graph def94857 (158349 triples): deleting one codeSymbol triple and inserting one unrelated triple left freshness=current, verdict=authoritative, detail=''live store matches expected validated graph artifact'' (#282, witnessed in docs/evaluation/prospective-v1-execution/graph-snapshot-witness.md)'

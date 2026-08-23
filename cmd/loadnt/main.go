@@ -172,11 +172,21 @@ func verifyLoadedGraph(storeEndpoint string, ntBytes []byte) error {
 		return err
 	}
 	defer client.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	// A content check serializes the whole store, so the load path gets a
+	// budget proportional to the artifact it just wrote, not the 15s a marker
+	// lookup needed.
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	verification := seedmeta.VerifyLiveStore(ctx, client, expected)
+	// Load is where the expected digest and the live bytes are both in hand, so
+	// it is where integrity is provable rather than assumed. A count comparison
+	// cannot see a count-preserving mutation (#282); a recomputed content digest
+	// can.
+	verification := seedmeta.VerifyLiveContent(ctx, client, expected)
 	if verification.State != seedmeta.FreshnessCurrent {
 		return fmt.Errorf("%s", verification.Detail)
+	}
+	if !verification.ContentProven() {
+		return fmt.Errorf("loaded graph could not be content-verified: %s", verification.ContentDetail)
 	}
 	return nil
 }
