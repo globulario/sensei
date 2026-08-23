@@ -11,6 +11,13 @@ first line of this file is the whole answer to that question.
 No router was changed, no schema was added, no graph was rebuilt, and no scar was
 filed to produce it.
 
+**Amended 2026-08-23 — Amendment 1, §11.** §10's sequencing made #259's
+adjudication the gate on everything downstream of it. That was this document's
+own evaluation protocol leaking into the product architecture, and §11 revises
+it. The original sequencing is left in place rather than overwritten, because a
+document arguing that beliefs must carry their history should not quietly edit
+its own.
+
 ## 1. The problem, as observed
 
 Measured against the live graph `def94857…` for domain
@@ -361,6 +368,8 @@ Explicitly **not** decided, and not to be inferred from this document:
 
 ## 10. Sequencing
 
+**Superseded by §11.** Kept as written so the correction is visible.
+
 ```
 finish #259 adjudication
         ↓
@@ -385,6 +394,259 @@ Routing comes last because the future router would have nothing to route:
 there are no declared design questions, no hypothesis lifecycle, no due
 observations and no observation back-edge. Changing routing first would be
 building doors before the rooms exist.
+
+## 11. Amendment 1 — the human is not the technical answer key
+
+*Added 2026-08-23. Supersedes §10. Amends §4's interpretation. Changes nothing
+in §2, §7 or §9.*
+
+### 11.1 What was wrong
+
+Not a claim in §1–§9. The **sequencing** in §10, and the reading of §4 it
+implied. Followed literally, they produce this:
+
+```
+AI proposes design
+        ↓
+Sensei says "ask the owner which rule applies"
+        ↓
+owner adjudicates
+        ↓
+AI continues
+```
+
+That is a very elaborate human-powered compiler. It is the opposite of the
+system this document was written to reach.
+
+The evidence for the correction was already in §1, three paragraphs above the
+mistake: human labels *"cannot be equated with architectural truth. What they
+can honestly establish is human judgement from the frozen evidence presented."*
+If they are not truth, they cannot be the gate that everything downstream must
+pass through. §10 made them one anyway.
+
+### 11.2 What does not change
+
+Both laws in §2 stand exactly as written. Failure to retrieve knowledge is still
+not permission to experiment, and an experimental question must still be
+positively declared. §7's consequence boundary stands. Every non-decision in §9
+stands.
+
+§11 changes **who resolves a declared question**. It does not change whether
+silence can confer authority — it cannot, and nothing here provides a route to
+autonomy through an empty retrieval.
+
+### 11.3 #259 and #131 are equipment, not gateways
+
+Both are preserved **exactly as frozen**. Editing a frozen experiment on
+discovering it is inconvenient is bad science, and the finding below is worth
+more intact than the experiment would be rewritten.
+
+What changes is their standing. Neither is a prerequisite for the epistemic work
+in §11.6. Their protocols keep their own authority over their own results:
+#131's §14 still forbids an AI generating that reference set's labels, and #259
+still refuses to run without its frozen answer key. Nothing here weakens either.
+Adjudication may continue whenever the calibration is judged worth its cost, and
+nothing waits on it.
+
+> A frozen experiment measuring prospective retrieval against a human-labelled
+> reference set is a ruler. It does not become the road.
+
+### 11.4 Observation O-SCALE1
+
+Recorded as an observation in the §3 sense — something that happened, stated at
+the strength the evidence supports.
+
+> Two independently designed evaluation programs, written to different protocols
+> for different faculties, both reached machinery-complete and both terminated in
+> an exhaustive human adjudication step: **805 items** (#131, protocol v2 §4's
+> six human-truth metrics) and **48 × 866 = 41,568 applicability pairs** (#259).
+
+*What this is evidence for:* exhaustive human ground truth is a scaling bound on
+evaluation **design**, for at least these two programs, and it binds before the
+system under test is ever exercised. Both were blocked with zero labels
+recorded, so the bound is not a fatigue claim — it is reached at n=0.
+
+*What it is not evidence for:* that the labels would be wrong; that adjudication
+is worthless; that any specific alternative ruler works. n=2, both designed by
+the same people in the same month, both for retrieval-shaped questions. A third
+program designed by someone else might not land here at all.
+
+### 11.5 Rulers that do not need an oracle
+
+Four constructions where the expected answer comes from how the experiment was
+built, or from what already happened, rather than from someone deciding it:
+
+1. **Constructed-positive.** Start from an established invariant, construct a
+   prospective change that would violate it, withhold the relationship from the
+   retrieval path, and ask whether the invariant came back. The target is known
+   because the experiment was built out of it.
+2. **Historical-causal.** `change X → failure Y → scar S → corrective change Z`.
+   Ask prospectively whether S would have surfaced before X. `--introduced-by`
+   (PR #279) is the write path that makes this population exist at all; §1
+   measured why it did not before.
+3. **Mutation.** A valid implementation, a bounded controlled violation of a
+   known contract, and the governing knowledge that must be retrieved. #131's
+   world 4 already works this way.
+4. **Discriminating execution.** Two surviving alternatives, one workload and
+   invariant suite, measurement decides. Nobody needs to know the answer
+   beforehand — which is the property the other three do not have.
+
+Each has its own way of lying, and naming them is part of adopting them:
+
+- **1 and 3** measure retrieval against defects *we already know how to
+  describe*. A seam nobody thought to mutate is outside the sample, and the
+  construction can be gamed by building only defects the current retrieval
+  happens to catch. The construction rule must therefore be frozen and published
+  before the sample is drawn — the same discipline §8's anti-circularity
+  requirement imposes on H-DQ1, for the same reason.
+- **2** inherits every bias in what got written down. §1 measured explicit causal
+  attribution at roughly 3%; a population drawn from the recorded 3% is not a
+  random sample of failures, and a recall number over it must say so.
+- **4** answers only what the workload discriminates. *"A was faster on this
+  suite"* is not *"A is architecturally correct"*, and the distance between those
+  two sentences is exactly where a benchmark quietly becomes the design.
+
+None of these removes the human. They narrow what the human is asked for.
+
+### 11.6 The narrowed human surface
+
+```
+HUMAN            goal; unacceptable outcomes; value and product tradeoffs;
+                 spend; irreversible or outward-facing consequence;
+                 "yes, this is the thing I want built"
+
+NOT HUMAN        which data structure; whether invariant X governs file Y;
+                 which retry strategy is correct; which generation number;
+                 whether this abstraction preserves the contract
+```
+
+The second list is engineering. §7 already says what licenses settling one
+without asking: not *"I don't know"*, but *"I don't know, and I can learn
+without crossing an unacceptable consequence boundary."*
+
+So:
+
+```
+uncertain technical choice + bounded consequences   → AI resolves it
+value choice, or unbounded/irreversible consequence → human authority
+```
+
+### 11.7 DesignQuestion, reinterpreted
+
+§4 built the object but left its purpose ambiguous. Exposing a decision *so it
+can be reviewed* and exposing it *so it can be resolved* are different systems
+wearing the same schema. It is the second.
+
+> **DesignQuestion exposes uncertainty so the AI knows what it has to resolve.**
+
+```
+DesignQuestion — declared by the AI
+        ↓
+bind established knowledge as constraints
+        ↓
+does exactly one alternative survive? ── yes ──→ CONSERVATION
+        │ no
+        ▼
+can a bounded experiment discriminate the survivors?
+        │
+   yes ──┴── no
+    │          │
+    ▼          ▼
+ hypothesis   consequence or value boundary
+ experiment            ↓
+ observation      human decides — and only here
+ decision
+```
+
+§4's disposition table stands unchanged. What §11 fixes is the reading of
+`AUTHORITY`: it is the **narrow** branch, reached by consequence or by value,
+never by technical difficulty. An AI that routes a hard technical question to a
+human has not found an authority boundary. It has found work.
+
+### 11.8 H-RATIO1 — a new falsifiable claim
+
+```
+human technical decisions
+─────────────────────────    must fall over time
+completed engineering decisions
+```
+
+and must fall **because** uncertainty became measurable and experimentally
+resolvable — not because the standard for calling something resolved dropped.
+
+Which is why the ratio alone is not the metric. It travels with the defect and
+scar-per-change rate over the same window, and is read only against them: a
+falling ratio beside a rising scar rate is the failure mode, not the result. A
+single number here would be the horizon leak of §6 in a new costume — the AI
+grading its own autonomy by how little it asked.
+
+*Observation horizon:* first reading once ten decisions have run through §11.7,
+whichever regime they landed in.
+
+*Falsifier:* the ratio falls while scar-per-change rises over the same window —
+or it does not fall at all after ten decisions, which would say the uncertainty
+in this codebase is mostly not experimentally resolvable and §11.6's second list
+is more optimistic than reality allows.
+
+### 11.9 Revised sequencing
+
+Replaces §10.
+
+```
+merge the graph-integrity fix                          (#283)
+preserve #284 and #285 as frozen equipment, de-gated
+        ↓
+DesignQuestion — the AI declares what it must resolve
+        ↓
+Hypothesis — prediction, horizon, falsifier            (§5 rules unchanged)
+        ↓
+discriminating experiment, inside the §7 consequence boundary
+        ↓
+Observation — the back-edge that closes the loop
+        ↓
+AI technical decision: implemented, verified
+        ↓
+accumulate real records
+        ↓
+measure H-RATIO1, then H-WU1
+        ↓
+only then revisit routing and decomposition
+```
+
+Routing still comes last, for §10's original reason: the future router would
+have nothing to route. The change is what sits at the top — the epistemic slice
+begins now instead of behind an adjudication queue.
+
+### 11.10 The first proof must be real work
+
+Not a demonstration written to succeed. The next genuine uncertainty encountered
+while developing this repository is the first case, and it runs in this order:
+
+```
+declare the question
+generate alternatives
+bind established constraints
+preregister what would discriminate the survivors
+execute
+observe
+choose
+implement
+verify
+```
+
+Preregistration **before** execution is the load-bearing step. Without it the
+record is a story told after the fact, and §5 already refuses that shape for a
+falsifier for exactly the same reason.
+
+The human watches, and intervenes when a real authority boundary is crossed.
+
+### 11.11 Provenance
+
+Correction raised by the repository owner on 2026-08-23, on reading §10 of this
+document alongside the state of #259 and #131. Developed in that session with
+Claude (Opus 5). It revises this document's own sequencing on the strength of an
+argument this document already contained, which is the outcome §8 asks for and
+not a failure of the original.
 
 ## Provenance
 
