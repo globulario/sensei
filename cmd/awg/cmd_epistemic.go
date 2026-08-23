@@ -32,7 +32,7 @@ const DefaultEpistemicLedger = "docs/awareness/epistemic/ledger.yaml"
 // record each. That is the whole surface.
 func runEpistemic(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: sensei epistemic <declare|hypothesize|observe|status> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: sensei epistemic <declare|hypothesize|observe|adopt|status|scope> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -46,8 +46,10 @@ func runEpistemic(args []string) int {
 		return runEpistemicStatus(args[1:])
 	case "scope":
 		return runEpistemicScope(args[1:])
+	case "adopt":
+		return runEpistemicAdopt(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|hypothesize|observe|status|scope)\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|hypothesize|observe|adopt|status|scope)\n", args[0])
 		return 2
 	}
 }
@@ -416,12 +418,12 @@ thing distinguishing a learning loop from a filing cabinet, which is why
 }
 
 func printEpistemicStatus(l epistemic.Ledger, live epistemic.Liveness, now time.Time) {
-	fmt.Printf("\nEpistemic lane — %d question(s), %d hypothesis(es), %d observation(s)\n",
-		len(l.Questions), len(l.Hypotheses), len(l.Observations))
-	fmt.Println("Not canonical knowledge; no routing surface reads this.")
+	fmt.Printf("\nEpistemic lane — %d question(s), %d hypothesis(es), %d observation(s), %d adoption(s)\n",
+		len(l.Questions), len(l.Hypotheses), len(l.Observations), len(l.Adoptions))
+	fmt.Println("Not canonical knowledge; nothing here is established until an adoption says so.")
 
 	if len(l.Questions) > 0 {
-		fmt.Printf("\n%-44s %-22s %s\n", "design question", "disposition", "viable")
+		fmt.Printf("\n%-40s %-22s %-9s %s\n", "design question", "disposition", "viable", "adopted")
 		fmt.Println(strings.Repeat("-", 92))
 		qs := append([]epistemic.DesignQuestion(nil), l.Questions...)
 		sort.SliceStable(qs, func(i, j int) bool { return qs[i].ID < qs[j].ID })
@@ -433,7 +435,11 @@ func printEpistemicStatus(l epistemic.Ledger, live epistemic.Liveness, now time.
 					viable++
 				}
 			}
-			fmt.Printf("%-44s %-22s %d of %d\n", truncate(q.ID, 44), d, viable, len(q.Alternatives))
+			adopted := "—"
+			if alt := adoptedAlt(l, q.ID); alt != "" {
+				adopted = alt
+			}
+			fmt.Printf("%-40s %-22s %d of %-5d %s\n", truncate(q.ID, 40), d, viable, len(q.Alternatives), adopted)
 		}
 	}
 
@@ -526,7 +532,7 @@ ORPHANED_EXPERIMENT       the hypothesis was refuted; the code written to test
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
-	findings := epistemic.CheckSediment(l.Hypotheses, l.Observations, established, time.Now().UTC())
+	findings := l.CheckSediment(established, time.Now().UTC())
 
 	if *asJSON {
 		b, _ := json.MarshalIndent(struct {
@@ -606,4 +612,14 @@ func readYAML(path string, into any) error {
 		return err
 	}
 	return yaml.Unmarshal(b, into)
+}
+
+// adoptedAlt returns the alternative adopted for a question, if any.
+func adoptedAlt(l epistemic.Ledger, question string) string {
+	for _, a := range l.Adoptions {
+		if a.Question == question {
+			return a.Alternative
+		}
+	}
+	return ""
 }

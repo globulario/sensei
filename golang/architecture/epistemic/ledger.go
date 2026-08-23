@@ -23,6 +23,9 @@ type Ledger struct {
 	Questions    []DesignQuestion `yaml:"design_questions" json:"design_questions"`
 	Hypotheses   []Hypothesis     `yaml:"hypotheses" json:"hypotheses"`
 	Observations []Observation    `yaml:"observations" json:"observations"`
+	// Adoptions are the events that turned a supported design into
+	// architecture. Without one, nothing here is established -- see adoption.go.
+	Adoptions []Adoption `yaml:"adoptions,omitempty" json:"adoptions,omitempty"`
 }
 
 // LedgerVersion is the current on-disk version.
@@ -60,6 +63,7 @@ func Encode(l Ledger) ([]byte, error) {
 	sort.SliceStable(l.Questions, func(i, j int) bool { return l.Questions[i].ID < l.Questions[j].ID })
 	sort.SliceStable(l.Hypotheses, func(i, j int) bool { return l.Hypotheses[i].ID < l.Hypotheses[j].ID })
 	sort.SliceStable(l.Observations, func(i, j int) bool { return l.Observations[i].ID < l.Observations[j].ID })
+	sort.SliceStable(l.Adoptions, func(i, j int) bool { return l.Adoptions[i].ID < l.Adoptions[j].ID })
 	b, err := yaml.Marshal(l)
 	if err != nil {
 		return nil, fmt.Errorf("render epistemic ledger: %w", err)
@@ -72,8 +76,9 @@ func Encode(l Ledger) ([]byte, error) {
 		"# Hypothesis records what is believed and what would refute it; an\n" +
 		"# Observation records what actually happened.\n" +
 		"#\n" +
-		"# Dispositions are COMPUTED (`sensei epistemic status`), never authored.\n" +
-		"# Write with `sensei epistemic declare|hypothesize|observe`, which validate.\n"
+		"# Dispositions are COMPUTED (`sensei epistemic status`), never authored, and\n" +
+		"# nothing here is established architecture until an `adoptions` entry says so.\n" +
+		"# Write with `sensei epistemic declare|hypothesize|observe|adopt`, which validate.\n"
 	return append([]byte(header), b...), nil
 }
 

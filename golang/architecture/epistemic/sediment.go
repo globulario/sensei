@@ -60,7 +60,13 @@ type SedimentFinding struct {
 }
 
 // CheckSediment reports experimental scope that established architecture has
-// begun to defend, and experimental scope whose hypothesis is already refuted.
+// begun to defend without an adoption record, and experimental scope whose
+// hypothesis is already refuted.
+//
+// An ADOPTED path is the only way out. That is what makes adoption the single
+// route from experimental to established: every other path -- extraction
+// noticing the code, a hypothesis reaching SUPPORTED, an invariant quietly
+// growing to cover it -- lands here as a finding instead.
 //
 // established maps a repository path to the canonical entries citing it -- an
 // invariant that protects it, a high-risk listing, and so on. The caller reads
@@ -72,16 +78,23 @@ type SedimentFinding struct {
 // Exact-match-only would be trivially defeated by the ordinary way this corpus
 // is written, since it anchors directories as often as files.
 //
-// A settled hypothesis produces no sediment finding: once a belief is SUPPORTED
-// or REFUTED the question is no longer open, and adoption -- which this slice
-// does not implement -- is what should follow.
-func CheckSediment(hs []Hypothesis, obs []Observation, established map[string][]string, now time.Time) []SedimentFinding {
+// A SUPPORTED hypothesis is NOT exempt. Reaching SUPPORTED earns a design the
+// right to be adopted; it does not adopt it. Going quiet there would restore
+// promotion-on-SUPPORTED, the automatic status transition adoption exists to
+// refuse.
+func (l *Ledger) CheckSediment(established map[string][]string, now time.Time) []SedimentFinding {
+	adopted := l.adoptedPaths()
 	var out []SedimentFinding
-	for _, h := range hs {
-		state := StateOf(h, obs, now)
+	for _, h := range l.Hypotheses {
+		state := StateOf(h, l.Observations, now)
 		for _, raw := range h.ExperimentalScope {
 			path := normalizePath(raw)
 			if path == "" {
+				continue
+			}
+			// An adopted path IS established architecture, legitimately and
+			// with a provenance trail. It is the only way out of this check.
+			if _, ok := adoptedCovers(adopted, path); ok {
 				continue
 			}
 			if state == StateRefuted {
@@ -91,17 +104,22 @@ func CheckSediment(hs []Hypothesis, obs []Observation, established map[string][]
 				})
 				continue
 			}
-			if state == StateSupported {
-				// Settled the other way. Adoption is the event that would make
-				// this code architecture, and it is not this slice's to invent.
+			citedBy := citations(established, path)
+			if len(citedBy) == 0 {
 				continue
 			}
-			if citedBy := citations(established, path); len(citedBy) > 0 {
-				out = append(out, SedimentFinding{
-					Kind: KindSediment, Hypothesis: h.ID, State: state, Path: raw, CitedBy: citedBy,
-					Detail: fmt.Sprintf("canonical architecture already defends this path while %s is still open; promotion to architecture is an epistemic event, not a side effect of implementation", h.ID),
-				})
+			detail := fmt.Sprintf("canonical architecture already defends this path while %s is still open; promotion to architecture is an epistemic event, not a side effect of implementation", h.ID)
+			if state == StateSupported {
+				// The hole this closes. A supported belief has earned the RIGHT
+				// to be adopted; it has not been adopted. Letting the check go
+				// quiet here would restore promotion-on-SUPPORTED as an
+				// automatic status transition, which is precisely what the
+				// adoption event exists to refuse.
+				detail = fmt.Sprintf("%s is SUPPORTED and this path is already defended as architecture, but no adoption record covers it; SUPPORTED is not ESTABLISHED, and the event between them is `sensei epistemic adopt`", h.ID)
 			}
+			out = append(out, SedimentFinding{
+				Kind: KindSediment, Hypothesis: h.ID, State: state, Path: raw, CitedBy: citedBy, Detail: detail,
+			})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -148,4 +166,15 @@ func normalizePath(p string) string {
 	p = strings.TrimSpace(p)
 	p = strings.TrimPrefix(p, "./")
 	return strings.TrimSuffix(p, "/")
+}
+
+// adoptedCovers reports whether any adopted path covers this one, by the same
+// two-directional overlap the canonical anchors use.
+func adoptedCovers(adopted map[string]string, path string) (string, bool) {
+	for a, id := range adopted {
+		if pathOverlaps(a, path) {
+			return id, true
+		}
+	}
+	return "", false
 }

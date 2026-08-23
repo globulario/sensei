@@ -162,10 +162,56 @@ provisional and may be rewritten freely while the question is open.
 | `ARCHITECTURE_BY_SEDIMENT` | canonical architecture cites a path that exists only to test a **still-open** hypothesis |
 | `ORPHANED_EXPERIMENT` | the hypothesis was refuted; the code written to test it is still declared as its scope |
 
-A **settled** hypothesis produces no sediment finding. Once a belief is
-`SUPPORTED` the question is closed, and adoption is what should follow —
-reporting sediment there would be telling the project off for finishing an
-experiment.
+A `SUPPORTED` hypothesis is **not** exempt. Going quiet there would restore
+promotion-on-SUPPORTED — the automatic status transition adoption exists to
+refuse. An **adopted** path is the only way out.
+
+## Adoption: the event between SUPPORTED and ESTABLISHED
+
+`SUPPORTED != ESTABLISHED`. Reaching SUPPORTED earns a design the **right** to
+be adopted; it does not adopt it.
+
+Every other route was eliminated before the verb existed:
+
+```
+promotion by implementation  → architecture by sediment
+promotion on SUPPORTED       → an automatic status transition, refused by §9
+implicit promotion           → architecture with no evidential basis
+```
+
+So `sensei epistemic adopt` is required rather than offered, and it is **the
+only way out of the sediment check**. A supported design whose code canonical
+architecture already defends stays a finding until adopted.
+
+```yaml
+adoptions:
+  - id: ad.placement
+    resolves_question: dq.placement
+    design: b
+    evidence_hypotheses: [h.placement]
+    remaining_uncertainty: unmeasured above 10k writes/sec
+    scope: [golang/placement/v2]
+```
+
+`remaining_uncertainty` is required, and `"none identified"` is an acceptable
+answer — the point is that the sentence gets written. An adoption that silently
+implies certainty is how SUPPORTED becomes PROVEN six months later, when nobody
+remembers which one it was.
+
+**Adoption is not a synonym for human approval.** When the question carries only
+reversible consequences, the agent that ran the experiments may adopt. What
+matters is not who typed the command but that the record carries what was
+adopted, why, from what evidence, under what uncertainty, and under whose
+authority. When the question reached `AUTHORITY` — an irreversible consequence —
+`--authority` must be given.
+
+*Caveat:* nothing **verifies** that a named authority is a person or that a
+person agreed. It records an attribution, and treating the field as proof would
+be the too-strong claim this lane exists to avoid.
+
+A `CONSERVATION` question needs no `--evidence`: its answer came from the
+constraints rather than from an experiment, and demanding a hypothesis would
+force a fake one to confirm what was already decided.
 
 ## Failed designs are kept, not erased
 
@@ -199,11 +245,6 @@ The router would currently have nothing to route.
   `awareness.missing_evidence_produces_unknown` exists or that a `doc:` reference
   points at a real file. An id here looks authoritative and is not, which is why
   it is written down rather than left for a reader to discover.
-- **There is no adoption event.** `dq.adoption_event` in the ledger computes
-  `CONSERVATION` — extraction-driven promotion *is* the sediment failure, and
-  automatic promotion on `SUPPORTED` is the automatic status transition §9
-  refuses, so only the explicit evidence-backed record survives. The shape is
-  determined; it is not built.
 - **Whether governance needs two axes is open.** `dq.governance_axes` records
   what slice 1 actually did (an implementation is experimental exactly while an
   open hypothesis names it) beside the alternatives, rather than retrofitting a

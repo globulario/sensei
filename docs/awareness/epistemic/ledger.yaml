@@ -6,8 +6,9 @@
 # Hypothesis records what is believed and what would refute it; an
 # Observation records what actually happened.
 #
-# Dispositions are COMPUTED (`sensei epistemic status`), never authored.
-# Write with `sensei epistemic declare|hypothesize|observe`, which validate.
+# Dispositions are COMPUTED (`sensei epistemic status`), never authored, and
+# nothing here is established architecture until an `adoptions` entry says so.
+# Write with `sensei epistemic declare|hypothesize|observe|adopt`, which validate.
 version: 1
 design_questions:
     - id: dq.abandon_ceiling_intermittency
@@ -142,3 +143,14 @@ observations:
         - CI run 32657471809 on main 1a9efc93, build-and-test
         - failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
       observed_by: claude-opus-5
+adoptions:
+    - id: ad.explicit_adoption_event
+      resolves_question: dq.adoption_event
+      design: explicit_adopt
+      evidence_hypotheses: []
+      remaining_uncertainty: 'Whether requiring a SUPPORTED hypothesis is the right bar in practice is untested: it has been exercised on one CONSERVATION question and no experimental one. Adoption also cannot verify that a named authority is a person or that a person agreed — it records an attribution.'
+      scope:
+        - golang/architecture/epistemic/adoption.go
+      adopted_by: claude-opus-5
+      adopted_at: "2026-08-23T20:22:19Z"
+      notes: 'Adopted with no evidence_hypotheses because the question is CONSERVATION: the constraints eliminated promotion-by-implementation and promotion-on-SUPPORTED, and no experiment was needed to decide what remained. Requiring a hypothesis here would have forced a fake experiment to confirm what the constraints already decided.'
