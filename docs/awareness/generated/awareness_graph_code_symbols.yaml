@@ -11931,6 +11931,12 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionBasisCountsTheConservationExposure
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAdoptionBasisCountsTheConservationExposure
+    package: epistemic
+    language: go
+    doc: "Conservation's self-confirmation risk is the mirror of exploration's: the\nexperiment is not faked, it is made unnecessary by a constraint the same\nactor authored. Nothing here can grade constraint provenance — a constraint\nis free text — so the exposure is counted rather than scored."
   - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionInheritsTheExperimentalScopeItRestsOn
     file: golang/architecture/epistemic/adoption_test.go
     symbol: TestAdoptionInheritsTheExperimentalScopeItRestsOn
