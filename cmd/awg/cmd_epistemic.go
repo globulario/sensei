@@ -32,7 +32,7 @@ const DefaultEpistemicLedger = "docs/awareness/epistemic/ledger.yaml"
 // record each. That is the whole surface.
 func runEpistemic(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: sensei epistemic <declare|hypothesize|observe|adopt|status|scope> [flags]")
+		fmt.Fprintln(os.Stderr, "usage: sensei epistemic <declare|amend|hypothesize|observe|adopt|status|scope> [flags]")
 		return 2
 	}
 	switch args[0] {
@@ -48,8 +48,10 @@ func runEpistemic(args []string) int {
 		return runEpistemicScope(args[1:])
 	case "adopt":
 		return runEpistemicAdopt(args[1:])
+	case "amend":
+		return runEpistemicAmend(args[1:])
 	default:
-		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|hypothesize|observe|adopt|status|scope)\n", args[0])
+		fmt.Fprintf(os.Stderr, "sensei epistemic: unknown subcommand %q (declare|amend|hypothesize|observe|adopt|status|scope)\n", args[0])
 		return 2
 	}
 }

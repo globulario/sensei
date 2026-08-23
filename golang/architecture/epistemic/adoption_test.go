@@ -304,3 +304,72 @@ func TestAdoptionBasisCountsTheConservationExposure(t *testing.T) {
 		t.Fatalf("ratio = %v, want 0.5", b.Ratio)
 	}
 }
+
+// Learning of a further alternative later is the normal case. A question that
+// cannot grow forces the discovery into a new question — losing the fact that
+// it is the same decision — or into an existing alternative's wording, losing
+// it entirely.
+func TestAQuestionCanLearnAFurtherAlternative(t *testing.T) {
+	l := &Ledger{Version: LedgerVersion}
+	if errs := l.AddQuestion(goodQuestion()); errs != nil {
+		t.Fatal(errs)
+	}
+	if errs := l.AddAlternative("dq.example", Alternative{
+		ID: "c", Statement: "establish the consequence boundary before deciding who owns it",
+	}); errs != nil {
+		t.Fatalf("%v", errs)
+	}
+	if n := len(l.Questions[0].Alternatives); n != 3 {
+		t.Fatalf("alternatives = %d, want 3", n)
+	}
+
+	// Widening only ever moves toward more openness. A conservation question
+	// that gains a viable alternative becomes open, which is honest.
+	conserved := &Ledger{Version: LedgerVersion}
+	q := goodQuestion()
+	q.Alternatives[0].EliminatedBy = "inv.one"
+	if errs := conserved.AddQuestion(q); errs != nil {
+		t.Fatal(errs)
+	}
+	if d, _ := Dispose(conserved.Questions[0]); d != DispositionConservation {
+		t.Fatalf("fixture is %q", d)
+	}
+	if errs := conserved.AddAlternative("dq.example", Alternative{ID: "c", Statement: "a third way"}); errs != nil {
+		t.Fatal(errs)
+	}
+	if d, _ := Dispose(conserved.Questions[0]); d != DispositionExploration {
+		t.Fatalf("widening did not reopen the question: %q", d)
+	}
+}
+
+func TestAlternativesMayNotArriveAlreadyDeadOrDuplicated(t *testing.T) {
+	l := &Ledger{Version: LedgerVersion}
+	if errs := l.AddQuestion(goodQuestion()); errs != nil {
+		t.Fatal(errs)
+	}
+	if errs := l.AddAlternative("dq.example", Alternative{
+		ID: "c", Statement: "a third way", EliminatedBy: "inv.one",
+	}); !containsSubstring(errs, "already eliminated") {
+		t.Fatalf("got %v", errs)
+	}
+	if errs := l.AddAlternative("dq.example", Alternative{ID: "b", Statement: "x"}); !containsSubstring(errs, "already declares") {
+		t.Fatalf("got %v", errs)
+	}
+	if errs := l.AddAlternative("dq.example", Alternative{
+		ID: "c", Statement: "  MARKER  plus a triple COUNT ",
+	}); !containsSubstring(errs, "repeats") {
+		t.Fatalf("got %v", errs)
+	}
+}
+
+// An adopted question is settled. Adding an alternative would silently unmake a
+// decision the project relies on.
+func TestAnAdoptedQuestionCannotBeWidened(t *testing.T) {
+	l := adoptable(t)
+	if errs := l.AddAdoption(goodAdoption(), now()); errs != nil {
+		t.Fatal(errs)
+	}
+	if errs := l.AddAlternative("dq.example", Alternative{ID: "c", Statement: "a third way"}); !containsSubstring(errs, "supersession") {
+		t.Fatalf("got %v", errs)
+	}
+}

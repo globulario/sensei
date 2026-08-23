@@ -419,6 +419,8 @@ Resolve uncertainty (not canonical knowledge; no routing surface reads it):
   epistemic declare      Declare a design question — >=2 viable alternatives, bound
                          constraints, and the consequences of experimenting here.
                          The disposition is computed, never authored.
+  epistemic amend        Add an alternative a declared question did not foresee.
+                         Widening only ever opens a question further.
   epistemic hypothesize  A belief reality can disagree with: observable prediction,
                          falsifier, horizon.
   epistemic observe      What actually happened. The back-edge that closes the loop.
