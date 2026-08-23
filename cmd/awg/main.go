@@ -78,6 +78,9 @@
 //	sensei promote <id>                     Promote a candidate to canonical YAML
 //	sensei propose --kind <kind> ...        Append one typed feedback entry (scar) and rebuild
 //	sensei feedback-check                   Warn when a fix added durable knowledge but no graph feedback
+//	sensei epistemic <declare|hypothesize|observe|status>
+//	                                        Uncertain design belief: what must be resolved, what is
+//	                                        believed and what would refute it, what actually happened
 //	sensei ingest --from-file <path>        Feed new knowledge into the graph
 //	sensei skill-ingest <skill-pack-root>   Generate review-only candidates from external skills
 //	sensei pattern-check <file>...          Check files against pattern recipes
@@ -343,6 +346,8 @@ func dispatch(cmd string, args []string) int {
 		return runPromote(args)
 	case "propose":
 		return runPropose(args)
+	case "epistemic":
+		return runEpistemic(args)
 	case "feedback-check":
 		return runFeedbackCheck(args)
 	case "ingest":
@@ -409,6 +414,16 @@ Query before editing:
 Record or promote a lesson:
   propose        Append one typed feedback entry, rebuild + reload, stage
   feedback-check Warn when a durable fix added no graph feedback
+
+Resolve uncertainty (not canonical knowledge; no routing surface reads it):
+  epistemic declare      Declare a design question — >=2 viable alternatives, bound
+                         constraints, and the consequences of experimenting here.
+                         The disposition is computed, never authored.
+  epistemic hypothesize  A belief reality can disagree with: observable prediction,
+                         falsifier, horizon.
+  epistemic observe      What actually happened. The back-edge that closes the loop.
+  epistemic status       Dispositions, hypothesis states, liveness. --tripwire fails
+                         when a horizon passed with nothing observed.
   promote        Promote a candidate into canonical awareness YAML
   ingest         Feed new knowledge into the graph
   skill-ingest   Generate review-only ImplementationPattern candidates from SKILL.md files

@@ -1,0 +1,85 @@
+# Epistemic lane — uncertain design belief (globulario/sensei#288).
+#
+# NOT canonical knowledge. Nothing here is an invariant, a contract or a
+# decision, nothing here is compiled into the awareness seed, and no routing
+# surface reads it. A DesignQuestion records what must be resolved; a
+# Hypothesis records what is believed and what would refute it; an
+# Observation records what actually happened.
+#
+# Dispositions are COMPUTED (`sensei epistemic status`), never authored.
+# Write with `sensei epistemic declare|hypothesize|observe`, which validate.
+version: 1
+design_questions:
+    - id: dq.abandon_ceiling_intermittency
+      objective: Explain the intermittent build-and-test failure on main at 1a9efc93 (globulario/sensei#289)
+      question: Is the intermittent abandonment failure environmental noise, or is ExtractBoundedOrAbandon nondeterministic when both select arms are ready?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:07:01Z"
+      alternatives:
+        - id: flake
+          statement: Environmental noise on a loaded runner; the implementation is correct and the test should be retried
+        - id: race
+          statement: The two-arm select picks at random when both the finished load and the expired ceiling are ready, so the reported limitation depends on the scheduler
+      constraints:
+        - awareness.missing_evidence_produces_unknown
+      consequences:
+        - effect: runs the existing test suite under CPU contention on a scratch worktree
+          reversible: true
+        - effect: temporarily reverts one function body in a worktree to observe the difference
+          reversible: true
+      notes: 'RETROSPECTIVE RECONSTRUCTION, written down after the fact. This is what actually happened while investigating #289, but it was not declared through this lane at the time because the lane did not exist yet. declared_at is when it was recorded, not when it was decided — and the same caveat applies to the observation''s observed_at.'
+    - id: dq.epistemic_lane_storage
+      objective: Give uncertain design belief a first-class home (globulario/sensei#288 slice 1)
+      question: Where do DesignQuestion, Hypothesis and Observation live, given they are believed-but-not-established?
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:06:41Z"
+      alternatives:
+        - id: corpus
+          statement: Add design_question/hypothesis/observation as kinds in docs/awareness/*.yaml, compiled into the seed like invariants and failure modes
+          eliminated_by: 'code:golang/propose/propose.go — contract-first: every canonical entry links an invariant, failure or contract'
+        - id: candidates
+          statement: Write them into docs/awareness/candidates/, the existing awaiting-review queue
+        - id: own_lane
+          statement: A separate governed ledger under docs/awareness/epistemic/, not read by yaml2nt and not projected into the graph
+      constraints:
+        - doc:docs/design/experimental-engineering-epistemology.md#3 — an uncertain claim must not have to masquerade as law
+        - 'code:golang/propose/propose.go — contract-first: every canonical entry links an invariant, failure or contract'
+        - doc:docs/design/experimental-engineering-epistemology.md#9 — no routing change in this slice
+      consequences:
+        - effect: adds one governed YAML file and a CLI surface; deleting the file removes the lane completely
+          reversible: true
+        - effect: 'no external effect: nothing is published, sent, or written outside this repository'
+          reversible: true
+      notes: candidates/ was not eliminated by a constraint — it was set aside by judgment, because that queue means 'awaiting promotion to canonical' and a design question is never promoted. Recorded as still viable so the belief in own_lane stays falsifiable.
+hypotheses:
+    - id: h.abandon_is_a_real_select_race
+      question: dq.abandon_ceiling_intermittency
+      alternative: race
+      prediction: Force the run into the state where the load has been delivered AND the ceiling has expired, and the cancelled run will report a COMPLETED load rather than abandonment on roughly half the iterations.
+      falsifier: With both select arms deterministically ready, every cancelled iteration still reports abandonment — which would mean the intermittency came from the environment and not from the select.
+      horizon:
+        due_at: "2026-08-23T18:00:00Z"
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:07:01Z"
+      notes: RETROSPECTIVE. The discriminating experiment was the beforeCeilingForTest seam plus reverting the fix in a worktree.
+    - id: h.own_lane_prevents_masquerade
+      question: dq.epistemic_lane_storage
+      alternative: own_lane
+      prediction: 'Keeping the lane out of the awareness corpus and out of the seed prevents uncertain belief from being consumed as established knowledge: no DesignQuestion or Hypothesis id will appear in a briefing, preflight, edit-check or admission decision as governing knowledge.'
+      falsifier: A briefing, preflight, gate or admission output cites a DesignQuestion or Hypothesis id among the knowledge governing a change — with every existing gate green.
+      horizon:
+        due_at: "2026-12-01T00:00:00Z"
+        condition: at the first review after any surface begins reading docs/awareness/epistemic/
+      declared_by: claude-opus-5
+      declared_at: "2026-08-23T19:07:01Z"
+observations:
+    - id: o.reverted_fix_failed_on_run_zero
+      hypothesis: h.abandon_is_a_real_select_race
+      observed_at: "2026-08-23T19:07:01Z"
+      what: 'With the seam forcing both arms ready and the ctx.Err() check reverted, the cancelled run reported a completed load on run 0 of 40, carrying exactly the limitation CI produced: ''semantic package load stopped by the caller: context canceled''. With the fix restored, 40 of 40 iterations abandon. Separately, 0 of 3200 cancelled runs took the wrong arm on an idle 16-core machine at GOMAXPROCS 1, 2, 4 and 16 — so the environment governs whether the defect is VISIBLE, not whether it exists.'
+      outcome: supports
+      evidence:
+        - 'PR #289, golang/architecture/gosemantics/abandon_test.go:TestExtractBoundedOrAbandonAbandonsWhenBothArmsAreReady'
+        - CI run 32657471809 on main 1a9efc93, build-and-test
+        - failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
+      observed_by: claude-opus-5
