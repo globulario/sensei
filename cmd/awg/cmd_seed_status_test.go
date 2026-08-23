@@ -137,6 +137,12 @@ func seedStatusStore(t *testing.T, loaded []byte) string {
 				t.Fatalf("read query body: %v", err)
 			}
 			writeVerificationQuery(t, w, loaded, string(body))
+		case "/store":
+			// The Graph Store Protocol dump the content check reads. A store
+			// that cannot serialize itself cannot prove its integrity, so the
+			// fixture serves the same bytes it answers queries from.
+			w.Header().Set("Content-Type", "application/n-triples")
+			_, _ = w.Write(loaded)
 		default:
 			http.NotFound(w, r)
 		}
@@ -276,4 +282,76 @@ func TestSeedStatusStoreFixtureCarriesCurrentMarker(t *testing.T) {
 	if verification.State != seedmeta.FreshnessCurrent {
 		t.Fatalf("verification state=%s, want CURRENT", verification.State)
 	}
+}
+
+// TestSeedStatus_ContentDriftWithPreservedTripleCount is #282 end to end: a
+// live store that lost one real triple and gained one unrelated triple keeps
+// its marker and its count, so every identity lane still lines up. Only a
+// recomputed content digest can see it.
+func TestSeedStatus_ContentDriftWithPreservedTripleCount(t *testing.T) {
+	agRepo, svcRepo := setupSeedStatusRepos(t)
+	if code := runRebuild([]string{"--combined", "--ag-repo", agRepo, "--services-repo", svcRepo, "--no-runtime-reload"}); code != 0 {
+		t.Fatalf("runRebuild code=%d, want 0", code)
+	}
+	seedPath, _ := seedArtifactPaths(true, agRepo)
+	seedBytes, err := os.ReadFile(seedPath)
+	if err != nil {
+		t.Fatalf("read seed: %v", err)
+	}
+	marker, ok := seedmeta.ParseMarker(seedBytes)
+	if !ok {
+		t.Fatal("seed carries no marker")
+	}
+	mutated := swapOneNonMarkerTriple(t, seedBytes, marker)
+	storeURL := seedStatusStore(t, mutated)
+
+	out := captureStdout(t, func() {
+		if code := runSeedStatus([]string{
+			"--json",
+			"--require-current",
+			"--seed", seedPath,
+			"--ag-repo", agRepo,
+			"--services-repo", svcRepo,
+			"--oxigraph-url", storeURL,
+		}); code != 1 {
+			t.Fatalf("runSeedStatus code=%d, want 1 for a drifted store", code)
+		}
+	})
+	var got seedStatusResult
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("unmarshal json: %v\n%s", err, out)
+	}
+	if got.LiveTripleCount != marker.TripleCount {
+		t.Fatalf("live_triple_count=%d, want %d — the drift must be count-preserving", got.LiveTripleCount, marker.TripleCount)
+	}
+	if got.LiveDigestSHA256 != marker.Digest {
+		t.Fatalf("live marker digest=%q, want the expected marker %q to still be present", got.LiveDigestSHA256, marker.Digest)
+	}
+	if got.LiveContent.State != "drifted" {
+		t.Fatalf("live_content=%q, want drifted", got.LiveContent.State)
+	}
+	if got.LiveStore.Current {
+		t.Fatalf("live_store reported current for a drifted store: %+v", got.LiveStore)
+	}
+	if got.OverallState == "current" {
+		t.Fatalf("overall_state=current for a drifted store: %+v", got)
+	}
+}
+
+// swapOneNonMarkerTriple deletes one real triple and inserts one unrelated
+// triple, leaving the marker triples and the total count untouched.
+func swapOneNonMarkerTriple(t *testing.T, nt []byte, marker seedmeta.Marker) []byte {
+	t.Helper()
+	needle := "<" + marker.IRI + "> "
+	lines := strings.Split(string(nt), "\n")
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, needle) {
+			continue
+		}
+		lines[i] = "<https://example.test/swapped> <https://example.test/p> <https://example.test/o> ."
+		return []byte(strings.Join(lines, "\n"))
+	}
+	t.Fatal("no non-marker triple to swap")
+	return nil
 }

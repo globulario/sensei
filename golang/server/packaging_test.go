@@ -187,6 +187,7 @@ type seedVerifierStore struct {
 	nopStore
 	describeFn func(context.Context, string) ([]store.Triple, error)
 	countFn    func(context.Context) (int64, error)
+	dumpFn     func() ([]byte, error)
 }
 
 func (s seedVerifierStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
@@ -205,6 +206,17 @@ func (s seedVerifierStore) Describe(ctx context.Context, iri string) ([]store.Tr
 	}
 	return s.describeFn(ctx, iri)
 }
+
+// DumpNTriples makes the fake store content-verifiable: startup enforcement
+// recomputes the artifact digest over what the store serves, so a fake that
+// claims the embedded marker must be able to serve the embedded bytes.
+func (s seedVerifierStore) DumpNTriples(context.Context) ([]byte, error) {
+	if s.dumpFn != nil {
+		return s.dumpFn()
+	}
+	return normalizedEmbeddedSeed(), nil
+}
+
 func (s seedVerifierStore) CountTriples(ctx context.Context) (int64, error) {
 	if s.countFn != nil {
 		return s.countFn(ctx)
@@ -419,5 +431,74 @@ func TestPackaging_SeedTripleCount(t *testing.T) {
 	}
 	if count < minTriples {
 		t.Fatalf("seed has only %d triples, want at least %d — graph may be empty or stale", count, minTriples)
+	}
+}
+
+// noDumpStore carries the freshness surface but not the content one, so
+// startup cannot obtain an integrity proof from it.
+type noDumpStore struct{ nopStore }
+
+func (noDumpStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
+	return seedVerifierStore{}.Describe(ctx, iri)
+}
+func (noDumpStore) CountTriples(ctx context.Context) (int64, error) {
+	return seedVerifierStore{}.CountTriples(ctx)
+}
+func (noDumpStore) CountByClass(ctx context.Context, classIRI string) (int64, error) {
+	return seedVerifierStore{}.CountByClass(ctx, classIRI)
+}
+
+// TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift is #282 at
+// the startup boundary: the store answers with the expected marker and the
+// expected triple count, and still does not hold the expected graph.
+func TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift(t *testing.T) {
+	marker, ok := normalizedEmbeddedSeedMarker()
+	if !ok {
+		t.Skip("embedded seed carries no marker in this build")
+	}
+	drifted := seedVerifierStore{dumpFn: func() ([]byte, error) {
+		needle := "<" + marker.IRI + "> "
+		lines := strings.Split(string(normalizedEmbeddedSeed()), "\n")
+		for i, line := range lines {
+			trimmed := strings.TrimSpace(line)
+			if trimmed == "" || strings.HasPrefix(trimmed, needle) {
+				continue
+			}
+			lines[i] = "<https://example.test/swapped> <https://example.test/p> <https://example.test/o> ."
+			return []byte(strings.Join(lines, "\n")), nil
+		}
+		t.Fatal("no non-marker triple to swap")
+		return nil, nil
+	}}
+
+	err := enforceCurrentSeed(context.Background(), drifted, "http://test/query", false, log.New(io.Discard, "", 0))
+	if err == nil {
+		t.Fatal("startup accepted a store whose content drifted while its triple count held")
+	}
+	if !strings.Contains(err.Error(), "not authoritative") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+// A backend that cannot serialize itself yields no integrity evidence. Absence
+// of evidence is not a pass.
+func TestEnforceCurrentSeed_FailsClosedWhenContentCannotBeVerified(t *testing.T) {
+	if _, ok := normalizedEmbeddedSeedMarker(); !ok {
+		t.Skip("embedded seed carries no marker in this build")
+	}
+	err := enforceCurrentSeed(context.Background(), noDumpStore{}, "http://test/query", false, log.New(io.Discard, "", 0))
+	if err == nil {
+		t.Fatal("startup accepted a store that could not prove its content")
+	}
+	if !strings.Contains(err.Error(), "content could not be verified") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var logBuf bytes.Buffer
+	if err := enforceCurrentSeed(context.Background(), noDumpStore{}, "http://test/query", true, log.New(&logBuf, "", 0)); err != nil {
+		t.Fatalf("enforceCurrentSeed with -allow-stale-seed: %v", err)
+	}
+	if !strings.Contains(logBuf.String(), "WARNING") {
+		t.Fatalf("expected an explicit warning under -allow-stale-seed, got %q", logBuf.String())
 	}
 }

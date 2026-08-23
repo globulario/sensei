@@ -169,7 +169,13 @@ func graphFreshnessSeedState(ver seedmeta.Verification) awarenesspb.SeedState {
 func graphFreshnessSummary(ver seedmeta.Verification) string {
 	switch ver.State {
 	case seedmeta.FreshnessCurrent:
-		return fmt.Sprintf("current digest=%s triples=%d", ver.Expected.Digest, ver.Expected.TripleCount)
+		if ver.Content == seedmeta.ContentMatch {
+			return fmt.Sprintf("current digest=%s triples=%d content=verified", ver.Expected.Digest, ver.Expected.TripleCount)
+		}
+		// Naming the weaker evidence is the point: this summary is quoted into
+		// operator output, and "current" from a count comparison is not the
+		// same finding as "current" from a recomputed content digest.
+		return fmt.Sprintf("current digest=%s triples=%d content=%s", ver.Expected.Digest, ver.Expected.TripleCount, ver.Content)
 	case seedmeta.FreshnessStale:
 		return "stale: " + ver.Detail
 	case seedmeta.FreshnessEmpty:

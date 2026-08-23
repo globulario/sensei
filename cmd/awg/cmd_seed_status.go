@@ -34,9 +34,11 @@ type seedStatusResult struct {
 	GeneratedTripleCount  int64          `json:"generated_triple_count,omitempty"`
 	LiveDigestSHA256      string         `json:"live_digest_sha256,omitempty"`
 	LiveTripleCount       int64          `json:"live_triple_count,omitempty"`
+	LiveContentDigest     string         `json:"live_content_digest_sha256,omitempty"`
 	GeneratedVsCommitted  seedStatusLane `json:"generated_vs_committed"`
 	TransactionStamp      seedStatusLane `json:"transaction_stamp"`
 	LiveStore             seedStatusLane `json:"live_store"`
+	LiveContent           seedStatusLane `json:"live_content"`
 	OverallState          string         `json:"overall_state"`
 	OverallDetail         string         `json:"overall_detail,omitempty"`
 	RequireCurrent        bool           `json:"require_current"`
@@ -55,8 +57,9 @@ func runSeedStatus(args []string) int {
 		fmt.Fprint(os.Stderr, `Usage: sensei seed-status [flags]
 
 Checks whether a live Oxigraph store contains the exact seed marker embedded in
-an awareness.nt file, and when repo context is available also compares the
-committed seed + transaction stamp to a freshly generated graph artifact.
+an awareness.nt file, recomputes the artifact digest over the live store's
+content, and when repo context is available also compares the committed seed +
+transaction stamp to a freshly generated graph artifact.
 
 Flags:
 `)
@@ -109,10 +112,16 @@ Flags:
 	}
 	defer store.Close()
 
-	verification := seedmeta.VerifyLiveStore(ctx, store, marker)
+	// seed-status is the diagnostic surface an operator reaches for when they
+	// need to know whether the live graph IS the artifact, so it pays for the
+	// content check the per-request paths cannot afford. Without it the answer
+	// is a triple count, and a count-preserving mutation passes (#282).
+	verification := seedmeta.VerifyLiveContent(ctx, store, marker)
 	res.LiveDigestSHA256 = verification.Live.Digest
 	res.LiveTripleCount = verification.LiveTripleCount
+	res.LiveContentDigest = verification.ContentDigest
 	res.LiveStore = seedStatusLaneFromFreshness(verification)
+	res.LiveContent = seedStatusLaneFromContent(verification)
 	populateRepoStatus(&res, agRepo, svcRepo, seedPath, seedBytes)
 	res.OverallState, res.OverallDetail = classifySeedStatusOverall(res)
 	return printSeedStatusResult(res, *asJSON)
@@ -146,6 +155,10 @@ func printSeedStatusResult(res seedStatusResult, asJSON bool) int {
 	fmt.Printf("Live store:          %s\n", res.LiveStore.State)
 	if res.LiveStore.Detail != "" {
 		fmt.Printf("  detail:            %s\n", res.LiveStore.Detail)
+	}
+	fmt.Printf("Live content:        %s\n", res.LiveContent.State)
+	if res.LiveContent.Detail != "" {
+		fmt.Printf("  detail:            %s\n", res.LiveContent.Detail)
 	}
 	fmt.Printf("Overall state:       %s\n", res.OverallState)
 	if res.OverallDetail != "" {
@@ -257,6 +270,30 @@ func seedStatusLaneFromFreshness(verification seedmeta.Verification) seedStatusL
 	return lane
 }
 
+// seedStatusLaneFromContent reports the integrity lane on its own terms. It is
+// deliberately not folded into the live-store lane: "the store carries the
+// expected identity" and "the store still holds the bytes that identity was
+// computed over" are different findings, and collapsing them is what let a
+// count comparison speak as an integrity proof.
+func seedStatusLaneFromContent(verification seedmeta.Verification) seedStatusLane {
+	lane := seedStatusLane{Detail: strings.TrimSpace(verification.ContentDetail)}
+	switch verification.Content {
+	case seedmeta.ContentMatch:
+		lane.State = "verified"
+		lane.Current = true
+	case seedmeta.ContentMismatch:
+		lane.State = "drifted"
+	case seedmeta.ContentCheckError:
+		lane.State = "degraded"
+	default:
+		lane.State = "unverified"
+		if lane.Detail == "" {
+			lane.Detail = "content was not compared"
+		}
+	}
+	return lane
+}
+
 func looksLikeStoreDown(detail string) bool {
 	d := strings.ToLower(strings.TrimSpace(detail))
 	switch {
@@ -275,7 +312,13 @@ func looksLikeStoreDown(detail string) bool {
 
 func classifySeedStatusOverall(res seedStatusResult) (string, string) {
 	if res.GeneratedVsCommitted.Current && res.TransactionStamp.Current && res.LiveStore.Current {
-		return "current", "generated artifact, committed seed, transaction stamp, and live store all match"
+		if res.LiveContent.Current {
+			return "current", "generated artifact, committed seed, transaction stamp, and live store content all match"
+		}
+		// Every identity lane lines up and the store's content was never
+		// compared. That is not the same evidence, and must not be reported as
+		// if it were.
+		return "unproven", "identity lanes match but the live store content was not verified: " + res.LiveContent.Detail
 	}
 	if res.GeneratedVsCommitted.State == "blocked" || res.TransactionStamp.State == "blocked" {
 		if res.GeneratedVsCommitted.Detail != "" {

@@ -321,7 +321,10 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		}
 		seedCancel()
 
-		enforceCtx, enforceCancel := context.WithTimeout(context.Background(), 15*time.Second)
+		// Enforcement recomputes the artifact digest over the whole live store,
+		// so the budget is sized for serializing a large graph, not for a
+		// marker lookup.
+		enforceCtx, enforceCancel := context.WithTimeout(context.Background(), 120*time.Second)
 		if err := enforceCurrentSeed(enforceCtx, rdfStore, cfg.OxigraphQueryURL, allowStaleSeed, logger); err != nil {
 			enforceCancel()
 			return err
@@ -612,10 +615,18 @@ func enforceCurrentSeed(ctx context.Context, s store.Store, endpoint string, all
 		}
 		return fmt.Errorf("embedded seed carries no marker; rebuild awareness.nt and restart, or set -allow-stale-seed")
 	}
-	verification := seedmeta.VerifyLiveStore(ctx, verifier, marker)
-	if verification.State == seedmeta.FreshnessCurrent {
+	// Startup is the one point in the serving process's life where a full
+	// content check is affordable, and it is the only place the process can
+	// establish that the live store IS the artifact rather than that it merely
+	// carries the artifact's marker and triple count (#282). Per-request
+	// freshness stays on the cheap channel and says so.
+	verification := seedmeta.VerifyLiveContent(ctx, verifier, marker)
+	if verification.ContentProven() {
 		logger.Printf("awareness-graph: verified live graph authority (%s)", graphFreshnessSummary(verification))
 		return nil
+	}
+	if verification.State == seedmeta.FreshnessCurrent && !allowStaleSeed {
+		return fmt.Errorf("live store at %s carries the expected graph marker but its content could not be verified: %s", endpoint, verification.ContentDetail)
 	}
 	if allowStaleSeed {
 		logger.Printf("awareness-graph: WARNING — %s", graphFreshnessSummary(verification))

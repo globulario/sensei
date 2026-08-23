@@ -45,6 +45,11 @@ func TestRun_ValidTriples_SendsExpectedRequest(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/store":
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/n-triples")
+				_, _ = w.Write(stamped)
+				return
+			}
 			method = r.Method
 			ctype = r.Header.Get("Content-Type")
 			query = r.URL.RawQuery

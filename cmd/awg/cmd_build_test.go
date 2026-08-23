@@ -82,6 +82,11 @@ func TestRunBuild_WritesGraphMarkerFileAfterVerifiedLoad(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/store":
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/n-triples")
+				_, _ = w.Write(loaded)
+				return
+			}
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Fatalf("read store body: %v", err)

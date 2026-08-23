@@ -21,6 +21,15 @@ func TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/store":
+			// A real Oxigraph serves the Graph Store Protocol both ways, and
+			// post-load verification reads the dump back to recompute the
+			// artifact digest. A fake that only accepts writes cannot be
+			// content-verified.
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/n-triples")
+				_, _ = w.Write(loaded)
+				return
+			}
 			if r.Method != http.MethodPut {
 				t.Fatalf("method=%s, want PUT", r.Method)
 			}
@@ -110,6 +119,11 @@ func TestRunRebuild_FailsWhenLiveVerificationFails(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/store":
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/n-triples")
+				_, _ = w.Write(other)
+				return
+			}
 			w.WriteHeader(http.StatusNoContent)
 		case "/query":
 			writeVerificationQuery(t, w, other, readQueryBody(t, r))
@@ -144,6 +158,11 @@ func TestRunRebuild_PromotesSeedAndTransactionAfterLiveVerification(t *testing.T
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/store":
+			if r.Method == http.MethodGet {
+				w.Header().Set("Content-Type", "application/n-triples")
+				_, _ = w.Write(loaded)
+				return
+			}
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
 				t.Fatalf("read load body: %v", err)
