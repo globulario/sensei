@@ -25,7 +25,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/globulario/sensei/golang/architecture/prospective"
 	"github.com/globulario/sensei/golang/architecture/prospectivelabel"
 )
 
@@ -280,24 +279,6 @@ func (s *server) handleSweep(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"swept": n, "state": s.stateLocked()})
 }
 
-// labelSet is the frozen answer key. It records how every label came to exist,
-// so a reader can weigh the denominator rather than be told a number.
-type labelSet struct {
-	SchemaVersion              string                      `json:"schema_version"`
-	ProtocolID                 string                      `json:"protocol_id"`
-	SampleManifestDigestSHA256 string                      `json:"sample_manifest_digest_sha256"`
-	BlindCorpusDigestSHA256    string                      `json:"blind_corpus_digest_sha256"`
-	WorldRevision              string                      `json:"world_revision"`
-	Adjudicator                string                      `json:"adjudicator"`
-	SecondAdjudicator          string                      `json:"second_adjudicator,omitempty"`
-	SecondAdjudicatorStatus    string                      `json:"second_adjudicator_status"`
-	FrozenAt                   string                      `json:"frozen_at"`
-	Labels                     []prospectivelabel.Label    `json:"labels"`
-	Coverage                   []prospectivelabel.Coverage `json:"coverage"`
-	Totals                     map[string]int              `json:"totals"`
-	DigestSHA256               string                      `json:"digest_sha256"`
-}
-
 func (s *server) handleExport(w http.ResponseWriter, _ *http.Request) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -306,14 +287,14 @@ func (s *server) handleExport(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	var incomplete []string
-	ls := labelSet{
-		SchemaVersion:              "sensei.prospective_labels.v1",
+	ls := prospectivelabel.LabelSet{
+		SchemaVersion:              prospectivelabel.LabelSetSchemaVersion,
 		ProtocolID:                 s.rs.Manifest.ProtocolID,
 		SampleManifestDigestSHA256: s.rs.Manifest.DigestSHA256,
 		BlindCorpusDigestSHA256:    s.rs.Corpus.DigestSHA256,
 		WorldRevision:              s.rs.Manifest.World.Revision,
 		Adjudicator:                s.session.Adjudicator,
-		SecondAdjudicatorStatus:    "second_adjudicator_unavailable",
+		SecondAdjudicatorStatus:    prospectivelabel.SecondAdjudicatorUnavailable,
 		FrozenAt:                   s.frozenAt,
 		Labels:                     s.session.Labels(),
 		Totals:                     map[string]int{},
@@ -339,12 +320,11 @@ func (s *server) handleExport(w http.ResponseWriter, _ *http.Request) {
 			len(incomplete), strings.Join(incomplete, ", ")))
 		return
 	}
-	digest, err := prospective.DigestOf(ls)
+	ls, err := ls.Seal()
 	if err != nil {
 		httpError(w, err)
 		return
 	}
-	ls.DigestSHA256 = digest
 	body, err := json.MarshalIndent(ls, "", "  ")
 	if err != nil {
 		httpError(w, err)
@@ -354,7 +334,7 @@ func (s *server) handleExport(w http.ResponseWriter, _ *http.Request) {
 		httpError(w, err)
 		return
 	}
-	writeJSON(w, map[string]any{"written": s.outPath, "digest": digest, "totals": ls.Totals})
+	writeJSON(w, map[string]any{"written": s.outPath, "digest": ls.DigestSHA256, "totals": ls.Totals})
 }
 
 func decode(w http.ResponseWriter, r *http.Request, into any) bool {
