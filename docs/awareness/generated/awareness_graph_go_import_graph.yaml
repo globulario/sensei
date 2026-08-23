@@ -479,6 +479,22 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.cmd.prospective_label
+    name: prospective-label
+    kind: service
+    assertion: inferred
+    source_files:
+      - cmd/prospective-label/load.go
+      - cmd/prospective-label/main.go
+      - cmd/prospective-label/ui.go
+    depends_on:
+      - component.golang.architecture.prospective
+      - component.golang.architecture.prospectivelabel
+    uml:
+      kind: Component
+      stereotype: service
+      view: structural
+      confidence: inferred
   - id: component.cmd.proto_scan
     name: proto-scan
     kind: service
@@ -1773,6 +1789,17 @@ components:
       - golang/architecture/prospective/inventory.go
       - golang/architecture/prospective/prospective.go
       - golang/architecture/prospective/sample.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.prospectivelabel
+    name: prospectivelabel
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/prospectivelabel/session.go
     uml:
       kind: Component
       stereotype: module
