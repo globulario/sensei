@@ -1868,3 +1868,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.count_preserving_graph_mutation_is_certified_as_authoritativ
+  - id: golang/architecture/gosemantics/abandon_test.go:TestExtractBoundedOrAbandonAbandonsWhenBothArmsAreReady
+    title: An expired ceiling abandons the load whichever select arm fired
+    protects:
+      failure_modes:
+        - failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
