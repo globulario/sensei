@@ -2314,6 +2314,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestEnrollAgentRefusesArbitraryRoleOrIssuer proves local enrollment cannot\nselect or mint an arbitrary privileged role or ungoverned issuer: a\nnon-governed override is refused and writes no identity (regression #10)."
+  - id: cmd/awg/cmd_epistemic_adopt_test.go:TestAdoptRefusesAnUnobservedBelief
+    file: cmd/awg/cmd_epistemic_adopt_test.go
+    symbol: TestAdoptRefusesAnUnobservedBelief
+    package: main
+    language: go
+    doc: "Adoption before the evidence is promotion on silence."
+  - id: cmd/awg/cmd_epistemic_adopt_test.go:TestAdoptRequiresRemainingUncertainty
+    file: cmd/awg/cmd_epistemic_adopt_test.go
+    symbol: TestAdoptRequiresRemainingUncertainty
+    package: main
+    language: go
+    doc: "An adoption that does not say what is still unknown is how SUPPORTED becomes\nPROVEN later, when nobody remembers which it was."
+  - id: cmd/awg/cmd_epistemic_adopt_test.go:TestSupportedCodeStaysSedimentUntilAdopted
+    file: cmd/awg/cmd_epistemic_adopt_test.go
+    symbol: TestSupportedCodeStaysSedimentUntilAdopted
+    package: main
+    language: go
+    doc: "The rule the whole adoption event exists to enforce, end to end: a SUPPORTED\ndesign whose code canonical architecture already defends stays sediment until\nit is adopted, and adoption is the only thing that clears it."
   - id: cmd/awg/cmd_epistemic_test.go:TestDeclareExposesNoFlagThatCouldAuthorADisposition
     file: cmd/awg/cmd_epistemic_test.go
     symbol: TestDeclareExposesNoFlagThatCouldAuthorADisposition
@@ -11913,6 +11931,62 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionInheritsTheExperimentalScopeItRestsOn
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAdoptionInheritsTheExperimentalScopeItRestsOn
+    package: epistemic
+    language: go
+    doc: "An adoption with no explicit scope inherits the experimental scope of the\nbeliefs it rests on. Otherwise adopting a belief without adopting the code\nthat embodies it would leave that code permanently unadoptable."
+  - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionMustRestOnAHypothesisAboutTheSameDesign
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAdoptionMustRestOnAHypothesisAboutTheSameDesign
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionMustStateWhatIsStillUnknown
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAdoptionMustStateWhatIsStillUnknown
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionRequiresASupportedBelief
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAdoptionRequiresASupportedBelief
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAuthorityDispositionRequiresANamedAuthority
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAuthorityDispositionRequiresANamedAuthority
+    package: epistemic
+    language: go
+    doc: "AUTHORITY is reached by consequence. When it is, the adoption has to name the\nauthority it was made under — though nothing here VERIFIES that a person\nagreed, and the record says so rather than implying proof."
+  - id: golang/architecture/epistemic/adoption_test.go:TestConservationIsAdoptedOnItsConstraints
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestConservationIsAdoptedOnItsConstraints
+    package: epistemic
+    language: go
+    doc: "A CONSERVATION question was settled by established knowledge — no experiment\nwas ever needed. Demanding a SUPPORTED hypothesis would force a fake one, and\nrefusing to adopt it at all would leave its code permanently unadoptable:\nsediment by a different route."
+  - id: golang/architecture/epistemic/adoption_test.go:TestEliminatedAlternativeCannotBeAdopted
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestEliminatedAlternativeCannotBeAdopted
+    package: epistemic
+    language: go
+    doc: "Adopting an alternative established knowledge already eliminated would let an\nexperiment overrule a constraint."
+  - id: golang/architecture/epistemic/adoption_test.go:TestLedgerRoundTripsAdoptions
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestLedgerRoundTripsAdoptions
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestOneQuestionAdoptsOneAlternative
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestOneQuestionAdoptsOneAlternative
+    package: epistemic
+    language: go
+    doc: "Alternatives are competing answers to one question. Adopting two says it was\nnever really a question."
+  - id: golang/architecture/epistemic/adoption_test.go:TestReversibleQuestionNeedsNoSeparateAuthority
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestReversibleQuestionNeedsNoSeparateAuthority
+    package: epistemic
+    language: go
+    doc: "A reversible question does not need one: the agent that ran the experiments\nmay adopt. What matters is not who typed the command but that the record\ncarries what, why, from what evidence, and under what uncertainty."
   - id: golang/architecture/epistemic/epistemic_test.go:TestDesignQuestionCannotExpressTechnicalDifficulty
     file: golang/architecture/epistemic/epistemic_test.go
     symbol: TestDesignQuestionCannotExpressTechnicalDifficulty
@@ -12026,12 +12100,12 @@ test_symbols:
     package: epistemic
     language: go
     doc: "The corpus anchors directories as often as files, so exact matching would be\ndefeated by the ordinary way it is written. Overlap has to work both ways."
-  - id: golang/architecture/epistemic/sediment_test.go:TestSupportedHypothesisIsNotSediment
+  - id: golang/architecture/epistemic/sediment_test.go:TestSupportedIsStillSedimentUntilItIsAdopted
     file: golang/architecture/epistemic/sediment_test.go
-    symbol: TestSupportedHypothesisIsNotSediment
+    symbol: TestSupportedIsStillSedimentUntilItIsAdopted
     package: epistemic
     language: go
-    doc: "Once a belief is settled the question is no longer open, and adoption -- not\nthis check -- is what should follow. Reporting sediment here would be telling\nthe project off for finishing an experiment."
+    doc: "SUPPORTED is not ESTABLISHED, and the check must NOT go quiet in between.\n\nReaching SUPPORTED earns a design the right to be adopted; it does not adopt\nit. An earlier version of this test asserted the opposite and encoded the\nhole: promotion-on-SUPPORTED is exactly the automatic status transition the\nadoption event exists to refuse."
   - id: golang/architecture/evalharness/baseline_test.go:TestArmCoversEveryMutantAndTheControl
     file: golang/architecture/evalharness/baseline_test.go
     symbol: TestArmCoversEveryMutantAndTheControl
