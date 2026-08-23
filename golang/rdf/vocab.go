@@ -47,6 +47,10 @@ const (
 	ClassImplementationPattern = AwNS + "ImplementationPattern"
 	ClassService               = AwNS + "Service"  // service catalogue entry
 	ClassIncident              = AwNS + "Incident" // individual incident record
+	// ClassChange is one landed repository change, identified by repository
+	// plus immutable commit SHA. Minted only when something explicitly
+	// attributes to it; nothing walks history to create these.
+	ClassChange = AwNS + "Change"
 
 	// Architectural-spine classes (Stage A). MetaPrinciple is the existing
 	// meta.* invariants, dual-typed by importInvariants — it keeps its
@@ -277,7 +281,12 @@ const (
 	// incident_pattern→invariant all use it. Type-filter the object class
 	// in SPARQL when a query needs to disambiguate. The v0.0 ontology had
 	// a parallel PropRelatedInvariant predicate; v0.1 eliminates it.
-	PropForbids      = AwNS + "forbids"
+	PropForbids = AwNS + "forbids"
+	// PropIntroducedBy is FailureMode → Change: an explicit attribution the
+	// filer made, never an inference. Its absence is not evidence of
+	// correctness.
+	PropIntroducedBy = AwNS + "introducedBy"
+
 	PropRequiresTest = AwNS + "requiresTest"
 	PropAffects      = AwNS + "affects"
 	PropExemplifies  = AwNS + "exemplifies"
