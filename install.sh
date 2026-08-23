@@ -65,11 +65,21 @@ say "Installing Sensei (${VERSION}, ${PLATFORM})"
 say "  ↓ ${BASE}/${TARBALL}"
 fetch "${BASE}/${TARBALL}" "${TMP}/${TARBALL}" || die "download failed — is ${VERSION} a real release for ${PLATFORM}?"
 
+# Say what was actually compared, never more. "✓ checksum verified" used to
+# print whenever the .sha256 downloaded — including on a system with neither
+# sha256sum nor shasum, where the inner branches both fall through and NOTHING
+# is compared. A message asserting verification that did not happen is worse
+# than no message: it spends the user's trust on an event that never occurred.
 if fetch "${BASE}/${TARBALL}.sha256" "${TMP}/${TARBALL}.sha256" 2>/dev/null; then
   if have sha256sum;  then ( cd "$TMP" && sha256sum -c "${TARBALL}.sha256" >/dev/null ) || die "checksum mismatch"
+    say "  ✓ checksum verified"
   elif have shasum;   then ( cd "$TMP" && shasum -a 256 -c "${TARBALL}.sha256" >/dev/null ) || die "checksum mismatch"
+    say "  ✓ checksum verified"
+  else
+    say "  ! checksum NOT verified — neither sha256sum nor shasum is available"
   fi
-  say "  ✓ checksum verified"
+else
+  say "  ! checksum NOT verified — no .sha256 published for ${TARBALL}"
 fi
 
 tar xzf "${TMP}/${TARBALL}" -C "$TMP"

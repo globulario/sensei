@@ -43,7 +43,11 @@ try {
     $actual   = (Get-FileHash $tgz -Algorithm SHA256).Hash.ToLower()
     if ($expected -ne $actual) { throw "checksum mismatch (expected $expected, got $actual)" }
     Write-Host "  ok  checksum verified"
-  } catch [System.Net.WebException] { <# no checksum published; skip #> }
+  } catch [System.Net.WebException] {
+    # Say what was actually compared, never more: a skipped check is reported,
+    # not passed over in silence.
+    Write-Host "  !   checksum NOT verified - no .sha256 published for $Tarball"
+  }
 
   # bsdtar (native Windows tar) handles .tar.gz and drive-letter paths fine.
   tar -xzf $tgz -C $Tmp

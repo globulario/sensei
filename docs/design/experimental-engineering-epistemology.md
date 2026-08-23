@@ -352,6 +352,104 @@ Probably a coherent work unit — but "coherent" is exactly what H-WU1 tests, an
 until that is measured this remains an observation about a pattern, not a rule
 anything should obey.
 
+## 8b. A second candidate law, not yet adopted
+
+*Recorded 2026-08-23. Two instances, no ontology.*
+
+The same failure has now been found twice in unrelated mechanisms, and both
+times it looked like working verification:
+
+```
+#282  graph says identity X
+      graph contains N triples
+      → "live store matches expected validated graph artifact"
+
+#295  server serves artifact X
+      same server serves the digest of X
+      → "verify the exact GitHub release asset digest"
+```
+
+In both, the thing being checked also supplied the expected answer. What each
+verifier actually established was *"the observation agrees with what its source
+currently says the observation should be"* — which detects corruption in
+transit and nothing else. What each verifier **claimed** was that the artifact
+was the trusted one.
+
+The candidate:
+
+> **A verifier's reference must be independent of the observation it verifies,
+> to the degree the claim requires.**
+
+"To the degree the claim requires" is doing real work and is not hedging. A
+transfer-integrity check may legitimately take its reference from the same
+host; what it may not do is describe itself as artifact identity. The defect in
+both cases was the pair, not either half alone — a weak check is fine, and a
+strong claim is fine, and a weak check wearing a strong claim is the failure.
+
+The repair has the same shape both times. The expected value must exist
+**before and independently of** the observation being checked:
+
+```
+repository decision → expected digest ─┐
+                                       ├→ compare → verified
+downloaded artifact ───────────────────┘
+```
+
+And it is a genuine tradeoff rather than free rigour. #295 bought independent
+artifact identity at the cost of pins that must move with `OXIGRAPH_VERSION`,
+and the correct consequence of forgetting is a loud failure — never querying
+the network for whatever answer makes the build pass, which would turn the
+verification back into theatre by the shortest available route.
+
+**Why this is recorded and not built.** Two instances are a pattern, not a law.
+Sensei has an existing invariant covering the neighbourhood
+(`invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl`,
+whose own description already lists seven occurrences), and building an
+independent-evidence ontology on top of it now would be inventing machinery
+ahead of the evidence — the thing §5 and §9 exist to prevent. Let it recur.
+If a third instance arrives in a mechanism unlike these two, that is when the
+shape is worth naming formally.
+
+*If false:* the two instances share a cause narrower than this sentence — both
+were verification-at-fetch-time in a build path — and generalising from them
+would produce a rule that fires on cases where taking the reference from the
+source is exactly right.
+
+## 8c. An observed prospective-recall specimen
+
+*Recorded 2026-08-23. Not part of #259's frozen sample, and must not become
+part of it.*
+
+`scripts/fetch-oxigraph.sh` already carried the lesson, in its own header:
+
+> "With no explicit version, the script follows GitHub's public 'latest
+> release' redirect. It deliberately avoids the rate-limited Releases JSON API."
+
+`deploy/Dockerfile` then implemented the same responsibility — fetch the
+Oxigraph release asset — and used the rate-limited API, which failed a CI run
+on a shared runner months later.
+
+```
+knowledge exists in the repository
+        ↓
+new implementation touches the same concern
+        ↓
+knowledge is not surfaced at authoring time
+        ↓
+the old failure reappears
+```
+
+That is precisely the faculty #259 was written to measure, occurring in
+ordinary development rather than in an experiment. It is recorded here as an
+anecdote with a date, and deliberately **not** added to #259's inventory: that
+sample is frozen, its selection was deterministic from a frozen manifest, and
+appending a case discovered *because it failed* would bias the denominator with
+the very outcome being measured. A specimen chosen after seeing the result is
+not a sample.
+
+Its value is as a reminder that the frontier does not need invented test cases.
+Real development keeps producing the shapes.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:
