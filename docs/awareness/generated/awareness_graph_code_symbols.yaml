@@ -16291,13 +16291,19 @@ test_symbols:
     symbol: TestTheAdjudicationPackageLeaksNothingSenseiKnows
     package: prospective
     language: go
-    doc: "The package a human adjudicates must carry no Sensei retrieval output and no\nstatement about what Sensei knows. Asserted against the serialized bytes,\nbecause a type can grow a field faster than a reviewer can notice one."
+    doc: "The package a human adjudicates must carry no Sensei retrieval output and no\nstatement about what Sensei knows. Asserted against the serialized bytes,\nbecause a type can grow a field faster than a reviewer can notice one.\n\nBoth artifacts are checked. The corpus now lives in a shared file, so a leak\nthat used to be visible inside every package would now sit in one place that\na package-only assertion would never open."
   - id: golang/architecture/prospective/prospective_test.go:TestTheManifestBindsEveryIdentityItDependsOn
     file: golang/architecture/prospective/prospective_test.go
     symbol: TestTheManifestBindsEveryIdentityItDependsOn
     package: prospective
     language: go
     doc: "The manifest is the artifact a later reader defends the score with. Every\nidentity it depends on has to be in it."
+  - id: golang/architecture/prospective/prospective_test.go:TestThePackageReferencesTheSharedBlindCorpus
+    file: golang/architecture/prospective/prospective_test.go
+    symbol: TestThePackageReferencesTheSharedBlindCorpus
+    package: prospective
+    language: go
+    doc: "The package references the shared blind corpus and does not embed it. It also\nmust not point at the full corpus file, which holds anchors, materialization\nprovenance and accounting that are withheld from the adjudicator."
   - id: golang/architecture/protection/derive_test.go:TestClassifyFile_EscapingPathFailsTyped
     file: golang/architecture/protection/derive_test.go
     symbol: TestClassifyFile_EscapingPathFailsTyped
