@@ -213,17 +213,69 @@ type BlindChange struct {
 	ContentDigestSHA256  string       `json:"content_digest_sha256"`
 }
 
-// BlindPackage is one adjudication unit: one change, its world binding, and
-// the eligible corpus. It carries no Sensei retrieval output of any kind, and
-// there is no field in this type for one — a package that could hold a
-// surfaced set is a package that will eventually be emitted holding one.
+// BlindCorpusSchemaVersion identifies the shared blind corpus shape.
+const BlindCorpusSchemaVersion = "sensei.prospective_blind_corpus.v1"
+
+// BlindCorpus is the eligible corpus as every adjudicator sees it, stored once
+// and content-addressed on its own.
+//
+// It is a separate artifact from the frozen Corpus, not a view of it, and the
+// separation is the point rather than a saving. Corpus carries anchors,
+// materialization provenance and per-class accounting — all of which are
+// Sensei's own account of what it knows and where it applies, and all of which
+// are withheld from an adjudicator. A package that referenced the full corpus
+// file would hand that over by reference instead of by value, which is the
+// same disclosure with an extra step.
+//
+// Storing it once also removes a real hazard: with the corpus embedded per
+// package, 48 copies could drift apart under a partial regeneration, and
+// nothing in the artifact would show which copy an adjudicator actually read.
+type BlindCorpus struct {
+	SchemaVersion string            `json:"schema_version"`
+	Items         []BlindCorpusItem `json:"items"`
+	DigestSHA256  string            `json:"digest_sha256"`
+}
+
+// NewBlindCorpus derives the shared blind corpus and content-addresses it.
+func NewBlindCorpus(c Corpus) (BlindCorpus, error) {
+	bc := BlindCorpus{SchemaVersion: BlindCorpusSchemaVersion, Items: blindCorpus(c)}
+	d, err := DigestOf(bc)
+	if err != nil {
+		return BlindCorpus{}, err
+	}
+	bc.DigestSHA256 = d
+	return bc, nil
+}
+
+// BlindCorpusRef is the file an adjudication package points at. It is a
+// relative name so a reference set can be moved or published without
+// rewriting every package.
+const BlindCorpusRef = "blind-corpus.json"
+
+// BlindPackage is one adjudication unit: one change, its world binding, and a
+// reference to the shared blind corpus.
+//
+// It carries no Sensei retrieval output of any kind, and there is no field in
+// this type for one — a package that could hold a surfaced set is a package
+// that will eventually be emitted holding one.
 type BlindPackage struct {
-	ItemKey            string            `json:"item_key"`
-	World              WorldBinding      `json:"world"`
-	Change             BlindChange       `json:"change"`
-	CorpusDigestSHA256 string            `json:"corpus_digest_sha256"`
-	EligibleCorpus     []BlindCorpusItem `json:"eligible_corpus"`
-	DigestSHA256       string            `json:"digest_sha256,omitempty"`
+	ItemKey string       `json:"item_key"`
+	World   WorldBinding `json:"world"`
+	Change  BlindChange  `json:"change"`
+
+	// CorpusDigestSHA256 binds the frozen Corpus this blind corpus was derived
+	// from. It is a provenance binding, not somewhere to read from: the full
+	// corpus holds material withheld from the adjudicator, and the package
+	// names its digest only so a later reader can prove which corpus the blind
+	// view came from.
+	CorpusDigestSHA256 string `json:"corpus_digest_sha256"`
+
+	// BlindCorpusDigestSHA256 and BlindCorpusRef are what an adjudicator
+	// actually opens.
+	BlindCorpusDigestSHA256 string `json:"blind_corpus_digest_sha256"`
+	BlindCorpusRef          string `json:"blind_corpus_ref"`
+
+	DigestSHA256 string `json:"digest_sha256,omitempty"`
 }
 
 // ContentLookup returns the exact diff or new-file contents of a change.
@@ -233,7 +285,7 @@ type BlindPackage struct {
 // repository.
 type ContentLookup func(changeID string) (string, error)
 
-func buildBlindPackage(wb WorldBinding, corpus Corpus, cl Classification) BlindPackage {
+func buildBlindPackage(wb WorldBinding, corpus Corpus, blind BlindCorpus, cl Classification) BlindPackage {
 	return BlindPackage{
 		ItemKey: itemKey(wb, cl.Stratum, cl.ChangeID),
 		World:   wb,
@@ -244,8 +296,9 @@ func buildBlindPackage(wb WorldBinding, corpus Corpus, cl Classification) BlindP
 			Paths:                cl.Change.Paths,
 			ContentDigestSHA256:  cl.Change.ContentDigestSHA256,
 		},
-		CorpusDigestSHA256: corpus.DigestSHA256,
-		EligibleCorpus:     blindCorpus(corpus),
+		CorpusDigestSHA256:      corpus.DigestSHA256,
+		BlindCorpusDigestSHA256: blind.DigestSHA256,
+		BlindCorpusRef:          BlindCorpusRef,
 	}
 }
 

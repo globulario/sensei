@@ -1,0 +1,33 @@
+{
+  "item_key": "pr1:92f24c391590be970ca01f1115bb5277",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:9094e5aaee2ed15b39a1ed4b901cfb94e6ea9976",
+    "base_revision": "8504f93cdffd5a09145e30c968b8f210d5600d7d",
+    "base_tree_digest_sha256": "c89318d8b9f02d7051f6fc94bdd07fe969bbe28a",
+    "paths": [
+      {
+        "path": "cmd/awg/cmd_advance_task.go",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "cmd/awg/cmd_advance_task_test.go",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/cmd/awg/cmd_advance_task.go b/cmd/awg/cmd_advance_task.go\nindex 6c4fa798..b8789704 100644\n--- a/cmd/awg/cmd_advance_task.go\n+++ b/cmd/awg/cmd_advance_task.go\n@@ -73,7 +73,21 @@ func runAdvanceResult(args []string) int {\n \t\treturn 2\n \t}\n \n-\tout := advanceResultOutput{\n+\tout := toAdvanceOutput(res)\n+\n+\tif strings.TrimSpace(format) == \"\" || format == \"text\" {\n+\t\trenderAdvanceHuman(out)\n+\t} else if err := printValue(out, format); err != nil {\n+\t\tfmt.Fprintln(os.Stderr, \"advance-result:\", err)\n+\t\treturn 1\n+\t}\n+\treturn advanceExitCode(res.Outcome)\n+}\n+\n+// toAdvanceOutput maps the owner's typed result to the stable machine render,\n+// verbatim (correctness_certified is always false). It computes nothing itself.\n+func toAdvanceOutput(res tasksession.AdvanceResult) advanceResultOutput {\n+\treturn advanceResultOutput{\n \t\tOutcome:                       string(res.Outcome),\n \t\tTransitionRecorded:            res.TransitionRecorded,\n \t\tTransitionDisposition:         string(res.TransitionDisposition),\n@@ -94,14 +108,6 @@ func runAdvanceResult(args []string) int {\n \t\tPostCommitRecoveryAction:      res.PostCommitRecoveryAction,\n \t\tCorrectnessCertified:          false,\n \t}\n-\n-\tif strings.TrimSpace(format) == \"\" || format == \"text\" {\n-\t\trenderAdvanceHuman(out)\n-\t} else if err := printValue(out, format); err != nil {\n-\t\tfmt.Fprintln(os.Stderr, \"advance-result:\", err)\n-\t\treturn 1\n-\t}\n-\treturn advanceExitCode(res.Outcome)\n }\n \n // renderAdvanceHuman prints a concise human summary leading with the load-bearing\ndiff --git a/cmd/awg/cmd_advance_task_test.go b/cmd/awg/cmd_advance_task_test.go\nindex b386887a..dc818b13 100644\n--- a/cmd/awg/cmd_advance_task_test.go\n+++ b/cmd/awg/cmd_advance_task_test.go\n@@ -8,6 +8,8 @@ import (\n \t\"os\"\n \t\"testing\"\n \n+\t\"github.com/globulario/sensei/golang/architecture/closureprotocol\"\n+\t\"github.com/globulario/sensei/golang/architecture/tasksession\"\n \t\"github.com/globulario/sensei/internal/resulttestkit\"\n )\n \n@@ -149,6 +151,48 @@ func TestCLIAdvanceResultReplayAcrossInvocations(t *testing.T) {\n \t}\n }\n \n+// TestCLIAdvanceStaleRendersAdvancedNotPreAttemptState: the renderer maps a stale\n+// outcome verbatim from the owner's result, so machine and human output present the\n+// genuinely current (advanced) phase/status and never pair current_state_available:\n+// true with the pre-attempt scope_verified phase. Exit code is 3.\n+func TestCLIAdvanceStaleRendersAdvancedNotPreAttemptState(t *testing.T) {\n+\t// The owner's stale result after a competing writer advanced the head to proving.\n+\tres := tasksession.AdvanceResult{\n+\t\tOutcome:                 tasksession.OutcomeStale,\n+\t\tCurrentStateAvailable:   true,\n+\t\tCurrentLedgerHeadSHA256: \"7c513be718f37b0e2e2d749128fe0158e07fc79c5c625e86591d240d47af59fb\",\n+\t\tTaskPhase:               closureprotocol.PhaseProving,\n+\t\tOperationalStatus:       \"ready_for_proving\",\n+\t\tRefusalCode:             \"resultrecording.stale_expected_head\",\n+\t}\n+\tout := toAdvanceOutput(res)\n+\n+\tif out.CurrentStateAvailable \u0026\u0026 (out.TaskPhase == \"scope_verified\" || out.OperationalStatus == \"scope_verified\") {\n+\t\tt.Fatal(\"stale output must never pair current_state_available:true with the pre-attempt scope_verified state\")\n+\t}\n+\tif out.TaskPhase != \"proving\" {\n+\t\tt.Fatalf(\"stale output phase = %q, want the advanced current phase proving\", out.TaskPhase)\n+\t}\n+\tif out.CorrectnessCertified {\n+\t\tt.Fatal(\"correctness_certified must be false\")\n+\t}\n+\t// machine output round-trips with the advanced current state.\n+\tb, err := json.Marshal(out)\n+\tif err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tvar round advanceResultOutput\n+\tif err := json.Unmarshal(b, \u0026round); err != nil {\n+\t\tt.Fatal(err)\n+\t}\n+\tif round.TaskPhase != \"proving\" || !round.CurrentStateAvailable {\n+\t\tt.Fatalf(\"machine output lost the current state: %+v\", round)\n+\t}\n+\tif advanceExitCode(res.Outcome) != 3 {\n+\t\tt.Fatalf(\"stale exit code = %d, want 3\", advanceExitCode(res.Outcome))\n+\t}\n+}\n+\n // TestCLIAdvanceResultMalformed: an unresolvable task directory is a usage error\n // (exit 2), never a silent success.\n func TestCLIAdvanceResultMalformed(t *testing.T) {\n",
+    "content_digest_sha256": "0541c40d4e87bb56b9a9ded4dfa7e62bef5c6fd9ad46a1997b40dd485f2346d3"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "45d146e4177a1bb64e2dc31d21866e1b65de68d12bc7ebfef64c7f418b04caa2"
+}

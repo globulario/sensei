@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:20bb2437c6ec7648aed9fbec83e026b2",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:bcc61fcc60c4b95ff9ab5146e70b87119d58c4be",
+    "base_revision": "87f23459f7e5b09f4161e65ed2523bec03e0cbbe",
+    "base_tree_digest_sha256": "eaf67087e3c71fa2050b42c510d98e96b612f3e3",
+    "paths": [
+      {
+        "path": "docs/awareness/generated/awareness_graph_go_import_graph.yaml",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness/generated/awareness_graph_go_import_graph.yaml b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\nindex fe18ba03..9dc5f64a 100644\n--- a/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n+++ b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n@@ -74,6 +74,7 @@ components:\n       - cmd/awg/cmd_contract_assess.go\n       - cmd/awg/cmd_contract_bootstrap.go\n       - cmd/awg/cmd_corpus.go\n+      - cmd/awg/cmd_dashboard_projection.go\n       - cmd/awg/cmd_demo.go\n       - cmd/awg/cmd_disposition_question.go\n       - cmd/awg/cmd_draft_candidate.go\n@@ -456,6 +457,10 @@ components:\n       - golang/architecture/controlstate/types_closure.go\n       - golang/architecture/controlstate/util.go\n       - golang/architecture/convergence/convergence.go\n+      - golang/architecture/dashboardprojection/digest.go\n+      - golang/architecture/dashboardprojection/schemavalidate.go\n+      - golang/architecture/dashboardprojection/types.go\n+      - golang/architecture/dashboardprojection/validate.go\n       - golang/architecture/dialogue.go\n       - golang/architecture/dialogue_document.go\n       - golang/architecture/diffaudit/evaluator.go\n@@ -649,6 +654,7 @@ components:\n       - component.golang.seedmeta\n       - component.golang.store\n     external_imports:\n+      - github.com/santhosh-tekuri/jsonschema/v5\n       - golang.org/x/tools/go/packages\n       - golang.org/x/tools/go/ssa\n       - golang.org/x/tools/go/ssa/ssautil\n",
+    "content_digest_sha256": "97a071e5c359fa6ac5eb2ac921c0d01b76c4d6b278738b62f90b90d3058c1dfd"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "48d98be450bc064417c7959bdb01f0d29ecf7f09c154d6f57e647aa48d2f59c5"
+}

@@ -1,0 +1,469 @@
+{
+  "schema_version": "sensei.prospective_sample_manifest.v1",
+  "protocol_id": "prospective-recall-protocol-v1",
+  "protocol_digest_sha256": "ade91a42c8c0c421d0e6ba84ce2a547712c248b7cfef491ecc6ff8b12ff90d8d",
+  "selection_seed": "259-v1",
+  "generated_at": "2026-08-23T00:15:00Z",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "classification_rule_id": "sensei.prospective.stratum_rule.v1",
+  "classification_rule_description": "Applied to the change's pre-authoring state. Each touched path is one of: new (did not exist at the base revision), anchored (existed and the frozen anchor index resolves usable graph facts), or unanchored (existed and it does not). A change with at least one anchored path AND at least one new-or-unanchored path is D. Otherwise: all paths new is A; no anchored and at least one unanchored is B; all paths anchored is C.",
+  "anchor_index_digest_sha256": "709f5fb4733bb8acc980544d5d523077769c50f3331e8050fea11392417dce08",
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "retrieval_surface": {
+    "id": "sensei.preflight.file_and_task.v1",
+    "invocation": "sensei preflight --file \u003cchanged path\u003e --task \u003cchange description\u003e --domain \u003cdomain\u003e --json  (secondary: sensei briefing --task \u003cchange description\u003e --json)",
+    "rationale": "The protocol's question is not BY_FILE: it asks what could govern a file being created here, with these imports, in this package. preflight accepts the proposed change's path and task text and answers without requiring the path to be anchored, so it can answer for a file that does not yet exist. Where production returns no prospective result for such a path, Slice 2 records no_prospective_channel rather than falling back to BY_FILE.",
+    "no_channel_status": "no_prospective_channel"
+  },
+  "target_per_stratum": 12,
+  "strata": [
+    {
+      "stratum": "A_new_seam",
+      "inventory_digest_sha256": "80af43f14c0cdfa051bffc957eb8a45f50ebbe88e8f842172c300f26f5f3a9ac",
+      "population": 209,
+      "target": 12,
+      "selected": 12,
+      "status": "sampled"
+    },
+    {
+      "stratum": "B_unanchored_existing",
+      "inventory_digest_sha256": "9440adbfb976b17bbeeec28ae47e6afdace9d6dfd2e498889d076aef6d955005",
+      "population": 361,
+      "target": 12,
+      "selected": 12,
+      "status": "sampled"
+    },
+    {
+      "stratum": "C_anchored",
+      "inventory_digest_sha256": "f1bb58f7d90b20382b2f231a935823790caf052af36cf477db2aba8bb34675f0",
+      "population": 38,
+      "target": 12,
+      "selected": 12,
+      "status": "sampled"
+    },
+    {
+      "stratum": "D_mixed",
+      "inventory_digest_sha256": "668add2b276478276de6a6dae9aa28ac6ba57dea30d7c39d5500fc760704e19c",
+      "population": 375,
+      "target": 12,
+      "selected": 12,
+      "status": "sampled"
+    }
+  ],
+  "exclusions": [
+    {
+      "reason": "no_paths_touched",
+      "count": 1
+    },
+    {
+      "reason": "no_single_base_revision",
+      "count": 150
+    }
+  ],
+  "items": [
+    {
+      "item_key": "pr1:5bfc2462a74a582770319404a1548239",
+      "change_id": "change:81e4656730e3b231d21839912d00a9ad01c3b4fa",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "00844f668b98bac05d03e74c93a65a1225914fd04a505d9744598eeb8c835106",
+      "blind_payload_digest_sha256": "2acf05e8c8cc943b1d049017481010c39a2c3aecc529fc596b6b61fa2a33333a"
+    },
+    {
+      "item_key": "pr1:cb5ac2a5ebbb89b8763bbc86e4c92711",
+      "change_id": "change:a10fc7569ecabc116d256f5033fa8aa33dc02e23",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "034ff2785a2e69247a6c659502f8aaefaa21d007c90b240949cea7a018e9dd51",
+      "blind_payload_digest_sha256": "4454e272f37017a07ab5b7271d11304896aa90bc14b632ecbe28d31838e1bc38"
+    },
+    {
+      "item_key": "pr1:aaa415d7c1e915daa7f7c5e7f7c65e47",
+      "change_id": "change:f0e62df1384bbbe86980fc08e5ee4af83c11d54f",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "040567f79913d90866c5d1eef72623a67bd64ec65c586acbb4395073000bf176",
+      "blind_payload_digest_sha256": "dab31bdc586c4adbe11e09cb9ff893fc4674b3d4e79ffbb75f06147bee41697f"
+    },
+    {
+      "item_key": "pr1:8104cafb15dcc6fafc52e3dc6c896c10",
+      "change_id": "change:6d3ed4c6af6002e1c2af9d33300e21564926ebd3",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "08c11c4e28e1753ef7c400342aff9b5a8863d8aa2e50356c67bba327df8eb468",
+      "blind_payload_digest_sha256": "66773a1f84193e1cd64024dc118e75f8be6ee4c8f884225531a0b61dbdb24ce8"
+    },
+    {
+      "item_key": "pr1:4f4c02037701c088be5eaab98fbf3d7b",
+      "change_id": "change:dcb78e37adfd1a76c2a956320351f87b10b33fa0",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "08fe17cc781ff5460c5710bab6ffc8c5f6e4f23aa7cef9283f78a798d1dd567d",
+      "blind_payload_digest_sha256": "ddf3120fa4a20bb50d221f6e928cc193d9ddb38bda7a544af76b2155e1e3fb2c"
+    },
+    {
+      "item_key": "pr1:a005091a6563291d1009620d2c65aed6",
+      "change_id": "change:a1842b48f5a32c7e88ce2a75ff2ffa6a5cdd0e5a",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0b7155cdd4b378b41b62148d35ea1e217181c3c08f85de182fa95fe8f6bd438e",
+      "blind_payload_digest_sha256": "0c70826f1d3b5afc44f69c4e1e027afe44f5c09db3c00d396fda1b438e7c96ed"
+    },
+    {
+      "item_key": "pr1:f17e801c948a7d056fe9d2956edaac9a",
+      "change_id": "change:1240e485c61453393badeb0bf03b2e60f505d7b3",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0c1c8d80050e38f84d93fda709d241bd8607a0649b533438f8662f487c8b1553",
+      "blind_payload_digest_sha256": "093042b34d83fc231f9be01fd9cd64d3b7a965251b13c4ffd8d07227e48190e8"
+    },
+    {
+      "item_key": "pr1:c9be82144a6670f9287f85c17bc184c3",
+      "change_id": "change:66fc71b44d46de0a5ecc73d6f32118c6c3497ee2",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0cc6a4ffe3662771474f32f8f83e97f2df085c6ac389eec4f52fb120e7bff112",
+      "blind_payload_digest_sha256": "90ea9f1c73fd2908681e1e930d684637a46f0a232ef3b36eabbcbf02fcc9579e"
+    },
+    {
+      "item_key": "pr1:511ee7a39dac5d5332fd1b6add8d5975",
+      "change_id": "change:1934109233c01e5df65ea14a0d54d1593fa1d2ce",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0f3e6c28c90317bd4ed04119090d7a8ce95d7336771ebbe017d40a88240b3a74",
+      "blind_payload_digest_sha256": "893fe759942ce96a6843ecd38ec8fdfaac4e1c08fca702e25d0b54a0686d82be"
+    },
+    {
+      "item_key": "pr1:786848bd1f0efe64043155905391fe4a",
+      "change_id": "change:b64f284d94ea771c91313f9b74b9b8fc9847a3fd",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0f6b1d687a7158faf39e03b21ee5a3b04b23a7c6047fd4f74e6ffb31a3ade3e5",
+      "blind_payload_digest_sha256": "9ae40baf9ae18a6ac49b939eea26574560139f36c64d375c5a6a9ad5b390c25b"
+    },
+    {
+      "item_key": "pr1:4242c7fa63d1152da419844ec280052d",
+      "change_id": "change:64756f3cf8441db89dd3d13a8f8668d72b9684cc",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "10c738a1b2d4c1785d21ec681adbdecac4f23d402da519b3b80da9803c5167da",
+      "blind_payload_digest_sha256": "13540bd61c930153364eb34764e6a84180b1b33f8652c81b71b2d3363235797c"
+    },
+    {
+      "item_key": "pr1:3ec45b86a9d79412d8a58b8c51498bd0",
+      "change_id": "change:f0a540ce5e5794b01faed3a0444ca32dea162aa5",
+      "stratum": "A_new_seam",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "10f482734ec97b4b3f7bcb5ba41944c9dc02e133b51e09e6e0628ae43df4a5e7",
+      "blind_payload_digest_sha256": "99fd3e50ca19065e5fc27434d4a2428bf338e01869fe981ecad47b461603ec70"
+    },
+    {
+      "item_key": "pr1:08e814b5fa5d16bad09851aa80ea999d",
+      "change_id": "change:b835e7596a2283c5626d189860e9fee4c910ef3f",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "001ca148743fab39330d7e3dba70b431545623b8484d59f470182e3f871d7d5b",
+      "blind_payload_digest_sha256": "f6a44d1b7fc839b73bd9e6515ab95fba290909708d064e02c6b357261acb417a"
+    },
+    {
+      "item_key": "pr1:92f24c391590be970ca01f1115bb5277",
+      "change_id": "change:9094e5aaee2ed15b39a1ed4b901cfb94e6ea9976",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0052e113b54ca9dacf7cb1c095fbf7b6c01953c35791e7200ef70283dec4192a",
+      "blind_payload_digest_sha256": "45d146e4177a1bb64e2dc31d21866e1b65de68d12bc7ebfef64c7f418b04caa2"
+    },
+    {
+      "item_key": "pr1:82ad4621f0bfb8345fd13a62e191d8df",
+      "change_id": "change:0c517984754112dee1ec374aca67fbbffd206be6",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "01b1c424ac6824f01c7aad2b375685ea6c4bc1919cc08606a8cb0aadc8123c9b",
+      "blind_payload_digest_sha256": "a66044bfde8f3b1973a3998e1eddb362a2b237ec6e63cd3a471f60df45d6c9ec"
+    },
+    {
+      "item_key": "pr1:638eb8019c81fafe4e3fd27dd18118b0",
+      "change_id": "change:54011515fa6a1c7926f31b473974e9fd94ace189",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "02fe1830b1e446b386a003588265dc0a06243e846414a51ebeb4c8b364e2f71f",
+      "blind_payload_digest_sha256": "bc43c33548665f62694ce9cabfd88a29831045b8ed41d9c918aeda2d5d336241"
+    },
+    {
+      "item_key": "pr1:0b816f8474b493bd5516ff6eb8e186d5",
+      "change_id": "change:3f33afdb5528da98f63990723c037a6c83338d92",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0302a07cb1db803edd89d8b27414d71a21c2ae10b0011460a2adde1e7ebc4f00",
+      "blind_payload_digest_sha256": "835054613797483b1cd3996f88976508099d6e9fef2c98498a78b639f71f70c0"
+    },
+    {
+      "item_key": "pr1:c903750225e7898b3fafada839c38121",
+      "change_id": "change:a51be293a75156088e046f4c6849c7bb1572a00d",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0316defe2144ed84feae22d48686e297825ba0f47e66af0fd94367c37835b69a",
+      "blind_payload_digest_sha256": "4cbe9d2801ab9fdcc6b4eb7d13b5f338d98010c1befe6091881cbe5b730e96b4"
+    },
+    {
+      "item_key": "pr1:7b06a3ca309fc9d4a0c4d42abb290749",
+      "change_id": "change:ee16976c0ba41a5f57c7369ffe604dc99a826f9c",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "035722a61628adf49d2442e66c36b34166f70162b1e442b261241db72b497f4a",
+      "blind_payload_digest_sha256": "5983d945e5bf98f446a25df82687300c4a287b187a199b3c8b2f4ff983e04d26"
+    },
+    {
+      "item_key": "pr1:bd0464ff35d3dc2a3b851c3637d4516a",
+      "change_id": "change:ee3fda0a9dd853337b4edd987c7a9346b31ca3d7",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "03a4b0d849c05428f5fa666159d39fae0033b9443f7ddfe8b238dd227b2eb332",
+      "blind_payload_digest_sha256": "ae012a1a38868b95615508f1785a33d2b533ab30ba2a59e9834cc68e70c4e388"
+    },
+    {
+      "item_key": "pr1:47a39c823b2f72be6d781ac96420fab2",
+      "change_id": "change:8e75ea40aee8a904d9957707fbf3cd3d214af94a",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "04287046a9c8eb6cb3da2ba614896e90e08bee829a12953a64271271e2113b89",
+      "blind_payload_digest_sha256": "ab1894c665b0895a048173ef42e96191ff74f2d1110431242f50dc7177a3a6b4"
+    },
+    {
+      "item_key": "pr1:ef8e8bfb2eb361768794b14d41f13502",
+      "change_id": "change:726421548b36521e42c121461bae40b81ecfdd51",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "04a461337daf57596c0c5e373db5e727dba63de17702229d32999c3eb5c1de18",
+      "blind_payload_digest_sha256": "3da0c7fa50ca5f9750f0bacf69ca717f2415f19af8fe18e7cba3a7861ddd4038"
+    },
+    {
+      "item_key": "pr1:1715c721eab3f4ea28c909fb7deaee2b",
+      "change_id": "change:e7800b7288006a2fc4a5988e6e3309ff1136c362",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "04fbe8bbf24aacd8b94ef55e54eb15c6efe0df89b89b5fc8165d9201a68c8e46",
+      "blind_payload_digest_sha256": "483228fb5b28311ca6f4a215527197773f825f9041b42c3e947dfb5aa6d9ec86"
+    },
+    {
+      "item_key": "pr1:ba574c8b79ed4fe5023966a613b44d80",
+      "change_id": "change:55b7e004f8a389b395ec33303badccddbf117543",
+      "stratum": "B_unanchored_existing",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "061b13c44fc80c207520764e9bdeee4c07f19663bb6403083acb7a5903f163be",
+      "blind_payload_digest_sha256": "556857bfb08596990d6bf6e67d932fee5fd72c1812c1790525f88f5de384e172"
+    },
+    {
+      "item_key": "pr1:99d7d28a506257e82bb7b59595de90fd",
+      "change_id": "change:450e01f56c3963e52b8c2da8768ad2e9c7e1d9d4",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "036bda9194f0d136b8fd13e2762972a3539c4b9d2a4a82218bddebca1a63832c",
+      "blind_payload_digest_sha256": "7610c5f9843e27ec45f8a81cd0a7aff6558637ebd0b7abaccdca07e26c838c52"
+    },
+    {
+      "item_key": "pr1:20bb2437c6ec7648aed9fbec83e026b2",
+      "change_id": "change:bcc61fcc60c4b95ff9ab5146e70b87119d58c4be",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "05faa2abad8a84f0410ea245e1dbf4085f56bb736b097b3199e17a3a1e7f0a0e",
+      "blind_payload_digest_sha256": "48d98be450bc064417c7959bdb01f0d29ecf7f09c154d6f57e647aa48d2f59c5"
+    },
+    {
+      "item_key": "pr1:ae9338235dc7827c3706cee6f9c73c21",
+      "change_id": "change:4b92b140dd05f1c331a233e016fab7467a98ea7d",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0682f5f2bb6d093b50719f497f1a5b437c2f5f8344c742b4e1766f8951bb2828",
+      "blind_payload_digest_sha256": "33b5db2e9a4f3f94b900183ca05051fd4db9fb359735ed78aec352c9a7235b90"
+    },
+    {
+      "item_key": "pr1:d85f1097bd5f15aec9626919d1ec25a0",
+      "change_id": "change:e566f392428dbd11ccce0a576db9cf5559ea4d46",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0859e94b25cddd80c6bc6f2ee41482ea07c19d503db14a7df55e0fb3133cfd2c",
+      "blind_payload_digest_sha256": "7ccba7ec2b7e97b074c45ba144695c396f3e14ace9daf19d14063450fb2b61a9"
+    },
+    {
+      "item_key": "pr1:5d8f8e64362efb18ae934081eac35c23",
+      "change_id": "change:4b914412f52bd08a58c6b62da334eca0c57c6697",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0a608065c5a240f645994b59efdce6a11ef8829815242d43cd1f27e601f48f2d",
+      "blind_payload_digest_sha256": "b9599592b362f984e3ee5a5fcdd17c5f2474a06361674e0fdbaa6c97f6ad5784"
+    },
+    {
+      "item_key": "pr1:8828fe721e0ee04e51e132046851fb71",
+      "change_id": "change:c0c92392d93468522318ffdb6969e555beba7bc1",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "16341770c41f579b2aa90283053254e2afe9d18d16b830ebe9327e1430f6493d",
+      "blind_payload_digest_sha256": "165532727a231e3d481a16918f4fb4efb282f38532ecc76f6ae31ce08af42e22"
+    },
+    {
+      "item_key": "pr1:311fc16adc85ada6f3f20b05069dbc2a",
+      "change_id": "change:b4089900d65df8010205e0b1574d987322d2b225",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "1c0fe806db551f234b89c011a4c59b9e40279ece7e06ab10efa080f4b53265c6",
+      "blind_payload_digest_sha256": "cb74ea6db425ebd597dd27bb725b6791586262c92f160aef7f4a640418f4c502"
+    },
+    {
+      "item_key": "pr1:77dee39949001962cf5f02929705d376",
+      "change_id": "change:ac3dfa7d27b8b52ad4cd70d014314cd94f7209c7",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "1dd3d6dd528d7325b731b1018a9e8b7831d835cfb29c0a38eb88bc6e43c23354",
+      "blind_payload_digest_sha256": "c99ff0cb53dab314902e2dcfa0a0f1226d0c67354b9faf6ee780d7f6dca05a7f"
+    },
+    {
+      "item_key": "pr1:07bce4fa0e2c31aae77ea9920e699e35",
+      "change_id": "change:84defbcd0c7e8dfab10f61f6879aa3b96b3a6630",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "1e4cba392178d13af37c8da0c8a45cb108528686f7d843d92a816d9bb0cf7087",
+      "blind_payload_digest_sha256": "eefa8e257bc07cc5e197f8c6d49ed5b332ef7e1d4e5390e663c24e5d13a87547"
+    },
+    {
+      "item_key": "pr1:f5232357a6aef95e5534dbd7d4e9b01c",
+      "change_id": "change:966af8823f62f65328d14eda0eb99a484b6bc1a5",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "1fb5ceaac4b7c022b2357efa073382e75d26a14718ae65159c495f25499a46c9",
+      "blind_payload_digest_sha256": "fb2eeff3eaa8d5622f55c57e9c59dd8060d3637262b998533128958df4f233c1"
+    },
+    {
+      "item_key": "pr1:61776a08e7619e322a056b3460bd2c25",
+      "change_id": "change:5eff20d734189998031488b14f874bbbc472e5cf",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "225f1f919311dcd78371ffadbc781fc2804276d60484c73b35f3ef94957f7eeb",
+      "blind_payload_digest_sha256": "b74ceb7f2f4750fd9080d474bfbfabbdda1fe56af70f533f0794e09c2e54351c"
+    },
+    {
+      "item_key": "pr1:187bd4484f85fe3aca4687a0452ac61c",
+      "change_id": "change:5f96a8afc6c4cf749759a943c28a5b426046b739",
+      "stratum": "C_anchored",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "263644e666b888280cd8079500be0322b8aa11e408fdfe8b1a76b14ff8c7a47a",
+      "blind_payload_digest_sha256": "1e5c35bd8bd067f6f17a18c3798a8b8a649721342830610efd99418756116bc7"
+    },
+    {
+      "item_key": "pr1:6f21e09c69585de35a2751eafa3acd61",
+      "change_id": "change:76e497891e6384a0e028c2a6faffa9d57a6215e4",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "01be0280d4816bcb028d12106ff851d1fcd58e196d16829b656dc2c31dd26846",
+      "blind_payload_digest_sha256": "0d8372e35cb27260fe05082651e214ddfc38ee9cf328eb7f870aab6240b68dc4"
+    },
+    {
+      "item_key": "pr1:4daa38fb9202fe9482dc810f83ea6a0f",
+      "change_id": "change:22ec96471ebf5d953ca4a09a2efec93478aae4fa",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "02292777adc70ccebb57bbc89857da647f9dcf694ebd3b52b3cdacaeff884404",
+      "blind_payload_digest_sha256": "e532553cc111dc620229d1b303b569745fd898142a10f471278fe3a423ee8c66"
+    },
+    {
+      "item_key": "pr1:88db23c2328f2c66557cf61668b8c07b",
+      "change_id": "change:ebd06ba6866573e1e13eda406fb4cd21099cba07",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "03d752e057b0c9de0c07aebea61f5e4c62dfff01ac5855a887c152c2acd151f9",
+      "blind_payload_digest_sha256": "18795ae65026baaac309abccfb3924490710368eed8ef03a16020d23776a6ca7"
+    },
+    {
+      "item_key": "pr1:3b11e25ca7527ccc696ce83a42a69b81",
+      "change_id": "change:8504f93cdffd5a09145e30c968b8f210d5600d7d",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0582ff3454c51d7d49abeac953d6848d9f76d17731d8f58b39729bc817fc4297",
+      "blind_payload_digest_sha256": "498a6777325a0b86df10503166db7b8756662eef188658b8861a10dbd35a4857"
+    },
+    {
+      "item_key": "pr1:29331724e30b863240b6f9669518e56b",
+      "change_id": "change:5796fd9dd20ed2af132b62fe5255f89c203a9723",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "05d2c43dc7fd0f680e8286289be2e51b79cc17e383ca3e89de572dff5206e88d",
+      "blind_payload_digest_sha256": "1c3589e7c9afe0ee6bd2aea9b1cc9f17d873eb5b6c5e9b564a589be617d5f377"
+    },
+    {
+      "item_key": "pr1:dcb11f14c9a1efba18c2cf6e1c2366dc",
+      "change_id": "change:16fc7464926e6872158892cc6f36e479db955886",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "05de8b2a5b04d3df31f783fb4c62b5ba9e77327a4a6e73b1a917d9d2e3885db6",
+      "blind_payload_digest_sha256": "59c59ba32e615b5873a80f5594309e871ebf54e271abb2e6fe3bb7cfbc0774da"
+    },
+    {
+      "item_key": "pr1:6069725d0a51089ba257e80446f44b6d",
+      "change_id": "change:6f76433e3b604a99d13ede816a05a69ffd23d106",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "06b20ab00b4ba600fff1c655d4011f670377620d225e2644e8bc64cddacdecc1",
+      "blind_payload_digest_sha256": "782ea7674a78c42f374632a04eeaf7107b09af65cfe8d56d7934cc60740bf3b9"
+    },
+    {
+      "item_key": "pr1:c448853df9084d9777c9d585b8aaae99",
+      "change_id": "change:9b6c4cfaf8a573ce5317bcf5a71892171312fde8",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0773eb2e9cbe9c7073b3617825c9f83b364514e8a88915e31f37da35cade6406",
+      "blind_payload_digest_sha256": "7bbc45a88ecfdc476bbce2dbe8f0c1ef9ed591267be0f8ff5430fea5f772a2c2"
+    },
+    {
+      "item_key": "pr1:cd88843c2cddd771e31b5a6ca45ee3b6",
+      "change_id": "change:e56bc522bbdfab0dfd62e92cee3c94c811bd146a",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "07a48e1779d882a6f96b8d3b487e0e775e7e2f645db9782736c6ce7d59adbe20",
+      "blind_payload_digest_sha256": "6b49d23f3077259f26b2f7d700776c843a8ecf19124ea0606d3c88717e8b9481"
+    },
+    {
+      "item_key": "pr1:bfce7482832e79f5391a34102277fef9",
+      "change_id": "change:3d8094d99c833beab3288b3440b73f03ce8ec8a7",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "07b5eca9a8b87bbc81db677a2ad836a28b773672774ab470f43c0031568b7e0f",
+      "blind_payload_digest_sha256": "6f16faeca4c4fc58443a29faf4388c34826a6a33477d80b0fea4a037b49dd2a5"
+    },
+    {
+      "item_key": "pr1:9bd864d9847d4810e6d9d69618918865",
+      "change_id": "change:c4620dfb48c8dccfaee05aefccd0350d603f57d2",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0806482320a8c803c3e81482ea30fa9f43b8bca49977bbf03a5fdb77412f1e14",
+      "blind_payload_digest_sha256": "eef340ea4594161eddff564161fa9a79563a560c017f1c90891243ccfa5efaf5"
+    },
+    {
+      "item_key": "pr1:b030e670b83b29d16d23ee370b456338",
+      "change_id": "change:98842f5de2bfc6ef17df3cdcb66762aab4cc3cfb",
+      "stratum": "D_mixed",
+      "world_binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd",
+      "selection_key": "0829210ca48484c2d618c8e75c82c8abc58053f8f873a6b0bb04a32143cccafc",
+      "blind_payload_digest_sha256": "b08506655080dabcce7675ef74fbf08e6ec26e79577bc0cf8ac28645cbfcb36e"
+    }
+  ],
+  "overlap_item_keys": [
+    "pr1:29331724e30b863240b6f9669518e56b",
+    "pr1:3b11e25ca7527ccc696ce83a42a69b81",
+    "pr1:47a39c823b2f72be6d781ac96420fab2",
+    "pr1:4f4c02037701c088be5eaab98fbf3d7b",
+    "pr1:6f21e09c69585de35a2751eafa3acd61",
+    "pr1:8104cafb15dcc6fafc52e3dc6c896c10",
+    "pr1:ba574c8b79ed4fe5023966a613b44d80",
+    "pr1:bfce7482832e79f5391a34102277fef9",
+    "pr1:cb5ac2a5ebbb89b8763bbc86e4c92711",
+    "pr1:f17e801c948a7d056fe9d2956edaac9a"
+  ],
+  "digest_sha256": "a6fc72d75ef6fc080f129ed2de06c85742a35617487321f041904ac48d8c0364"
+}

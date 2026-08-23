@@ -13,12 +13,15 @@ package main
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/prospective"
 )
@@ -90,7 +93,7 @@ func runFreeze(ctx context.Context, args []string) error {
 	addr := fs.String("addr", "localhost:10120", "Sensei gRPC address")
 	graphDigest := fs.String("graph-digest", "", "live store digest the classification evidence was read from (required)")
 	target := fs.Int("target", prospective.DefaultTargetPerStratum, "per-stratum sampling target")
-	overlap := fs.Float64("overlap", 0.2, "second-adjudicator overlap fraction")
+	overlap := fs.Float64("overlap", overlapFraction, "second-adjudicator overlap fraction")
 	corpusLimit := fs.Int("corpus-page", 100, "rows per page when walking a class; the walk continues until the server reports no more")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -163,7 +166,7 @@ func runFreeze(ctx context.Context, args []string) error {
 		return err
 	}
 
-	manifest, packages, err := prospective.Build(inv, corpus, prospective.Options{
+	manifest, blindCorpus, packages, err := prospective.Build(inv, corpus, prospective.Options{
 		ProtocolID:           proto.ID,
 		ProtocolDigestSHA256: proto.DigestSHA256,
 		Seed:                 *seed,
@@ -176,7 +179,7 @@ func runFreeze(ctx context.Context, args []string) error {
 		return err
 	}
 
-	return writeReferenceSet(*out, inv, corpus, idx, manifest, packages)
+	return writeReferenceSet(*out, inv, corpus, blindCorpus, idx, manifest, packages)
 }
 
 // chosenRetrievalSurface resolves design section 3.1.
@@ -191,6 +194,9 @@ func runFreeze(ctx context.Context, args []string) error {
 //
 // It is frozen here, before any score exists, so the instrument cannot be
 // chosen after somebody sees which surface scores better.
+// overlapFraction is section 10's 20%.
+const overlapFraction = 0.2
+
 var chosenRetrievalSurface = prospective.RetrievalSurface{
 	ID:         "sensei.preflight.file_and_task.v1",
 	Invocation: "sensei preflight --file <changed path> --task <change description> --domain <domain> --json  (secondary: sensei briefing --task <change description> --json)",
@@ -217,15 +223,38 @@ func distinctExistingPaths(changes []prospective.Change) []string {
 	return out
 }
 
-func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective.Corpus, idx prospective.AnchorIndex, m prospective.Manifest, pkgs []prospective.BlindPackage) error {
+func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective.Corpus, blind prospective.BlindCorpus, idx prospective.AnchorIndex, m prospective.Manifest, pkgs []prospective.BlindPackage) error {
 	if err := os.MkdirAll(filepath.Join(dir, "packages"), 0o755); err != nil {
 		return err
 	}
+	// overlap-subset.json is written as its own artifact even though the
+	// manifest already carries the keys. Section 10 requires the subset to be
+	// fixed before any label is compared, and a standalone file with its own
+	// digest is what makes that checkable without re-reading a manifest whose
+	// other fields could have moved.
+	overlap := struct {
+		SchemaVersion              string   `json:"schema_version"`
+		SampleManifestDigestSHA256 string   `json:"sample_manifest_digest_sha256"`
+		Fraction                   float64  `json:"fraction"`
+		ItemKeys                   []string `json:"item_keys"`
+		SecondAdjudicatorStatus    string   `json:"second_adjudicator_status"`
+	}{
+		SchemaVersion:              "sensei.prospective_overlap_subset.v1",
+		SampleManifestDigestSHA256: m.DigestSHA256,
+		Fraction:                   overlapFraction,
+		ItemKeys:                   m.OverlapItemKeys,
+		// Typed absence, per section 10: an unavailable second adjudicator is
+		// recorded, never substituted. No AI stands in for one.
+		SecondAdjudicatorStatus: "second_adjudicator_unavailable",
+	}
+
 	files := map[string]any{
-		"sample-manifest.json": m,
-		"inventory.json":       inv,
-		"corpus.json":          corpus,
-		"anchor-index.json":    idx,
+		"sample-manifest.json":     m,
+		"inventory.json":           inv,
+		"corpus.json":              corpus,
+		prospective.BlindCorpusRef: blind,
+		"anchor-index.json":        idx,
+		"overlap-subset.json":      overlap,
 	}
 	digests := map[string]string{}
 	for name, payload := range files {
@@ -236,7 +265,7 @@ func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective
 		digests[name] = d
 	}
 	for _, p := range pkgs {
-		name := filepath.Join("packages", p.ItemKey+".json")
+		name := filepath.Join("packages", packageFileName(p.ItemKey))
 		d, err := writeJSON(filepath.Join(dir, name), p)
 		if err != nil {
 			return err
@@ -255,28 +284,47 @@ func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective
 	if err := os.WriteFile(filepath.Join(dir, "DIGESTS.txt"), body, 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("frozen: %s\n  manifest digest: %s\n  items: %d  packages: %d\n", dir, m.DigestSHA256, len(m.Items), len(pkgs))
+	fmt.Printf("frozen: %s\n  manifest digest:     %s\n  blind corpus digest: %s\n  items: %d  packages: %d\n",
+		dir, m.DigestSHA256, blind.DigestSHA256, len(m.Items), len(pkgs))
 	for _, s := range m.Strata {
 		fmt.Printf("  %-24s population=%-5d selected=%-3d %s\n", s.Stratum, s.Population, s.Selected, s.Status)
 	}
 	for _, e := range m.Exclusions {
 		fmt.Printf("  excluded %-32s %d\n", e.Reason, e.Count)
 	}
-	fmt.Printf("\nNext: a human adjudicates docs blind. Nothing here may decide applicability.\n")
+	fmt.Printf("\nNext: a human adjudicates blind against %s. Nothing here may decide applicability.\n", prospective.BlindCorpusRef)
 	return nil
 }
 
+// packageFileName turns an item key into a portable filename.
+//
+// The key is scheme-prefixed as "pr1:<hash>", and a colon is not a legal
+// filename character on Windows -- git checkout refuses the whole tree, so a
+// reference set named this way is simply unavailable to half the people meant
+// to read it. Only the filename is rewritten; the item key inside the package
+// keeps its colon, because it is the identity a label attaches to and renaming
+// it would orphan every reference to it.
+func packageFileName(itemKey string) string {
+	return strings.ReplaceAll(itemKey, ":", "-") + ".json"
+}
+
+// writeJSON writes one artifact and returns the SHA-256 of the BYTES it wrote.
+//
+// The bytes, not the canonical form. Each artifact already carries its own
+// canonical digest inside it, computed over compact JSON; the files on disk are
+// indented for a human reader. A ledger recording the canonical digests would
+// therefore fail `sha256sum -c` against its own files, and a reader checking
+// the reference set would read that as corruption rather than as two different
+// digests serving two different purposes.
 func writeJSON(path string, payload any) (string, error) {
 	body, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, append(body, '\n'), 0o644); err != nil {
+	body = append(body, '\n')
+	if err := os.WriteFile(path, body, 0o644); err != nil {
 		return "", err
 	}
-	d, err := prospective.DigestOf(payload)
-	if err != nil {
-		return "", err
-	}
-	return d, nil
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:]), nil
 }

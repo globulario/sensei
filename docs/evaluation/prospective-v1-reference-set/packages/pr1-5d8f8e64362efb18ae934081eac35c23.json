@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:5d8f8e64362efb18ae934081eac35c23",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:4b914412f52bd08a58c6b62da334eca0c57c6697",
+    "base_revision": "d0e9a25625db68bd1a71ee3b3e193e2a064da812",
+    "base_tree_digest_sha256": "23f9f6de01359ff66820c3d74133fe3398bf7eab",
+    "paths": [
+      {
+        "path": "docs/awareness/generated/awareness_graph_go_import_graph.yaml",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness/generated/awareness_graph_go_import_graph.yaml b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\nindex 7c54e2fe..e8fa8eba 100644\n--- a/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n+++ b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n@@ -343,6 +343,22 @@ components:\n       stereotype: service\n       view: structural\n       confidence: inferred\n+  - id: component.cmd.eval_prospective\n+    name: eval-prospective\n+    kind: service\n+    assertion: inferred\n+    source_files:\n+      - cmd/eval-prospective/gitworld.go\n+      - cmd/eval-prospective/graph.go\n+      - cmd/eval-prospective/main.go\n+      - cmd/eval-prospective/protocol.go\n+    depends_on:\n+      - component.golang.architecture.prospective\n+    uml:\n+      kind: Component\n+      stereotype: service\n+      view: structural\n+      confidence: inferred\n   - id: component.cmd.grpcweb_scan\n     name: grpcweb-scan\n     kind: service\n@@ -1747,6 +1763,21 @@ components:\n       stereotype: module\n       view: structural\n       confidence: inferred\n+  - id: component.golang.architecture.prospective\n+    name: prospective\n+    kind: module\n+    assertion: inferred\n+    source_files:\n+      - golang/architecture/prospective/blind.go\n+      - golang/architecture/prospective/classify.go\n+      - golang/architecture/prospective/inventory.go\n+      - golang/architecture/prospective/prospective.go\n+      - golang/architecture/prospective/sample.go\n+    uml:\n+      kind: Component\n+      stereotype: module\n+      view: structural\n+      confidence: inferred\n   - id: component.golang.architecture.protection\n     name: protection\n     kind: module\n",
+    "content_digest_sha256": "d307648e674756b213dcd78a62bd4d7130936c7bdc6b8e5907a563cefc58ee3f"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "b9599592b362f984e3ee5a5fcdd17c5f2474a06361674e0fdbaa6c97f6ad5784"
+}

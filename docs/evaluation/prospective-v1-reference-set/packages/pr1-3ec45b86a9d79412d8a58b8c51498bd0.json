@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:3ec45b86a9d79412d8a58b8c51498bd0",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:f0a540ce5e5794b01faed3a0444ca32dea162aa5",
+    "base_revision": "7b2d154c7ba0103367a0bc86e2b17fc4a1392fff",
+    "base_tree_digest_sha256": "e5d9207edb7ef5d8e85e3f22c98d57bd764c02ca",
+    "paths": [
+      {
+        "path": "github-app/deploy/Caddyfile",
+        "existed_before": false,
+        "status": "A"
+      }
+    ],
+    "content": "diff --git a/github-app/deploy/Caddyfile b/github-app/deploy/Caddyfile\nnew file mode 100644\nindex 00000000..29276ba7\n--- /dev/null\n+++ b/github-app/deploy/Caddyfile\n@@ -0,0 +1,13 @@\n+{$SENSEI_GITHUB_HOSTNAME} {\n+\tencode zstd gzip\n+\n+\t@health path /healthz /readyz\n+\theader @health Cache-Control \"no-store\"\n+\n+\treverse_proxy sensei-github-app:8080\n+\n+\tlog {\n+\t\toutput stdout\n+\t\tformat json\n+\t}\n+}\n",
+    "content_digest_sha256": "a1f36432a0f1f703536e4be0a267424048af5cba224308a690d0d45daca035ba"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "99fd3e50ca19065e5fc27434d4a2428bf338e01869fe981ecad47b461603ec70"
+}

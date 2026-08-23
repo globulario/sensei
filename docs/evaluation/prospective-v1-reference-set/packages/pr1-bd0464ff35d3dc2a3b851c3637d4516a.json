@@ -1,0 +1,33 @@
+{
+  "item_key": "pr1:bd0464ff35d3dc2a3b851c3637d4516a",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:ee3fda0a9dd853337b4edd987c7a9346b31ca3d7",
+    "base_revision": "2cdab55f21390de716c782cd9fee814f4603e1ec",
+    "base_tree_digest_sha256": "155408cb4a9f055cd97fb7b6f9c60f2b4a49e048",
+    "paths": [
+      {
+        "path": "cmd/eval-arms/sample.go",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "cmd/eval-arms/sample_test.go",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/cmd/eval-arms/sample.go b/cmd/eval-arms/sample.go\nindex b6d3cefb..e3d6f25c 100644\n--- a/cmd/eval-arms/sample.go\n+++ b/cmd/eval-arms/sample.go\n@@ -249,8 +249,23 @@ func composedClaim(site, lane string, i int, kind, text string, cited, paths []s\n \t\trefs = append(refs, site+\"/\"+p)\n \t}\n \treturn investigation.Counterexample{\n-\t\tID:             fmt.Sprintf(\"%s/%s/%d\", site, lane, i),\n-\t\tDescription:    fmt.Sprintf(\"[%s %s] %s\", lane, kind, text),\n+\t\tID: fmt.Sprintf(\"%s/%s/%d\", site, lane, i),\n+\t\t// The lane is deliberately NOT in the description.\n+\t\t//\n+\t\t// The description is what evalsample renders into the blinded challenge\n+\t\t// view, and section 12 says an adjudicator should not be told which lane\n+\t\t// produced an item during first-pass labeling where the format allows it\n+\t\t// \"without losing required provenance\". Here it does allow it: the lane\n+\t\t// is already in the ID above, which becomes the manifest's subject_id, so\n+\t\t// hiding it in the view loses nothing and revealing it would let a\n+\t\t// usefulness rating (section 10) and a support label turn on which lane\n+\t\t// an item came from. Same shape as provider_id, which the manifest\n+\t\t// carries and the view hides.\n+\t\t//\n+\t\t// The KIND stays: it tells the adjudicator what sort of proposition they\n+\t\t// are judging, which is adjudication context rather than lane\n+\t\t// provenance, and nothing else carries it.\n+\t\tDescription:    fmt.Sprintf(\"[%s] %s\", kind, text),\n \t\tEvidenceRefIDs: refs,\n \t}\n }\ndiff --git a/cmd/eval-arms/sample_test.go b/cmd/eval-arms/sample_test.go\nindex dcff03fe..36859279 100644\n--- a/cmd/eval-arms/sample_test.go\n+++ b/cmd/eval-arms/sample_test.go\n@@ -705,14 +705,28 @@ func TestComposedClaimsReachTheSample(t *testing.T) {\n \tif len(w.Counterexamples) != 2 {\n \t\tt.Fatalf(\"composed claims produced %d sampleable items, want 2\", len(w.Counterexamples))\n \t}\n+\t// The lanes must stay distinguishable for scoring (section 9 forbids\n+\t// treating them as one population) WITHOUT the blinded view announcing\n+\t// which lane an item came from (section 12). So the distinction is checked\n+\t// on the ID, which becomes the manifest's subject_id, and its absence is\n+\t// checked on the description, which is what the adjudicator reads.\n \tvar deterministic, model bool\n \tfor _, c := range w.Counterexamples {\n-\t\tif strings.Contains(c.Description, \"[deterministic\") {\n+\t\tif strings.Contains(c.ID, \"/deterministic/\") {\n \t\t\tdeterministic = true\n \t\t}\n-\t\tif strings.Contains(c.Description, \"[model\") {\n+\t\tif strings.Contains(c.ID, \"/model/\") {\n \t\t\tmodel = true\n \t\t}\n+\t\t// Only the bracketed prefix is checked: it is the part the artifact\n+\t\t// format controls. A claim's own text may legitimately contain the word\n+\t\t// \"model\" (this fixture's does), and rewriting an adjudicator's claim\n+\t\t// text to avoid a substring would corrupt the thing being judged.\n+\t\tif prefix, _, ok := strings.Cut(c.Description, \"] \"); ok {\n+\t\t\tif strings.Contains(prefix, \"deterministic\") || strings.Contains(prefix, \"model\") {\n+\t\t\t\tt.Errorf(\"description prefix %q] names the producing lane; the blinded challenge view would tell the adjudicator which lane to trust\", prefix)\n+\t\t\t}\n+\t\t}\n \t\tif !strings.HasPrefix(c.ID, \"one/\") {\n \t\t\tt.Errorf(\"claim %q is not attributed to its site\", c.ID)\n \t\t}\n",
+    "content_digest_sha256": "fe8804737c2c63c9a4b7165e4cc3143e0cd8f31f7e0bed1c3970c8dd19acddf5"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "ae012a1a38868b95615508f1785a33d2b533ab30ba2a59e9834cc68e70c4e388"
+}

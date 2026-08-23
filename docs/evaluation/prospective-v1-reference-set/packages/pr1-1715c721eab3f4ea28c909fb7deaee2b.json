@@ -1,0 +1,33 @@
+{
+  "item_key": "pr1:1715c721eab3f4ea28c909fb7deaee2b",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:e7800b7288006a2fc4a5988e6e3309ff1136c362",
+    "base_revision": "004ca0eeccb052eb636b9ea5585c3d2b99226434",
+    "base_tree_digest_sha256": "9f54e9be5cda58a707a4fb661c7dd4c9a4ff47ed",
+    "paths": [
+      {
+        "path": "docs/awareness/generated/awareness_graph_annotation_report.yaml",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "golang/server/embeddata/awareness.transaction.tsv",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness/generated/awareness_graph_annotation_report.yaml b/docs/awareness/generated/awareness_graph_annotation_report.yaml\nindex c74f4ce3..68fa97a2 100644\n--- a/docs/awareness/generated/awareness_graph_annotation_report.yaml\n+++ b/docs/awareness/generated/awareness_graph_annotation_report.yaml\n@@ -1,4 +1,4 @@\n-scanned_files: 1142\n+scanned_files: 1144\n annotated_symbols: 17\n imported_annotations: 46\n discovered_tests: 3314\ndiff --git a/golang/server/embeddata/awareness.transaction.tsv b/golang/server/embeddata/awareness.transaction.tsv\nindex fbc372fb..5fb0560b 100644\n--- a/golang/server/embeddata/awareness.transaction.tsv\n+++ b/golang/server/embeddata/awareness.transaction.tsv\n@@ -1,6 +1,6 @@\n format\tv1\n seed\tdigest_sha256\tfea3bba33c770fbde54fcfea0d9a9b6319c436fd57ac43dbb6d2585ded6f5429\n seed\ttriple_count\t7629\n-repo\tawareness-graph\t0101763e6e5323a6acaaf8f5ed96fdaede9018ab\n+repo\tawareness-graph\t004ca0eeccb052eb636b9ea5585c3d2b99226434\n repo\tservices\tstandalone\n-tool\tyaml2nt\t12708d36ee07b98e5bc7be2cc6a4df7cf59019243ae3a09a44b89385a1445261\n+tool\tyaml2nt\t5752a6c78c7142eb2616c3f1b27d633b294d54f54745808db1488c033f056e10\n",
+    "content_digest_sha256": "b77c782f08db0a6fa69fe40b29f95ba432e230d6ca4e2bc3cc6134341dcf7ad5"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "483228fb5b28311ca6f4a215527197773f825f9041b42c3e947dfb5aa6d9ec86"
+}

@@ -1,0 +1,33 @@
+{
+  "item_key": "pr1:8828fe721e0ee04e51e132046851fb71",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:c0c92392d93468522318ffdb6969e555beba7bc1",
+    "base_revision": "6059afb461b063ee431a092b98728200c4cecdb2",
+    "base_tree_digest_sha256": "3579244739070c24f1b8ced7294e3c4d0f5881aa",
+    "paths": [
+      {
+        "path": "golang/architecture/closure/model_test.go",
+        "existed_before": true,
+        "status": "M"
+      },
+      {
+        "path": "golang/architecture/closure/util.go",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/golang/architecture/closure/model_test.go b/golang/architecture/closure/model_test.go\nindex f29f88b2..1db5fcec 100644\n--- a/golang/architecture/closure/model_test.go\n+++ b/golang/architecture/closure/model_test.go\n@@ -115,6 +115,48 @@ func TestClosureRequestRejectsDuplicateAfterNormalization(t *testing.T) {\n \t}\n }\n \n+func TestNormalizeSinglePathCanonicalizesOnePath(t *testing.T) {\n+\tif got := normalizeSinglePath(\"./docs/awareness/../awareness/invariants.yaml\"); got != \"docs/awareness/invariants.yaml\" {\n+\t\tt.Fatalf(\"normalizeSinglePath = %q\", got)\n+\t}\n+\tif got := normalizeSinglePath(\"   \"); got != \"\" {\n+\t\tt.Fatalf(\"normalizeSinglePath empty = %q\", got)\n+\t}\n+}\n+\n+func TestSafeRelPathRejectsEscapesAndAbsolutePaths(t *testing.T) {\n+\tcases := []struct {\n+\t\tpath string\n+\t\twant bool\n+\t}{\n+\t\t{path: \"docs/awareness/architecture/decisions.yaml\", want: true},\n+\t\t{path: \"./docs/awareness/architecture/decisions.yaml\", want: true},\n+\t\t{path: \"../docs/awareness/architecture/decisions.yaml\", want: false},\n+\t\t{path: \"/tmp/decisions.yaml\", want: false},\n+\t\t{path: \"\", want: false},\n+\t}\n+\tfor _, tc := range cases {\n+\t\tif got := safeRelPath(tc.path); got != tc.want {\n+\t\t\tt.Fatalf(\"safeRelPath(%q) = %t, want %t\", tc.path, got, tc.want)\n+\t\t}\n+\t}\n+}\n+\n+func TestBootstrapDigestHelpersValidateExpectedHexLengths(t *testing.T) {\n+\tif !isSHA256(strings.Repeat(\"a\", 64)) {\n+\t\tt.Fatal(\"expected lowercase sha256 to validate\")\n+\t}\n+\tif isSHA256(strings.Repeat(\"A\", 64)) {\n+\t\tt.Fatal(\"uppercase sha256 must not validate\")\n+\t}\n+\tif !isHexLen(strings.Repeat(\"b\", 40), 40) {\n+\t\tt.Fatal(\"expected 40-char lowercase hex to validate\")\n+\t}\n+\tif isHexLen(strings.Repeat(\"b\", 39), 40) {\n+\t\tt.Fatal(\"wrong-length hex must not validate\")\n+\t}\n+}\n+\n func TestDirectionBootstrapRequiresTaskID(t *testing.T) {\n \treq := validRequest()\n \treq.DirectionBootstrap = \u0026DirectionBootstrapAuthorization{\ndiff --git a/golang/architecture/closure/util.go b/golang/architecture/closure/util.go\nindex 25101ee1..df66e181 100644\n--- a/golang/architecture/closure/util.go\n+++ b/golang/architecture/closure/util.go\n@@ -4,7 +4,9 @@ package closure\n \n import (\n \t\"path/filepath\"\n+\t\"regexp\"\n \t\"sort\"\n+\t\"strconv\"\n \t\"strings\"\n \n \t\"github.com/globulario/sensei/golang/architecture\"\n@@ -13,6 +15,11 @@ import (\n \t\"github.com/globulario/sensei/golang/rdf\"\n )\n \n+var (\n+\tsha256RE = regexp.MustCompile(`^[a-f0-9]{64}$`)\n+\thexLenRE = map[int]*regexp.Regexp{}\n+)\n+\n func oneOf(v string, allowed ...string) bool {\n \tfor _, a := range allowed {\n \t\tif v == a {\n@@ -66,6 +73,32 @@ func normalizePath(s string) string {\n \treturn filepath.ToSlash(filepath.Clean(filepath.FromSlash(s)))\n }\n \n+func safeRelPath(path string) bool {\n+\tpath = normalizePath(path)\n+\treturn path != \"\" \u0026\u0026 !filepath.IsAbs(path) \u0026\u0026 path != \"..\" \u0026\u0026 !strings.HasPrefix(path, \"../\") \u0026\u0026 !strings.Contains(path, \"/../\")\n+}\n+\n+func normalizeSinglePath(s string) string {\n+\tout := cleanPathList([]string{s})\n+\tif len(out) == 0 {\n+\t\treturn \"\"\n+\t}\n+\treturn out[0]\n+}\n+\n+func isSHA256(v string) bool {\n+\treturn sha256RE.MatchString(strings.TrimSpace(v))\n+}\n+\n+func isHexLen(v string, n int) bool {\n+\tre, ok := hexLenRE[n]\n+\tif !ok {\n+\t\tre = regexp.MustCompile(`^[a-f0-9]{` + strconv.Itoa(n) + `}$`)\n+\t\thexLenRE[n] = re\n+\t}\n+\treturn re.MatchString(strings.TrimSpace(v))\n+}\n+\n func hasDuplicates(in []string) bool {\n \tseen := map[string]bool{}\n \tfor _, s := range in {\n",
+    "content_digest_sha256": "624cc06b1ad961f53af864cabe79324b4c02500add30e0f6675f88dab6b10bd4"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "165532727a231e3d481a16918f4fb4efb282f38532ecc76f6ae31ce08af42e22"
+}

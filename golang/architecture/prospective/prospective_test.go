@@ -147,7 +147,7 @@ func TestAAndBAreNeverMerged(t *testing.T) {
 	if inv.StratumDigests[StratumA] == inv.StratumDigests[StratumB] {
 		t.Fatal("A and B share a population digest, so one denominator could be presented as the other")
 	}
-	m, _, err := Build(inv, testCorpus(t), testOptions(), lookupContent)
+	m, _, _, err := Build(inv, testCorpus(t), testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -231,11 +231,11 @@ func TestSelectionIsSeededAndReproducible(t *testing.T) {
 	inv := mustInventory(t, idx, changes)
 	corpus := testCorpus(t)
 
-	first, _, err := Build(inv, corpus, testOptions(), lookupContent)
+	first, _, _, err := Build(inv, corpus, testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	again, _, err := Build(inv, corpus, testOptions(), lookupContent)
+	again, _, _, err := Build(inv, corpus, testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestSelectionIsSeededAndReproducible(t *testing.T) {
 
 	other := testOptions()
 	other.Seed = "seed-2"
-	changed, _, err := Build(inv, corpus, other, lookupContent)
+	changed, _, _, err := Build(inv, corpus, other, lookupContent)
 	if err != nil {
 		t.Fatalf("reseed: %v", err)
 	}
@@ -277,7 +277,7 @@ func TestASmallStratumReportsItsRealDenominator(t *testing.T) {
 	})
 	opts := testOptions()
 	opts.TargetPerStratum = 12
-	m, _, err := Build(inv, testCorpus(t), opts, lookupContent)
+	m, _, _, err := Build(inv, testCorpus(t), opts, lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -308,33 +308,51 @@ func TestASmallStratumReportsItsRealDenominator(t *testing.T) {
 // The package a human adjudicates must carry no Sensei retrieval output and no
 // statement about what Sensei knows. Asserted against the serialized bytes,
 // because a type can grow a field faster than a reviewer can notice one.
+//
+// Both artifacts are checked. The corpus now lives in a shared file, so a leak
+// that used to be visible inside every package would now sit in one place that
+// a package-only assertion would never open.
 func TestTheAdjudicationPackageLeaksNothingSenseiKnows(t *testing.T) {
 	idx := testIndex(t, "anchored.go")
 	inv := mustInventory(t, idx, []Change{change("c1", newFile("new.go"), existingFile("anchored.go"))})
-	_, pkgs, err := Build(inv, testCorpus(t), testOptions(), lookupContent)
+	_, blind, pkgs, err := Build(inv, testCorpus(t), testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if len(pkgs) != 1 {
 		t.Fatalf("expected one package, got %d", len(pkgs))
 	}
-	raw, err := json.Marshal(pkgs[0])
+	forbidden := []string{"stratum", "anchors", "anchored_paths", "unanchored_paths", "new_paths", "surfaced", "retrieval", "preflight", "briefing", "applicable", "label", "verdict", "score", "materialization", "accounting", "graph_total", "excluded"}
+
+	rawPkg, err := json.Marshal(pkgs[0])
 	if err != nil {
-		t.Fatalf("marshal: %v", err)
+		t.Fatalf("marshal package: %v", err)
 	}
-	if strings.Contains(string(raw), sentinelAnchor) {
+	if strings.Contains(string(rawPkg), sentinelAnchor) {
 		t.Fatal("the package leaked a corpus anchor — that is Sensei's own account of which files an item governs, i.e. the answer key")
 	}
-	var walked map[string]any
-	if err := json.Unmarshal(raw, &walked); err != nil {
-		t.Fatalf("unmarshal: %v", err)
+	var walkedPkg map[string]any
+	if err := json.Unmarshal(rawPkg, &walkedPkg); err != nil {
+		t.Fatalf("unmarshal package: %v", err)
 	}
-	forbidden := []string{"stratum", "anchors", "anchored_paths", "unanchored_paths", "new_paths", "surfaced", "retrieval", "preflight", "briefing", "applicable", "label", "verdict", "score"}
-	assertNoKey(t, walked, forbidden)
+	assertNoKey(t, walkedPkg, forbidden)
 
-	items, ok := walked["eligible_corpus"].([]any)
+	rawBlind, err := json.Marshal(blind)
+	if err != nil {
+		t.Fatalf("marshal blind corpus: %v", err)
+	}
+	if strings.Contains(string(rawBlind), sentinelAnchor) {
+		t.Fatal("the shared blind corpus leaked an anchor")
+	}
+	var walkedBlind map[string]any
+	if err := json.Unmarshal(rawBlind, &walkedBlind); err != nil {
+		t.Fatalf("unmarshal blind corpus: %v", err)
+	}
+	assertNoKey(t, walkedBlind, forbidden)
+
+	items, ok := walkedBlind["items"].([]any)
 	if !ok || len(items) == 0 {
-		t.Fatal("the package carries no eligible corpus, so the adjudicator has nothing to mark applicable")
+		t.Fatal("the shared blind corpus is empty, so the adjudicator has nothing to mark applicable")
 	}
 	for _, it := range items {
 		obj := it.(map[string]any)
@@ -348,6 +366,58 @@ func TestTheAdjudicationPackageLeaksNothingSenseiKnows(t *testing.T) {
 	}
 	if pkgs[0].Change.Content == "" || pkgs[0].DigestSHA256 == "" {
 		t.Fatal("the package is missing the change contents or its identity")
+	}
+}
+
+// The package references the shared blind corpus and does not embed it. It also
+// must not point at the full corpus file, which holds anchors, materialization
+// provenance and accounting that are withheld from the adjudicator.
+func TestThePackageReferencesTheSharedBlindCorpus(t *testing.T) {
+	idx := testIndex(t, "anchored.go")
+	inv := mustInventory(t, idx, []Change{
+		change("c1", newFile("a.go")),
+		change("c2", newFile("b.go")),
+	})
+	corpus := testCorpus(t)
+	m, blind, pkgs, err := Build(inv, corpus, testOptions(), lookupContent)
+	if err != nil {
+		t.Fatalf("build: %v", err)
+	}
+	if blind.DigestSHA256 == "" || blind.SchemaVersion != BlindCorpusSchemaVersion {
+		t.Fatal("the shared blind corpus has no identity of its own")
+	}
+	if blind.DigestSHA256 == corpus.DigestSHA256 {
+		t.Fatal("the blind corpus and the full corpus share a digest, so one could be served in place of the other")
+	}
+	if m.BlindCorpusDigestSHA256 != blind.DigestSHA256 {
+		t.Fatal("the manifest does not bind the shared view the adjudicators read")
+	}
+	for _, p := range pkgs {
+		if p.BlindCorpusDigestSHA256 != blind.DigestSHA256 {
+			t.Fatal("a package does not bind the shared blind corpus")
+		}
+		if p.BlindCorpusRef != BlindCorpusRef {
+			t.Fatalf("a package points at %q rather than the shared blind corpus", p.BlindCorpusRef)
+		}
+		if p.CorpusDigestSHA256 != corpus.DigestSHA256 {
+			t.Fatal("a package lost the provenance binding to the frozen corpus")
+		}
+		raw, err := json.Marshal(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(string(raw), "\"eligible_corpus\"") {
+			t.Fatal("a package still embeds the corpus; 48 copies can drift apart and nothing shows which one was read")
+		}
+		// Exact value, not a substring: the blind corpus is itself named
+		// blind-corpus.json, which ends in the string being guarded against.
+		if strings.Contains(string(raw), `"corpus.json"`) {
+			t.Fatal("a package points at the full corpus file, which holds material withheld from the adjudicator")
+		}
+	}
+	// Two packages differ only by their change, never by their corpus view.
+	if pkgs[0].DigestSHA256 == pkgs[1].DigestSHA256 {
+		t.Fatal("two packages over different changes share a digest")
 	}
 }
 
@@ -376,7 +446,7 @@ func assertNoKey(t *testing.T, node any, forbidden []string) {
 func TestContentThatDoesNotMatchTheFrozenDigestIsRefused(t *testing.T) {
 	idx := testIndex(t)
 	inv := mustInventory(t, idx, []Change{change("c1", newFile("new.go"))})
-	_, _, err := Build(inv, testCorpus(t), testOptions(), func(string) (string, error) { return "a different diff", nil })
+	_, _, _, err := Build(inv, testCorpus(t), testOptions(), func(string) (string, error) { return "a different diff", nil })
 	if err == nil {
 		t.Fatal("a package was built from contents the inventory never froze")
 	}
@@ -397,14 +467,14 @@ func TestOverlapSubsetIsDeterministicAndIndependentOfLabels(t *testing.T) {
 	inv := mustInventory(t, idx, changes)
 	opts := testOptions()
 	opts.TargetPerStratum = 10
-	m, _, err := Build(inv, testCorpus(t), opts, lookupContent)
+	m, _, _, err := Build(inv, testCorpus(t), opts, lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	if len(m.OverlapItemKeys) != 2 {
 		t.Fatalf("20%% of 10 items should be 2, got %d", len(m.OverlapItemKeys))
 	}
-	again, _, err := Build(inv, testCorpus(t), opts, lookupContent)
+	again, _, _, err := Build(inv, testCorpus(t), opts, lookupContent)
 	if err != nil {
 		t.Fatalf("rebuild: %v", err)
 	}
@@ -438,7 +508,7 @@ func TestTheManifestBindsEveryIdentityItDependsOn(t *testing.T) {
 		change("c2", existingFile("anchored.go")),
 	})
 	corpus := testCorpus(t)
-	m, _, err := Build(inv, corpus, testOptions(), lookupContent)
+	m, _, _, err := Build(inv, corpus, testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
@@ -496,11 +566,11 @@ func TestBuildRefusesIncompleteInputs(t *testing.T) {
 	} {
 		opts := testOptions()
 		mutate(&opts)
-		if _, _, err := Build(inv, corpus, opts, lookupContent); err == nil {
+		if _, _, _, err := Build(inv, corpus, opts, lookupContent); err == nil {
 			t.Fatalf("%s: the build was accepted", name)
 		}
 	}
-	if _, _, err := Build(inv, Corpus{}, testOptions(), lookupContent); err == nil {
+	if _, _, _, err := Build(inv, Corpus{}, testOptions(), lookupContent); err == nil {
 		t.Fatal("a sample was built against an uncontent-addressed corpus")
 	}
 	if _, err := BuildInventory(Bind("w", "d", "r", "t"), AnchorIndex{}, nil, nil); err == nil {
@@ -656,17 +726,26 @@ func TestCorpusAccountingDoesNotReachTheAdjudicator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("corpus: %v", err)
 	}
-	_, pkgs, err := Build(inv, frozen, testOptions(), lookupContent)
+	_, blind, pkgs, err := Build(inv, frozen, testOptions(), lookupContent)
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
-	raw, err := json.Marshal(pkgs[0])
+	pkgRaw, err := json.Marshal(pkgs[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	blindRaw, err := json.Marshal(blind)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, leak := range []string{"invariant:secret", "graph_total", "not_enumerable", "accounting"} {
-		if strings.Contains(string(raw), leak) {
+		if strings.Contains(string(pkgRaw), leak) {
 			t.Fatalf("the adjudication package leaked %q", leak)
+		}
+		// Checked separately: the corpus moved out of the package, so a leak
+		// there would no longer show up in a package-only assertion.
+		if strings.Contains(string(blindRaw), leak) {
+			t.Fatalf("the shared blind corpus leaked %q", leak)
 		}
 	}
 }

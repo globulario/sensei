@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:77dee39949001962cf5f02929705d376",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:ac3dfa7d27b8b52ad4cd70d014314cd94f7209c7",
+    "base_revision": "878675c1e31a5c23f17b3bb926158de50577d109",
+    "base_tree_digest_sha256": "ccafd22b15af81ea818044b82645eb517417c2a1",
+    "paths": [
+      {
+        "path": "docs/awareness/generated/awareness_graph_go_import_graph.yaml",
+        "existed_before": true,
+        "status": "M"
+      }
+    ],
+    "content": "diff --git a/docs/awareness/generated/awareness_graph_go_import_graph.yaml b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\nindex 6788144a..8d8aaf9e 100644\n--- a/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n+++ b/docs/awareness/generated/awareness_graph_go_import_graph.yaml\n@@ -161,6 +161,7 @@ components:\n       - cmd/awg/json_output.go\n       - cmd/awg/main.go\n       - cmd/awg/proofrequirements_adapter.go\n+      - cmd/awg/repo_domain_binding.go\n       - cmd/awg/seedfreshness.go\n     depends_on:\n       - component.golang.architecture\n@@ -574,6 +575,7 @@ components:\n       - golang/architecture/proofrequirements/obligations.go\n       - golang/architecture/proofrequirements/parse.go\n       - golang/architecture/proofrequirements/proofrequirements.go\n+      - golang/architecture/protection/assessment.go\n       - golang/architecture/protection/classify.go\n       - golang/architecture/protection/derive.go\n       - golang/architecture/protection/governed.go\n@@ -789,6 +791,7 @@ components:\n       - golang/extractor/importgraph/rust.go\n       - golang/extractor/importgraph/typescript.go\n       - golang/extractor/intent_yaml_import.go\n+      - golang/extractor/jsonschemascan/jsonschemascan.go\n       - golang/extractor/learning_event_yaml_import.go\n       - golang/extractor/ntriples_validator.go\n       - golang/extractor/openapiscan/openapiscan.go\n",
+    "content_digest_sha256": "dc02bff751260c680d750f5dd9d39dae01426c3ec502377c1c8fa9a7163c9666"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "c99ff0cb53dab314902e2dcfa0a0f1226d0c67354b9faf6ee780d7f6dca05a7f"
+}

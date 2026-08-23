@@ -1,0 +1,28 @@
+{
+  "item_key": "pr1:8104cafb15dcc6fafc52e3dc6c896c10",
+  "world": {
+    "world": "world1_sensei_self",
+    "repository_domain": "github.com/globulario/sensei",
+    "revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "tree_digest_sha256": "cce0d1df3153b699df1b6af053da15ab82a64927",
+    "binding_digest_sha256": "01b04420e726b0c169cfac4a40becf3cd33029b900b6330c5b96b9b3af88b5fd"
+  },
+  "change": {
+    "change_id": "change:6d3ed4c6af6002e1c2af9d33300e21564926ebd3",
+    "base_revision": "99e58c84240794336196f4f3650bfb17250c2e67",
+    "base_tree_digest_sha256": "4c2fbb948d9a107d5d74633638a15d5f30ebf654",
+    "paths": [
+      {
+        "path": ".github/workflows/github-app-import-graph-regenerate.yml",
+        "existed_before": false,
+        "status": "A"
+      }
+    ],
+    "content": "diff --git a/.github/workflows/github-app-import-graph-regenerate.yml b/.github/workflows/github-app-import-graph-regenerate.yml\nnew file mode 100644\nindex 00000000..46e05f5c\n--- /dev/null\n+++ b/.github/workflows/github-app-import-graph-regenerate.yml\n@@ -0,0 +1,40 @@\n+name: GitHub App Import Graph Regeneration\n+\n+on:\n+  push:\n+    branches:\n+      - feat/github-app-mvp\n+    paths:\n+      - \"github-app/**\"\n+      - \".github/workflows/github-app-import-graph-regenerate.yml\"\n+\n+permissions:\n+  contents: write\n+\n+jobs:\n+  regenerate:\n+    runs-on: ubuntu-latest\n+    steps:\n+      - uses: actions/checkout@v4\n+        with:\n+          ref: feat/github-app-mvp\n+          fetch-depth: 2\n+      - uses: actions/setup-go@v5\n+        with:\n+          go-version: \"1.25\"\n+          cache-dependency-path: go.sum\n+      - name: Regenerate inferred import graphs\n+        run: make import-graph\n+      - name: Commit generated projections\n+        run: |\n+          if git diff --quiet -- docs/awareness/generated; then\n+            echo \"Import graphs already fresh\"\n+            exit 0\n+          fi\n+          git config user.name \"github-actions[bot]\"\n+          git config user.email \"41898282+github-actions[bot]@users.noreply.github.com\"\n+          git add docs/awareness/generated/awareness_graph_go_import_graph.yaml\n+          git add docs/awareness/generated/awareness_graph_typescript_import_graph.yaml\n+          git add docs/awareness/generated/awareness_graph_python_import_graph.yaml\n+          git commit -m \"chore(awareness): regenerate import graphs for GitHub App\"\n+          git push origin HEAD:feat/github-app-mvp\n",
+    "content_digest_sha256": "caa12eae52c5ec5ead43c0efa35e9ddedfa2a9986d9b91562b44b96ec2ccc7ad"
+  },
+  "corpus_digest_sha256": "c64ad1c9ce73d06a360bcd63ca7d0c11344ee7e9807a40f2b8043e12f45f6c67",
+  "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+  "blind_corpus_ref": "blind-corpus.json",
+  "digest_sha256": "66773a1f84193e1cd64024dc118e75f8be6ee4c8f884225531a0b61dbdb24ce8"
+}
