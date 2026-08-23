@@ -6556,6 +6556,59 @@ test_symbols:
     package: main
     language: go
     doc: "The real repository must satisfy its own registered digest, or the constant\nin this binary has drifted from the merged document."
+  - id: cmd/eval-prospective/slice2_test.go:TestCorpusIndex_RefusesAnAmbiguousShortID
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestCorpusIndex_RefusesAnAmbiguousShortID
+    package: main
+    language: go
+    doc: "An ambiguous short id is not guessed at. A wrong hit is worse than a\nrecorded miss, because it inflates recall silently."
+  - id: cmd/eval-prospective/slice2_test.go:TestCorpusIndex_ResolvesMetaPrincipleSurfacedAsInvariant
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestCorpusIndex_ResolvesMetaPrincipleSurfacedAsInvariant
+    package: main
+    language: go
+    doc: "A MetaPrinciple node is a dual-typed meta.* invariant and reaches production\nthrough the invariant partition. Without the unqualified fallback every\nmeta_principle item in the corpus would be permanently unsurfaceable, and\nthe resulting zero would read as a retrieval failure."
+  - id: cmd/eval-prospective/slice2_test.go:TestInvoke_FailureOnAnExistingPathIsUnavailable
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestInvoke_FailureOnAnExistingPathIsUnavailable
+    package: main
+    language: go
+    doc: "The same failure on an existing file is `unavailable`, not a claim that\nproduction has no channel for it."
+  - id: cmd/eval-prospective/slice2_test.go:TestInvoke_UnaskableNewSeamIsNoProspectiveChannel
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestInvoke_UnaskableNewSeamIsNoProspectiveChannel
+    package: main
+    language: go
+    doc: "A change whose paths do not exist yet, for which production cannot be asked\nat all, is recorded as no_prospective_channel — not as an empty result and\nnot as a drop."
+  - id: cmd/eval-prospective/slice2_test.go:TestRun_HasNoBypassFlag
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestRun_HasNoBypassFlag
+    package: main
+    language: go
+    doc: "A bypass flag is how the one ordering constraint the experiment rests on\ngets undone by somebody in a hurry. Assert the flag set has none."
+  - id: cmd/eval-prospective/slice2_test.go:TestRun_RefusesALabelsFileThatIsNotThere
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestRun_RefusesALabelsFileThatIsNotThere
+    package: main
+    language: go
+  - id: cmd/eval-prospective/slice2_test.go:TestRun_RefusesWithoutFrozenLabels
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestRun_RefusesWithoutFrozenLabels
+    package: main
+    language: go
+    doc: "The protocol's fifth arrow is enforced mechanically, not by convention: a\nrun with no frozen answer key must refuse."
+  - id: cmd/eval-prospective/slice2_test.go:TestScoreAndReport_EndToEndOverASyntheticReferenceSet
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestScoreAndReport_EndToEndOverASyntheticReferenceSet
+    package: main
+    language: go
+    doc: "End to end over a synthetic reference set: score and report read what the\nrunner writes. Nothing here touches the real #259 reference set, and no\nretrieval is executed."
+  - id: cmd/eval-prospective/slice2_test.go:TestTaskTextFor_IsMechanicalAndDeterministic
+    file: cmd/eval-prospective/slice2_test.go
+    symbol: TestTaskTextFor_IsMechanicalAndDeterministic
+    package: main
+    language: go
+    doc: "The task text is composed from the frozen paths alone, deterministically."
   - id: cmd/http-scan/main_test.go:TestScan_ExtractsRoutes
     file: cmd/http-scan/main_test.go
     symbol: TestScan_ExtractsRoutes
@@ -16376,6 +16429,78 @@ test_symbols:
     package: prospectivelabel
     language: go
     doc: "Unresolved labels are counted apart from the resolved ones, because only\napplicable enters the recall numerator and only the resolved pair enters the\nprimary nuisance denominator."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_AbsentMetricIsNilNotZero
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_AbsentMetricIsNilNotZero
+    package: prospectivescore
+    language: go
+    doc: "An empty denominator has no rate. Reporting 0.0 would read as failure and\n1.0 as success, and both would be inventions."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_FloodingWithUnresolvableItemsShowsInTheOtherTwoNuisanceNumbers
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_FloodingWithUnresolvableItemsShowsInTheOtherTwoNuisanceNumbers
+    package: prospectivescore
+    language: go
+    doc: "Flooding with unjudgeable items drives primary nuisance down. The other two\nnumbers are what make that visible, and all three must be emitted."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_NoProspectiveChannelIsAMissNotADrop
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_NoProspectiveChannelIsAMissNotADrop
+    package: prospectivescore
+    language: go
+    doc: "A change production had no prospective channel for is a miss with an honest\nstatus, never a change quietly dropped from the denominator."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_RecallDenominatorCountsApplicableOnly
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_RecallDenominatorCountsApplicableOnly
+    package: prospectivescore
+    language: go
+    doc: "Only `applicable` may enter the recall denominator. Every other label is\npresent in this fixture, and none of them may move the ratio."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_RefusesARunBoundToDifferentLabels
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_RefusesARunBoundToDifferentLabels
+    package: prospectivescore
+    language: go
+    doc: "The run must postdate the exact answer key it is graded by."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_RefusesLabelsBoundToADifferentSample
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_RefusesLabelsBoundToADifferentSample
+    package: prospectivescore
+    language: go
+    doc: "Labels answering a different sample are answers to a question nobody asked."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_StrataStaySeparateAndEmptyOnesAreReported
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_StrataStaySeparateAndEmptyOnesAreReported
+    package: prospectivescore
+    language: go
+    doc: "A and B never merge, and an empty stratum is reported as empty."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_UnexecutedChangeStaysInTheDenominator
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_UnexecutedChangeStaysInTheDenominator
+    package: prospectivescore
+    language: go
+    doc: "A change the runner never executed still reaches the denominator."
+  - id: golang/architecture/prospectivescore/score_test.go:TestCompute_UnlabelledSurfacedItemCountsAsUnresolvedNotAsNegative
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestCompute_UnlabelledSurfacedItemCountsAsUnresolvedNotAsNegative
+    package: prospectivescore
+    language: go
+    doc: "An unlabelled pair is never a silent not_applicable, and never a silent hit."
+  - id: golang/architecture/prospectivescore/score_test.go:TestRender_CarriesEveryRequiredIdentityAndNoBlendedHeadline
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestRender_CarriesEveryRequiredIdentityAndNoBlendedHeadline
+    package: prospectivescore
+    language: go
+    doc: "The report must carry every identity protocol section 12 lists, keep A and B\napart, and never print a single blended headline number."
+  - id: golang/architecture/prospectivescore/score_test.go:TestRender_MissSetIsComplete
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestRender_MissSetIsComplete
+    package: prospectivescore
+    language: go
+    doc: "A miss set is complete, never a selection made after the scores were visible."
+  - id: golang/architecture/prospectivescore/score_test.go:TestRun_ValidateRefusesUnknownStatus
+    file: golang/architecture/prospectivescore/score_test.go
+    symbol: TestRun_ValidateRefusesUnknownStatus
+    package: prospectivescore
+    language: go
+    doc: "An unrecognised retrieval status is refused rather than interpreted."
   - id: golang/architecture/protection/derive_test.go:TestClassifyFile_EscapingPathFailsTyped
     file: golang/architecture/protection/derive_test.go
     symbol: TestClassifyFile_EscapingPathFailsTyped
