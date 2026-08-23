@@ -1,0 +1,129 @@
+# The epistemic lane — uncertain design belief
+
+`ledger.yaml` holds declared design questions, the hypotheses about them, and
+the observations that move those beliefs. It implements the first slice of
+[#288](https://github.com/globulario/sensei/issues/288), from
+`docs/design/experimental-engineering-epistemology.md` §3–§7 and §11.
+
+## What this is not
+
+**Not canonical knowledge.** Nothing here is an invariant, a contract, a
+decision or a scar. `yaml2nt` does not read this directory, no seed contains it,
+and no routing surface consults it — `decideRoute` cannot reach it even by
+accident, because there is nothing in the graph to reach. That is a structural
+guarantee, not a promise.
+
+**Not a review queue.** A DesignQuestion is never promoted into an invariant.
+Entries in `candidates/` are awaiting a decision about becoming law; these are
+not, which is why they do not live there.
+
+**Not an authority grant.** Failure to retrieve knowledge is still not
+permission to experiment. Nothing here reads an `EMPTY` retrieval, and there is
+no path from silence to autonomy.
+
+## Why it exists
+
+Sensei already had rich classes for *established* knowledge. What was missing
+was somewhere to put a claim that is **believed, testable and not established**.
+Such a claim previously had to masquerade as law or go unrecorded.
+
+```
+CONSTRAINT        what must remain true            established knowledge
+DESIGN QUESTION   what is actually being decided   positively declared uncertainty
+HYPOTHESIS        what we currently believe        prediction + falsifier + horizon
+OBSERVATION       what actually happened           evidence that moves a belief
+```
+
+## The two rules the schema enforces
+
+**A disposition is computed, never authored.** There is no `disposition` field.
+An agent exposes the decision structure — which alternatives survived constraint
+binding, and what experimenting would actually cost — and the disposition
+follows:
+
+```
+constraints leave exactly one alternative        → CONSERVATION
+two or more viable + every consequence reversible → EXPLORATION_CANDIDATE
+two or more viable + an irreversible consequence  → AUTHORITY
+constraints eliminated everything                 → OVER_CONSTRAINED
+```
+
+`AUTHORITY` is reached by **consequence**, never by technical difficulty. There
+is deliberately no field expressing that a question is hard, so "this is
+difficult, a human should decide" is not sayable. An AI that routes a hard
+technical question to a human has not found an authority boundary; it has found
+work.
+
+**Unrefuted is not supported.** `SUPPORTED` requires a recorded observation
+*after* the horizon matured. Before it, the state is `AWAITING_HORIZON` however
+many green runs accumulate; after it with nothing observed, `OVERDUE`. Silence
+never becomes support — that is the horizon leak, and it is the most common
+epistemic move in software engineering.
+
+## Working with it
+
+```bash
+sensei epistemic declare      --id dq.x --question ... --alternative a=... --alternative b=... \
+                              --constraint inv.y --consequence "..."
+sensei epistemic hypothesize  --id h.x --question dq.x --alternative b \
+                              --prediction ... --falsifier ... --due 2026-12-01T00:00:00Z
+sensei epistemic observe      --id o.x --hypothesis h.x --outcome supports|refutes|inconclusive \
+                              --what ... --evidence ...
+sensei epistemic status       [--json] [--tripwire]
+```
+
+`make epistemic-check` runs the tripwire, and CI runs it on every push. A
+hypothesis past its horizon with nothing observed fails the build. Clearing it
+means recording an observation, or moving the horizon and saying why; letting
+the date pass is not one of the options.
+
+A falsifier must name an observation that could occur **while every existing
+gate still passes**. `"the tests fail"` restates the merge gate and is refused —
+though only the obvious restatements are caught, and no mechanical check
+deserves authority over the rest.
+
+## The failure this cannot prevent
+
+The shape of a fake reasoning loop is:
+
+```
+declare a question → predict an answer → observe the answer was right → call it evidence
+```
+
+One actor congratulating itself at four stages. Everything in this lane
+validates *shape*, and that loop is perfectly shaped.
+
+So `status` counts it instead of pretending to block it:
+
+```
+self-confirmed:    1 of 1 supported (1.000) — supported only by the actor that declared the belief
+                   reasoning has not yet escaped the reasoner here.
+```
+
+One supporting observation from a different actor clears a hypothesis. The bar
+is deliberately that low — it measures whether anything outside the believer
+ever agreed, not how much did.
+
+It is reported and never gated, because the same shape is what an honest
+one-person project looks like. A count nobody can see is how the shape becomes
+normal. The current reading is `1 of 1`, on this lane's own first record.
+
+## What is deliberately not decided here
+
+Whether any of this should ever inform routing. #288 is explicit that it must
+not, until there is evidence the objects cause better engineering behaviour.
+The router would currently have nothing to route.
+
+## Known limitations of slice 1
+
+- **Constraint references are not resolved.** `constraints` and `eliminated_by`
+  are checked against each other, not against the graph — nothing verifies that
+  `awareness.missing_evidence_produces_unknown` exists or that a `doc:` reference
+  points at a real file. An id here looks authoritative and is not, which is why
+  it is written down rather than left for a reader to discover.
+- **There is no ExperimentPlan.** The falsifier carries the preregistration
+  burden today. A separate plan object only means something once an experiment
+  can be *executed* by something other than the agent proposing it, which is the
+  next slice, not this one.
+- **`materially distinct` is not checked**, and cannot be. Only verbatim
+  repetition is caught.

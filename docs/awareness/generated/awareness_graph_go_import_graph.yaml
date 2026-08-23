@@ -97,6 +97,7 @@ components:
       - cmd/awg/cmd_edit_check.go
       - cmd/awg/cmd_edit_guard.go
       - cmd/awg/cmd_enroll_agent.go
+      - cmd/awg/cmd_epistemic.go
       - cmd/awg/cmd_evidence.go
       - cmd/awg/cmd_evidence_phase10.go
       - cmd/awg/cmd_feedback_check.go
@@ -225,6 +226,7 @@ components:
       - component.golang.architecture.compositionbinding
       - component.golang.architecture.convergence
       - component.golang.architecture.dashboardprojection
+      - component.golang.architecture.epistemic
       - component.golang.architecture.evaluatorcomposition
       - component.golang.architecture.extractbudget
       - component.golang.architecture.factextract
@@ -1161,6 +1163,20 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/dispositionsemantics/decision.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.architecture.epistemic
+    name: epistemic
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/epistemic/epistemic.go
+      - golang/architecture/epistemic/ledger.go
+    external_imports:
+      - gopkg.in/yaml.v3
     uml:
       kind: Component
       stereotype: module

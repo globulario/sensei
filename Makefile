@@ -105,6 +105,12 @@ import-graph:
 	go run ./cmd/import-scan $(IMPORT_GRAPH_TS_ARGS)
 	go run ./cmd/import-scan $(IMPORT_GRAPH_PY_ARGS)
 
+# The overdue-observation tripwire (globulario/sensei#288, design doc §6).
+# A growing hypothesis table looks like learning; the overdue count is the only
+# thing distinguishing a learning loop from a filing cabinet.
+epistemic-check:
+	go run ./cmd/awg epistemic status --tripwire
+
 import-graph-check:
 	go run ./cmd/import-scan $(IMPORT_GRAPH_GO_ARGS) -check
 	go run ./cmd/import-scan $(IMPORT_GRAPH_TS_ARGS) -check
