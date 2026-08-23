@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/prospective"
 )
@@ -264,7 +265,7 @@ func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective
 		digests[name] = d
 	}
 	for _, p := range pkgs {
-		name := filepath.Join("packages", p.ItemKey+".json")
+		name := filepath.Join("packages", packageFileName(p.ItemKey))
 		d, err := writeJSON(filepath.Join(dir, name), p)
 		if err != nil {
 			return err
@@ -293,6 +294,18 @@ func writeReferenceSet(dir string, inv prospective.Inventory, corpus prospective
 	}
 	fmt.Printf("\nNext: a human adjudicates blind against %s. Nothing here may decide applicability.\n", prospective.BlindCorpusRef)
 	return nil
+}
+
+// packageFileName turns an item key into a portable filename.
+//
+// The key is scheme-prefixed as "pr1:<hash>", and a colon is not a legal
+// filename character on Windows -- git checkout refuses the whole tree, so a
+// reference set named this way is simply unavailable to half the people meant
+// to read it. Only the filename is rewritten; the item key inside the package
+// keeps its colon, because it is the identity a label attaches to and renaming
+// it would orphan every reference to it.
+func packageFileName(itemKey string) string {
+	return strings.ReplaceAll(itemKey, ":", "-") + ".json"
 }
 
 // writeJSON writes one artifact and returns the SHA-256 of the BYTES it wrote.
