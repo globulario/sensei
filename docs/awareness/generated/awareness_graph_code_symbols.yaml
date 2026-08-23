@@ -6714,6 +6714,24 @@ test_symbols:
     symbol: TestTopologyChangeEmitsEvent
     package: main
     language: go
+  - id: cmd/prospective-label/load_test.go:TestPresentationOrderIsClassThenTitleThenID
+    file: cmd/prospective-label/load_test.go
+    symbol: TestPresentationOrderIsClassThenTitleThenID
+    package: main
+    language: go
+    doc: "The presentation order is a stable key order and carries no relevance."
+  - id: cmd/prospective-label/load_test.go:TestTheFrozenReferenceSetLoads
+    file: cmd/prospective-label/load_test.go
+    symbol: TestTheFrozenReferenceSetLoads
+    package: main
+    language: go
+    doc: "The real frozen set loads, and its digests agree with one another."
+  - id: cmd/prospective-label/load_test.go:TestTheToolCannotOpenWhatIsWithheldFromTheAdjudicator
+    file: cmd/prospective-label/load_test.go
+    symbol: TestTheToolCannotOpenWhatIsWithheldFromTheAdjudicator
+    package: main
+    language: go
+    doc: "The blinding is structural. corpus.json, anchor-index.json and inventory.json\nhold anchors, materialization provenance, strata and accounting — Sensei's own\naccount of what it knows and where it applies. The tool must be unable to open\nthem, not merely uninclined to."
   - id: cmd/yaml2nt/main_test.go:TestDedupNTriples
     file: cmd/yaml2nt/main_test.go
     symbol: TestDedupNTriples
@@ -16304,6 +16322,54 @@ test_symbols:
     package: prospective
     language: go
     doc: "The package references the shared blind corpus and does not embed it. It also\nmust not point at the full corpus file, which holds anchors, materialization\nprovenance and accounting that are withheld from the adjudicator."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestIndividualReviewCompleteOnlyWithoutASweep
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestIndividualReviewCompleteOnlyWithoutASweep
+    package: prospectivelabel
+    language: go
+    doc: "Individual review of every pair is reported as such, and only then."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestNothingHasADefaultLabel
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestNothingHasADefaultLabel
+    package: prospectivelabel
+    language: go
+    doc: "A pair begins UNSET. If opening a package defaulted 866 pairs to\nnot_applicable, absence of action would masquerade as judgement and the\ndenominator would be manufactured by the act of looking."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestOrderingIsDeterministicAndCarriesNoRelevance
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestOrderingIsDeterministicAndCarriesNoRelevance
+    package: prospectivelabel
+    language: go
+    doc: "No ordering anywhere depends on anything but the deterministic keys the\nreference set fixed. A relevance order would make some machine the oracle\nand let the rest of the corpus disappear."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestRestorePreservesProvenance
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestRestorePreservesProvenance
+    package: prospectivelabel
+    language: go
+    doc: "Work survives a restart without being re-done or silently lost, and a\nrestored sweep is still a sweep."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestSweepIsGatedOnTheWholeCorpusHavingBeenPresented
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestSweepIsGatedOnTheWholeCorpusHavingBeenPresented
+    package: prospectivelabel
+    language: go
+    doc: "Without the presentation gate an adjudicator could filter to a handful of\nitems, sweep, and emit hundreds of negatives for items the software never\nshowed — indistinguishable in the output from having considered them."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestSweepIsRecordedAsASweepNotAsIndividualReview
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestSweepIsRecordedAsASweepNotAsIndividualReview
+    package: prospectivelabel
+    language: go
+    doc: "The sweep is an act of judgement over a remainder, and it is recorded as one."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestTheSessionRefusesWhatIsNotInTheSample
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestTheSessionRefusesWhatIsNotInTheSample
+    package: prospectivelabel
+    language: go
+    doc: "The vocabulary is closed, and the session refuses anything outside the frozen\nsample — a label attached to an unknown pair would score against nothing."
+  - id: golang/architecture/prospectivelabel/session_test.go:TestUnresolvedLabelsAreCountedSeparately
+    file: golang/architecture/prospectivelabel/session_test.go
+    symbol: TestUnresolvedLabelsAreCountedSeparately
+    package: prospectivelabel
+    language: go
+    doc: "Unresolved labels are counted apart from the resolved ones, because only\napplicable enters the recall numerator and only the resolved pair enters the\nprimary nuisance denominator."
   - id: golang/architecture/protection/derive_test.go:TestClassifyFile_EscapingPathFailsTyped
     file: golang/architecture/protection/derive_test.go
     symbol: TestClassifyFile_EscapingPathFailsTyped
