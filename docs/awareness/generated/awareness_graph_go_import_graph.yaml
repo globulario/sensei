@@ -1175,6 +1175,7 @@ components:
     source_files:
       - golang/architecture/epistemic/epistemic.go
       - golang/architecture/epistemic/ledger.go
+      - golang/architecture/epistemic/sediment.go
     external_imports:
       - gopkg.in/yaml.v3
     uml:

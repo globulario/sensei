@@ -110,6 +110,7 @@ import-graph:
 # thing distinguishing a learning loop from a filing cabinet.
 epistemic-check:
 	go run ./cmd/awg epistemic status --tripwire
+	go run ./cmd/awg epistemic scope --tripwire
 
 import-graph-check:
 	go run ./cmd/import-scan $(IMPORT_GRAPH_GO_ARGS) -check

@@ -149,6 +149,7 @@ func TestStatusTripwireFailsOnAnOverdueHypothesis(t *testing.T) {
 		"observe", "--ledger", p, "--id", "o.test", "--hypothesis", "h.test",
 		"--outcome", "refutes", "--what", "a drifted store was reported authoritative",
 		"--evidence", "seedmeta verify_test.go", "--observed-by", "test",
+		"--conditions", "a count-preserving mutation, with the marker untouched",
 	}
 	if code := runEpistemic(obs); code != 0 {
 		t.Fatalf("observe exited %d", code)
@@ -183,5 +184,126 @@ func TestUnknownSubcommandIsAUsageError(t *testing.T) {
 	}
 	if code := runEpistemic(nil); code != 2 {
 		t.Fatalf("exited %d, want 2", code)
+	}
+}
+
+// The anti-sediment check, end to end through the CLI and against a corpus on
+// disk. An agent guesses B, implements B, extraction records that B exists, B
+// becomes architecture, and the agent can no longer replace its own guess —
+// this is what notices.
+func TestScopeReportsExperimentalCodeDefendedAsArchitecture(t *testing.T) {
+	root := t.TempDir()
+	aw := filepath.Join(root, "docs", "awareness")
+	if err := os.MkdirAll(aw, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inv := "invariants:\n  - id: invariant.placement_is_deterministic\n    protects:\n      files:\n        - golang/placement/v2/assign.go\n"
+	if err := os.WriteFile(filepath.Join(aw, "invariants.yaml"), []byte(inv), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	p := ledgerPath(t)
+	if code := runEpistemic(declareArgs(p)); code != 0 {
+		t.Fatalf("declare exited %d", code)
+	}
+	hyp := []string{
+		"hypothesize", "--ledger", p, "--id", "h.placement",
+		"--question", "dq.test", "--alternative", "b",
+		"--prediction", "the v2 placement pass converges without stale ownership",
+		"--falsifier", "stale ownership survives two reconciliation cycles while every gate is green",
+		"--due", "2027-06-01T00:00:00Z", "--declared-by", "test",
+	}
+	if code := runEpistemic(hyp); code != 0 {
+		t.Fatalf("hypothesize exited %d", code)
+	}
+	// Declare the experimental scope by hand: there is no flag for it yet, and
+	// the check must work on a ledger however it was written.
+	b, _ := os.ReadFile(p)
+	l, err := epistemic.Decode(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	l.Hypotheses[0].ExperimentalScope = []string{"golang/placement/v2"}
+	if err := saveLedger(p, l); err != nil {
+		t.Fatal(err)
+	}
+
+	if code := runEpistemic([]string{"scope", "--ledger", p, "--repo-root", root}); code != 0 {
+		t.Fatalf("scope without --tripwire must report, not fail; exited %d", code)
+	}
+	if code := runEpistemic([]string{"scope", "--ledger", p, "--repo-root", root, "--tripwire"}); code != 1 {
+		t.Fatalf("--tripwire on sediment exited %d, want 1", code)
+	}
+
+	// Experimental code nothing canonical claims is clean. Naming a scope does
+	// not remove governance — the established envelope still holds — it says
+	// the design inside it has not silently become law.
+	l.Hypotheses[0].ExperimentalScope = []string{"golang/somewhere/else"}
+	if err := saveLedger(p, l); err != nil {
+		t.Fatal(err)
+	}
+	if code := runEpistemic([]string{"scope", "--ledger", p, "--repo-root", root, "--tripwire"}); code != 0 {
+		t.Fatalf("unclaimed experimental code exited %d, want 0", code)
+	}
+}
+
+// A repository with no such surface anchors nothing. Reporting that as an error
+// would make the check unusable everywhere except this repository.
+func TestScopeOnARepositoryWithNoAwarenessCorpus(t *testing.T) {
+	p := ledgerPath(t)
+	if code := runEpistemic(declareArgs(p)); code != 0 {
+		t.Fatalf("declare exited %d", code)
+	}
+	if code := runEpistemic([]string{"scope", "--ledger", p, "--repo-root", t.TempDir(), "--tripwire"}); code != 0 {
+		t.Fatalf("exited %d, want 0", code)
+	}
+}
+
+func TestObserveRefutationNeedsItsConditionsAndKeepsWhatSurvives(t *testing.T) {
+	p := ledgerPath(t)
+	if code := runEpistemic(declareArgs(p)); code != 0 {
+		t.Fatalf("declare exited %d", code)
+	}
+	hyp := []string{
+		"hypothesize", "--ledger", p, "--id", "h.r", "--question", "dq.test", "--alternative", "b",
+		"--prediction", "the v2 pass converges without stale ownership",
+		"--falsifier", "stale ownership survives two reconciliation cycles while every gate is green",
+		"--due", "2027-06-01T00:00:00Z", "--declared-by", "test",
+		"--scope", "golang/placement/v2",
+	}
+	if code := runEpistemic(hyp); code != 0 {
+		t.Fatalf("hypothesize exited %d", code)
+	}
+
+	bare := []string{
+		"observe", "--ledger", p, "--id", "o.r", "--hypothesis", "h.r", "--outcome", "refutes",
+		"--what", "stale ownership survived two cycles", "--evidence", "fault run F7", "--observed-by", "test",
+	}
+	if code := runEpistemic(bare); code == 0 {
+		t.Fatal("a refutation without its conditions turns one experiment into a universal prohibition")
+	}
+
+	full := append(append([]string{}, bare...),
+		"--conditions", "network partition with leader turnover",
+		"--still-viable-for", "non-authoritative cache placement")
+	if code := runEpistemic(full); code != 0 {
+		t.Fatalf("observe exited %d", code)
+	}
+
+	b, _ := os.ReadFile(p)
+	l, err := epistemic.Decode(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Observations) != 1 || l.Observations[0].RemainingApplicability == "" {
+		t.Fatalf("what survives a refutation must be kept: %+v", l.Observations)
+	}
+	if len(l.Hypotheses[0].ExperimentalScope) != 1 {
+		t.Fatalf("--scope must reach the ledger: %+v", l.Hypotheses[0])
+	}
+	// The code written to test a now-refuted belief is orphaned: keeping it may
+	// be deliberate, but the reason it existed is gone.
+	if code := runEpistemic([]string{"scope", "--ledger", p, "--repo-root", t.TempDir(), "--tripwire"}); code != 1 {
+		t.Fatalf("scope exited %d, want 1", code)
 	}
 }

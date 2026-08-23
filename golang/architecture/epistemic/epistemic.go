@@ -212,7 +212,23 @@ type Hypothesis struct {
 	Horizon    Horizon `yaml:"horizon" json:"horizon"`
 	DeclaredBy string  `yaml:"declared_by" json:"declared_by"`
 	DeclaredAt string  `yaml:"declared_at" json:"declared_at"`
-	Notes      string  `yaml:"notes,omitempty" json:"notes,omitempty"`
+	// ExperimentalScope names repository paths that exist ONLY to test this
+	// hypothesis.
+	//
+	// It is what keeps a guess from becoming law by sediment. Code written to
+	// test a belief must not become governing architecture merely because it
+	// exists -- otherwise the loop closes on itself: an agent guesses B,
+	// implements B, extraction observes B, B becomes architecture, and the
+	// agent can no longer replace its own guess. Promotion to architecture is
+	// an epistemic event, not a side effect of implementation.
+	//
+	// Naming the scope does NOT remove governance. The established envelope
+	// still holds: the surrounding invariants, contracts and forbidden fixes
+	// apply exactly as before. What it says is narrower and specific -- the
+	// design INSIDE that envelope is provisional and may be rewritten freely
+	// while the question is open. Conserve the envelope, explore inside it.
+	ExperimentalScope []string `yaml:"experimental_scope,omitempty" json:"experimental_scope,omitempty"`
+	Notes             string   `yaml:"notes,omitempty" json:"notes,omitempty"`
 }
 
 // -----------------------------------------------------------------------------
@@ -245,6 +261,19 @@ type Observation struct {
 	Outcome    Outcome  `yaml:"outcome" json:"outcome"`
 	Evidence   []string `yaml:"evidence" json:"evidence"`
 	ObservedBy string   `yaml:"observed_by" json:"observed_by"`
+	// FailureConditions are the circumstances under which the prediction
+	// failed. Required on a refutation, because "design B is bad" is almost
+	// never what was observed: B failed under partition plus leader turnover,
+	// or above some write volume, and a record that drops the condition turns
+	// one experiment into a universal prohibition nobody tested.
+	FailureConditions []string `yaml:"failure_conditions,omitempty" json:"failure_conditions,omitempty"`
+	// RemainingApplicability is where the refuted design may still be viable.
+	//
+	// Optional, and left blank when nothing survives. Its purpose is to stop a
+	// failed design becoming a second kind of frozen dogma: a refuted
+	// hypothesis is evidence against one claim under stated conditions, not a
+	// standing ban on a mechanism.
+	RemainingApplicability string `yaml:"remaining_applicability,omitempty" json:"remaining_applicability,omitempty"`
 }
 
 // -----------------------------------------------------------------------------
@@ -596,6 +625,12 @@ func ValidateObservation(o Observation) []string {
 	}
 	if len(o.Evidence) == 0 {
 		errs = append(errs, "evidence is required: an observation nobody can go and check is a claim, which is the thing this lane exists to keep separate from evidence")
+	}
+	if o.Outcome == OutcomeRefutes && len(o.FailureConditions) == 0 {
+		// A refutation without its conditions is how one experiment becomes a
+		// universal prohibition. The next agent meets "design B failed" with no
+		// way to tell whether their use has the same failure condition.
+		errs = append(errs, "a refutation requires failure_conditions: state the circumstances the prediction failed under, or one experiment becomes a standing ban on a mechanism nobody tested that broadly")
 	}
 	return errs
 }
