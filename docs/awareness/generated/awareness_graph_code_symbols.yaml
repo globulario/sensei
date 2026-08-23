@@ -23499,6 +23499,30 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestPhaseC_Intent_RelatedInvariants pins that related_invariants produce\naw:affects edges pointing to aw:Invariant nodes."
+  - id: golang/extractor/introduced_by_test.go:TestAHalfIdentityMintsNothing
+    file: golang/extractor/introduced_by_test.go
+    symbol: TestAHalfIdentityMintsNothing
+    package: extractor
+    language: go
+    doc: "Half an identity is not one. Emitting a Change keyed on a bare SHA would\ncollide across repositories and quietly merge two histories."
+  - id: golang/extractor/introduced_by_test.go:TestAnAttributionBecomesAFirstClassRelation
+    file: golang/extractor/introduced_by_test.go
+    symbol: TestAnAttributionBecomesAFirstClassRelation
+    package: extractor
+    language: go
+    doc: "The attribution becomes a traversable relation, not prose. A Change node is\nkeyed on repository AND commit, because the same short hash occurs in more\nthan one repository and an edge that cannot say which one is not evidence."
+  - id: golang/extractor/introduced_by_test.go:TestCompoundAncestryEmitsEveryAttribution
+    file: golang/extractor/introduced_by_test.go
+    symbol: TestCompoundAncestryEmitsEveryAttribution
+    package: extractor
+    language: go
+    doc: "Compound ancestry survives: one change introduced unsafe state, another\nremoved the check that compensated for it."
+  - id: golang/extractor/introduced_by_test.go:TestNothingIsInferredFromFilesOrTests
+    file: golang/extractor/introduced_by_test.go
+    symbol: TestNothingIsInferredFromFilesOrTests
+    package: extractor
+    language: go
+    doc: "Nothing infers this relation. A scar that names files and tests, with no\nattribution, produces no Change node however suggestive its contents are."
   - id: golang/extractor/jsonschemascan/jsonschemascan_test.go:TestFindSchemaFiles_DoesNotMatchNestedSchemaKey
     file: golang/extractor/jsonschemascan/jsonschemascan_test.go
     symbol: TestFindSchemaFiles_DoesNotMatchNestedSchemaKey
@@ -24488,6 +24512,42 @@ test_symbols:
     package: propose
     language: go
     doc: "The survival evidence must survive normalization into the candidate document —\na required field that is silently dropped on the way to disk would make the\nrequirement theatre."
+  - id: golang/propose/introduced_by_test.go:TestAFailureMayNameMoreThanOneIntroducingChange
+    file: golang/propose/introduced_by_test.go
+    symbol: TestAFailureMayNameMoreThanOneIntroducingChange
+    package: propose
+    language: go
+    doc: "A failure may carry more than one, because real failures have compound\nancestry: one change introduces unsafe state, another removes the check that\ncompensated for it."
+  - id: golang/propose/introduced_by_test.go:TestAbsenceIsNotAClaimAboutCorrectness
+    file: golang/propose/introduced_by_test.go
+    symbol: TestAbsenceIsNotAClaimAboutCorrectness
+    package: propose
+    language: go
+    doc: "Absence means nobody recorded an attribution. It is not evidence that a\nchange was correct, and nothing may treat it as one — so a scar without the\nrelation stays perfectly valid and gains no field asserting the opposite."
+  - id: golang/propose/introduced_by_test.go:TestAttributionCarriesRepositoryAndCommit
+    file: golang/propose/introduced_by_test.go
+    symbol: TestAttributionCarriesRepositoryAndCommit
+    package: propose
+    language: go
+    doc: "The persisted identity is repository plus commit, never the SHA alone. The\nCLI may take only the SHA because the repository is already known; what is\nrecorded carries both, because the same short hash occurs in more than one\nrepository."
+  - id: golang/propose/introduced_by_test.go:TestAttributionIsPersistedStructurally
+    file: golang/propose/introduced_by_test.go
+    symbol: TestAttributionIsPersistedStructurally
+    package: propose
+    language: go
+    doc: "The attribution survives into the reviewed artifact as structured fields, not\nas prose folded into evidence or description."
+  - id: golang/propose/introduced_by_test.go:TestIntroducedByIsOnlyAcceptedOnAFailure
+    file: golang/propose/introduced_by_test.go
+    symbol: TestIntroducedByIsOnlyAcceptedOnAFailure
+    package: propose
+    language: go
+    doc: "The relation asserts that a change introduced a FAILURE. What it would mean\non an invariant or a required_test has not been decided, and inventing a\nmeaning would put edges in the graph nobody defined."
+  - id: golang/propose/introduced_by_test.go:TestOnlyAnImmutableCommitIdentityIsAccepted
+    file: golang/propose/introduced_by_test.go
+    symbol: TestOnlyAnImmutableCommitIdentityIsAccepted
+    package: propose
+    language: go
+    doc: "Only an immutable identity may be recorded. A branch, a tag and HEAD all\nmove, and an attribution that silently repoints later is worse than none,\nbecause it still reads as a record of what happened."
   - id: golang/propose/propose_test.go:TestDeriveID
     file: golang/propose/propose_test.go
     symbol: TestDeriveID
