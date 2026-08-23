@@ -1,0 +1,59 @@
+{
+  "schema_version": "sensei.prospective_execution_identity.v1",
+  "status": "frozen_before_labels",
+  "frozen_at": "2026-08-23T01:30:00Z",
+
+  "binds": {
+    "protocol_id": "prospective-recall-protocol-v1",
+    "protocol_digest_sha256": "ade91a42c8c0c421d0e6ba84ce2a547712c248b7cfef491ecc6ff8b12ff90d8d",
+    "sample_manifest_digest_sha256": "a6fc72d75ef6fc080f129ed2de06c85742a35617487321f041904ac48d8c0364",
+    "blind_corpus_digest_sha256": "6334f400bcb805f6787c353a280859753a74390dce2a53fd2c389a4aaedbdfe4",
+    "world_revision": "eac9603e332e2393815fb702c7aa1a105302ee20",
+    "graph_digest_sha256": "def94857a06a997412c56c682c39481b226f1834f93a4173425852965367b912"
+  },
+
+  "retrieval_surface": {
+    "id": "sensei.preflight.file_and_task.v1",
+    "primary_invocation": "sensei preflight --file <changed path> --task <change description> --domain github.com/globulario/sensei --json",
+    "secondary_invocation": "sensei briefing --task <change description> --domain github.com/globulario/sensei --json",
+    "no_channel_status": "no_prospective_channel",
+    "implementation_commit": "c1bc07ce"
+  },
+
+  "repository_context": {
+    "repository_context_domain": "github.com/globulario/sensei",
+    "home_domain": "github.com/globulario/sensei",
+    "repo_root": "<checkout of github.com/globulario/sensei at the pinned world revision>",
+    "awareness_dir": "<repo_root>/docs/awareness"
+  },
+
+  "server": {
+    "binary": "golang/server (awareness-graph) built from implementation_commit",
+    "flags": [
+      "-oxigraph-url <store serving graph_digest_sha256>",
+      "-no-seed",
+      "-home-domain github.com/globulario/sensei",
+      "-repo-domain github.com/globulario/sensei",
+      "-repo-root <repo_root>",
+      "-awareness-dir <repo_root>/docs/awareness"
+    ],
+    "required_authority_verdict": "AUTHORITY_VERDICT_AUTHORITATIVE",
+    "required_graph_freshness_state": "GRAPH_FRESHNESS_STATE_CURRENT"
+  },
+
+  "observed_binding_sensitivity": {
+    "finding": "The same graph, served with a different repository-context binding, reports a different retrieval status for the same query.",
+    "evidence": {
+      "path": "Makefile",
+      "repository_context_github_com_globulario_sensei_code": "PREFLIGHT_STATUS_EMPTY",
+      "repository_context_github_com_globulario_sensei": "PREFLIGHT_STATUS_DEGRADED",
+      "surfaced_governing_items_under_both": 0
+    },
+    "why_it_is_frozen_here": "Retrieval status is a reported metric under protocol section 7.3, so EMPTY and DEGRADED are different results. Selecting the binding after labels exist would let the environment be chosen for its score. The binding above is fixed before any label exists and no sampled change has been run against it."
+  },
+
+  "not_run": {
+    "sampled_changes_executed": 0,
+    "labels_created": 0
+  }
+}
