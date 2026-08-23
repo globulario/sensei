@@ -85,6 +85,55 @@ serialization — which is precisely why it survives an N-Triples round trip whi
 the file hash does not match. Content and identity are different properties, and
 here both are preserved.
 
+## Identity is not integrity — tested, on a throwaway copy
+
+`graph_digest` names a **world**, not a content hash. That raises the obvious
+question: if the marker lives inside the dataset, does Sensei notice when the
+dataset changes underneath it?
+
+Tested on the isolated restored copy. The pinned store was never involved.
+
+**A mutation that changes the triple count is caught.** One unrelated triple
+inserted, marker untouched:
+
+```
+Live graph digest   def94857…          (unchanged)
+Live graph triples  158350
+Freshness state     stale
+Freshness detail    live triple count 158350 != expected 158349
+Authority verdict   not_authoritative
+```
+
+So the digest field alone would mislead, and the composite verdict does not.
+Integrity is checked by a mechanism separate from identity, and it fails closed.
+
+**A mutation that preserves the triple count is not caught.** One real
+`codeSymbol` triple deleted and one unrelated triple inserted, count back to
+158349:
+
+```
+Live graph digest   def94857…
+Live graph triples  158349
+Freshness state     current
+Freshness detail    live store matches expected validated graph artifact
+Authority verdict   authoritative
+```
+
+The store does not match the expected artifact, and the report says it does.
+
+This is a genuine limitation of the freshness check rather than a #259 problem:
+the pinned store has not been mutated, and the snapshot hash `4cccb987…`
+detects any change to the preserved bytes regardless. But it means **the
+triple count is the only integrity signal behind an `authoritative` verdict**,
+and a swap passes it.
+
+For the freeze package the consequence is already handled — snapshot SHA
+answers integrity, the world identity answers recognition, and the restore
+proof answers reproducibility, which is why all three belong together. For
+Sensei generally it is worth a separate look: an `authoritative` verdict
+asserting "live store matches expected validated graph artifact" is a stronger
+claim than a count comparison can support.
+
 ## Versions
 
 ```
