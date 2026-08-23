@@ -15539,6 +15539,72 @@ test_symbols:
     package: packcustody
     language: go
     doc: "A symlinked install record pointing into another checkout must not be read as\nthis project's own evidence — that would let one repository borrow another's\nbaseline to have its divergence declared verified."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_ContainerVersionDistinguishesCannotFromNotYet
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_ContainerVersionDistinguishesCannotFromNotYet
+    package: phase10score
+    language: go
+    doc: "The two container versions are different findings. v1 cannot hold an\nexpected-fact set at all; a v2 container with none recorded is a set nobody\nhas adjudicated yet. Attributing the first to the second would blame the\nruler for the human's pending work, and the second to the first would blame\nthe human for a schema gap."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_MacroKeepsAThinProviderVisibleWhereMicroDoesNot
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_MacroKeepsAThinProviderVisibleWhereMicroDoesNot
+    package: phase10score
+    language: go
+    doc: "A high-volume provider must not mathematically erase a weak thin one. The\nmacro figure is the headline precisely because the micro figure can."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_PrecisionDenominatorExcludesUnresolvedLabels
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_PrecisionDenominatorExcludesUnresolvedLabels
+    package: phase10score
+    language: go
+    doc: "Only `supported` and `unsupported` enter the primary precision denominator.\nEvery other label is present in this fixture and none may move the ratio."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_RecallCountsExpectedSupportedOnly
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_RecallCountsExpectedSupportedOnly
+    package: phase10score
+    language: go
+    doc: "With expected facts present, recall is the protocol's ratio over\nexpected_supported only."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_RecallReportsContainerGapRatherThanAZero
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_RecallReportsContainerGapRatherThanAZero
+    package: phase10score
+    language: go
+    doc: "Primary recall needs the frozen expected-fact set. Where the container\ncannot hold one, the metric is reported missing with the reason — never\nsilently scored, and never omitted."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_SecondAdjudicatorAbsenceIsTyped
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_SecondAdjudicatorAbsenceIsTyped
+    package: phase10score
+    language: go
+    doc: "Section 13's absence is typed, never manufactured agreement."
+  - id: golang/architecture/phase10score/score_test.go:TestCompute_UnlabelledSetReportsAbsentNotZero
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestCompute_UnlabelledSetReportsAbsentNotZero
+    package: phase10score
+    language: go
+    doc: "An unlabelled reference set has no precision. Reporting 0.0 would read as\ntotal failure of the system being graded."
+  - id: golang/architecture/phase10score/score_test.go:TestLoad_RefusesAnUnknownContainerSchema
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestLoad_RefusesAnUnknownContainerSchema
+    package: phase10score
+    language: go
+    doc: "A container version this scorer does not know is refused, not interpreted."
+  - id: golang/architecture/phase10score/score_test.go:TestLoad_RefusesLabelsBoundToAnotherManifest
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestLoad_RefusesLabelsBoundToAnotherManifest
+    package: phase10score
+    language: go
+    doc: "Labels bound to another sample are answers to a question nobody asked."
+  - id: golang/architecture/phase10score/score_test.go:TestReferenceSetDigest_TracksLabelFileBytes
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestReferenceSetDigest_TracksLabelFileBytes
+    package: phase10score
+    language: go
+    doc: "The section 17 identity moves when a label file's bytes move. A score that\ncould not tell two label sets apart could not name what it consumed."
+  - id: golang/architecture/phase10score/score_test.go:TestRender_CarriesSection20Requirements
+    file: golang/architecture/phase10score/score_test.go
+    symbol: TestRender_CarriesSection20Requirements
+    package: phase10score
+    language: go
+    doc: "The report must carry section 20's required fields and say outright that no\naggregate in it is sufficient evidence for completion."
   - id: golang/architecture/plane/assess_test.go:TestActiveContractJustifiesIntendedPlane
     file: golang/architecture/plane/assess_test.go
     symbol: TestActiveContractJustifiesIntendedPlane
