@@ -11931,6 +11931,12 @@ test_symbols:
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
     language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAQuestionCanLearnAFurtherAlternative
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAQuestionCanLearnAFurtherAlternative
+    package: epistemic
+    language: go
+    doc: "Learning of a further alternative later is the normal case. A question that\ncannot grow forces the discovery into a new question — losing the fact that\nit is the same decision — or into an existing alternative's wording, losing\nit entirely."
   - id: golang/architecture/epistemic/adoption_test.go:TestAdoptionBasisCountsTheConservationExposure
     file: golang/architecture/epistemic/adoption_test.go
     symbol: TestAdoptionBasisCountsTheConservationExposure
@@ -11958,6 +11964,17 @@ test_symbols:
     symbol: TestAdoptionRequiresASupportedBelief
     package: epistemic
     language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAlternativesMayNotArriveAlreadyDeadOrDuplicated
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAlternativesMayNotArriveAlreadyDeadOrDuplicated
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/adoption_test.go:TestAnAdoptedQuestionCannotBeWidened
+    file: golang/architecture/epistemic/adoption_test.go
+    symbol: TestAnAdoptedQuestionCannotBeWidened
+    package: epistemic
+    language: go
+    doc: "An adopted question is settled. Adding an alternative would silently unmake a\ndecision the project relies on."
   - id: golang/architecture/epistemic/adoption_test.go:TestAuthorityDispositionRequiresANamedAuthority
     file: golang/architecture/epistemic/adoption_test.go
     symbol: TestAuthorityDispositionRequiresANamedAuthority
