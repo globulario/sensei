@@ -2340,6 +2340,23 @@ test_symbols:
     symbol: TestIrreversibleConsequenceReachesAuthority
     package: main
     language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestObserveRefutationNeedsItsConditionsAndKeepsWhatSurvives
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestObserveRefutationNeedsItsConditionsAndKeepsWhatSurvives
+    package: main
+    language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestScopeOnARepositoryWithNoAwarenessCorpus
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestScopeOnARepositoryWithNoAwarenessCorpus
+    package: main
+    language: go
+    doc: "A repository with no such surface anchors nothing. Reporting that as an error\nwould make the check unusable everywhere except this repository."
+  - id: cmd/awg/cmd_epistemic_test.go:TestScopeReportsExperimentalCodeDefendedAsArchitecture
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestScopeReportsExperimentalCodeDefendedAsArchitecture
+    package: main
+    language: go
+    doc: "The anti-sediment check, end to end through the CLI and against a corpus on\ndisk. An agent guesses B, implements B, extraction records that B exists, B\nbecomes architecture, and the agent can no longer replace its own guess —\nthis is what notices."
   - id: cmd/awg/cmd_epistemic_test.go:TestStatusTripwireFailsOnAnOverdueHypothesis
     file: cmd/awg/cmd_epistemic_test.go
     symbol: TestStatusTripwireFailsOnAnOverdueHypothesis
@@ -11980,6 +11997,41 @@ test_symbols:
     symbol: TestQuestionIsDeclaredOnce
     package: epistemic
     language: go
+  - id: golang/architecture/epistemic/sediment_test.go:TestExperimentalScopeWithNoCanonicalClaimIsClean
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestExperimentalScopeWithNoCanonicalClaimIsClean
+    package: epistemic
+    language: go
+    doc: "Experimental code is NOT ungoverned. The established envelope still holds --\nthis check says nothing about whether the surrounding invariants apply, only\nthat the provisional design inside them has not silently become law."
+  - id: golang/architecture/epistemic/sediment_test.go:TestOpenHypothesisDefendedByCanonicalArchitectureIsSediment
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestOpenHypothesisDefendedByCanonicalArchitectureIsSediment
+    package: epistemic
+    language: go
+    doc: "The loop this exists to break: an agent guesses B, implements B, extraction\nrecords that B exists, B becomes architecture, and the agent can no longer\nreplace its own guess."
+  - id: golang/architecture/epistemic/sediment_test.go:TestRefutationMustCarryItsConditions
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestRefutationMustCarryItsConditions
+    package: epistemic
+    language: go
+    doc: "\"Design B is bad\" is almost never what was observed. Dropping the condition\nturns one experiment into a universal prohibition nobody tested."
+  - id: golang/architecture/epistemic/sediment_test.go:TestRefutedHypothesisLeavesItsCodeOrphaned
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestRefutedHypothesisLeavesItsCodeOrphaned
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/sediment_test.go:TestScopeAndAnchorOverlapInBothDirections
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestScopeAndAnchorOverlapInBothDirections
+    package: epistemic
+    language: go
+    doc: "The corpus anchors directories as often as files, so exact matching would be\ndefeated by the ordinary way it is written. Overlap has to work both ways."
+  - id: golang/architecture/epistemic/sediment_test.go:TestSupportedHypothesisIsNotSediment
+    file: golang/architecture/epistemic/sediment_test.go
+    symbol: TestSupportedHypothesisIsNotSediment
+    package: epistemic
+    language: go
+    doc: "Once a belief is settled the question is no longer open, and adoption -- not\nthis check -- is what should follow. Reporting sediment here would be telling\nthe project off for finishing an experiment."
   - id: golang/architecture/evalharness/baseline_test.go:TestArmCoversEveryMutantAndTheControl
     file: golang/architecture/evalharness/baseline_test.go
     symbol: TestArmCoversEveryMutantAndTheControl
