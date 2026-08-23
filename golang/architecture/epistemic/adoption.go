@@ -308,3 +308,61 @@ func (l *Ledger) MeasureAdoptions() AdoptionBasis {
 	}
 	return b
 }
+
+// AddAlternative widens a declared question with an alternative nobody had
+// thought of when it was declared.
+//
+// Learning of a further alternative later is the normal case, not an anomaly:
+// the alternative set is what somebody could see at declaration time, and real
+// work is what reveals the rest. A question that cannot grow forces the
+// discovery to be recorded as a NEW question, which loses the fact that it is
+// the same decision, or to be smuggled into an existing alternative's wording,
+// which loses it entirely.
+//
+// Widening is safe in the direction that matters. Adding a viable alternative
+// can only move a disposition toward MORE openness -- CONSERVATION can become
+// EXPLORATION_CANDIDATE or AUTHORITY, never the reverse -- so it cannot be used
+// to manufacture freedom by narrowing. Eliminating an alternative still
+// requires naming the constraint that killed it.
+//
+// The one refusal: a question whose answer has been adopted is settled, and
+// reopening it by adding an alternative would silently unmake a decision the
+// project relies on. That is supersession, which is deliberately not built.
+func (l *Ledger) AddAlternative(questionID string, alt Alternative) []string {
+	var q *DesignQuestion
+	for i := range l.Questions {
+		if l.Questions[i].ID == questionID {
+			q = &l.Questions[i]
+			break
+		}
+	}
+	if q == nil {
+		return []string{fmt.Sprintf("no design question %q", questionID)}
+	}
+	if adopted := l.adoptedAlternative(questionID); adopted != "" {
+		return []string{fmt.Sprintf("design question %q already adopted alternative %q; adding an alternative now would silently reopen a decision the project relies on — that is supersession, which is not built",
+			questionID, adopted)}
+	}
+	if !altIDPattern.MatchString(alt.ID) {
+		return []string{fmt.Sprintf("alternative id %q must be 1-64 chars of [a-z0-9._-] starting alphanumeric", alt.ID)}
+	}
+	if strings.TrimSpace(alt.Statement) == "" {
+		return []string{"alternative statement is required"}
+	}
+	if strings.TrimSpace(alt.EliminatedBy) != "" {
+		// An alternative that arrives already dead teaches nothing and cannot
+		// be reviewed: whoever adds it has done the eliminating in their head.
+		return []string{"an alternative may not be added already eliminated; add it viable, then eliminate it by naming the constraint"}
+	}
+	for _, existing := range q.Alternatives {
+		if existing.ID == alt.ID {
+			return []string{fmt.Sprintf("design question %q already declares alternative %q", questionID, alt.ID)}
+		}
+		if normalize(existing.Statement) == normalize(alt.Statement) {
+			return []string{fmt.Sprintf("alternative %q repeats %q verbatim; two alternatives must be materially distinct, and this check catches only exact repetition",
+				alt.ID, existing.ID)}
+		}
+	}
+	q.Alternatives = append(q.Alternatives, alt)
+	return nil
+}

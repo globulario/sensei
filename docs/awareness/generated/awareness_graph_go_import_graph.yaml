@@ -99,6 +99,7 @@ components:
       - cmd/awg/cmd_enroll_agent.go
       - cmd/awg/cmd_epistemic.go
       - cmd/awg/cmd_epistemic_adopt.go
+      - cmd/awg/cmd_epistemic_amend.go
       - cmd/awg/cmd_evidence.go
       - cmd/awg/cmd_evidence_phase10.go
       - cmd/awg/cmd_feedback_check.go
