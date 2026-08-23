@@ -2314,6 +2314,43 @@ test_symbols:
     package: main
     language: go
     doc: "TestEnrollAgentRefusesArbitraryRoleOrIssuer proves local enrollment cannot\nselect or mint an arbitrary privileged role or ungoverned issuer: a\nnon-governed override is refused and writes no identity (regression #10)."
+  - id: cmd/awg/cmd_epistemic_test.go:TestDeclareExposesNoFlagThatCouldAuthorADisposition
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestDeclareExposesNoFlagThatCouldAuthorADisposition
+    package: main
+    language: go
+    doc: "The disposition is computed, so there is no flag that could set it. A flag\nnamed for a regime, or for the difficulty of the question, would be the\nescape hatch the whole design refuses -- so the surface is asserted rather\nthan described."
+  - id: cmd/awg/cmd_epistemic_test.go:TestDeclareRefusesASingleAlternative
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestDeclareRefusesASingleAlternative
+    package: main
+    language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestDeclareWritesALedgerAndComputesTheDisposition
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestDeclareWritesALedgerAndComputesTheDisposition
+    package: main
+    language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestHypothesizeRefusesAGateRestatingFalsifier
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestHypothesizeRefusesAGateRestatingFalsifier
+    package: main
+    language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestIrreversibleConsequenceReachesAuthority
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestIrreversibleConsequenceReachesAuthority
+    package: main
+    language: go
+  - id: cmd/awg/cmd_epistemic_test.go:TestStatusTripwireFailsOnAnOverdueHypothesis
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestStatusTripwireFailsOnAnOverdueHypothesis
+    package: main
+    language: go
+    doc: "The tripwire is the only reason the liveness counters are worth keeping. A\nhypothesis whose horizon passed with nothing observed must make the command\nfail, or the overdue count is a number nobody is obliged to look at."
+  - id: cmd/awg/cmd_epistemic_test.go:TestUnknownSubcommandIsAUsageError
+    file: cmd/awg/cmd_epistemic_test.go
+    symbol: TestUnknownSubcommandIsAUsageError
+    package: main
+    language: go
   - id: cmd/awg/cmd_evidence_test.go:TestDecisionFromCode
     file: cmd/awg/cmd_evidence_test.go
     symbol: TestDecisionFromCode
@@ -11858,6 +11895,90 @@ test_symbols:
     file: golang/architecture/diffaudit/parser_test.go
     symbol: TestParseDiff_ValidMultiFile
     package: diffaudit
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestDesignQuestionCannotExpressTechnicalDifficulty
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestDesignQuestionCannotExpressTechnicalDifficulty
+    package: epistemic
+    language: go
+    doc: "AUTHORITY must be reached by consequence and by nothing else. The enforcement\nis structural: there is no field on DesignQuestion an agent could use to say\n\"this is hard, a human should decide\", so routing a difficult technical\nquestion to a human is not expressible. This test fails the moment somebody\nadds one."
+  - id: golang/architecture/epistemic/epistemic_test.go:TestDispositionFollowsFromStructure
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestDispositionFollowsFromStructure
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestFalsifierMayNotRestateAGate
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestFalsifierMayNotRestateAGate
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestHypothesisRequiresADetectableHorizon
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestHypothesisRequiresADetectableHorizon
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestMateriallyDistinctIsNotClaimedMechanically
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestMateriallyDistinctIsNotClaimedMechanically
+    package: epistemic
+    language: go
+    doc: "The verbatim check is all the validator claims. Two alternatives that differ\nonly by a renamed type are NOT materially distinct, and this must still pass\n— because a check that pretended to settle \"materially distinct\" would put a\ngreen tick next to the manufactured-alternatives failure it cannot detect."
+  - id: golang/architecture/epistemic/epistemic_test.go:TestMeasureCountsAndRefusesARateWithNoDenominator
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestMeasureCountsAndRefusesARateWithNoDenominator
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestObservationRequiresCheckableEvidence
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestObservationRequiresCheckableEvidence
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestQuestionValidation
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestQuestionValidation
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestSelfConfirmationIsCountedNotGated
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestSelfConfirmationIsCountedNotGated
+    package: epistemic
+    language: go
+    doc: "A belief that only its own author ever confirmed is the shape of a fake\nreasoning loop: declare a question, predict an answer, observe that the\nanswer was right, call it evidence. It is ALSO the shape of an honest\none-person project, which is why this is counted and never gated. The test\npins that it is counted, and that one independent observer clears it."
+  - id: golang/architecture/epistemic/epistemic_test.go:TestStateNeverReachesSupportedWithoutAnObservation
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestStateNeverReachesSupportedWithoutAnObservation
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/epistemic_test.go:TestUnparseableHorizonIsOverdueRatherThanSilent
+    file: golang/architecture/epistemic/epistemic_test.go
+    symbol: TestUnparseableHorizonIsOverdueRatherThanSilent
+    package: epistemic
+    language: go
+    doc: "A horizon that cannot be parsed must surface, not hide. Treating it as\nnot-yet-due would let a malformed date buy indefinite silence, which is the\nsame escape the overdue tripwire exists to close."
+  - id: golang/architecture/epistemic/ledger_test.go:TestDecodeEmptyIsAnEmptyLedgerAndUnknownVersionIsRefused
+    file: golang/architecture/epistemic/ledger_test.go
+    symbol: TestDecodeEmptyIsAnEmptyLedgerAndUnknownVersionIsRefused
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/ledger_test.go:TestHypothesisMustAttachToADeclaredViableAlternative
+    file: golang/architecture/epistemic/ledger_test.go
+    symbol: TestHypothesisMustAttachToADeclaredViableAlternative
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/ledger_test.go:TestLedgerRoundTripsAndSortsDeterministically
+    file: golang/architecture/epistemic/ledger_test.go
+    symbol: TestLedgerRoundTripsAndSortsDeterministically
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/ledger_test.go:TestObservationsAreAppendedNeverRewritten
+    file: golang/architecture/epistemic/ledger_test.go
+    symbol: TestObservationsAreAppendedNeverRewritten
+    package: epistemic
+    language: go
+  - id: golang/architecture/epistemic/ledger_test.go:TestQuestionIsDeclaredOnce
+    file: golang/architecture/epistemic/ledger_test.go
+    symbol: TestQuestionIsDeclaredOnce
+    package: epistemic
     language: go
   - id: golang/architecture/evalharness/baseline_test.go:TestArmCoversEveryMutantAndTheControl
     file: golang/architecture/evalharness/baseline_test.go
