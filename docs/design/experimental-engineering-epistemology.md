@@ -147,6 +147,15 @@ established constraints do not represent freedom.
 A question that names no alternatives is a topic heading, not a degree of
 freedom, and must not confer anything.
 
+*Materially distinct* is the part no deterministic validator can settle. A model
+can reason that "append-only record" and "mutate the existing receipt" differ
+materially while "append-only record" and "append-only record with a renamed
+type" do not; what is unavailable is a mechanical check that deserves
+architectural authority on its own. So this is another judgment under evidence
+rather than a concept beyond automation — which is consistent with the rest of
+this document, and falsifiable by whether manufactured questions actually appear
+in practice.
+
 The disposition then emerges from constraint binding rather than being asserted:
 
 ```
@@ -273,6 +282,37 @@ would be an accidental contamination event. Test after
 `prospective-labels.json` is frozen, or on a separate mechanically selected
 sample outside #259.
 
+**H-WU1 — Decomposition beats partial execution.** Nontrivial mixed-authority
+changes can frequently be decomposed into independently coherent work units,
+such that human-owned dimensions do not unnecessarily block autonomous ones.
+
+*Why it matters.* Composition is where the §1 measurement could repeat one level
+up. If a change carries four questions and any single `AUTHORITY` disposition
+escalates the whole change, then per-question routing buys nothing the moment
+real changes routinely contain one sensitive dimension — which they will, since
+anything touching persistence, publication or external state qualifies. The
+grantable set would be zero again, for a better-articulated reason.
+
+*Why not partial execution.* Half-applying a candidate produces state semantics
+nobody wants: tests against which intended state, what completion means, which
+commit represents the partial decision, whether the deferred question can
+invalidate the executed part. Sensei's strongest property is that when it says
+something happened, one coherent thing happened. Decomposition **before**
+execution preserves that; partial application spends it.
+
+*Anti-gaming requirement.* The cut line is itself a decision and can be gamed —
+an agent that isolates the human-owned dimension into a small deferred unit and
+takes autonomy over the rest has reached the escape hatch one level up. The
+proposed criterion: **a split is legitimate only when the deferred unit's
+resolution cannot invalidate the executed unit.** If the human could decide B
+either way and A remains correct, they were independent. If B's resolution would
+require A to be redone, the split was authority convenience, and executing A
+commits to an answer nobody gave.
+
+*If false:* most architectural decisions are too tightly coupled to split, and
+partial autonomy buys far less than expected. That would be worth discovering
+before building a work-unit ontology, not after.
+
 **H-LIVE1 — Overdue detection is necessary.** Without an overdue-observation
 tripwire, the ratio of observed to recorded hypotheses declines over time.
 *If false:* the tripwire is unnecessary bookkeeping.
@@ -283,6 +323,27 @@ a completeness claim about the graph.
 *If false:* important open decisions go undeclared and the model gives a false
 sense of coverage — which would be worse than today, because it would look
 principled.
+
+## 8a. A candidate law, not yet adopted
+
+Every scalar this project has tried has broken against reality:
+
+```
+file    → grant / refuse
+change  → grant / refuse
+risk    → human / not human
+```
+
+Each time the structure turned out to be more dimensional than the verdict. The
+pattern suggests a law, recorded here as a candidate only:
+
+> **Authority belongs at the smallest semantic unit that can still be executed
+> coherently.**
+
+Not the file. Not necessarily the change. Not an arbitrary individual thought.
+Probably a coherent work unit — but "coherent" is exactly what H-WU1 tests, and
+until that is measured this remains an observation about a pattern, not a rule
+anything should obey.
 
 ## 9. Non-decisions
 
@@ -315,7 +376,9 @@ due Observation + the back-edge that closes the loop
         ↓
 accumulate real records
         ↓
-only then revisit routing
+measure mixed-authority frequency (H-WU1)
+        ↓
+only then revisit routing and decomposition
 ```
 
 Routing comes last because the future router would have nothing to route:
