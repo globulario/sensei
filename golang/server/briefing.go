@@ -237,7 +237,13 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	switch {
 	case directAnchors > 0:
 		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
-	case len(implPatterns) > 0:
+	// Sibling anchors are inference, and they must be classified BEFORE code
+	// context. collectImpact walks the package and returns anchors carried by
+	// other files in this one; that is a real, if weaker, statement about this
+	// file's neighbourhood, and rendering it in the prose while reporting
+	// CONTEXT_ONLY made the status UNDERRUN its predicate -- the same defect as
+	// OK overrunning it, pointing the other way.
+	case !inference.empty(), len(implPatterns) > 0:
 		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY
 	case codeContext:
 		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY

@@ -27272,6 +27272,12 @@ test_symbols:
     symbol: TestResolve_UnknownRequestedDomainFailsClosed
     package: main
     language: go
+  - id: golang/server/main_test.go:TestSiblingInferenceIsClassifiedBeforeCodeContext
+    file: golang/server/main_test.go
+    symbol: TestSiblingInferenceIsClassifiedBeforeCodeContext
+    package: main
+    language: go
+    doc: "Sibling inference is classified before code context.\n\ncollectImpact walks the package and returns anchors carried by OTHER files in\nit. Those were rendered in the prose -- \"Inferred from this package (anchored\nto sibling files, NOT to this file)\" -- while the status reported\nCONTEXT_ONLY, because only direct anchors, task patterns and symbols were\nconsulted.\n\nThat is the status UNDERRUNNING its predicate: the same law as OK overrunning\nit, pointing the other way. A caller choosing what to read next cannot tell\n\"we know something about this neighbourhood\" from \"we can name this file's\nsymbols\"."
   - id: golang/server/main_test.go:TestValidateBackend_HealthyStore_ReturnsNil
     file: golang/server/main_test.go
     symbol: TestValidateBackend_HealthyStore_ReturnsNil
