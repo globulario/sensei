@@ -45,13 +45,34 @@ const (
 // caller can't distinguish "you forgot to anchor this file" (EMPTY) from
 // "the backend is partially down" (DEGRADED) — both produce an empty
 // prose body otherwise.
+// A status names WHAT WAS ESTABLISHED, not how the call went.
+//
+// OK used to be set whenever the response referenced anything at all, and
+// referenced ids include code_symbol entries that every indexed file has. So a
+// file with no governing anchor answered BRIEFING_STATUS_OK while preflight
+// answered PREFLIGHT_STATUS_EMPTY for the same file, and both were correct
+// under their own definitions. The prose carried the caveat ("anchored to
+// sibling files, NOT to this file"); the status token discarded it, and "OK"
+// attracts a stronger reading than the predicate that produced it.
+//
+// The values below are ordered by what binds THIS file. New values are appended
+// rather than renumbered, so a reader that only asks "is it EMPTY" keeps its
+// current behaviour; a reader that wants to know whether anything GOVERNS the
+// file must now ask for ANCHORED specifically.
 type BriefingStatus int32
 
 const (
-	BriefingStatus_BRIEFING_STATUS_OK    BriefingStatus = 0 // Anchors found; prose composed normally.
-	BriefingStatus_BRIEFING_STATUS_EMPTY BriefingStatus = 1 // File/task has zero direct or inferred anchors.
+	BriefingStatus_BRIEFING_STATUS_OK BriefingStatus = 0 // At least one anchor binds this file directly.
+	// The strongest answer: something governs THIS file.
+	BriefingStatus_BRIEFING_STATUS_EMPTY BriefingStatus = 1 // Nothing at all: no anchors, no inference, not indexed.
 	// Action: author awareness for this file, or treat the edit as low-coverage.
 	BriefingStatus_BRIEFING_STATUS_DEGRADED BriefingStatus = 2 // Backend partially unavailable; prose is best-effort.
+	// Action: retry or fall back to local YAML reading.
+	BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY BriefingStatus = 3 // No anchor binds this file. What follows was inferred
+	// from sibling files or from meta-principles, and governs
+	// the PACKAGE or the path class, not necessarily this file.
+	// NOT coverage. Confirm before treating one as binding.
+	BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY BriefingStatus = 4 // Only code context: symbols, call conventions, references.
 )
 
 // Enum value maps for BriefingStatus.
@@ -60,11 +81,15 @@ var (
 		0: "BRIEFING_STATUS_OK",
 		1: "BRIEFING_STATUS_EMPTY",
 		2: "BRIEFING_STATUS_DEGRADED",
+		3: "BRIEFING_STATUS_INFERRED_ONLY",
+		4: "BRIEFING_STATUS_CONTEXT_ONLY",
 	}
 	BriefingStatus_value = map[string]int32{
-		"BRIEFING_STATUS_OK":       0,
-		"BRIEFING_STATUS_EMPTY":    1,
-		"BRIEFING_STATUS_DEGRADED": 2,
+		"BRIEFING_STATUS_OK":            0,
+		"BRIEFING_STATUS_EMPTY":         1,
+		"BRIEFING_STATUS_DEGRADED":      2,
+		"BRIEFING_STATUS_INFERRED_ONLY": 3,
+		"BRIEFING_STATUS_CONTEXT_ONLY":  4,
 	}
 )
 
@@ -10667,11 +10692,13 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\"expected_ledger_head_digest_sha256\x18\x02 \x01(\tR\x1eexpectedLedgerHeadDigestSha256\"\xcf\x01\n" +
 	"(RecordArchitectAnswerDispositionResponse\x12R\n" +
 	"\areceipt\x18\x01 \x01(\v28.globular.awareness_graph.ArchitectureDispositionReceiptR\areceipt\x12O\n" +
-	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal*a\n" +
+	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal*\xa6\x01\n" +
 	"\x0eBriefingStatus\x12\x16\n" +
 	"\x12BRIEFING_STATUS_OK\x10\x00\x12\x19\n" +
 	"\x15BRIEFING_STATUS_EMPTY\x10\x01\x12\x1c\n" +
-	"\x18BRIEFING_STATUS_DEGRADED\x10\x02*\xaf\x02\n" +
+	"\x18BRIEFING_STATUS_DEGRADED\x10\x02\x12!\n" +
+	"\x1dBRIEFING_STATUS_INFERRED_ONLY\x10\x03\x12 \n" +
+	"\x1cBRIEFING_STATUS_CONTEXT_ONLY\x10\x04*\xaf\x02\n" +
 	"\x1cBriefingFeedbackAvailability\x12.\n" +
 	"*BRIEFING_FEEDBACK_AVAILABILITY_UNSPECIFIED\x10\x00\x12,\n" +
 	"(BRIEFING_FEEDBACK_AVAILABILITY_AVAILABLE\x10\x01\x12(\n" +

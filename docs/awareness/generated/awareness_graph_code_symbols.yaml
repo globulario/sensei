@@ -26927,6 +26927,12 @@ test_symbols:
     symbol: TestBriefing_AgentCompactUsesTighterCaps
     package: main
     language: go
+  - id: golang/server/main_test.go:TestBriefing_CodeSymbolsAreContextNotCoverage
+    file: golang/server/main_test.go
+    symbol: TestBriefing_CodeSymbolsAreContextNotCoverage
+    package: main
+    language: go
+    doc: "Code symbols are context, and context is not coverage.\n\nThis asserted OK until a governed run read that token as \"this file is\ncovered\" while preflight answered EMPTY for the same file. Both were correct\nunder their own definitions; OK was the wrong word for \"we can name this\nfile's symbols\". The guarantee that mattered is preserved -- a briefing that\nreturned material must not answer EMPTY -- and the answer now names its own\npredicate instead of borrowing a stronger one."
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_DeterministicAcrossRuns
     file: golang/server/main_test.go
     symbol: TestBriefing_CodeSymbols_DeterministicAcrossRuns
@@ -26945,11 +26951,6 @@ test_symbols:
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_LinkedInvariantInProse
     file: golang/server/main_test.go
     symbol: TestBriefing_CodeSymbols_LinkedInvariantInProse
-    package: main
-    language: go
-  - id: golang/server/main_test.go:TestBriefing_CodeSymbols_OKWhenOnlySymbols
-    file: golang/server/main_test.go
-    symbol: TestBriefing_CodeSymbols_OKWhenOnlySymbols
     package: main
     language: go
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_PartiallyViolatesInProse

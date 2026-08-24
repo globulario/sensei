@@ -180,12 +180,34 @@ message BriefingRequest {
 // caller can't distinguish "you forgot to anchor this file" (EMPTY) from
 // "the backend is partially down" (DEGRADED) — both produce an empty
 // prose body otherwise.
+// A status names WHAT WAS ESTABLISHED, not how the call went.
+//
+// OK used to be set whenever the response referenced anything at all, and
+// referenced ids include code_symbol entries that every indexed file has. So a
+// file with no governing anchor answered BRIEFING_STATUS_OK while preflight
+// answered PREFLIGHT_STATUS_EMPTY for the same file, and both were correct
+// under their own definitions. The prose carried the caveat ("anchored to
+// sibling files, NOT to this file"); the status token discarded it, and "OK"
+// attracts a stronger reading than the predicate that produced it.
+//
+// The values below are ordered by what binds THIS file. New values are appended
+// rather than renumbered, so a reader that only asks "is it EMPTY" keeps its
+// current behaviour; a reader that wants to know whether anything GOVERNS the
+// file must now ask for ANCHORED specifically.
 enum BriefingStatus {
-  BRIEFING_STATUS_OK = 0;        // Anchors found; prose composed normally.
-  BRIEFING_STATUS_EMPTY = 1;     // File/task has zero direct or inferred anchors.
+  BRIEFING_STATUS_OK = 0;        // At least one anchor binds this file directly.
+                                 // The strongest answer: something governs THIS file.
+  BRIEFING_STATUS_EMPTY = 1;     // Nothing at all: no anchors, no inference, not indexed.
                                  // Action: author awareness for this file, or treat the edit as low-coverage.
   BRIEFING_STATUS_DEGRADED = 2;  // Backend partially unavailable; prose is best-effort.
                                  // Action: retry or fall back to local YAML reading.
+  BRIEFING_STATUS_INFERRED_ONLY = 3;  // No anchor binds this file. What follows was inferred
+                                      // from sibling files or from meta-principles, and governs
+                                      // the PACKAGE or the path class, not necessarily this file.
+                                      // NOT coverage. Confirm before treating one as binding.
+  BRIEFING_STATUS_CONTEXT_ONLY = 4;   // Only code context: symbols, call conventions, references.
+                                      // Nothing governs this file and nothing was inferred about
+                                      // it. Naming a file's symbols is not knowledge about it.
 }
 
 message BriefingResponse {

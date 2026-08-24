@@ -152,8 +152,17 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	referenced = appendReferencedIDs(referenced, impact.GetForbiddenFixes())
 	referenced = appendReferencedIDs(referenced, impact.GetRequiredTests())
 	referenced = appendReferencedIDs(referenced, impact.GetDirectArchitecture())
+	// What binds THIS file, counted before anything weaker joins the list.
+	//
+	// The status below used to be "referenced is non-empty", and referenced
+	// picks up a code_symbol id for every indexed file, so a file nothing
+	// governs answered OK. Counting here, before code symbols and before
+	// task-level material, is what lets the status name its own predicate.
+	directAnchors := len(referenced)
+
 	existingIRIs := buildExistingIRISet(impact)
 	referenced = append(referenced, codeRefIDsFromSymbols(codeSyms, existingIRIs)...)
+	codeContext := len(referenced) > directAnchors
 
 	// Every briefing SECTION is scoped to the same resolved domain as the
 	// impact above — a domain-scoped briefing must not leak another repo's
@@ -215,12 +224,23 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		referenced = append(referenced, "repair_plan:"+rp.ID)
 	}
 
-	statusVal := awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
-	if len(referenced) == 0 {
-		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY
-	}
-	if statusVal == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY && len(implPatterns) > 0 {
+	// The status names what was established about this file, in descending
+	// strength: an anchor that binds it, something inferred about its package
+	// or path class, code context only, or nothing.
+	//
+	// Weaker material never lifts the answer to OK. Implementation patterns and
+	// intents match the TASK, principle guidance matches the PATH, and inferred
+	// anchors come from sibling files -- all useful, none of them a statement
+	// about this file, and the prose already says so in every case. Folding any
+	// of them into OK is what made the token contradict its own body.
+	statusVal := awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY
+	switch {
+	case directAnchors > 0:
 		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
+	case len(implPatterns) > 0:
+		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY
+	case codeContext:
+		statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY
 	}
 
 	// Principle-based reasoning: when no direct anchors exist for a
@@ -228,14 +248,17 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// on the file's path and role. This turns "no awareness found" into
 	// "no specific invariants, but these architectural principles apply."
 	var principleGuidance []principleMatch
-	if statusVal == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
+	if directAnchors == 0 {
 		if principles, err := s.fetchMetaPrinciples(ctx); err == nil {
 			principleGuidance = inferPrincipleGuidance(file, principles)
 			for _, pg := range principleGuidance {
 				referenced = append(referenced, "invariant:"+pg.ID)
 			}
+			// Principle guidance is matched from the file's PATH and role. It
+			// is the weakest thing here and it must not reach OK: a rule that
+			// applies because of where a file sits is not a rule anchored to it.
 			if len(principleGuidance) > 0 {
-				statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
+				statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY
 			}
 		}
 	}

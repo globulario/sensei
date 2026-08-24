@@ -1533,7 +1533,15 @@ func TestBriefing_DeterministicOrdering_SeverityIDLabel(t *testing.T) {
 	assertCurrentAuthority(t, resp.GetAuthority())
 }
 
-func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
+// Code symbols are context, and context is not coverage.
+//
+// This asserted OK until a governed run read that token as "this file is
+// covered" while preflight answered EMPTY for the same file. Both were correct
+// under their own definitions; OK was the wrong word for "we can name this
+// file's symbols". The guarantee that mattered is preserved -- a briefing that
+// returned material must not answer EMPTY -- and the answer now names its own
+// predicate instead of borrowing a stronger one.
+func TestBriefing_CodeSymbolsAreContextNotCoverage(t *testing.T) {
 	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
@@ -1560,8 +1568,12 @@ func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
-		t.Fatalf("status=%v, want OK (code symbols alone should yield OK)", resp.GetStatus())
+	if got := resp.GetStatus(); got != awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY {
+		t.Fatalf("status=%v, want CONTEXT_ONLY: naming a file's symbols establishes nothing "+
+			"that governs it, and OK is read as coverage", got)
+	}
+	if resp.GetStatus() == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
+		t.Fatal("a briefing that returned material must not answer EMPTY")
 	}
 	found := false
 	for _, id := range resp.GetReferencedIds() {
