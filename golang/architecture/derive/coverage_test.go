@@ -146,3 +146,82 @@ func TestCoverageAnchorHasNoExportedFields(t *testing.T) {
 		}
 	}
 }
+
+// THE event.go SPECIMEN, pinned permanently.
+//
+// A derivation parses a whole package to resolve types, so it READ event.go.
+// event.go contains neither Bus nor mu. It must not be covered by a proposition
+// about Bus.subs under Bus.mu.
+//
+//	A file may be necessary to compute a truth without being something that
+//	truth says anything about.
+//
+// This is the fourth appearance of one law — evidence must not outrun
+// observation (#298), derivation must not outrun what it can see (#300), stored
+// knowledge must not outrun derivation scope (#302), and now coverage must not
+// outrun proposition relevance. It is also the first of the four that shipped.
+func TestCoverageDoesNotReachAFileThePropositionSaysNothingAbout(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"internal/event/bus.go":   busGo,
+		"internal/event/other.go": "package event\n\n// nothing here mentions Bus or mu.\nfunc Unrelated() int { return 1 }\n",
+	})
+	receipt, est := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
+	if receipt.Outcome != Derived || est == nil {
+		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
+	}
+
+	// It was read. That is legitimate and necessary.
+	readOther := false
+	for _, in := range receipt.Inputs {
+		if in == "internal/event/other.go" {
+			readOther = true
+		}
+	}
+	if !readOther {
+		t.Fatal("fixture: the unrelated file was not read, so this proves nothing")
+	}
+
+	// It is not a subject, and therefore not covered.
+	for _, f := range receipt.SubjectFiles() {
+		if f == "internal/event/other.go" {
+			t.Fatal("a file the proposition says nothing about became a subject")
+		}
+	}
+	anchor, err := AnchorFor(*est, src.Commit())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range anchor.Files() {
+		if f == "internal/event/other.go" {
+			t.Fatalf("coverage reached a file the proposition says nothing about: %v", anchor.Files())
+		}
+	}
+	if len(anchor.Files()) != 1 || anchor.Files()[0] != "internal/event/bus.go" {
+		t.Fatalf("coverage extent = %v, want only bus.go", anchor.Files())
+	}
+}
+
+// Subjects come from the derivation, never from the proposer. There is no field
+// on Proposition through which subjects could be supplied.
+func TestSubjectsCannotBeSuppliedByTheProposer(t *testing.T) {
+	rt := reflect.TypeOf(Proposition{})
+	for i := 0; i < rt.NumField(); i++ {
+		n := strings.ToLower(rt.Field(i).Name)
+		for _, bad := range []string{"subject", "cover", "file", "scope", "extent"} {
+			if strings.Contains(n, bad) {
+				t.Fatalf("Proposition.%s lets a claimant name its own coverage extent; "+
+					"a claimant able to do that would simply name every file it wanted covered",
+					rt.Field(i).Name)
+			}
+		}
+	}
+}
+
+// An Established with no subjects anchors nothing. Coverage must never fall
+// back to the input list when the proof named no entities.
+func TestNoSubjectsMeansNoCoverage(t *testing.T) {
+	e := Established{receipt: Receipt{Outcome: Derived, Commit: "abc", Inputs: []string{"a.go", "b.go"}}}
+	if _, err := AnchorFor(e, "abc"); err == nil {
+		t.Fatal("an anchor was built with no subjects; it would have fallen back to the files read")
+	}
+}

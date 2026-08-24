@@ -38,6 +38,14 @@ import (
 type CoverageAnchor struct {
 	established Established
 	world       string
+	// files are the SUBJECT files: the ones the proposition is about. Not the
+	// files the derivation read.
+	//
+	// internal/event/event.go contains neither Bus nor mu and was covered by a
+	// proposition about Bus.subs under Bus.mu, because a derivation parses a
+	// whole package to resolve types. A file may be necessary to compute a
+	// truth without being something that truth says anything about.
+	files []string
 }
 
 // AnchorFor turns a fact established in a world into coverage for that world.
@@ -59,7 +67,13 @@ func AnchorFor(e Established, world string) (CoverageAnchor, error) {
 			"this fact was derived in %s and cannot anchor coverage for %s; revalidate against the world being assessed",
 			shortCommit(e.receipt.Commit), shortCommit(world))
 	}
-	return CoverageAnchor{established: e, world: world}, nil
+	subjects := e.receipt.SubjectFiles()
+	if len(subjects) == 0 {
+		return CoverageAnchor{}, fmt.Errorf(
+			"the derivation named no subjects, so there is nothing this proposition is about; " +
+				"coverage may not fall back to the files it read")
+	}
+	return CoverageAnchor{established: e, world: world, files: subjects}, nil
 }
 
 // AnchorFromRecipe is the whole legitimate path in one call: revalidate the
@@ -80,6 +94,9 @@ func AnchorFromRecipe(s StoredFact, src PinnedSource, now time.Time) (Receipt, *
 	}
 	return receipt, &anchor
 }
+
+// Files are the subject files this anchor covers, and only those.
+func (c CoverageAnchor) Files() []string { return append([]string(nil), c.files...) }
 
 // Proposition is what this anchor covers.
 func (c CoverageAnchor) Proposition() Proposition { return c.established.Proposition() }

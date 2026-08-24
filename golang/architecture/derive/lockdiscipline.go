@@ -67,10 +67,10 @@ func (lockDiscipline) Applies(p Proposition) bool {
 		strings.TrimSpace(p.Field) != "" && strings.TrimSpace(p.Lock) != ""
 }
 
-func (l lockDiscipline) Derive(src PinnedSource, p Proposition) (Outcome, []string, string) {
+func (l lockDiscipline) Derive(src PinnedSource, p Proposition) Attempt {
 	paths, err := src.List(p.Dir)
 	if err != nil {
-		return Unknown, nil, fmt.Sprintf("cannot list %s at the pinned commit: %v", p.Dir, err)
+		return Attempt{Outcome: Unknown, Inputs: nil, Detail: fmt.Sprintf("cannot list %s at the pinned commit: %v", p.Dir, err)}
 	}
 	var read []string
 	fset := token.NewFileSet()
@@ -81,25 +81,38 @@ func (l lockDiscipline) Derive(src PinnedSource, p Proposition) (Outcome, []stri
 		}
 		b, err := src.Read(path)
 		if err != nil {
-			return Unknown, read, fmt.Sprintf("cannot read %s at the pinned commit: %v", path, err)
+			return Attempt{Outcome: Unknown, Inputs: read, Detail: fmt.Sprintf("cannot read %s at the pinned commit: %v", path, err)}
 		}
 		f, err := parser.ParseFile(fset, path, b, 0)
 		if err != nil {
-			return Unknown, read, fmt.Sprintf("cannot parse %s: %v", path, err)
+			return Attempt{Outcome: Unknown, Inputs: read, Detail: fmt.Sprintf("cannot parse %s: %v", path, err)}
 		}
 		files = append(files, f)
 		read = append(read, path)
 	}
 	sort.Strings(read)
 	if len(files) == 0 {
-		return Unknown, read, fmt.Sprintf("no non-test Go files under %s at the pinned commit", p.Dir)
+		return Attempt{Outcome: Unknown, Inputs: read, Detail: fmt.Sprintf("no non-test Go files under %s at the pinned commit", p.Dir)}
+	}
+	// Subjects: the locations the proposition is ABOUT. Built from the proof as
+	// it is constructed, never from the file list — that conflation is the bug
+	// this replaces.
+	var subjects []Subject
+	if decl := declarationSite(fset, files, p.Type, p.Field); decl != nil {
+		decl.Role = "field-declaration"
+		subjects = append(subjects, *decl)
+	}
+	if decl := declarationSite(fset, files, p.Type, p.Lock); decl != nil {
+		decl.Role = "lock-declaration"
+		subjects = append(subjects, *decl)
 	}
 	if !declaresField(files, p.Type, p.Field) {
-		return Unknown, read, fmt.Sprintf("type %s has no field %s in %s; the proposition is about something that is not there",
-			p.Type, p.Field, p.Dir)
+		return Attempt{Outcome: Unknown, Inputs: read, Detail: fmt.Sprintf(
+			"type %s has no field %s in %s; the proposition is about something that is not there",
+			p.Type, p.Field, p.Dir)}
 	}
 	if !declaresField(files, p.Type, p.Lock) {
-		return Unknown, read, fmt.Sprintf("type %s has no field %s to be held", p.Type, p.Lock)
+		return Attempt{Outcome: Unknown, Inputs: read, Detail: fmt.Sprintf("type %s has no field %s to be held", p.Type, p.Lock)}
 	}
 
 	var counterexamples []string
@@ -122,6 +135,10 @@ func (l lockDiscipline) Derive(src PinnedSource, p Proposition) (Outcome, []stri
 				}
 				// An access from outside a method of the type cannot be assumed
 				// protected: the caller holds no lock this proposition names.
+				pos := fset.Position(sel.Pos())
+				subjects = append(subjects, Subject{
+					File: pos.Filename, Line: pos.Line,
+					Entity: p.Type + "." + p.Field, Role: "access-site"})
 				if recv == "" || ident.Name != recv {
 					accesses++
 					counterexamples = append(counterexamples, fmt.Sprintf(
@@ -140,16 +157,19 @@ func (l lockDiscipline) Derive(src PinnedSource, p Proposition) (Outcome, []stri
 		}
 	}
 	if accesses == 0 {
-		return Unknown, read, fmt.Sprintf("no access to %s.%s found in %s; nothing to establish",
-			p.Type, p.Field, p.Dir)
+		return Attempt{Outcome: Unknown, Inputs: read, Subjects: subjects, Detail: fmt.Sprintf(
+			"no access to %s.%s found in %s; nothing to establish", p.Type, p.Field, p.Dir)}
 	}
 	if len(counterexamples) != 0 {
 		sort.Strings(counterexamples)
-		return NotDerived, read, fmt.Sprintf("%d of %d access(es) are not under %s: %s",
-			len(counterexamples), accesses, p.Lock, strings.Join(counterexamples, "; "))
+		return Attempt{Outcome: NotDerived, Inputs: read, Subjects: subjects, Detail: fmt.Sprintf(
+			"%d of %d access(es) are not under %s: %s",
+			len(counterexamples), accesses, p.Lock, strings.Join(counterexamples, "; "))}
 	}
-	return Derived, read, fmt.Sprintf("all %d access(es) to %s.%s occur while %s.%s is held, across %d file(s)",
-		accesses, p.Type, p.Field, p.Type, p.Lock, len(read))
+	return Attempt{Outcome: Derived, Inputs: read, Subjects: subjects, Detail: fmt.Sprintf(
+		"all %d access(es) to %s.%s occur while %s.%s is held, across %d subject file(s) "+
+			"(%d file(s) were read to compute it)",
+		accesses, p.Type, p.Field, p.Type, p.Lock, len(subjectFiles(subjects)), len(read))}
 }
 
 func declaresField(files []*ast.File, typeName, field string) bool {
@@ -310,4 +330,47 @@ func callOf(st ast.Stmt) (*ast.CallExpr, bool) {
 		return s.Call, true
 	}
 	return nil, false
+}
+
+// declarationSite locates where a field is declared, so the proposition's own
+// entities are part of what it covers.
+func declarationSite(fset *token.FileSet, files []*ast.File, typeName, field string) *Subject {
+	var found *Subject
+	for _, f := range files {
+		ast.Inspect(f, func(n ast.Node) bool {
+			ts, ok := n.(*ast.TypeSpec)
+			if !ok || ts.Name == nil || ts.Name.Name != typeName {
+				return true
+			}
+			st, ok := ts.Type.(*ast.StructType)
+			if !ok || st.Fields == nil {
+				return true
+			}
+			for _, fl := range st.Fields.List {
+				for _, name := range fl.Names {
+					if name.Name == field && found == nil {
+						pos := fset.Position(name.Pos())
+						found = &Subject{File: pos.Filename, Line: pos.Line,
+							Entity: typeName + "." + field}
+					}
+				}
+			}
+			return true
+		})
+	}
+	return found
+}
+
+// subjectFiles are the distinct files the subjects live in.
+func subjectFiles(subjects []Subject) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range subjects {
+		if s.File != "" && !seen[s.File] {
+			seen[s.File] = true
+			out = append(out, s.File)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

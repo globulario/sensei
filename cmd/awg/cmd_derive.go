@@ -94,6 +94,7 @@ Exit status:
 		fmt.Printf("derivation:  %s/%s\n", receipt.DerivationID, receipt.DerivationVersion)
 		fmt.Printf("pinned at:   %s of %s\n", receipt.Commit, receipt.Repository)
 		fmt.Printf("read:        %s\n", strings.Join(receipt.Inputs, ", "))
+		fmt.Printf("about:       %s\n", strings.Join(receipt.SubjectFiles(), ", "))
 		fmt.Printf("result:      %s\n", receipt.Outcome)
 		fmt.Printf("detail:      %s\n", receipt.Detail)
 		if len(receipt.CompletenessScope) > 0 {

@@ -44,6 +44,7 @@ package derive
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 )
@@ -107,6 +108,36 @@ const (
 	Unknown Outcome = "UNKNOWN"
 )
 
+// Subject is one source entity the proposition is ACTUALLY ABOUT.
+//
+// Distinct from an input, and the distinction is a bug this repository shipped:
+// coverage was granted over every file the derivation read, and a derivation
+// reads a whole package to resolve types. internal/event/event.go contains
+// neither Bus nor mu, and was covered by a proposition about Bus.subs under
+// Bus.mu purely because the parser needed it.
+//
+//	A file may be necessary to compute a truth without being something that
+//	truth says anything about.
+//
+// A Subject is produced by the DERIVATION from the successful proof, never by
+// the proposer. A claimant able to name its own subjects would simply name
+// every file it wanted covered.
+type Subject struct {
+	File   string `json:"file" yaml:"file"`
+	Line   int    `json:"line,omitempty" yaml:"line,omitempty"`
+	Entity string `json:"entity" yaml:"entity"`
+	// Role is why this location is part of the proof.
+	Role string `json:"role" yaml:"role"`
+}
+
+// Attempt is one derivation's output.
+type Attempt struct {
+	Outcome  Outcome
+	Inputs   []string
+	Subjects []Subject
+	Detail   string
+}
+
 // Receipt is what Sensei derived, not what anybody said it derived.
 //
 // The reproducibility property is the whole value: the same derivation at the
@@ -123,10 +154,17 @@ type Receipt struct {
 	Commit string `json:"pinned_commit" yaml:"pinned_commit"`
 	// Inputs are the exact paths read, obtained from git rather than supplied
 	// by the proposer.
-	Inputs     []string `json:"independently_observed_inputs" yaml:"independently_observed_inputs"`
-	Outcome    Outcome  `json:"result" yaml:"result"`
-	Detail     string   `json:"detail" yaml:"detail"`
-	ProducedAt string   `json:"produced_at" yaml:"produced_at"`
+	//
+	// These decide REVALIDATION: whether the world moved under this fact. They
+	// must never decide coverage — reading a file to resolve a type establishes
+	// nothing about that file.
+	Inputs []string `json:"independently_observed_inputs" yaml:"independently_observed_inputs"`
+	// Subjects are the entities the proposition is about, computed from the
+	// successful proof. Coverage extent comes from here and nowhere else.
+	Subjects   []Subject `json:"subjects" yaml:"subjects"`
+	Outcome    Outcome   `json:"result" yaml:"result"`
+	Detail     string    `json:"detail" yaml:"detail"`
+	ProducedAt string    `json:"produced_at" yaml:"produced_at"`
 	// CompletenessScope is what the derivation could NOT see.
 	//
 	// It travels in the receipt rather than in documentation because a reader
@@ -191,7 +229,9 @@ type Deriver interface {
 	Limits() []string
 	// Derive reads its own inputs. It is handed a reader for the pinned tree
 	// rather than any content the proposer supplied.
-	Derive(src PinnedSource, p Proposition) (Outcome, []string, string)
+	// Derive reports both what it READ and what the proposition it proved is
+	// ABOUT. The two are different sets and are used for different things.
+	Derive(src PinnedSource, p Proposition) Attempt
 }
 
 // PinnedSource reads a repository at one immutable revision.
@@ -232,9 +272,10 @@ func Derive(src PinnedSource, p Proposition, now time.Time) (Receipt, *Establish
 		}
 		receipt.DerivationID, receipt.DerivationVersion = d.ID(), d.Version()
 		receipt.CompletenessScope = d.Limits()
-		outcome, inputs, detail := d.Derive(src, p)
-		receipt.Outcome, receipt.Inputs, receipt.Detail = outcome, inputs, detail
-		if outcome != Derived {
+		a := d.Derive(src, p)
+		receipt.Outcome, receipt.Inputs, receipt.Subjects, receipt.Detail =
+			a.Outcome, a.Inputs, a.Subjects, a.Detail
+		if a.Outcome != Derived {
 			return receipt, nil
 		}
 		return receipt, &Established{proposition: p, receipt: receipt}
@@ -250,4 +291,23 @@ func shortCommit(c string) string {
 		return c[:12]
 	}
 	return c
+}
+
+// SubjectFiles are the distinct files the proposition is actually about.
+//
+// The only legitimate basis for coverage extent. Inputs are not offered for
+// this purpose because they answer a different question.
+func (r Receipt) SubjectFiles() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range r.Subjects {
+		f := strings.TrimSpace(s.File)
+		if f == "" || seen[f] {
+			continue
+		}
+		seen[f] = true
+		out = append(out, f)
+	}
+	sort.Strings(out)
+	return out
 }
