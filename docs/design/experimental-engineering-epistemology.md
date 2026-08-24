@@ -534,6 +534,102 @@ exercising a path, an ownership relation — and can grow. Claims outside it sta
 `candidate + verified evidence + not established`, which is a real state and
 not a failure.
 
+## 8e. Truth may compound, but authority must remain traceable
+
+*Recorded 2026-08-23, alongside the first registered derivation. Nothing here is
+built: derivations currently read pinned source only, and no established fact is
+yet a premise for another.*
+
+Once Sensei can establish a fact for itself, the obvious next step is to let
+established facts be premises:
+
+```
+F1  Resource.spec is mutated only through Owner.Update()
+F2  Owner.Update() increments generation
+F3  reconciliation acts only on generation changes
+        ↓
+D1  a direct write to Resource.spec bypasses generation-based reconciliation
+```
+
+That is genuinely powerful — the graph stops merely storing what people wrote
+and starts computing consequences of what the project already knows. It is also
+where the prose path returns, wearing better clothes:
+
+```
+LLM reads F1, F2, F3 → writes "therefore X" → X becomes established
+```
+
+which is the thing every rung of this ladder exists to prevent. So the
+constraint, before anyone implements premises:
+
+> **Established project truth may serve as a premise for further truth, but
+> every derived claim must retain a reproducible proof path to premises that
+> were themselves established within compatible scope.**
+
+Shorter:
+
+> **Truth may compound, but authority must remain traceable.**
+
+### What a compounding fact must carry
+
+Enough to answer *"why do you believe this"* with a chain rather than a
+sentence: the proposition, the premise ids **at the revision they were
+established at**, the derivation and its version, the result, the scope, and the
+revocation dependencies. Then
+
+```
+D2 ← D1 + I4 ← F1 + F2 + F3 ← source, contract, established architecture
+```
+
+is a thing a reader can walk, and a thing a machine can re-run.
+
+### No epistemic inflation
+
+A derived fact is no stronger than its premises and its derivation justify.
+
+```
+observation at revision R  →  a conclusion about revision R
+contract                   →  a contract-level consequence
+runtime sample             →  condition-scoped runtime evidence
+```
+
+"At commit abc123 every observed write passes through Owner.Update()" does not
+become "Owner.Update() is eternally the only valid mutation mechanism". Only a
+contract or invariant establishes that, and if none does, the stronger claim is
+`UNKNOWN`.
+
+### Supersession invalidates downstream, and this is the expensive part
+
+An established fact stays usable **within its recorded scope and revision** until
+something invalidates, supersedes or contradicts it. Not *once true, always
+true* — software changes:
+
+```
+F1  sole mutation path is Owner.Update()      true at R1
+R2  introduces Transaction.Apply()
+        ↓
+F1  superseded at R2, not nonsense — scoped
+        ↓
+anything derived from F1 must be re-derived, narrowed, or marked stale
+```
+
+Compounding makes that mandatory rather than tidy. One superseded premise can
+silently invalidate a subtree of conclusions, and a chain nobody can walk
+backwards is a chain nobody can invalidate. `Receipt.InvalidatedBy` exists today
+for exactly this reason and covers only the single-step case.
+
+### Why it is recorded and not built
+
+Premise-chaining needs supersession to be real first, and supersession is
+deliberately unbuilt (§11.9 leaves it to the case that actually needs it). A
+compounding engine over facts that cannot be retired would accumulate
+conclusions nobody can withdraw — the filing-cabinet failure of §6, with proofs
+attached.
+
+*If false:* the propositions worth deriving in real repositories do not chain,
+each is established directly from source, and the premise machinery is
+unnecessary weight. That is worth discovering before building it.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:

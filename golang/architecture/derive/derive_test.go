@@ -261,3 +261,47 @@ func TestEstablishedCannotBeConstructedOutsideADerivation(t *testing.T) {
 		t.Fatal("Established became an empty struct, which any caller can construct")
 	}
 }
+
+// A proposition carries no prose, and that is a structural guard rather than a
+// style preference.
+//
+// The failure it blocks:
+//
+//	LLM reads F1, F2, F3 -> writes "therefore X" -> X becomes established
+//
+// which is the prose path wearing a derivation's clothes. A free-text field on
+// Proposition is all it would take: a deriver could read it, a future one could
+// pattern-match on it, and the thing establishing project truth would once
+// again be a sentence somebody wrote.
+//
+// Every field here names an entity or a relation. A claim that cannot be
+// expressed that way cannot be attempted, which is the correct outcome — it
+// goes to UNKNOWN rather than into a weaker path.
+func TestAPropositionCarriesNoProse(t *testing.T) {
+	rt := reflect.TypeOf(Proposition{})
+	for i := 0; i < rt.NumField(); i++ {
+		f := rt.Field(i)
+		for _, prose := range []string{
+			"statement", "rationale", "description", "explanation", "reason",
+			"summary", "note", "detail", "because", "why", "text", "prose",
+		} {
+			if strings.Contains(strings.ToLower(f.Name), prose) {
+				t.Fatalf("Proposition.%s is a prose field. A derivation must compute over entities and "+
+					"relations, never over a sentence — otherwise 'LLM wrote therefore X' becomes an "+
+					"establishing path again", f.Name)
+			}
+		}
+	}
+
+	// And the deriver interface is handed pinned source plus the typed
+	// proposition, and nothing else. There is no parameter through which a
+	// claimant's reasoning could reach a derivation.
+	dt := reflect.TypeOf((*Deriver)(nil)).Elem()
+	m, ok := dt.MethodByName("Derive")
+	if !ok {
+		t.Fatal("Deriver has no Derive method")
+	}
+	if n := m.Type.NumIn(); n != 2 {
+		t.Fatalf("Derive takes %d inputs; it must take exactly the pinned source and the typed proposition", n)
+	}
+}
