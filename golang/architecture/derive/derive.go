@@ -127,6 +127,19 @@ type Receipt struct {
 	Outcome    Outcome  `json:"result" yaml:"result"`
 	Detail     string   `json:"detail" yaml:"detail"`
 	ProducedAt string   `json:"produced_at" yaml:"produced_at"`
+	// CompletenessScope is what the derivation could NOT see.
+	//
+	// It travels in the receipt rather than in documentation because a reader
+	// holding a DERIVED result is exactly the person who needs it, and a
+	// limitation that lives only in a package comment is one nobody consuming
+	// the JSON will ever meet.
+	//
+	// "Every access to Bus.subs occurs while Bus.mu is held" sounds like a proof
+	// about all runtime behaviour. What a syntactic derivation establishes is
+	// narrower: every access IT COULD OBSERVE, within the files it read.
+	// Recording the gap is the difference between an honest result and a
+	// stronger claim than the evidence supports.
+	CompletenessScope []string `json:"completeness_scope" yaml:"completeness_scope"`
 	// Invalidatedby records what would end this fact's authority. Principle 6
 	// of the BMG ladder: every promoted rule carries a path by which it can be
 	// weakened or revoked, and a fact established at commit C must not silently
@@ -159,9 +172,12 @@ func (e Established) Receipt() Receipt { return e.receipt }
 // those are different propositions, and BMG Principle 3 is that a rule learned
 // under a condition may not be applied outside it.
 func (e Established) Scope() string {
-	return fmt.Sprintf("%s — at %s of %s, over the %d file(s) read; "+
-		"establishes that the discipline holds, not why the lock exists, and not that it must hold in future revisions",
-		e.proposition, shortCommit(e.receipt.Commit), e.receipt.Repository, len(e.receipt.Inputs))
+	return fmt.Sprintf("%s — as observed by %s/%s at %s of %s, over the %d file(s) read. "+
+		"Establishes that the discipline holds WHERE THIS DERIVATION CAN SEE IT, not why the lock exists, "+
+		"and not that it must hold in future revisions. Unobserved: %s",
+		e.proposition, e.receipt.DerivationID, e.receipt.DerivationVersion,
+		shortCommit(e.receipt.Commit), e.receipt.Repository, len(e.receipt.Inputs),
+		strings.Join(e.receipt.CompletenessScope, "; "))
 }
 
 // Deriver computes one proposition family from pinned source.
@@ -169,6 +185,10 @@ type Deriver interface {
 	ID() string
 	Version() string
 	Applies(Proposition) bool
+	// Limits states what this derivation cannot observe, in its own words.
+	// Required rather than optional: a derivation that cannot say what it
+	// misses has not been thought about carefully enough to establish anything.
+	Limits() []string
 	// Derive reads its own inputs. It is handed a reader for the pinned tree
 	// rather than any content the proposer supplied.
 	Derive(src PinnedSource, p Proposition) (Outcome, []string, string)
@@ -211,6 +231,7 @@ func Derive(src PinnedSource, p Proposition, now time.Time) (Receipt, *Establish
 			continue
 		}
 		receipt.DerivationID, receipt.DerivationVersion = d.ID(), d.Version()
+		receipt.CompletenessScope = d.Limits()
 		outcome, inputs, detail := d.Derive(src, p)
 		receipt.Outcome, receipt.Inputs, receipt.Detail = outcome, inputs, detail
 		if outcome != Derived {
