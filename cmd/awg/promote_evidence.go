@@ -153,18 +153,23 @@ func shortCommit(c string) string {
 	return c
 }
 
-// establishesSemanticClaim is deliberately a constant false, and the comment is
-// the deliverable.
+// There is no establishesSemanticClaim here any more, and its absence is the
+// point.
 //
-// Verified references say the citations are real. A claim about what the code
-// is FOR -- why a lock exists, what an abstraction protects, which invariant a
-// mechanism serves -- does not follow from the bytes being present, and no
-// composition of source facts in this file derives one.
+// It used to be a function returning a constant false, with a comment
+// explaining that verified citations do not establish what code is FOR. That
+// was honest and only as durable as the next person's willingness to leave a
+// `return false` alone — a guarantee living in a function body is a guarantee
+// somebody can edit.
 //
-// The B specimen is the standing proof: every line it cites is genuinely there,
-// and its architectural conclusion is wrong. Any future mechanism that claims
-// to establish this class must confront B before it is believed.
+// The property now lives in the type topology of golang/architecture/derive:
+// an Established value has no exported fields and no exported constructor, and
+// the only function returning one is Derive, which returns it only when a
+// registered derivation actually succeeded over pinned inputs. A caller cannot
+// build an Established from verified evidence, from a second model's
+// agreement, or from a flag, because no such path exists to refuse.
 //
-// Until then a judgment-bearing claim may be RETAINED with its evidence
-// verified, and may not increase the authority of the run that proposed it.
-func establishesSemanticClaim(evidenceResult) bool { return false }
+// EVIDENCE_VERIFIED therefore remains a terminal state for anything no
+// derivation computes. The B specimen still cites entirely real lines and still
+// draws the wrong architectural conclusion; what changed is that there is now
+// nowhere for that conclusion to go.

@@ -1131,6 +1131,19 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.derive
+    name: derive
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/derive/derive.go
+      - golang/architecture/derive/gitsource.go
+      - golang/architecture/derive/lockdiscipline.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.deviation
     name: deviation
     kind: module
