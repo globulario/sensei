@@ -11582,6 +11582,12 @@ test_symbols:
     symbol: TestValidateRejectsUnsupportedSchemaVersion
     package: dashboardprojection
     language: go
+  - id: golang/architecture/derive/derive_test.go:TestADerivedFactDoesNotSurviveAChangeToWhatItRead
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestADerivedFactDoesNotSurviveAChangeToWhatItRead
+    package: derive
+    language: go
+    doc: "The test that keeps machine truth attached to reality.\n\nA fact derived at commit C must not silently govern a candidate that changed\nthe very files the derivation read. Otherwise a run could establish a\ndiscipline, then edit the code the discipline was established over, and keep\nthe authority the old evidence bought."
   - id: golang/architecture/derive/derive_test.go:TestADerivedResultCarriesWhatItCouldNotSee
     file: golang/architecture/derive/derive_test.go
     symbol: TestADerivedResultCarriesWhatItCouldNotSee
@@ -11624,6 +11630,12 @@ test_symbols:
     package: derive
     language: go
     doc: "Every registered derivation must be able to say what it misses."
+  - id: golang/architecture/derive/derive_test.go:TestOnlyDerivedReceiptsCanGovernAnything
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestOnlyDerivedReceiptsCanGovernAnything
+    package: derive
+    language: go
+    doc: "A receipt that established nothing carries nothing into another world.\nUNKNOWN and NOT_DERIVED are not weaker forms of authority."
   - id: golang/architecture/derive/derive_test.go:TestPurposeClaimsAreUnknownWhicheverIsTrue
     file: golang/architecture/derive/derive_test.go
     symbol: TestPurposeClaimsAreUnknownWhicheverIsTrue
