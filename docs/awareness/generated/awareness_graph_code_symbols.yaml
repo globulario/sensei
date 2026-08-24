@@ -11648,6 +11648,36 @@ test_symbols:
     package: derive
     language: go
     doc: "Reproducibility is the property that makes a receipt a record of a\ncomputation rather than a claim about one."
+  - id: golang/architecture/derive/storedfact_test.go:TestADerivedFactIsNeverNormative
+    file: golang/architecture/derive/storedfact_test.go
+    symbol: TestADerivedFactIsNeverNormative
+    package: derive
+    language: go
+    doc: "A derived fact is descriptive. It ends \"Sensei knows nothing here\"; it does\nnot oblige any future implementation to keep the mutex."
+  - id: golang/architecture/derive/storedfact_test.go:TestAForgedStoredFactEstablishesNothing
+    file: golang/architecture/derive/storedfact_test.go
+    symbol: TestAForgedStoredFactEstablishesNothing
+    package: derive
+    language: go
+    doc: "Storage remembers what to CHECK, not what is TRUE.\n\nA forged record is therefore harmless as a truth claim: anybody can write the\nbytes, nobody can make the derivation succeed by writing them. The worst a\nfabricated entry achieves is wasting one derivation."
+  - id: golang/architecture/derive/storedfact_test.go:TestAStoredFactStopsProducingAFactWhenTheWorldMovesOn
+    file: golang/architecture/derive/storedfact_test.go
+    symbol: TestAStoredFactStopsProducingAFactWhenTheWorldMovesOn
+    package: derive
+    language: go
+    doc: "Supersession needs no engine: a recipe whose re-derivation stops succeeding\nstops producing a fact, because no truth was cached to invalidate."
+  - id: golang/architecture/derive/storedfact_test.go:TestOnlyADerivedReceiptMayBeAdmitted
+    file: golang/architecture/derive/storedfact_test.go
+    symbol: TestOnlyADerivedReceiptMayBeAdmitted
+    package: derive
+    language: go
+    doc: "Only a successful derivation may become durable. UNKNOWN and NOT_DERIVED are\nnot weaker forms of a fact."
+  - id: golang/architecture/derive/storedfact_test.go:TestWhatSurvivesIsTheQuestionNotTheAnswer
+    file: golang/architecture/derive/storedfact_test.go
+    symbol: TestWhatSurvivesIsTheQuestionNotTheAnswer
+    package: derive
+    language: go
+    doc: "The ratchet: what survives is which proposition is worth checking here — the\njudgment-bearing half an investigation produced. Recomputing the answer is\nparsing a package."
   - id: golang/architecture/deviation/deviation_test.go:TestAnalysisReceiptIndexesAreMandatoryAndExact
     file: golang/architecture/deviation/deviation_test.go
     symbol: TestAnalysisReceiptIndexesAreMandatoryAndExact
