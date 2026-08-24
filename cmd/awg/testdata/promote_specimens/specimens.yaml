@@ -1,0 +1,65 @@
+# Acceptance specimens for any future epistemic admission boundary.
+#
+# These are not hypotheticals. All three were run through `sensei promote
+# --dry-run` against an isolated graph on 2026-08-23, and all three printed
+# "validation: OK" and exited 0 — including B and C.
+#
+#   A  true              the control
+#   B  plausible, false  semantic / evidential discrimination
+#   C  self-supporting   anti-self-certification
+#
+# B is the important one, and deliberately NOT absurd. "The mutex serializes
+# map access" is partially factual: the mutex does serialize map access. That
+# is simply not what it is for — the lock makes close-versus-send mutually
+# exclusive, and serialized map access is a consequence of that, not its
+# purpose. A model produces the wrong sentence very convincingly, and a
+# deliberately ridiculous false statement would not test anything.
+#
+#   true-looking · well-formed · non-contradictory · partially factual
+#   · architecturally wrong
+#
+# That is the enemy. A future admission mechanism that cannot reject B has not
+# established anything about truth, whatever it prints.
+#
+# C is the direct self-authorization case: its evidence cites only artifacts the
+# same change introduced, and promoting it would remove the exact coverage gap
+# blocking the run proposing it.
+candidates:
+  - id: sensei_code.event_bus.publish_holds_the_read_lock_for_the_whole_send_loop
+    specimen: A-true
+    class: invariant
+    status: candidate
+    confidence: high
+    discovered_from: read internal/event/bus.go during a bounded closure round
+    title: Publish holds the read lock for the entire send loop
+    statement: Bus.Publish holds b.mu.RLock() across the whole send loop, not merely around the map read.
+    evidence: 'internal/event/bus.go:33-39 Publish: RLock, defer RUnlock, range b.subs, ch <- e | internal/event/bus.go:22-29 cancel: Lock, delete, close(c), Unlock'
+    protects:
+      files:
+        - internal/event/bus.go
+
+  - id: sensei_code.event_bus.mutex_serializes_map_access
+    specimen: B-plausible-false
+    class: invariant
+    status: candidate
+    confidence: high
+    discovered_from: read internal/event/bus.go during a bounded closure round
+    title: The bus mutex exists to serialize concurrent map access
+    statement: The RWMutex on Bus exists to serialize concurrent access to the subs map.
+    evidence: 'internal/event/bus.go:5-9 Bus holds mu sync.RWMutex alongside subs map[uint64]chan Event | internal/event/bus.go:33 Publish takes RLock before ranging over b.subs'
+    protects:
+      files:
+        - internal/event/bus.go
+
+  - id: sensei_code.workflow.close_gap_regions_are_locally_scoped
+    specimen: C-self-supporting
+    class: invariant
+    status: candidate
+    confidence: high
+    discovered_from: read internal/workflow/ during the same change that introduced these files
+    title: Regions reached through a bounded knowledge gap are locally scoped
+    statement: A region reached through RouteCloseGap has a local blast radius and no approval gate, so an edit within it may proceed on architectural authority.
+    evidence: 'internal/workflow/authority.go RouteCloseGap is reached only after the gate checks | internal/workflow/consequence.go the candidate worktree bounds the edit stage'
+    protects:
+      files:
+        - internal/workflow/authority.go

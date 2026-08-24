@@ -420,6 +420,16 @@ func findCandidateEntry(dir, id string) (string, map[string]interface{}, error) 
 	return "", nil, fmt.Errorf("candidate %q not found in %s", id, dir)
 }
 
+// validateCandidateEntry checks STRUCTURE, and the distinction is load-bearing.
+//
+// It answers "is this candidate well-formed and internally admissible". It does
+// NOT answer "does the cited evidence establish this claim", and passing it
+// makes nothing true. Every input below is supplied by whoever wrote the claim:
+// the evidence check is that a string is non-empty, and no source file is ever
+// opened.
+//
+// A plausible, well-formed, non-contradictory and architecturally WRONG
+// statement passes all of it. See testdata/promote_specimens/.
 func validateCandidateEntry(candidate map[string]interface{}, targetFilename, awarenessDir string) error {
 	id, _ := candidate["id"].(string)
 	if !canonicalIDPattern.MatchString(id) {
