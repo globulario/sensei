@@ -40,6 +40,10 @@ func NewGitSource(ctx context.Context, dir, repo, revision string) (*GitSource, 
 	return &GitSource{ctx: ctx, dir: dir, repo: repo, commit: strings.TrimSpace(string(out))}, nil
 }
 
+// Dir is the checkout these reads go through. Exported for callers that must
+// compare two worlds in the same repository.
+func (g *GitSource) Dir() string { return g.dir }
+
 func (g *GitSource) Repository() string { return g.repo }
 func (g *GitSource) Commit() string     { return g.commit }
 
