@@ -406,6 +406,18 @@ meta_principle_coverage:
       that raises a claim's authority, and no mechanism distinguishes a resolved
       citation from an established conclusion. Classified planned, not
       review_only, so no ceiling slot is consumed.
+  - principle: meta.derived_truth_must_retain_a_reproducible_proof_path
+    tier: planned
+    intended_tier: behavioral
+    reason: >
+      Partly mechanized already in this repository's own domain — claim documents
+      resolve premise identities, closure is bound to revision, digest, domain,
+      scope and task class, and premise-binding consistency is a required test.
+      What is not built is the generalized form: a scope-compatibility check
+      between a premise's establishment scope and the scope its dependent is
+      asserted in, and a mechanical reopen that reports dependents as underivable
+      rather than established when a premise moves. Classified planned, not
+      review_only, so no ceiling slot is consumed.
   - principle: meta.projection_must_be_rebuildable_from_owner
     tier: planned
     intended_tier: behavioral

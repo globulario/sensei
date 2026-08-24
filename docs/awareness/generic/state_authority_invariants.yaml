@@ -6824,6 +6824,86 @@ invariants:
       - meta.negative_result_requires_coverage_attestation
       - meta.graph_truth_must_come_from_approved_corpus
 
+  - id: meta.derived_truth_must_retain_a_reproducible_proof_path
+    title: "A derived claim inherits authority only with its proof path — every step must resolve to premises established within a compatible scope"
+    category: authority
+    antipattern: "The premises were established and the reasoning is sound, so the conclusion is established"
+    wrong_instinct: Composition feels like it preserves truth, so a conclusion drawn from established facts feels established by construction. But the chain is what decays, not the facts. The premise was established in a narrower scope than the conclusion needs, or established then while the conclusion is asserted now, or joined to it by a step nobody can re-run. Every link looked sound when it was made, and the conclusion inherits the appearance of establishment from premises that no longer carry it.
+    severity: critical
+    status: candidate
+    # candidate, recorded 2026-08-23. This is a GENERALIZATION, not a discovery: it
+    # is already active project law in the Sensei repository's own domain, split
+    # across awareness.inference_requires_addressable_evidence (cite addressable
+    # premises) and awareness.closure_is_revision_scope_and_task_bound (validity is
+    # bound to revision, digest, domain, scope and task class, and reopens when any
+    # premise moves). Both carry required tests. Recorded here as a candidate for
+    # the portable pack because those two are stated in this project's vocabulary,
+    # and the underlying law is not project-specific. Promote when it is confirmed
+    # somewhere that does not share this repository's closure machinery.
+    summary: |
+      Established truth may be used as a premise — that is what establishing it
+      was for. Two obligations travel with the use, and both are about the CHAIN
+      rather than the facts at either end.
+
+      RETENTION. A derived claim must name its premises and its derivation step
+      addressably, so the path can be re-walked by somebody who did not make it.
+      "Follows from the earlier analysis" is not a proof path; it is a claim that
+      one existed. And retention means REPRODUCIBLE, not merely recorded: the
+      premise must still resolve at the identity it was established under, and
+      the step must be re-executable or re-derivable. A path that can only be
+      read is a story about a derivation.
+
+      SCOPE COMPATIBILITY. The premise must have been established in a scope that
+      covers the scope the conclusion is asserted in. One tested path does not
+      establish every path through the command. One observed node does not
+      establish the cluster. One format checked does not establish the interface.
+      Widening happens silently because the premise is TRUE — it is simply true
+      about less than the conclusion needs.
+
+      The consequence is uncomfortable and is the point: when a premise is
+      invalidated, or its identity moves, everything derived from it stops being
+      established. Not false — UNDERIVABLE. Reopening dependents is the running
+      cost of composition, and it has to be mechanical, because the alternative
+      is a body of conclusions standing on premises that were withdrawn.
+
+      What this does NOT license: demanding fresh external proof for premises that
+      are already established. An obligation that no available answer can satisfy
+      stops work while proving nothing, and a claim whose every premise is an
+      already-resolved observation needs its path RESOLVED, not re-proved. That
+      failure has been observed: a three-file task ran hundreds of probes,
+      completed none, and halted on a demand for external evidence backing claims
+      whose premises were already source-backed.
+
+      Pairs with meta.establishment_requires_evidence_the_claimant_does_not_control.
+      That one governs where establishment ORIGINATES — it may not come from the
+      claimant. This one governs whether establishment SURVIVES composition — it
+      does not travel to a conclusion by itself.
+    enforcement: |
+      A derived claim records the IDENTITIES of its premises (not their titles),
+      the derivation step, and the scope each premise was established in. A
+      consumer asking a question wider than a premise's scope must treat that
+      premise as unestablished for its question and say so, rather than widening
+      it silently.
+
+      Invalidating a premise, or changing the identity it was established under,
+      must reopen its dependents mechanically. A dependent that cannot be
+      re-derived is reported as underivable — never as still established, and
+      never as refuted.
+
+      Forbidden: prose as a premise; a premise pinned by a status field without
+      the artifact that status describes, which lets two readers disagree about
+      whether it is pinned at all; widening scope through an aggregation that
+      does not name itself; treating "the path can no longer be walked" as
+      "the conclusion still holds"; and demanding re-proof of premises that are
+      already established, which converts this obligation into an unanswerable
+      question.
+    related_invariants:
+      - meta.establishment_requires_evidence_the_claimant_does_not_control
+      - meta.assertions_must_carry_their_scope
+      - meta.binding_outlives_evidence_until_invalidated
+      - meta.single_derivation_path_must_reach_its_consumer
+      - meta.absence_scope_must_be_explicit
+
   - id: meta.event_is_notification_not_authority
     title: "An event is a notification to go ask the owner — never the authoritative state itself"
     category: signal

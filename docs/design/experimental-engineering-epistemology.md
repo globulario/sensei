@@ -523,6 +523,71 @@ the result — and re-execution is the only reason they count as observations
 here rather than as a story. A fourth instance, found by someone who did not
 write the first three, would be worth more than all of them.
 
+## 8e. A candidate that was already law, one scope down
+
+*Recorded 2026-08-23. Not a discovery — a generalisation, and that distinction
+is why this section is separate from §8d.*
+
+§8d's candidate arrived through §8b's preregistered trigger: a third instance in
+an unlike mechanism, and a stated falsifier that did not fire. This one arrived
+the other way round. It was proposed as a new law, and the search for
+counter-examples found instead that it is **already active law in this
+repository**, split across two project invariants that both carry required
+tests:
+
+```
+awareness.inference_requires_addressable_evidence
+    every inferred conclusion cites addressable premises and evidence;
+    LLM output may organise evidence, and is never evidence itself
+
+awareness.closure_is_revision_scope_and_task_bound
+    closure is valid only for the declared revision, graph digest, domain,
+    scope and task class, and reopens when any premise changes
+```
+
+As one sentence, and one scope up:
+
+> **Established truth may serve as a premise for further truth, but every
+> derived claim must retain a reproducible proof path to premises that were
+> themselves established within a compatible scope.**
+
+The two halves are RETENTION — the path can be re-walked by somebody who did not
+make it, which requires the premise to still resolve at the identity it was
+established under and the step to be re-executable — and SCOPE COMPATIBILITY —
+the premise was established over at least what the conclusion claims. The second
+half is the one the project vocabulary hides: `closure_is_revision_scope_and_task_bound`
+states it as a property of *closure*, an object this repository invented. It is
+not about closure. One tested path does not establish every path, one observed
+node does not establish the cluster, and the widening is invisible precisely
+because the premise is true — true about less than the conclusion needs.
+
+It pairs with §8d rather than repeating it:
+
+```
+§8d   where establishment ORIGINATES   — not from the claimant
+§8e   whether establishment SURVIVES   — not by composition alone
+```
+
+**The known cost, already paid once.** `failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e`
+records a three-file task that ran hundreds of probes, completed none, and
+halted demanding external evidence for claims whose every premise was already a
+source-backed observation. A retention rule that is read as a re-proof rule
+manufactures unanswerable questions and stops work while establishing nothing.
+The obligation is that the path RESOLVES, not that premises are re-proved at
+each use — and that qualification belongs in the sentence, not in a footnote
+somebody skips.
+
+**Why candidate and not law.** The evidence that it holds here is strong and
+entirely local: this repository built machinery for it, so of course its
+mechanisms exhibit it. That is not corroboration, it is construction. The
+promotion condition is confirmation somewhere that does not model claims and
+premises as first-class objects at all.
+
+*If false:* retention at this strength is affordable only inside a system that
+already represents premises as addressable objects, and ordinary engineering
+composes correctly without it — in which case this is a property of
+graph-backed knowledge systems, not a law about derived truth.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:

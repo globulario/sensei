@@ -3,7 +3,7 @@
 Sensei gives AI agents (and humans) institutional memory with teeth: the
 architectural rules, known failure modes, and forbidden fixes of YOUR
 project, surfaced automatically before code gets edited — and a portable
-pack of 139 battle-validated meta-principles to start from on day one.
+pack of 140 battle-validated meta-principles to start from on day one.
 
 ## 1. Install (one time)
 
@@ -61,7 +61,7 @@ This scaffolds:
 |---|---|
 | `docs/awareness/invariants.yaml` | your architectural rules (one example included) |
 | `docs/awareness/failure_modes.yaml` | incidents and anticipated bug classes |
-| `docs/awareness/meta_principles.yaml` | the portable pack: 8 categories, 139 principles |
+| `docs/awareness/meta_principles.yaml` | the portable pack: 8 categories, 140 principles |
 | `docs/awareness/high_risk_files.yaml` | paths that require a briefing before edits |
 | `.sensei/skills/sensei-architect/` | canonical Sensei Architect skill, enabled by default |
 | `.agents/skills/sensei-architect/` | Codex / Agent Skills project skill |
