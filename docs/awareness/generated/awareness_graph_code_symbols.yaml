@@ -26038,6 +26038,12 @@ test_symbols:
     package: main
     language: go
     doc: "The vendored VS Code proto exactly matches the canonical proto (wire sync)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestAvailableFeedbackLiftsEveryUnanchoredBase
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestAvailableFeedbackLiftsEveryUnanchoredBase
+    package: main
+    language: go
+    doc: "Amendment 1: an available feedback lifts any unanchored base, and only\nbecause such a record is itself an anchor.\n\nFeedbackAvailable means at least one governed record passed admit() -- a\ncompatible domain, a non-empty verified effective file scope, and an\nintersection with the requested file -- after VerifyCommittedPromotion\nre-proved it. That is an anchor through a second pipeline, which is exactly\nwhat a code_symbol id was not."
   - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedbackProse_PrivacyAndParity
     file: golang/server/briefing_feedback_behavior_test.go
     symbol: TestBriefingFeedbackProse_PrivacyAndParity
@@ -26104,6 +26110,12 @@ test_symbols:
     package: main
     language: go
     doc: "The frozen combined-status table (every row)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestOnlyAnAvailableFeedbackEverLifts
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestOnlyAnAvailableFeedbackEverLifts
+    package: main
+    language: go
+    doc: "The lift is the ONLY thing that reaches OK. Every weaker feedback state\nleaves the base exactly as the graph computed it."
   - id: golang/server/briefing_feedback_behavior_test.go:TestResolveBriefingFeedback_AdapterFallback
     file: golang/server/briefing_feedback_behavior_test.go
     symbol: TestResolveBriefingFeedback_AdapterFallback

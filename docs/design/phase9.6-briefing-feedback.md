@@ -452,6 +452,10 @@ classification. Combined status composes base ⊕ feedback by a frozen table: fe
 converts a degraded/unavailable/invalid state into OK, and the base graph briefing content is
 always preserved when feedback is degraded, unavailable, or invalid.
 
+> **Superseded in part by Amendment 1** (end of this document): the lift rule was written when
+> EMPTY was the only non-OK base status. It now covers CONTEXT_ONLY and INFERRED_ONLY as well.
+> Everything else in this paragraph stands.
+
 ## 18. Checkpoint 3 — adversarial proof and closure (frozen)
 
 ### 18.1 Final Phase 9.6 guarantee
@@ -567,3 +571,73 @@ startup-owned repository context; Checkpoint 3 closed the phase through adversar
 cross-consumer parity, deterministic platform behaviour, mutation isolation, and this closure
 documentation — adding NO new product surface, and NO editor, GitHub, certification,
 completion, or Phase 9.5 behaviour. Phase 9.5 remains locked; `CorrectnessCertified` untouched.
+
+## Amendment 1 — the status combination table, superseded by #307
+
+Recorded explicitly rather than edited quietly, because the rule below was
+frozen and a frozen contract that is changed in silence is worse than one that
+was never frozen.
+
+### What was frozen
+
+> Combined status composes base ⊕ feedback by a frozen table: [...] only an
+> available feedback can lift a base EMPTY to OK.
+
+### What changed underneath it
+
+#307 split `BriefingStatus` because `OK` was set whenever the response
+referenced anything at all, and referenced ids carry a `code_symbol` entry for
+every indexed file. A file nothing governed answered `OK` while preflight
+answered `EMPTY` for the same file. `OK` now means an anchor binds THIS file,
+with `INFERRED_ONLY` and `CONTEXT_ONLY` naming the weaker answers.
+
+### Why the table had to move
+
+The frozen rule was written for a two-valued world: `EMPTY` was the only non-OK
+status a file briefing could carry, so `EMPTY` was the only case worth naming.
+After the split there are three, and `return base` understated two of them — a
+file with contextual material AND a verified in-scope governed record stayed
+`CONTEXT_ONLY`, reporting less than had been established.
+
+The rule is therefore **superseded, not falsified**. It was correct for the
+value set it was written against and silently narrowed when that set grew. The
+amended rule:
+
+    anchored base                      -> OK        (unchanged)
+    EMPTY / CONTEXT_ONLY /
+      INFERRED_ONLY + available        -> OK        (widened)
+    any base + degraded/unavailable/
+      invalid                          -> DEGRADED  (unchanged)
+    any base + empty feedback          -> base      (unchanged)
+
+### Why available feedback may reach OK at all
+
+This looks like the very defect #307 fixed, and the distinction is the point of
+this amendment.
+
+`FeedbackAvailable` is not "the feedback subsystem answered". A record reaches
+the projection only through `admit()`, which requires a compatible domain, a
+**non-empty** verified effective file scope — *"an absent effective file scope
+is never assumed global"* — and an intersection with the requested file, each
+record having been re-proved by `VerifyCommittedPromotion`. So
+`FeedbackAvailable` means: at least one verified governed record **binds to this
+file**.
+
+That is an anchor arriving through a second pipeline. The `code_symbol` case was
+not: a symbol id exists for every indexed file and establishes nothing about it,
+so lifting on its presence promoted a fact about the index into a claim about
+governance. These records are absent unless one genuinely binds.
+
+The test is the same one the recurring law states — *does the predicate that
+produced this token support the token* — and the two cases answer it
+differently.
+
+### Preserved specimen
+
+    internal/investigate/investigate.go
+      briefing  CONTEXT_ONLY      (symbols and call conventions, nothing anchored)
+      preflight EMPTY             (no direct anchors)
+
+Both answers were simultaneously correct before the split, and read as a
+contradiction. Kept because the failure was not a wrong computation anywhere —
+it was two vocabularies that could not be compared.
