@@ -11618,6 +11618,24 @@ test_symbols:
     package: derive
     language: go
     doc: "The forbidden collapse, blocked by the type system rather than by a rule.\n\nA StoredFact is a QUESTION. If holding one were enough to claim coverage,\n\"I know what to ask here\" would silently become \"I know the answer\", and a\nfabricated record would close a real gap.\n\nAnchorFor takes an Established, which only Derive returns. A caller holding a\nrecipe has nothing to pass it. This test pins the signature, because the\ndangerous version of this feature is one overload away."
+  - id: golang/architecture/derive/coverage_test.go:TestCoverageDoesNotReachAFileThePropositionSaysNothingAbout
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestCoverageDoesNotReachAFileThePropositionSaysNothingAbout
+    package: derive
+    language: go
+    doc: "THE event.go SPECIMEN, pinned permanently.\n\nA derivation parses a whole package to resolve types, so it READ event.go.\nevent.go contains neither Bus nor mu. It must not be covered by a proposition\nabout Bus.subs under Bus.mu.\n\n\tA file may be necessary to compute a truth without being something that\n\ttruth says anything about.\n\nThis is the fourth appearance of one law — evidence must not outrun\nobservation (#298), derivation must not outrun what it can see (#300), stored\nknowledge must not outrun derivation scope (#302), and now coverage must not\noutrun proposition relevance. It is also the first of the four that shipped."
+  - id: golang/architecture/derive/coverage_test.go:TestNoSubjectsMeansNoCoverage
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestNoSubjectsMeansNoCoverage
+    package: derive
+    language: go
+    doc: "An Established with no subjects anchors nothing. Coverage must never fall\nback to the input list when the proof named no entities."
+  - id: golang/architecture/derive/coverage_test.go:TestSubjectsCannotBeSuppliedByTheProposer
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestSubjectsCannotBeSuppliedByTheProposer
+    package: derive
+    language: go
+    doc: "Subjects come from the derivation, never from the proposer. There is no field\non Proposition through which subjects could be supplied."
   - id: golang/architecture/derive/coverage_test.go:TestThePurposeClaimAnchorsNothing
     file: golang/architecture/derive/coverage_test.go
     symbol: TestThePurposeClaimAnchorsNothing
