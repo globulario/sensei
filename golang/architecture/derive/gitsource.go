@@ -67,6 +67,26 @@ func (g *GitSource) List(dir string) ([]string, error) {
 	return paths, nil
 }
 
+// ListRecursive returns every path beneath dir at the pinned commit.
+func (g *GitSource) ListRecursive(dir string) ([]string, error) {
+	clean := strings.Trim(strings.TrimSpace(dir), "/")
+	out, err := exec.CommandContext(g.ctx, "git", "-C", g.dir, "ls-tree", "-r", "--name-only",
+		g.commit, clean+"/").Output()
+	if err != nil {
+		return nil, fmt.Errorf("git ls-tree -r %s at %s: %w", clean, shortCommit(g.commit), err)
+	}
+	var paths []string
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			paths = append(paths, path.Clean(line))
+		}
+	}
+	if len(paths) == 0 {
+		return nil, fmt.Errorf("%s is empty or absent at %s", clean, shortCommit(g.commit))
+	}
+	return paths, nil
+}
+
 // Read returns one path's bytes at the pinned commit.
 func (g *GitSource) Read(p string) ([]byte, error) {
 	out, err := exec.CommandContext(g.ctx, "git", "-C", g.dir, "show", g.commit+":"+p).Output()

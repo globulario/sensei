@@ -11582,6 +11582,36 @@ test_symbols:
     symbol: TestValidateRejectsUnsupportedSchemaVersion
     package: dashboardprojection
     language: go
+  - id: golang/architecture/derive/commandconfinement_test.go:TestANarrowSearchIsAWeakerClaimNotACheaperOne
+    file: golang/architecture/derive/commandconfinement_test.go
+    symbol: TestANarrowSearchIsAWeakerClaimNotACheaperOne
+    package: derive
+    language: go
+    doc: "A narrower search is a WEAKER claim, not a cheaper one.\n\nSearching only the owner's own package would \"confirm\" confinement by not\nlooking where a violation lives. The proposition records where it looked, so\nthe two results are different propositions rather than the same one at\ndifferent cost."
+  - id: golang/architecture/derive/commandconfinement_test.go:TestAVariableExecutableIsNotObservable
+    file: golang/architecture/derive/commandconfinement_test.go
+    symbol: TestAVariableExecutableIsNotObservable
+    package: derive
+    language: go
+    doc: "An executable this derivation cannot see is not evidence of confinement."
+  - id: golang/architecture/derive/commandconfinement_test.go:TestBothFamiliesTravelTheSameMachinery
+    file: golang/architecture/derive/commandconfinement_test.go
+    symbol: TestBothFamiliesTravelTheSameMachinery
+    package: derive
+    language: go
+    doc: "Both families travel the same machinery: propose, derive, subjects, admit,\nrevalidate, anchor. That is the evidence the architecture generalises."
+  - id: golang/architecture/derive/commandconfinement_test.go:TestCommandConfinementDerivesWhenTheBoundaryHolds
+    file: golang/architecture/derive/commandconfinement_test.go
+    symbol: TestCommandConfinementDerivesWhenTheBoundaryHolds
+    package: derive
+    language: go
+    doc: "The second family, on a tree where the boundary holds.\n\nA different SPECIES of fact from lock discipline — ownership of an external\nprocess boundary rather than a synchronization relation — travelling the same\nmachinery. That is the point of adding it."
+  - id: golang/architecture/derive/commandconfinement_test.go:TestCommandConfinementRefutesABypass
+    file: golang/architecture/derive/commandconfinement_test.go
+    symbol: TestCommandConfinementRefutesABypass
+    package: derive
+    language: go
+    doc: "A real boundary violation is refuted, with the sites named."
   - id: golang/architecture/derive/coverage_test.go:TestAForgedRecipeAnchorsNothing
     file: golang/architecture/derive/coverage_test.go
     symbol: TestAForgedRecipeAnchorsNothing
@@ -11702,6 +11732,12 @@ test_symbols:
     package: derive
     language: go
     doc: "THE B SPECIMEN.\n\n\"The mutex exists to serialize concurrent map access\" is plausible,\nwell-formed, non-contradictory, cites entirely real lines, and is\narchitecturally wrong. It is also a claim about PURPOSE, and no registered\nderivation computes purpose — so the answer is UNKNOWN.\n\nThe test asserts the same of the TRUE purpose claim. That is the point: this\npackage cannot tell them apart, so it establishes neither, and a mechanism\nthat established the true one while accepting the false one would be worse\nthan one that establishes neither."
+  - id: golang/architecture/derive/derive_test.go:TestScopeProseIsFamilyNeutral
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestScopeProseIsFamilyNeutral
+    package: derive
+    language: go
+    doc: "The generic scope sentence must not speak one family's dialect.\n\nIt named locks until the second family shipped, so a derived fact about who\nmay invoke an executable disclaimed a lock nobody had mentioned. Every family\nshares this sentence, so no family's vocabulary belongs in it."
   - id: golang/architecture/derive/derive_test.go:TestTheSameDerivationOverTheSamePinnedInputsAgrees
     file: golang/architecture/derive/derive_test.go
     symbol: TestTheSameDerivationOverTheSamePinnedInputsAgrees

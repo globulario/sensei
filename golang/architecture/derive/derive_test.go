@@ -158,8 +158,46 @@ func TestADisciplineThatHoldsIsDerived(t *testing.T) {
 			t.Errorf("scope generalises beyond what was derived: %q", scope)
 		}
 	}
-	if !strings.Contains(scope, "not why the lock exists") {
+	if !strings.Contains(scope, "not why it exists") {
 		t.Errorf("scope does not disclaim purpose: %q", scope)
+	}
+}
+
+// The generic scope sentence must not speak one family's dialect.
+//
+// It named locks until the second family shipped, so a derived fact about who
+// may invoke an executable disclaimed a lock nobody had mentioned. Every family
+// shares this sentence, so no family's vocabulary belongs in it.
+func TestScopeProseIsFamilyNeutral(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"internal/event/bus.go": busGo,
+		"internal/gitx/git.go":  ownerPkg,
+	})
+	for name, p := range map[string][]string{
+		"lock discipline":     {"invocation", "executable", "confined"},
+		"command confinement": {"lock", "mutex", "field"},
+	} {
+		prop := lockProp()
+		if name == "command confinement" {
+			prop = confinement()
+		}
+		_, est := Derive(src, prop, at("2026-08-23T12:00:00Z"))
+		if est == nil {
+			t.Fatalf("%s did not derive", name)
+		}
+		// Strip the proposition and the limits, which SHOULD be specific; what
+		// remains is the shared sentence.
+		generic := est.Scope()
+		generic = strings.Replace(generic, prop.String(), "", 1)
+		if i := strings.Index(generic, "Unobserved:"); i >= 0 {
+			generic = generic[:i]
+		}
+		for _, alien := range p {
+			if strings.Contains(strings.ToLower(generic), alien) {
+				t.Errorf("%s: the shared scope sentence uses another family's vocabulary %q: %q",
+					name, alien, generic)
+			}
+		}
 	}
 }
 
