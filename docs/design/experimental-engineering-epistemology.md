@@ -766,6 +766,71 @@ Not answered here. Forcing it into an existing class to make the coverage
 machinery happy would close globulario/sensei-code#67 by cheating its own
 experiment.
 
+## 8g. Persist the procedure or the verdict, according to what makes it durable
+
+*Recorded 2026-08-23, from the §8f storage problem dissolving rather than being
+solved. One case; not generalised into machinery.*
+
+The storage half of §8f looked like it needed a richer container: a knowledge
+object carrying world, derivation identity and completeness scope, so that a
+derived fact could be stored without being strengthened. What it actually needed
+was to store **less**.
+
+> **Storage remembers what to check, not what is true.**
+
+A durable record carries the typed proposition and the derivation that can
+decide it. Nothing in it asserts the proposition holds now. Truth is recomputed
+in the world being asked about, and never cached — so it never goes stale,
+because staleness is a property of caches.
+
+The candidate law behind it, which is broader than this one mechanism and is
+therefore recorded rather than acted on:
+
+> **Persist the epistemic procedure when the truth is cheaply reproducible;
+> persist the verdict only when the verdict itself has durable authority.**
+
+Some knowledge is durable because its AUTHORITY is durable — a contract, an
+adopted decision, a policy, a scar. Somebody with standing decided it, and no
+amount of recomputation replaces that. Other knowledge is durable only as a
+METHOD OF OBSERVATION: a technical fact about the current code, cheap to
+recompute and wrong to freeze.
+
+Sensei had good representation for the first kind and none for the second, which
+is why the second kept trying to disguise itself as an invariant.
+
+*If false:* the propositions worth persisting are not cheaply reproducible after
+all — a derivation over a large repository is expensive, and recomputing on
+every assessment is the wrong trade. That would argue for caching verdicts with
+explicit invalidation, which is the design this one avoided.
+
+### The forbidden collapse, and why it is a type and not a rule
+
+```
+stored recipe present  ->  coverage          FORBIDDEN
+stored recipe -> revalidate -> Established -> CoverageAnchor    the only path
+```
+
+A recipe is a question. Counting questions as knowledge turns *"I know what to
+ask here"* into *"I know the answer"* — the same error as counting a non-empty
+evidence string as evidence, one layer up, and it would let a fabricated record
+close a real gap.
+
+`AnchorFor` takes an `Established`, which only `Derive` returns, so a caller
+holding a recipe has nothing to pass it. A test pins the signature, because the
+dangerous version of this feature is one overload away.
+
+Three attacks, each blocked and each tested:
+
+```
+forged recipe                        -> NOT_DERIVED  -> no anchor
+purpose claim (the B specimen)       -> UNKNOWN      -> no anchor
+valid recipe vs a candidate that
+  broke the discipline               -> NOT_DERIVED  -> no anchor
+```
+
+And an anchor may not claim a world it was not derived in, so a fact established
+at the base cannot be re-pointed at a candidate by hand.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:
