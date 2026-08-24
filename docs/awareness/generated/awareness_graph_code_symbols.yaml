@@ -3822,6 +3822,23 @@ test_symbols:
     symbol: TestPromote_RefusesMissingCandidate
     package: main
     language: go
+  - id: cmd/awg/cmd_promote_specimens_test.go:TestEvidenceCheckIsAStringPresenceCheck
+    file: cmd/awg/cmd_promote_specimens_test.go
+    symbol: TestEvidenceCheckIsAStringPresenceCheck
+    package: main
+    language: go
+    doc: "The whole evidential check, stated as a test so it cannot quietly grow a\nreputation it has not earned: a non-empty string passes, and a blank one does\nnot. Nothing opens a file."
+  - id: cmd/awg/cmd_promote_specimens_test.go:TestPromoteValidatesStructureNotEvidence
+    file: cmd/awg/cmd_promote_specimens_test.go
+    symbol: TestPromoteValidatesStructureNotEvidence
+    package: main
+    language: go
+  - id: cmd/awg/cmd_promote_specimens_test.go:TestTheSpecimensThatAFutureAdmissionBoundaryMustReject
+    file: cmd/awg/cmd_promote_specimens_test.go
+    symbol: TestTheSpecimensThatAFutureAdmissionBoundaryMustReject
+    package: main
+    language: go
+    doc: "The two that must eventually fail, and the reason each exists.\n\nNeither is a gate today. They are the acceptance criteria for whatever\nanswers dq.closure_knowledge_admission: a mechanism that cannot reject these\nhas established nothing about truth, whatever it prints."
   - id: cmd/awg/cmd_proof_plan_test.go:TestBuildProofPlan_ByAuthoritySurface
     file: cmd/awg/cmd_proof_plan_test.go
     symbol: TestBuildProofPlan_ByAuthoritySurface
@@ -5758,6 +5775,36 @@ test_symbols:
     package: main
     language: go
     doc: "Crash after change_observed but before scope_verified: a re-run with an\nidentical observation resumes from the recorded change without appending a\nsecond change_observed."
+  - id: cmd/awg/promote_evidence_test.go:TestAFabricatedCitationCannotBeVerified
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestAFabricatedCitationCannotBeVerified
+    package: main
+    language: go
+    doc: "A fabricated citation fails. This is the property free-text evidence could\nnot have: \"trust me\" was unfalsifiable, and this is not."
+  - id: cmd/awg/promote_evidence_test.go:TestARealCitationIsVerifiedFromGitNotFromTheCandidate
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestARealCitationIsVerifiedFromGitNotFromTheCandidate
+    package: main
+    language: go
+    doc: "A real citation verifies. The proposer chose where to look; git supplied\nwhat is there."
+  - id: cmd/awg/promote_evidence_test.go:TestEvidenceTheClaimantIntroducedCannotEstablishItsOwnAuthority
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestEvidenceTheClaimantIntroducedCannotEstablishItsOwnAuthority
+    package: main
+    language: go
+    doc: "The C specimen, as a rule rather than an anecdote: every reference points at\nmaterial the same change introduced, so the claim rests only on assertions\nthe claimant controls."
+  - id: cmd/awg/promote_evidence_test.go:TestFreeTextIsNotEvidence
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestFreeTextIsNotEvidence
+    package: main
+    language: go
+    doc: "Free text is not evidence. This is the specimens' actual lesson."
+  - id: cmd/awg/promote_evidence_test.go:TestVerifiedEvidenceIsNotAnEstablishedSemanticClaim
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestVerifiedEvidenceIsNotAnEstablishedSemanticClaim
+    package: main
+    language: go
+    doc: "The B specimen, encoded as a boundary rather than a hope.\n\nB's citations are genuinely real, so they verify. Its architectural\nconclusion is still wrong. Verified evidence must therefore never be read as\nan established semantic claim, and nothing in this package provides a path\nfrom one to the other — this test fails the moment somebody adds one."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
