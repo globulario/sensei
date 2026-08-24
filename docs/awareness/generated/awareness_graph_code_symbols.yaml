@@ -11582,6 +11582,48 @@ test_symbols:
     symbol: TestValidateRejectsUnsupportedSchemaVersion
     package: dashboardprojection
     language: go
+  - id: golang/architecture/derive/coverage_test.go:TestAForgedRecipeAnchorsNothing
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestAForgedRecipeAnchorsNothing
+    package: derive
+    language: go
+    doc: "Attack 1: a forged recipe. Anybody may write one; nobody may make it true."
+  - id: golang/architecture/derive/coverage_test.go:TestARecipeAnchorsCoverageOnlyAfterRevalidating
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestARecipeAnchorsCoverageOnlyAfterRevalidating
+    package: derive
+    language: go
+    doc: "The legitimate path, end to end."
+  - id: golang/architecture/derive/coverage_test.go:TestAValidRecipeCannotCoverACandidateThatBrokeIt
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestAValidRecipeCannotCoverACandidateThatBrokeIt
+    package: derive
+    language: go
+    doc: "Attack 3: a recipe that was genuinely established at the base cannot supply\ncoverage for a candidate that broke the discipline."
+  - id: golang/architecture/derive/coverage_test.go:TestAnAnchorCannotClaimAWorldItWasNotDerivedIn
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestAnAnchorCannotClaimAWorldItWasNotDerivedIn
+    package: derive
+    language: go
+    doc: "An Established from one world cannot be re-pointed at another by hand."
+  - id: golang/architecture/derive/coverage_test.go:TestCoverageAnchorHasNoExportedFields
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestCoverageAnchorHasNoExportedFields
+    package: derive
+    language: go
+    doc: "CoverageAnchor is constructible only through this package, like Established."
+  - id: golang/architecture/derive/coverage_test.go:TestCoverageCannotBeAnchoredByARecipe
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestCoverageCannotBeAnchoredByARecipe
+    package: derive
+    language: go
+    doc: "The forbidden collapse, blocked by the type system rather than by a rule.\n\nA StoredFact is a QUESTION. If holding one were enough to claim coverage,\n\"I know what to ask here\" would silently become \"I know the answer\", and a\nfabricated record would close a real gap.\n\nAnchorFor takes an Established, which only Derive returns. A caller holding a\nrecipe has nothing to pass it. This test pins the signature, because the\ndangerous version of this feature is one overload away."
+  - id: golang/architecture/derive/coverage_test.go:TestThePurposeClaimAnchorsNothing
+    file: golang/architecture/derive/coverage_test.go
+    symbol: TestThePurposeClaimAnchorsNothing
+    package: derive
+    language: go
+    doc: "Attack 2: the B specimen. A purpose claim has no derivation, so it can never\nanchor anything, whatever anybody stores about it."
   - id: golang/architecture/derive/derive_test.go:TestADerivedFactDoesNotSurviveAChangeToWhatItRead
     file: golang/architecture/derive/derive_test.go
     symbol: TestADerivedFactDoesNotSurviveAChangeToWhatItRead
