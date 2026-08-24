@@ -831,6 +831,74 @@ valid recipe vs a candidate that
 And an anchor may not claim a world it was not derived in, so a fact established
 at the base cannot be re-pointed at a candidate by hand.
 
+## 8h. Relevance is not truthfulness — a preserved adversary
+
+The second derivation family was chosen over a third candidate, and the
+rejected candidate is worth keeping forever, because it is the most seductive
+wrong answer this architecture will be offered.
+
+### The specimen
+
+Asked to pick what to derive next, the obvious optimisation is coverage reach.
+By that measure the clear winner was a layering proposition:
+
+    package P does not import package X
+
+It is cheap, it is exactly derivable from the import graph with no analysis at
+all, it never returns UNKNOWN, and measured against `sensei-code` it came back
+**41/41 DERIVED** — every package, every proposition, true. It would have
+anchored coverage across the entire repository in a single pass and closed more
+EMPTY regions than both shipped families combined.
+
+Every one of those 41 facts is TRUE. Not one of them is USEFUL. Nobody was
+uncertain whether `internal/tui` imports `internal/publish`; no change was ever
+blocked on it; no failure mode was ever traced to it. It is a machine
+enumerating things nobody asked, and then counting the answers as knowledge.
+
+### The law
+
+> **Truthfulness is necessary for coverage, but truthfulness alone is not
+> sufficient for relevance.**
+
+A derivation that is always true is not thereby valuable. It may be measuring
+something that could not have come out otherwise — in which case it produces
+facts at high volume and information at zero.
+
+### Why it is dangerous specifically HERE
+
+The whole point of this bridge is that a machine-derived fact does not need the
+proposing model to be trustworthy. That defence is aimed at FALSEHOOD. It is
+completely silent about IRRELEVANCE, because an irrelevant fact passes every
+check honestly: it derives, it revalidates, it anchors, it survives
+adversarial review. A model that wanted to manufacture autonomy would not
+forge a fact — forging is what the architecture already stops. It would derive
+thousands of true, trivial ones and let coverage do the rest.
+
+So `reach` must never become the selection criterion for a derivation family.
+The second family was chosen because it is a different SPECIES of relationship
+(ownership of an external boundary vs. a synchronization relation), and its
+first real run refuted a confinement two packages were quietly violating —
+information that could have come out the other way, and did.
+
+### The standing test
+
+Before a new derivation family is added, it must answer:
+
+1. Could this proposition have come out false in this repository? If no family
+   member is ever refuted, the family is measuring a tautology of the language
+   or the build, not of the architecture.
+2. Was anyone uncertain? Name the change, review, or failure that would have
+   gone differently had this been known.
+3. Is it a different species from what exists, or the same relation at greater
+   volume?
+
+The layering family fails 1 and 2 and is retained, underived, as the specimen.
+
+### Status
+
+Recorded, not adopted. This is a candidate law under the same rule as §8a and
+§8b: it constrains what gets built next, and it is not yet an invariant.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:

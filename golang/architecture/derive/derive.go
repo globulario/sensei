@@ -57,6 +57,17 @@ import (
 type Kind string
 
 const (
+	// KindCommandInvocationConfinedTo: every observable invocation of a named
+	// executable, within a named repository scope, originates from a named
+	// owner package.
+	//
+	// A second family, and deliberately a different SPECIES of fact. The first
+	// asks whether state access satisfies a synchronization relation; this asks
+	// where authority to invoke an external process is concentrated. If both
+	// travel the same machinery, the architecture is general rather than
+	// tailored to mutex analysis.
+	KindCommandInvocationConfinedTo Kind = "command_invocation_confined_to"
+
 	// KindFieldAccessUnderLock: every access to a named field of a named struct
 	// occurs while a named lock field of the same struct is held.
 	//
@@ -82,11 +93,35 @@ type Proposition struct {
 	Field string `json:"field" yaml:"field"`
 	// Lock is the field holding the mutex.
 	Lock string `json:"lock" yaml:"lock"`
+
+	// Command is the executable whose invocation sites are in question, for
+	// KindCommandInvocationConfinedTo.
+	Command string `json:"command,omitempty" yaml:"command,omitempty"`
+	// Owner is the package the invocations are claimed to be confined to.
+	Owner string `json:"owner,omitempty" yaml:"owner,omitempty"`
+	// SearchPaths is the repository subtree searched, and it is a term of the
+	// proposition rather than a convenience: "all invocations" means nothing
+	// without saying where you looked, and a narrower search is a WEAKER claim
+	// rather than a cheaper one.
+	//
+	// Named for what it is. "Scope" elsewhere in this package means the
+	// establishment envelope a result carries, which this is not — and it is
+	// also a word a proposer must never control, since coverage extent comes
+	// from Subjects. Widening the search cannot inflate coverage: every extra
+	// subject it finds is a real occurrence of the thing the proposition is
+	// about.
+	SearchPaths []string `json:"search_paths,omitempty" yaml:"search_paths,omitempty"`
 }
 
 func (p Proposition) String() string {
-	return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
-		p.Type, p.Field, p.Dir, p.Type, p.Lock)
+	switch p.Kind {
+	case KindCommandInvocationConfinedTo:
+		return fmt.Sprintf("every observable invocation of %q under %s originates from %s",
+			p.Command, strings.Join(p.SearchPaths, ", "), p.Owner)
+	default:
+		return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
+			p.Type, p.Field, p.Dir, p.Type, p.Lock)
+	}
 }
 
 // Outcome is what an attempt produced. Three, and the third is not a failure.
@@ -209,9 +244,16 @@ func (e Established) Receipt() Receipt { return e.receipt }
 // lock EXISTS for that reason, and it does not bind future implementations —
 // those are different propositions, and BMG Principle 3 is that a rule learned
 // under a condition may not be applied outside it.
+//
+// The wording is family-neutral on purpose. It said "not why the LOCK exists"
+// until a second family shipped, at which point a derived fact about who may
+// invoke `git` came back disclaiming a lock that was not part of the
+// proposition. A scope sentence that names the first family's vocabulary is a
+// sentence that will be wrong for the second, and this one is the text a reader
+// is meant to trust about what was and was not established.
 func (e Established) Scope() string {
 	return fmt.Sprintf("%s — as observed by %s/%s at %s of %s, over the %d file(s) read. "+
-		"Establishes that the discipline holds WHERE THIS DERIVATION CAN SEE IT, not why the lock exists, "+
+		"Establishes that the arrangement holds WHERE THIS DERIVATION CAN SEE IT, not why it exists, "+
 		"and not that it must hold in future revisions. Unobserved: %s",
 		e.proposition, e.receipt.DerivationID, e.receipt.DerivationVersion,
 		shortCommit(e.receipt.Commit), e.receipt.Repository, len(e.receipt.Inputs),
@@ -238,15 +280,19 @@ type Deriver interface {
 type PinnedSource interface {
 	Repository() string
 	Commit() string
-	// List returns repo-relative paths under dir at the pinned commit.
+	// List returns repo-relative paths directly under dir at the pinned commit.
 	List(dir string) ([]string, error)
+	// ListRecursive returns every path beneath dir. A confinement claim is
+	// about a subtree, and a non-recursive listing would silently narrow the
+	// scope the proposition names.
+	ListRecursive(dir string) ([]string, error)
 	// Read returns the bytes of one path at the pinned commit.
 	Read(path string) ([]byte, error)
 }
 
 // registry is the set of derivations Sensei can attempt. Adding a family is a
 // reviewed change to this list, not something a claimant can request.
-var registry = []Deriver{lockDiscipline{}}
+var registry = []Deriver{lockDiscipline{}, commandConfinement{}}
 
 // Derive attempts a proposition against pinned project state.
 //

@@ -39,6 +39,10 @@ func runDerive(args []string) int {
 	typeName := fs.String("type", "", "struct type")
 	field := fs.String("field", "", "field claimed to be protected")
 	lock := fs.String("lock", "", "field holding the lock")
+	command := fs.String("command", "", "executable, for command_invocation_confined_to")
+	owner := fs.String("owner", "", "package the invocations are claimed to be confined to")
+	var searchPaths repeatableFlag
+	fs.Var(&searchPaths, "search", "repository subtree to search (repeat); a narrower search is a WEAKER claim")
 	asJSON := fs.Bool("json", false, "print the receipt as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Attempt one typed architectural proposition against pinned project state.
@@ -63,10 +67,18 @@ Exit status:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" ||
-		strings.TrimSpace(*field) == "" || strings.TrimSpace(*lock) == "" {
-		fmt.Fprintln(os.Stderr, "error: --dir, --type, --field and --lock are all required")
-		return 2
+	switch derive.Kind(strings.TrimSpace(*kind)) {
+	case derive.KindCommandInvocationConfinedTo:
+		if strings.TrimSpace(*command) == "" || strings.TrimSpace(*owner) == "" || len(searchPaths) == 0 {
+			fmt.Fprintln(os.Stderr, "error: --command, --owner and at least one --search are required")
+			return 2
+		}
+	default:
+		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" ||
+			strings.TrimSpace(*field) == "" || strings.TrimSpace(*lock) == "" {
+			fmt.Fprintln(os.Stderr, "error: --dir, --type, --field and --lock are all required")
+			return 2
+		}
 	}
 	domain := strings.TrimSpace(*repo)
 	if domain == "" {
@@ -82,7 +94,9 @@ Exit status:
 	p := derive.Proposition{
 		Kind: derive.Kind(strings.TrimSpace(*kind)), Dir: strings.TrimSpace(*dir),
 		Type: strings.TrimSpace(*typeName), Field: strings.TrimSpace(*field),
-		Lock: strings.TrimSpace(*lock),
+		Lock:    strings.TrimSpace(*lock),
+		Command: strings.TrimSpace(*command), Owner: strings.TrimSpace(*owner),
+		SearchPaths: searchPaths,
 	}
 	receipt, established := derive.Derive(src, p, time.Now())
 
@@ -113,3 +127,9 @@ Exit status:
 		return 3
 	}
 }
+
+// repeatableFlag collects a flag that may appear more than once.
+type repeatableFlag []string
+
+func (r *repeatableFlag) String() string     { return strings.Join(*r, ", ") }
+func (r *repeatableFlag) Set(v string) error { *r = append(*r, strings.TrimSpace(v)); return nil }

@@ -5,6 +5,7 @@ package derive
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -115,7 +116,7 @@ func TestWhatSurvivesIsTheQuestionNotTheAnswer(t *testing.T) {
 	if err := json.Unmarshal(b, &round); err != nil {
 		t.Fatal(err)
 	}
-	if round.Proposition != stored.Proposition || round.DerivationID != stored.DerivationID {
+	if !reflect.DeepEqual(round.Proposition, stored.Proposition) || round.DerivationID != stored.DerivationID {
 		t.Fatalf("the recipe did not survive storage: %+v", round)
 	}
 	// The envelope travels too, so a reader meets the limits with the record.
