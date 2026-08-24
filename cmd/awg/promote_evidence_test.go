@@ -87,22 +87,31 @@ func TestFreeTextIsNotEvidence(t *testing.T) {
 // The B specimen, encoded as a boundary rather than a hope.
 //
 // B's citations are genuinely real, so they verify. Its architectural
-// conclusion is still wrong. Verified evidence must therefore never be read as
-// an established semantic claim, and nothing in this package provides a path
-// from one to the other — this test fails the moment somebody adds one.
-func TestVerifiedEvidenceIsNotAnEstablishedSemanticClaim(t *testing.T) {
+// conclusion is still wrong. Verified evidence must therefore never become an
+// established semantic claim — and that is now guaranteed by there being no
+// constructor for one outside a successful derivation, rather than by a
+// function returning false.
+//
+// This test pins what remains true here: verification produces a verdict about
+// CITATIONS, and this package has no vocabulary for establishing a claim.
+func TestVerifiedEvidenceIsAVerdictAboutCitationsOnly(t *testing.T) {
 	commit := headCommit(t)
-	// The exact shape of B: true source facts about the bus mutex.
 	verified := verifyEvidenceRefs(context.Background(), "../..", []evidenceRef{{
 		Kind: "source_fact", Commit: commit, File: "cmd/awg/promote_evidence.go",
-		Contains: "does not follow from the bytes being present",
+		Contains: "the only function returning one is Derive",
 	}}, "")
 	if verified.Verdict != evidenceVerified {
 		t.Fatalf("%+v", verified)
 	}
-	if establishesSemanticClaim(verified) {
-		t.Fatal("verified citations were treated as establishing what the code is FOR; " +
-			"B cites entirely real lines and draws the wrong conclusion from them, and any mechanism " +
-			"claiming to establish this class must confront B before it is believed")
+	// Every verdict this package can produce is about whether the citations are
+	// real. None of them says the claim is true, and none of them is named as
+	// though it did.
+	for _, v := range []evidenceVerdict{
+		evidenceVerified, evidenceUnverifiable, evidenceClaimantControlled, evidenceAbsent,
+	} {
+		if strings.Contains(string(v), "ESTABLISHED") {
+			t.Fatalf("verdict %q reads as establishment; establishment lives in "+
+				"golang/architecture/derive and requires a derivation receipt", v)
+		}
 	}
 }
