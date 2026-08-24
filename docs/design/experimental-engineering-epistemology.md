@@ -450,6 +450,90 @@ not a sample.
 Its value is as a reminder that the frontier does not need invented test cases.
 Real development keeps producing the shapes.
 
+## 8d. Two constraints on machine admission, recorded before anything is built
+
+*Recorded 2026-08-23, from the promote experiment in globulario/sensei#298 and
+the open question globulario/sensei-code `dq.closure_knowledge_admission`. Both
+constrain a classification system that does not exist yet, which is the point:
+they are cheapest to state now and most expensive to retrofit.*
+
+### Derivability is an output of verification, not an input
+
+The tempting shape, once claims are split into ones a machine can establish and
+ones it cannot:
+
+```
+agent:   claim_type = mechanically_derivable
+Sensei:  fine, use the mechanical admission path
+```
+
+That hands the claimant the choice of which standard its own claim is judged
+by, which is the same defect as free-text evidence wearing a taxonomy. The
+B specimen would simply label itself derivable.
+
+> **A claimant must not obtain authority by classifying its own claim.
+> Mechanical derivability is established by successful derivation, not by a
+> label.**
+
+So the classification is a RESULT:
+
+```
+agent:   claim X
+Sensei:  attempt derivation D(X) from pinned source, graph, tests, history
+         succeeds → mechanically established
+         fails    → not mechanically established
+         cannot be attempted → UNKNOWN, which is an answer
+```
+
+`UNKNOWN` is the honest outcome and must not soften into "probably semantic, so
+admit it under the weaker path". A derivation that was never run establishes
+nothing, and saying so costs less than a category that quietly means "we gave
+up".
+
+### Claimant-controlled evidence: the narrow rule is not the general one
+
+`#298` refuses an authority-increasing claim whose evidence references all
+carry the commit that introduced the claim. That defeats direct
+self-authorization and is deliberately narrow.
+
+It must not be generalised into *"evidence from the introducing commit is never
+valid"*. Real architecture will be created by agents, and its adoption record
+will naturally cite the commit that implemented it:
+
+```
+hypothesis → experiment → observation → implementation commit → adoption
+```
+
+The implementing commit is legitimate evidence of WHAT WAS BUILT. It simply
+cannot, alone, establish that what was built is correct.
+
+> **Evidence controlled by the claimant may contribute to an
+> authority-increasing claim, but may not be its sole establishing basis.**
+
+The narrow refusal is a safe implementation of that sentence for the one case
+measured. The sentence is the rule; the implementation is not yet the rule, and
+the gap between them is where a future generalisation would go wrong.
+
+### What these two are for
+
+They bound the same remaining problem, which is now much smaller than it was:
+
+```
+these bytes exist                     — #298 establishes this
+these bytes establish proposition P   — open
+```
+
+The question is no longer *"how can an AI write trustworthy architectural
+knowledge"*. It is:
+
+> **Which architectural propositions can Sensei independently derive strongly
+> enough to admit them?**
+
+That set starts small — a call edge, a lock discipline over a field, a test
+exercising a path, an ownership relation — and can grow. Claims outside it stay
+`candidate + verified evidence + not established`, which is a real state and
+not a failure.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:
