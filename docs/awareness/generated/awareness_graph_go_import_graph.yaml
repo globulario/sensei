@@ -1140,6 +1140,7 @@ components:
     source_files:
       - golang/architecture/derive/derive.go
       - golang/architecture/derive/gitsource.go
+      - golang/architecture/derive/governs.go
       - golang/architecture/derive/lockdiscipline.go
     uml:
       kind: Component

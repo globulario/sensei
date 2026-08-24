@@ -630,6 +630,83 @@ attached.
 each is established directly from source, and the premise machinery is
 unnecessary weight. That is worth discovering before building it.
 
+## 8f. Scope is part of truth, not metadata
+
+*Recorded 2026-08-23. The world-compatibility half is implemented; the storage
+half is blocked, and the blocker is named below rather than worked around.*
+
+These are different propositions:
+
+```
+P    every Bus.subs access occurs under Bus.mu
+
+P'   within the observations visible to field_access_under_lock/v1,
+     over the files it read, at commit C,
+     every observed Bus.subs access occurs under Bus.mu
+```
+
+The derivation establishes **P′**. If the graph stores **P**, the claim was
+strengthened during serialization — by nobody, on no evidence, at the exact
+moment the fact stopped being checkable.
+
+> **Scope is part of truth, not metadata. Removing the scope from an established
+> proposition creates a stronger proposition that was never established.**
+
+This is the same law that produced §8b, and it has now appeared at three
+boundaries in three weeks:
+
+```
+#298   an evidence reference must not outrun the observation
+#300   a derivation must not outrun what it can see
+#8f    stored knowledge must not outrun the derivation's scope
+```
+
+Three instances in three mechanisms is the recurrence §8b said to wait for. It
+is still recorded rather than generalised into an ontology, for §8b's reason —
+but the count is now worth stating.
+
+### The world-compatibility half, implemented
+
+A fact derived at commit C must not silently govern a candidate that changed the
+files the derivation read.
+
+> **A derived fact may govern only worlds compatible with the world and the
+> dependencies from which it was derived.**
+
+`Receipt.GovernsWorld` decides that from the inputs the derivation ACTUALLY
+READ, not from the commit alone — so unrelated churn does not invalidate a fact,
+and a change to what it read does. Anything it cannot determine is stale:
+re-deriving is cheap, and a wrong answer here is authority granted on evidence
+that no longer holds.
+
+Measured: same world governs; an unrelated commit governs; a commit that moves
+one access out from under the lock does not, names the file that moved, and
+re-derivation against that candidate returns `NOT_DERIVED`. The fact is not
+merely withdrawn — it is recomputable, which is what makes this different from
+forgetting.
+
+### The storage half, blocked
+
+There is no corpus class for a scoped, revision-bound, derivation-backed fact.
+The promotable classes are `invariant`, `failure_mode`, `incident_pattern`,
+`intent`, `meta_principle`, and none of them carries a world, a derivation
+identity, or a completeness scope.
+
+Storing P′ as an `invariant` would drop every one of those fields, and an
+invariant reads as *this must remain true* where the derivation established
+*this property was independently derived as holding within this observation
+envelope*. Those are not the same epistemic object, and the conversion is
+exactly the strengthening this section forbids.
+
+So the remaining question is narrow and concrete:
+
+> **How does a machine-established proposition participate in governance
+> without stripping the scope that made its establishment legitimate?**
+
+Not answered here. Forcing it into an existing class to make the coverage
+machinery happy would close globulario/sensei-code#67 by cheating its own
+experiment.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:

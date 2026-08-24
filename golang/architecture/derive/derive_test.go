@@ -351,3 +351,110 @@ func TestEveryRegisteredDerivationStatesItsLimits(t *testing.T) {
 		}
 	}
 }
+
+// commitInto writes files into an existing fixture repo and returns the new
+// revision, so a candidate world can be built on top of a derived one.
+func commitInto(t *testing.T, dir string, files map[string]string) string {
+	t.Helper()
+	run := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@e",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@e")
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	for name, body := range files {
+		full := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run("add", "-A")
+	run("commit", "-qm", "candidate")
+	return run("rev-parse", "HEAD")
+}
+
+// The test that keeps machine truth attached to reality.
+//
+// A fact derived at commit C must not silently govern a candidate that changed
+// the very files the derivation read. Otherwise a run could establish a
+// discipline, then edit the code the discipline was established over, and keep
+// the authority the old evidence bought.
+func TestADerivedFactDoesNotSurviveAChangeToWhatItRead(t *testing.T) {
+	src := pinned(t, map[string]string{"internal/event/bus.go": busGo})
+	dir := gitDirOf(src)
+	receipt, est := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
+	if receipt.Outcome != Derived || est == nil {
+		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
+	}
+	ctx := context.Background()
+
+	// Same world: governs.
+	if a := receipt.GovernsWorld(ctx, dir, receipt.Commit); !a.Governs {
+		t.Fatalf("a fact does not govern its own world: %s", a.Reason)
+	}
+
+	// A candidate that changes something the derivation never read: still
+	// governs. Facts must not be invalidated by unrelated churn, or nothing
+	// would ever survive and the ratchet would be pointless.
+	unrelated := commitInto(t, dir, map[string]string{"README.md": "unrelated\n"})
+	if a := receipt.GovernsWorld(ctx, dir, unrelated); !a.Governs {
+		t.Fatalf("unrelated churn invalidated the fact: %s", a.Reason)
+	}
+
+	// A candidate that moves an access out from under the lock: the old receipt
+	// must NOT establish the candidate world.
+	candidate := commitInto(t, dir, map[string]string{"internal/event/bus.go": busGoLeaky})
+	a := receipt.GovernsWorld(ctx, dir, candidate)
+	if a.Governs {
+		t.Fatal("a fact derived at the base still governed a candidate that rewrote the file it was derived from")
+	}
+	if len(a.Changed) != 1 || a.Changed[0] != "internal/event/bus.go" {
+		t.Fatalf("the refusal does not name what moved: %+v", a)
+	}
+
+	// And re-deriving against the candidate world reaches the truthful answer,
+	// which is the point: the fact is not merely withdrawn, it is recomputable.
+	candidateSrc, err := NewGitSource(ctx, dir, "example.com/fixture", candidate)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reReceipt, reEst := Derive(candidateSrc, lockProp(), at("2026-08-23T13:00:00Z"))
+	if reReceipt.Outcome != NotDerived {
+		t.Fatalf("re-derivation against the candidate: %s (%s)", reReceipt.Outcome, reReceipt.Detail)
+	}
+	if reEst != nil {
+		t.Fatal("a refuted re-derivation produced an Established")
+	}
+}
+
+// A receipt that established nothing carries nothing into another world.
+// UNKNOWN and NOT_DERIVED are not weaker forms of authority.
+func TestOnlyDerivedReceiptsCanGovernAnything(t *testing.T) {
+	src := pinned(t, map[string]string{"internal/event/bus.go": busGoLeaky})
+	dir := gitDirOf(src)
+	receipt, _ := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
+	if receipt.Outcome != NotDerived {
+		t.Fatalf("fixture: %s", receipt.Outcome)
+	}
+	if a := receipt.GovernsWorld(context.Background(), dir, receipt.Commit); a.Governs {
+		t.Fatal("a NOT_DERIVED receipt governed a world")
+	}
+
+	p := lockProp()
+	p.Kind = "lock_purpose_serialize_map"
+	unknown, _ := Derive(src, p, at("2026-08-23T12:00:00Z"))
+	if a := unknown.GovernsWorld(context.Background(), dir, unknown.Commit); a.Governs {
+		t.Fatal("an UNKNOWN receipt governed a world")
+	}
+}
+
+func gitDirOf(src *GitSource) string { return src.Dir() }
