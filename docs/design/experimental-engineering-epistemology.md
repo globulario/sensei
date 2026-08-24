@@ -685,7 +685,66 @@ re-derivation against that candidate returns `NOT_DERIVED`. The fact is not
 merely withdrawn — it is recomputable, which is what makes this different from
 forgetting.
 
-### The storage half, blocked
+### The storage half, resolved by storing less
+
+The blocker was real: no corpus class carries a world, a derivation identity and
+a completeness scope, and forcing P′ into an `invariant` drops all three.
+
+The way out is not a richer container. It is storing something weaker.
+
+```
+Derive      -> Established   the fact, in memory, scoped, now
+Admit       -> StoredFact    the RECIPE, durable
+Revalidate  -> Established   the fact again, in THIS world
+```
+
+> **Storage remembers what to check, not what is true.**
+
+A StoredFact carries the typed proposition and the derivation that can decide
+it, plus provenance describing where it was once established. Nothing in it
+asserts that the proposition holds now, and there is no accessor that reports it
+as true without re-running the derivation.
+
+Three things fall out, and none of them needed building:
+
+**A forged record is harmless as a truth claim.** Anybody can write the bytes;
+nobody can make a derivation succeed by writing them. The worst a fabricated
+entry achieves is wasting one derivation — which is why this object can be
+serialized at all, where a stored verdict could not be.
+
+**Supersession needs no engine.** A recipe whose re-derivation stops succeeding
+stops producing a fact. There is no cached truth to invalidate because none was
+cached, and §8e's dependency-invalidation problem does not arise for facts
+nobody stored the answer to.
+
+**The ratchet still holds.** What the project no longer rediscovers is *which
+proposition is worth checking here* — the judgment-bearing half an agent's
+investigation produced. Recomputing the answer is parsing a package.
+
+### Descriptive, not normative
+
+A derived fact says *this was independently derived as holding, within this
+envelope, at this world*. It does not say *this must remain true*.
+
+Deriving that `Bus.subs` is accessed under `Bus.mu` does not oblige any future
+implementation to keep that mutex: replacing it with ownership, a channel or an
+atomic may be entirely correct, and a description has no standing to forbid it.
+`Normative()` is permanently false, as a method rather than a comment, so a
+caller reaching for *may I treat this as a constraint* gets an answer instead of
+a silence it can interpret.
+
+That is also enough for the coverage question, which only ever asked whether
+Sensei knows anything here.
+
+### What is still not done
+
+The remaining step is graph participation: a preflight that consumes a
+StoredFact by revalidating it, so `PREFLIGHT_STATUS_EMPTY` becomes covered
+because a derivation succeeded — not because a record exists. Coverage that
+counted stored recipes without re-running them would let a forged entry close a
+gap, which is the one way this design can still be got wrong.
+
+### The original blocker, for the record
 
 There is no corpus class for a scoped, revision-bound, derivation-backed fact.
 The promotable classes are `invariant`, `failure_mode`, `incident_pattern`,
