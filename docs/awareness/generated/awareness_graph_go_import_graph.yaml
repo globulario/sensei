@@ -1138,6 +1138,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/derive/coverage.go
       - golang/architecture/derive/derive.go
       - golang/architecture/derive/gitsource.go
       - golang/architecture/derive/governs.go
