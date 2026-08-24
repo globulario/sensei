@@ -5799,12 +5799,12 @@ test_symbols:
     package: main
     language: go
     doc: "Free text is not evidence. This is the specimens' actual lesson."
-  - id: cmd/awg/promote_evidence_test.go:TestVerifiedEvidenceIsNotAnEstablishedSemanticClaim
+  - id: cmd/awg/promote_evidence_test.go:TestVerifiedEvidenceIsAVerdictAboutCitationsOnly
     file: cmd/awg/promote_evidence_test.go
-    symbol: TestVerifiedEvidenceIsNotAnEstablishedSemanticClaim
+    symbol: TestVerifiedEvidenceIsAVerdictAboutCitationsOnly
     package: main
     language: go
-    doc: "The B specimen, encoded as a boundary rather than a hope.\n\nB's citations are genuinely real, so they verify. Its architectural\nconclusion is still wrong. Verified evidence must therefore never be read as\nan established semantic claim, and nothing in this package provides a path\nfrom one to the other — this test fails the moment somebody adds one."
+    doc: "The B specimen, encoded as a boundary rather than a hope.\n\nB's citations are genuinely real, so they verify. Its architectural\nconclusion is still wrong. Verified evidence must therefore never become an\nestablished semantic claim — and that is now guaranteed by there being no\nconstructor for one outside a successful derivation, rather than by a\nfunction returning false.\n\nThis test pins what remains true here: verification produces a verdict about\nCITATIONS, and this package has no vocabulary for establishing a claim."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
@@ -11582,6 +11582,48 @@ test_symbols:
     symbol: TestValidateRejectsUnsupportedSchemaVersion
     package: dashboardprojection
     language: go
+  - id: golang/architecture/derive/derive_test.go:TestADisciplineThatHoldsIsDerived
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestADisciplineThatHoldsIsDerived
+    package: derive
+    language: go
+    doc: "The A case. Sensei reads the pinned package itself and computes the\ndiscipline; nothing about the answer came from a claimant."
+  - id: golang/architecture/derive/derive_test.go:TestAPropositionAboutAbsentEntitiesIsUnknown
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestAPropositionAboutAbsentEntitiesIsUnknown
+    package: derive
+    language: go
+    doc: "A proposition about something that is not there is UNKNOWN, not refuted.\n\"There is no such field\" and \"the discipline is violated\" are different\nfindings and must not collapse."
+  - id: golang/architecture/derive/derive_test.go:TestAPropositionCarriesNoProse
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestAPropositionCarriesNoProse
+    package: derive
+    language: go
+    doc: "A proposition carries no prose, and that is a structural guard rather than a\nstyle preference.\n\nThe failure it blocks:\n\n\tLLM reads F1, F2, F3 -> writes \"therefore X\" -> X becomes established\n\nwhich is the prose path wearing a derivation's clothes. A free-text field on\nProposition is all it would take: a deriver could read it, a future one could\npattern-match on it, and the thing establishing project truth would once\nagain be a sentence somebody wrote.\n\nEvery field here names an entity or a relation. A claim that cannot be\nexpressed that way cannot be attempted, which is the correct outcome — it\ngoes to UNKNOWN rather than into a weaker path."
+  - id: golang/architecture/derive/derive_test.go:TestAnUnprotectedAccessIsRefutedNotEstablished
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestAnUnprotectedAccessIsRefutedNotEstablished
+    package: derive
+    language: go
+    doc: "A real counterexample refutes rather than confuses. Count() reads subs with\nno lock held."
+  - id: golang/architecture/derive/derive_test.go:TestEstablishedCannotBeConstructedOutsideADerivation
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestEstablishedCannotBeConstructedOutsideADerivation
+    package: derive
+    language: go
+    doc: "Structural impossibility, not a boolean.\n\nEstablished has no exported fields and no exported constructor, so no caller\noutside this package can build one from verified evidence, from a model's\nagreement, or from a flag. This test fails the moment an exported field or a\nsecond constructor appears."
+  - id: golang/architecture/derive/derive_test.go:TestPurposeClaimsAreUnknownWhicheverIsTrue
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestPurposeClaimsAreUnknownWhicheverIsTrue
+    package: derive
+    language: go
+    doc: "THE B SPECIMEN.\n\n\"The mutex exists to serialize concurrent map access\" is plausible,\nwell-formed, non-contradictory, cites entirely real lines, and is\narchitecturally wrong. It is also a claim about PURPOSE, and no registered\nderivation computes purpose — so the answer is UNKNOWN.\n\nThe test asserts the same of the TRUE purpose claim. That is the point: this\npackage cannot tell them apart, so it establishes neither, and a mechanism\nthat established the true one while accepting the false one would be worse\nthan one that establishes neither."
+  - id: golang/architecture/derive/derive_test.go:TestTheSameDerivationOverTheSamePinnedInputsAgrees
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestTheSameDerivationOverTheSamePinnedInputsAgrees
+    package: derive
+    language: go
+    doc: "Reproducibility is the property that makes a receipt a record of a\ncomputation rather than a claim about one."
   - id: golang/architecture/deviation/deviation_test.go:TestAnalysisReceiptIndexesAreMandatoryAndExact
     file: golang/architecture/deviation/deviation_test.go
     symbol: TestAnalysisReceiptIndexesAreMandatoryAndExact
