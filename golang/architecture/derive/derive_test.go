@@ -305,3 +305,49 @@ func TestAPropositionCarriesNoProse(t *testing.T) {
 		t.Fatalf("Derive takes %d inputs; it must take exactly the pinned source and the typed proposition", n)
 	}
 }
+
+// A DERIVED result must carry what the derivation could not see.
+//
+// The proposition wording is easy to over-read: "every access ... occurs while
+// the lock is held" sounds like a proof about all runtime behaviour, and this
+// derivation is a syntactic approximation. The gap travels in the receipt so
+// that whoever holds the result meets the limitation, not just whoever reads
+// the package comment.
+func TestADerivedResultCarriesWhatItCouldNotSee(t *testing.T) {
+	src := pinned(t, map[string]string{"internal/event/bus.go": busGo})
+	receipt, est := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
+	if receipt.Outcome != Derived || est == nil {
+		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
+	}
+	if len(receipt.CompletenessScope) == 0 {
+		t.Fatal("a DERIVED receipt records no completeness scope; the result then reads as a proof")
+	}
+	for _, want := range []string{"alias", "goroutine", "outside the package"} {
+		found := false
+		for _, l := range receipt.CompletenessScope {
+			if strings.Contains(l, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("completeness scope does not mention %q: %v", want, receipt.CompletenessScope)
+		}
+	}
+	// And the scope sentence must say it, not merely the JSON.
+	if !strings.Contains(est.Scope(), "WHERE THIS DERIVATION CAN SEE IT") {
+		t.Errorf("Scope() overstates the result: %q", est.Scope())
+	}
+	if !strings.Contains(est.Scope(), "Unobserved:") {
+		t.Errorf("Scope() does not carry the unobserved set: %q", est.Scope())
+	}
+}
+
+// Every registered derivation must be able to say what it misses.
+func TestEveryRegisteredDerivationStatesItsLimits(t *testing.T) {
+	for _, d := range registry {
+		if len(d.Limits()) == 0 {
+			t.Errorf("%s/%s declares no limits; a derivation that cannot say what it misses "+
+				"has not been thought about carefully enough to establish anything", d.ID(), d.Version())
+		}
+	}
+}

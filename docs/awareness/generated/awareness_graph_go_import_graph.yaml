@@ -90,6 +90,7 @@ components:
       - cmd/awg/cmd_corpus.go
       - cmd/awg/cmd_dashboard_projection.go
       - cmd/awg/cmd_demo.go
+      - cmd/awg/cmd_derive.go
       - cmd/awg/cmd_disposition_question.go
       - cmd/awg/cmd_domain_closure.go
       - cmd/awg/cmd_draft_candidate.go
@@ -229,6 +230,7 @@ components:
       - component.golang.architecture.compositionbinding
       - component.golang.architecture.convergence
       - component.golang.architecture.dashboardprojection
+      - component.golang.architecture.derive
       - component.golang.architecture.epistemic
       - component.golang.architecture.evaluatorcomposition
       - component.golang.architecture.extractbudget

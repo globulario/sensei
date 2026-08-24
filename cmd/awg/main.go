@@ -346,6 +346,8 @@ func dispatch(cmd string, args []string) int {
 		return runPromote(args)
 	case "propose":
 		return runPropose(args)
+	case "derive":
+		return runDerive(args)
 	case "epistemic":
 		return runEpistemic(args)
 	case "feedback-check":
@@ -414,6 +416,9 @@ Query before editing:
 Record or promote a lesson:
   propose        Append one typed feedback entry, rebuild + reload, stage
   feedback-check Warn when a durable fix added no graph feedback
+  derive         Attempt one typed architectural proposition against pinned
+                 source. Sensei reads the bytes; the caller supplies none of
+                 the answer. DERIVED / NOT_DERIVED / UNKNOWN.
 
 Resolve uncertainty (not canonical knowledge; no routing surface reads it):
   epistemic declare      Declare a design question — >=2 viable alternatives, bound

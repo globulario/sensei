@@ -47,6 +47,20 @@ type lockDiscipline struct{}
 func (lockDiscipline) ID() string      { return "derive.field_access_under_lock" }
 func (lockDiscipline) Version() string { return "v1" }
 
+// Limits is what this derivation cannot observe. Every item is a way a real
+// counterexample could exist and go unseen, which is why a DERIVED result is
+// scoped to the files read rather than stated as a property of the program.
+func (lockDiscipline) Limits() []string {
+	return []string{
+		"access through an alias or a local copy of the receiver",
+		"access from a helper the receiver is passed to",
+		"access from a goroutine whose lock state this cannot follow",
+		"access from a file outside the package directory read",
+		"access through reflection, embedding, or an interface method set",
+		"lock acquisition or release performed by a called function rather than in the same body",
+	}
+}
+
 func (lockDiscipline) Applies(p Proposition) bool {
 	return p.Kind == KindFieldAccessUnderLock &&
 		strings.TrimSpace(p.Dir) != "" && strings.TrimSpace(p.Type) != "" &&
