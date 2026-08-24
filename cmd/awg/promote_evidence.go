@@ -75,6 +75,17 @@ const (
 	// claimant introduced. Structurally, the claim is supported only by the
 	// claimant's own assertions, so it may not increase that claimant's
 	// authority however real the bytes are.
+	//
+	// This refusal is DELIBERATELY NARROW and must not be generalised into
+	// "evidence from the introducing commit is never valid". Real architecture
+	// will be created by agents, and its adoption record will naturally cite
+	// the commit that implemented it: the implementing commit is legitimate
+	// evidence of WHAT WAS BUILT, and simply cannot alone establish that what
+	// was built is correct. The rule is that claimant-controlled evidence may
+	// CONTRIBUTE to an authority-increasing claim but may not be its sole
+	// establishing basis; this check is one safe implementation of that
+	// sentence for the one case measured, not the sentence itself.
+	// See design doc §8d.
 	evidenceClaimantControlled evidenceVerdict = "EVIDENCE_CLAIMANT_CONTROLLED"
 	// evidenceAbsent: no typed references at all. The old free-text field is
 	// not evidence; it is a sentence.
