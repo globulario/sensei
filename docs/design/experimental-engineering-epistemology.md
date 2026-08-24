@@ -450,6 +450,79 @@ not a sample.
 Its value is as a reminder that the frontier does not need invented test cases.
 Real development keeps producing the shapes.
 
+## 8d. The third instance arrived, and the shape it names
+
+*Recorded 2026-08-23. §8b said to let it recur. It recurred, and this section
+names the shape and stops there.*
+
+§8b recorded a candidate from two instances and pre-declared what would justify
+going further: *"If a third instance arrives in a mechanism unlike these two,
+that is when the shape is worth naming formally."* It also stated its own
+falsifier — both instances were verification-at-fetch-time in a build path, and
+the generalisation might hold nowhere else.
+
+The third instance is neither in a build path nor at fetch time.
+
+`sensei promote` raises a candidate to canonical knowledge. Its entire
+evidential check is that the `evidence` and `discovered_from` fields are
+non-empty strings — everything else `validateCandidateEntry` inspects is naming,
+class, status and duplication (`cmd/awg/cmd_promote.go`). Run in #298: three
+candidates through it — a true claim, a plausible and partially factual but
+architecturally FALSE claim about the same file, and a claim citing only
+artifacts introduced by the change that benefits from them — all printed
+`validation: OK` and exited 0.
+
+```
+#282      a store answers for its own identity     by a count it also supplied
+#295      a download is checked against a digest   served by the host serving it
+promote   a candidate is admitted on evidence      the proposer wrote
+```
+
+Three mechanisms, one shape. §8b's falsifier did not fire, so the sentence is
+promoted from *"verifier reference"* to what it was always a special case of:
+
+> **A claim is not established by its claimant. The proposer may select the
+> evidence and name the experiment; it must not supply the observation.**
+
+And the distinction the third instance forces, which the first two did not:
+
+```
+another process   ≠  independent evidence
+another model     ≠  independent evidence
+a mechanical gate ≠  independent evidence
+```
+
+Independence is a property of the causal source of the evidence, not of the
+identity of whoever checks. The false claim above is refuted by nothing in its
+own package: it is well-formed, non-contradictory, partially factual, and
+passes a structural gate that never looks at content. A second reasoner reading
+the same inputs is correlated with the first, and agreement is not observation.
+
+**What this changes for §11.** §11.6 hands technical decisions to the AI on the
+grounds that they are engineering rather than value choices. This is the
+property that makes that safe to say: not that the proposer is reliable, but
+that establishment does not run through the proposer. §11.8 already refuses the
+scalar version of the same error — the AI grading its own autonomy by how
+little it asked.
+
+**Recorded, not built.** Named in the corpus as
+`meta.establishment_requires_evidence_the_claimant_does_not_control`, `status:
+candidate`, tier `planned` — a sentence with specimens, not machinery, and not
+an evidence ontology. §9's non-decisions stand.
+
+*If false:* the three instances share a cause narrower than the sentence — all
+three are verification of an artifact against a reference, and the reach claimed
+for hypotheses, closure and authority is extrapolation from one family.
+
+*Against itself:* all three specimens come from one repository, in one month,
+found by the same working stream and largely narrated by the same actors. That
+is correlation, which is exactly what the sentence says does not establish
+anything. The promote specimens are re-executable — #298 (open) fixes them in
+`cmd/awg/testdata/promote_specimens/` and re-runs them rather than remembering
+the result — and re-execution is the only reason they count as observations
+here rather than as a story. A fourth instance, found by someone who did not
+write the first three, would be worth more than all of them.
+
 ## 9. Non-decisions
 
 Explicitly **not** decided, and not to be inferred from this document:

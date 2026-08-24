@@ -394,6 +394,18 @@ meta_principle_coverage:
       Mechanizable as an admission-path gate proving topology membership comes
       only from controller admission records and signed join plans, not from local
       config, package presence, or discovery, but the generalized gate is not built yet.
+  - principle: meta.establishment_requires_evidence_the_claimant_does_not_control
+    tier: planned
+    intended_tier: behavioral
+    reason: >
+      Mechanizable as an admission-path obligation: every authority-increasing
+      claim must carry an evidence reference the verifier resolves itself from a
+      source outside the proposing change, and a reference introduced by that
+      change must be refused. Narrow lanes of this are reachable today (citation
+      re-read at promotion time), but no generalized gate yet covers every path
+      that raises a claim's authority, and no mechanism distinguishes a resolved
+      citation from an established conclusion. Classified planned, not
+      review_only, so no ceiling slot is consumed.
   - principle: meta.projection_must_be_rebuildable_from_owner
     tier: planned
     intended_tier: behavioral

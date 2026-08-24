@@ -6260,6 +6260,100 @@ invariants:
       - meta.topology_change_is_a_first_class_event
 
 
+  - id: meta.establishment_requires_evidence_the_claimant_does_not_control
+    title: "A claim is not established by its claimant — establishment must rest on an observation the proposer did not produce"
+    category: authority
+    antipattern: "The proposal is coherent, cites its evidence, and passed validation — promote it"
+    wrong_instinct: A well-formed, internally consistent, well-argued proposal feels like a checked one, so review collapses into reading it. But every part of that impression was manufactured by the party that benefits from acceptance — the claim, the reasoning, the evidence selected to support it, and often the artifact the evidence points at. Nothing in the package was produced by anything that could have disagreed, and from inside a proposal a true claim and a merely well-formed one look identical.
+    severity: critical
+    status: candidate
+    # candidate, recorded 2026-08-23. Named after a third instance appeared in a
+    # mechanism unlike the first two (store identity, artifact download, knowledge
+    # promotion). NOT law: all three specimens come from one codebase in one month
+    # and were largely narrated by the same actors, which is correlation, not
+    # corroboration. Promote only if it recurs where those conditions do not hold.
+    summary: |
+      The proposer of a claim may SELECT the evidence and NAME the experiment; it
+      must not SUPPLY the observation. Selection is how expertise contributes and
+      is legitimate. Supply is where the loop closes on itself: the claim, its
+      support, and the verdict all originate in the same place, and the resulting
+      verdict carries no information the claimant did not already assert.
+
+      Independence is a property of the CAUSAL SOURCE of the evidence, not of the
+      identity of whoever checks. A second process, a second model, and a
+      mechanical gate are each independent AGENTS and none of them is, by that
+      fact alone, independent EVIDENCE:
+
+        proposer's prose asserting the claim      not independent at all
+        a second reasoner agreeing                weak, and correlated whenever
+                                                  it reasons from the same inputs
+        a gate over the proposal's FORM           independent of content — it
+                                                  establishes shape, never truth
+        the verifier fetching the cited artifact
+        and reading it itself                     independent observation
+        a controlled execution that could have
+        produced the opposite result              stronger
+        a recorded failure predating the claim    strongest
+
+      Three observed shapes, one codebase, one month:
+
+        - a store answering for its own identity through a triple count it also
+          supplied: a count-preserving mutation left the report reading
+          "authoritative, live store matches expected validated graph artifact"
+          while the store did not match it.
+        - a download checked against a digest served by the same host that served
+          the artifact: real transfer integrity, described as artifact identity.
+        - a knowledge promotion path whose entire evidential check was that the
+          evidence field is a non-empty string: a true claim, a plausible and
+          partially factual but architecturally FALSE claim about the same file,
+          and a claim citing only artifacts introduced by the change that
+          benefits from them, all printed "validation: OK" and exited 0.
+
+      The defect in each is the PAIR, not either half. A weak check is fine and a
+      strong claim is fine; a weak check wearing a strong claim is the failure —
+      which is why "do not let the claim outrun what was checked" travels with
+      this principle rather than following from it.
+
+      What this does NOT say: that proposers are dishonest (the failure needs no
+      bad actor and survives an excellent one); that a second opinion is the
+      remedy (agreement is not observation); that verified citations establish the
+      conclusion drawn from them (real lines can support a wrong architectural
+      reading, which is exactly what the false specimen above demonstrates).
+
+      The reframing it offers: do not try to make a proposer trustworthy enough
+      to write architectural truth. Make establishment strict enough that
+      architectural truth does not depend on trusting the proposer.
+    enforcement: |
+      An admission or promotion path that RAISES the authority of a claim must
+      record, per claim, the observation that establishes it, who produced that
+      observation, and whether the producer is under the proposer's control.
+      Evidence whose only witness is the proposing run may be RETAINED with its
+      provenance; it may not increase authority.
+
+      A citation must be resolvable and re-read BY THE VERIFIER from a source the
+      proposer does not write — a pinned commit, a released artifact, a recorded
+      failure, an executed test. The verifier must obtain the observed content
+      itself; a reference whose expected value is supplied by the thing being
+      checked establishes transit integrity only, and must say so.
+
+      Evidence introduced by the same change that benefits from it is
+      claimant-controlled however real its bytes, and does not establish.
+
+      A verdict must state what was checked, not what the caller hopes was
+      checked. "valid" over a proposal's structure must never be reported in the
+      vocabulary of established knowledge.
+
+      Forbidden: treating another agent's agreement as independent evidence;
+      treating a passing form gate as evidence about content; any status
+      transition to established whose only input is the proposal.
+    related_invariants:
+      - meta.membership_is_admitted_not_self_declared
+      - meta.discovery_produces_candidates_not_facts
+      - meta.authority_must_express_uncertainty
+      - meta.negative_result_requires_coverage_attestation
+      - meta.graph_truth_must_come_from_approved_corpus
+
+
   - id: meta.event_is_notification_not_authority
     title: "An event is a notification to go ask the owner — never the authoritative state itself"
     category: signal

@@ -4765,6 +4765,17 @@
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/workflow.dispatch_is_not_completion> .
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#severity> "critical" .
 <https://globular.io/awareness#invariant/meta.end_to_end_check_is_the_only_truth> <https://globular.io/awareness#status> "candidate" .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <http://www.w3.org/2000/01/rdf-schema#label> "A claim is not established by its claimant — establishment must rest on an observation the proposer did not produce" .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#authoredIn> "docs/awareness/generic/state_authority_invariants.yaml" .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.authority_must_express_uncertainty> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.discovery_produces_candidates_not_facts> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.graph_truth_must_come_from_approved_corpus> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.membership_is_admitted_not_self_declared> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#relatedTo> <https://globular.io/awareness#invariant/meta.negative_result_requires_coverage_attestation> .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/meta.establishment_requires_evidence_the_claimant_does_not_control> <https://globular.io/awareness#status> "candidate" .
 <https://globular.io/awareness#invariant/meta.event_is_notification_not_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/meta.event_is_notification_not_authority> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MetaPrinciple> .
 <https://globular.io/awareness#invariant/meta.event_is_notification_not_authority> <http://www.w3.org/2000/01/rdf-schema#label> "An event is a notification to go ask the owner — never the authoritative state itself" .
@@ -9172,9 +9183,9 @@
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fserver%2Frisk_classify_test.go:TestClassifyRisk_InsufficientCoverageAlwaysUnknown> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Frisk_classify.go> .
 <https://globular.io/awareness#test/golang%2Fserver%2Fskill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 b2b9d5530ba5" .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <https://globular.io/awareness#seedDigestSha256> "b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23" .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <https://globular.io/awareness#seedTripleCount> "9180" .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-b2b9d5530ba5750a00208ddf09110519b968ebc667fa6f1d0d194a8418a36c23> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 0a378bf9b8a7" .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <https://globular.io/awareness#seedDigestSha256> "0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c" .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <https://globular.io/awareness#seedTripleCount> "9191" .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-0a378bf9b8a72627b91cc18a46778133d9179774e147399d088825fadf3d230c> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
