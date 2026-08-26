@@ -143,7 +143,7 @@ func expectedIdentities(root string) (map[string]string, []string, error) {
 		if rerr != nil {
 			return rerr
 		}
-		top, ids := topLevelKeyAndIDs(data)
+		top, ids, noncanonical := topLevelKeyIDsAndStatus(data)
 		// A file that declares itself a generated projection of the principle
 		// pack is not authored by the repository holding it. Custody already
 		// refuses to publish it under this domain, so counting its identities
@@ -167,6 +167,12 @@ func expectedIdentities(root string) (map[string]string, []string, error) {
 			return nil
 		}
 		for _, id := range ids {
+			// A candidate is not a canonical claim. It is DECLARED, and it is
+			// expected NOT to project, which is exactly what Excluded records.
+			if noncanonical[id] {
+				excluded = append(excluded, id)
+				continue
+			}
 			expected[id] = awarenessNS + seg + id
 		}
 		return nil
@@ -181,9 +187,44 @@ func expectedIdentities(root string) (map[string]string, []string, error) {
 // (0, 2 and 4 spaces across invariants/forbidden_fixes/failure_modes), and this
 // gate must read all of them without asserting a convention — the convention
 // mismatch is itself one of the defects under investigation.
+// nonCanonicalStatus is the closed set of statuses that mean "declared, but not
+// canonical governed truth".
+//
+// Read by MEMBERSHIP of the NON-canonical set, deliberately, so an unrecognised
+// status stays REQUIRED to project. The other direction -- listing the canonical
+// statuses and excluding everything else -- fails OPEN: a typo, or a status
+// added later, would quietly excuse an identity from closure. Here an unknown
+// status keeps its obligation, which is the safe direction for a check whose
+// whole job is to notice absence.
+var nonCanonicalStatus = map[string]bool{
+	"candidate": true,
+}
+
 func topLevelKeyAndIDs(data []byte) (string, []string) {
+	top, ids, _ := topLevelKeyIDsAndStatus(data)
+	return top, ids
+}
+
+// topLevelKeyIDsAndStatus also reports which entry ids declare a non-canonical
+// status.
+//
+// A candidate is not a canonical claim, so it must never be counted among the
+// identities a domain is REQUIRED to project. Requiring it made every foreign
+// repository fail closure the moment it was onboarded: `sensei import` writes
+// extracted candidates under a top-level `invariants:` key -- a governed class --
+// and correctly refuses to publish them, so the build demanded the publication
+// of exactly what the design forbids publishing. Observed on golang/sync: 24
+// required, 0 projected, domain not authoritative, and no governed run could
+// start.
+//
+// Status is read at the entry's own field indentation, so a `status:` nested
+// inside a relation block cannot be mistaken for the entry's.
+func topLevelKeyIDsAndStatus(data []byte) (string, []string, map[string]bool) {
 	var top string
 	var ids []string
+	noncanonical := map[string]bool{}
+	current := ""
+	fieldIndent := -1
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimRight(raw, " \t\r")
 		if line == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
@@ -196,21 +237,34 @@ func topLevelKeyAndIDs(data []byte) (string, []string) {
 		}
 		t := strings.TrimSpace(line)
 		t = strings.TrimPrefix(t, "- ")
-		if !strings.HasPrefix(t, "id:") {
+		if strings.HasPrefix(t, "id:") {
+			v := strings.TrimSpace(strings.TrimPrefix(t, "id:"))
+			v = strings.Trim(v, `"'`)
+			// Only top-level entry ids: nested `id:` under a relation block is
+			// indented deeper than the entry's own key. Entry ids appear directly
+			// after a list dash, which TrimPrefix above has already removed.
+			if v == "" || strings.ContainsAny(v, " {}[]") {
+				continue
+			}
+			if strings.HasPrefix(line, strings.Repeat(" ", 8)) {
+				continue // too deep to be an entry id
+			}
+			ids = append(ids, v)
+			current = v
+			fieldIndent = strings.Index(line, "id:")
 			continue
 		}
-		v := strings.TrimSpace(strings.TrimPrefix(t, "id:"))
-		v = strings.Trim(v, `"'`)
-		// Only top-level entry ids: nested `id:` under a relation block is
-		// indented deeper than the entry's own key. Entry ids appear directly
-		// after a list dash, which TrimPrefix above has already removed.
-		if v == "" || strings.ContainsAny(v, " {}[]") {
+		// The entry's OWN status, at the same column its `id:` began.
+		if current == "" || fieldIndent < 0 || !strings.HasPrefix(t, "status:") {
 			continue
 		}
-		if strings.HasPrefix(strings.TrimRight(raw, " \t\r"), strings.Repeat(" ", 8)) {
-			continue // too deep to be an entry id
+		if strings.Index(line, "status:") != fieldIndent {
+			continue
 		}
-		ids = append(ids, v)
+		v := strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "status:")), `"'`)
+		if nonCanonicalStatus[strings.ToLower(v)] {
+			noncanonical[current] = true
+		}
 	}
-	return top, ids
+	return top, ids, noncanonical
 }
