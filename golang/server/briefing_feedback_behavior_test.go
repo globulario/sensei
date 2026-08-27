@@ -317,3 +317,52 @@ func TestBriefing_DoubleAdapterFailureReturnsInternal(t *testing.T) {
 		t.Fatalf("double adapter failure must yield gRPC Internal, got %v", err)
 	}
 }
+
+// Amendment 1: an available feedback lifts any unanchored base, and only
+// because such a record is itself an anchor.
+//
+// FeedbackAvailable means at least one governed record passed admit() -- a
+// compatible domain, a non-empty verified effective file scope, and an
+// intersection with the requested file -- after VerifyCommittedPromotion
+// re-proved it. That is an anchor through a second pipeline, which is exactly
+// what a code_symbol id was not.
+func TestAvailableFeedbackLiftsEveryUnanchoredBase(t *testing.T) {
+	for _, base := range []awarenesspb.BriefingStatus{
+		awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY,
+		awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY,
+		awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY,
+	} {
+		if got := combineBriefingStatus(base, briefingfeedback.FeedbackAvailable); got != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
+			t.Errorf("base %v + available = %v, want OK: a verified in-scope governed record "+
+				"binds to this file, and reporting less than that understates what was established", base, got)
+		}
+	}
+}
+
+// The lift is the ONLY thing that reaches OK. Every weaker feedback state
+// leaves the base exactly as the graph computed it.
+func TestOnlyAnAvailableFeedbackEverLifts(t *testing.T) {
+	for _, avail := range []briefingfeedback.Availability{
+		briefingfeedback.FeedbackEmpty,
+	} {
+		for _, base := range []awarenesspb.BriefingStatus{
+			awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY,
+			awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY,
+			awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY,
+		} {
+			if got := combineBriefingStatus(base, avail); got != base {
+				t.Errorf("base %v + %v = %v; a feedback that established nothing changed the answer", base, avail, got)
+			}
+		}
+	}
+	// And a non-affirmative feedback still degrades rather than preserving.
+	for _, avail := range []briefingfeedback.Availability{
+		briefingfeedback.FeedbackDegraded,
+		briefingfeedback.FeedbackUnavailable,
+		briefingfeedback.FeedbackInvalid,
+	} {
+		if got := combineBriefingStatus(awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY, avail); got != awarenesspb.BriefingStatus_BRIEFING_STATUS_DEGRADED {
+			t.Errorf("CONTEXT_ONLY + %v = %v, want DEGRADED", avail, got)
+		}
+	}
+}

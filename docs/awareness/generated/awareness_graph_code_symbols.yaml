@@ -26038,6 +26038,12 @@ test_symbols:
     package: main
     language: go
     doc: "The vendored VS Code proto exactly matches the canonical proto (wire sync)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestAvailableFeedbackLiftsEveryUnanchoredBase
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestAvailableFeedbackLiftsEveryUnanchoredBase
+    package: main
+    language: go
+    doc: "Amendment 1: an available feedback lifts any unanchored base, and only\nbecause such a record is itself an anchor.\n\nFeedbackAvailable means at least one governed record passed admit() -- a\ncompatible domain, a non-empty verified effective file scope, and an\nintersection with the requested file -- after VerifyCommittedPromotion\nre-proved it. That is an anchor through a second pipeline, which is exactly\nwhat a code_symbol id was not."
   - id: golang/server/briefing_feedback_behavior_test.go:TestBriefingFeedbackProse_PrivacyAndParity
     file: golang/server/briefing_feedback_behavior_test.go
     symbol: TestBriefingFeedbackProse_PrivacyAndParity
@@ -26104,6 +26110,12 @@ test_symbols:
     package: main
     language: go
     doc: "The frozen combined-status table (every row)."
+  - id: golang/server/briefing_feedback_behavior_test.go:TestOnlyAnAvailableFeedbackEverLifts
+    file: golang/server/briefing_feedback_behavior_test.go
+    symbol: TestOnlyAnAvailableFeedbackEverLifts
+    package: main
+    language: go
+    doc: "The lift is the ONLY thing that reaches OK. Every weaker feedback state\nleaves the base exactly as the graph computed it."
   - id: golang/server/briefing_feedback_behavior_test.go:TestResolveBriefingFeedback_AdapterFallback
     file: golang/server/briefing_feedback_behavior_test.go
     symbol: TestResolveBriefingFeedback_AdapterFallback
@@ -26927,6 +26939,12 @@ test_symbols:
     symbol: TestBriefing_AgentCompactUsesTighterCaps
     package: main
     language: go
+  - id: golang/server/main_test.go:TestBriefing_CodeSymbolsAreContextNotCoverage
+    file: golang/server/main_test.go
+    symbol: TestBriefing_CodeSymbolsAreContextNotCoverage
+    package: main
+    language: go
+    doc: "Code symbols are context, and context is not coverage.\n\nThis asserted OK until a governed run read that token as \"this file is\ncovered\" while preflight answered EMPTY for the same file. Both were correct\nunder their own definitions; OK was the wrong word for \"we can name this\nfile's symbols\". The guarantee that mattered is preserved -- a briefing that\nreturned material must not answer EMPTY -- and the answer now names its own\npredicate instead of borrowing a stronger one."
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_DeterministicAcrossRuns
     file: golang/server/main_test.go
     symbol: TestBriefing_CodeSymbols_DeterministicAcrossRuns
@@ -26945,11 +26963,6 @@ test_symbols:
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_LinkedInvariantInProse
     file: golang/server/main_test.go
     symbol: TestBriefing_CodeSymbols_LinkedInvariantInProse
-    package: main
-    language: go
-  - id: golang/server/main_test.go:TestBriefing_CodeSymbols_OKWhenOnlySymbols
-    file: golang/server/main_test.go
-    symbol: TestBriefing_CodeSymbols_OKWhenOnlySymbols
     package: main
     language: go
   - id: golang/server/main_test.go:TestBriefing_CodeSymbols_PartiallyViolatesInProse
@@ -27259,6 +27272,12 @@ test_symbols:
     symbol: TestResolve_UnknownRequestedDomainFailsClosed
     package: main
     language: go
+  - id: golang/server/main_test.go:TestSiblingInferenceIsClassifiedBeforeCodeContext
+    file: golang/server/main_test.go
+    symbol: TestSiblingInferenceIsClassifiedBeforeCodeContext
+    package: main
+    language: go
+    doc: "Sibling inference is classified before code context.\n\ncollectImpact walks the package and returns anchors carried by OTHER files in\nit. Those were rendered in the prose -- \"Inferred from this package (anchored\nto sibling files, NOT to this file)\" -- while the status reported\nCONTEXT_ONLY, because only direct anchors, task patterns and symbols were\nconsulted.\n\nThat is the status UNDERRUNNING its predicate: the same law as OK overrunning\nit, pointing the other way. A caller choosing what to read next cannot tell\n\"we know something about this neighbourhood\" from \"we can name this file's\nsymbols\"."
   - id: golang/server/main_test.go:TestValidateBackend_HealthyStore_ReturnsNil
     file: golang/server/main_test.go
     symbol: TestValidateBackend_HealthyStore_ReturnsNil

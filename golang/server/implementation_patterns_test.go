@@ -310,8 +310,12 @@ func TestBriefing_ImplementationPattern_FileTaskUnanchoredStillMatchesTaskPatter
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
-		t.Fatalf("status: want OK when task pattern matches for unanchored file, got %v\n%s", resp.GetStatus(), resp.GetProse())
+	// A pattern matched the TASK, not this file, and the prose asserted exactly
+	// that ("No direct awareness anchors found for this file") while the status
+	// said OK. The body was already honest; the token contradicted it. The
+	// status now agrees with the sentence directly below it.
+	if got := resp.GetStatus(); got != awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY {
+		t.Fatalf("status: want INFERRED_ONLY when a TASK pattern matches an unanchored file, got %v\n%s", got, resp.GetProse())
 	}
 	pats := resp.GetImplementationPatterns()
 	if len(pats) != 1 {

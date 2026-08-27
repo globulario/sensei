@@ -179,13 +179,42 @@ func feedbackReferencedIDs(p briefingfeedback.Projection) []string {
 	return out
 }
 
-// combineBriefingStatus composes base ⊕ feedback by the frozen table. Feedback never converts a
-// degraded state into OK; a degraded/unavailable/invalid feedback yields DEGRADED; only an
-// available feedback can lift a base EMPTY to OK.
+// combineBriefingStatus composes base ⊕ feedback. Feedback never converts a degraded state
+// into OK; a degraded/unavailable/invalid feedback yields DEGRADED; an available feedback
+// lifts any UNANCHORED base to OK.
+//
+// # Why available feedback may reach OK at all
+//
+// It looks like the defect the status split just fixed -- weaker material lifting the answer
+// -- and it is not, for a reason worth writing down because the next reader will ask.
+//
+// FeedbackAvailable is not "the feedback subsystem answered". A record reaches `records` only
+// after admit(), which requires a compatible domain, a NON-EMPTY verified effective file
+// scope ("an absent effective file scope is never assumed global"), and an intersection with
+// the requested file -- each record having been re-proved by VerifyCommittedPromotion.
+// FeedbackAvailable therefore means: at least one verified governed record BINDS TO THIS
+// FILE. That is an anchor arriving through a second pipeline, not a hint.
+//
+// Contrast the case that was wrong. A code_symbol id exists for every indexed file and
+// establishes nothing about it, so lifting on its presence promoted a fact about the index
+// into a claim about governance. These records are absent unless one genuinely binds.
+//
+// # What changed here, and why the frozen table had to move
+//
+// The table special-cased EMPTY because EMPTY was the only non-OK base a file briefing could
+// carry. Splitting the status introduced two more, and `return base` then understated them: a
+// file with contextual material AND a verified in-scope governed record stayed CONTEXT_ONLY,
+// reporting less than had been established. The rule was not falsified -- it was written for
+// a two-valued world and silently narrowed when the world gained values.
+//
+// Superseded deliberately rather than edited quietly; see docs/design/phase9.6-briefing-feedback.md.
 func combineBriefingStatus(base awarenesspb.BriefingStatus, avail briefingfeedback.Availability) awarenesspb.BriefingStatus {
 	switch avail {
 	case briefingfeedback.FeedbackAvailable:
-		if base == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
+		switch base {
+		case awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY,
+			awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY,
+			awarenesspb.BriefingStatus_BRIEFING_STATUS_INFERRED_ONLY:
 			return awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
 		}
 		return base

@@ -1533,7 +1533,15 @@ func TestBriefing_DeterministicOrdering_SeverityIDLabel(t *testing.T) {
 	assertCurrentAuthority(t, resp.GetAuthority())
 }
 
-func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
+// Code symbols are context, and context is not coverage.
+//
+// This asserted OK until a governed run read that token as "this file is
+// covered" while preflight answered EMPTY for the same file. Both were correct
+// under their own definitions; OK was the wrong word for "we can name this
+// file's symbols". The guarantee that mattered is preserved -- a briefing that
+// returned material must not answer EMPTY -- and the answer now names its own
+// predicate instead of borrowing a stronger one.
+func TestBriefing_CodeSymbolsAreContextNotCoverage(t *testing.T) {
 	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
 			return nil, nil
@@ -1560,8 +1568,12 @@ func TestBriefing_CodeSymbols_OKWhenOnlySymbols(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Briefing: %v", err)
 	}
-	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
-		t.Fatalf("status=%v, want OK (code symbols alone should yield OK)", resp.GetStatus())
+	if got := resp.GetStatus(); got != awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY {
+		t.Fatalf("status=%v, want CONTEXT_ONLY: naming a file's symbols establishes nothing "+
+			"that governs it, and OK is read as coverage", got)
+	}
+	if resp.GetStatus() == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
+		t.Fatal("a briefing that returned material must not answer EMPTY")
 	}
 	found := false
 	for _, id := range resp.GetReferencedIds() {
@@ -2132,4 +2144,69 @@ func (f fakeStore) SourceFileIRIsForPath(ctx context.Context, repoRelativePath s
 		return nil, nil
 	}
 	return f.sourceFileIRIs(ctx, repoRelativePath)
+}
+
+// Sibling inference is classified before code context.
+//
+// collectImpact walks the package and returns anchors carried by OTHER files in
+// it. Those were rendered in the prose -- "Inferred from this package (anchored
+// to sibling files, NOT to this file)" -- while the status reported
+// CONTEXT_ONLY, because only direct anchors, task patterns and symbols were
+// consulted.
+//
+// That is the status UNDERRUNNING its predicate: the same law as OK overrunning
+// it, pointing the other way. A caller choosing what to read next cannot tell
+// "we know something about this neighbourhood" from "we can name this file's
+// symbols".
+func TestSiblingInferenceIsClassifiedBeforeCodeContext(t *testing.T) {
+	sibling := store.ImpactFact{
+		NodeIRI:   "https://globular.io/awareness#invariant/pkg.sibling_rule",
+		TypeIRI:   "https://globular.io/awareness#Invariant",
+		Predicate: "http://www.w3.org/2000/01/rdf-schema#label",
+		Object:    "a rule anchored to a sibling file",
+	}
+	s := newTestServer(packageAwareFake{
+		fakeStore: fakeStore{
+			// Nothing binds the requested file.
+			impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return nil, nil
+			},
+			codeSymbolFacts: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+				return []store.ImpactFact{{
+					NodeIRI:   "https://globular.io/awareness#codeSymbol/golang%2Fpkg%2Ftarget.go:Thing",
+					TypeIRI:   "https://globular.io/awareness#CodeSymbol",
+					Predicate: "http://www.w3.org/2000/01/rdf-schema#label",
+					Object:    "Thing",
+				}}, nil
+			},
+		},
+		// A SIBLING in the same package carries one.
+		pkg: []store.PackageImpactFact{{
+			ImpactFact:    sibling,
+			SourceFileIRI: "https://globular.io/awareness#sourceFile/golang%2Fpkg%2Fsibling.go",
+		}},
+	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{File: "golang/pkg/target.go"})
+	if err != nil {
+		t.Fatalf("Briefing: %v", err)
+	}
+	if got := resp.GetStatus(); got == awarenesspb.BriefingStatus_BRIEFING_STATUS_CONTEXT_ONLY {
+		t.Fatalf("status=%v: sibling inference was rendered in the prose and dropped from the status; "+
+			"CONTEXT_ONLY says nothing was inferred about this file", got)
+	}
+	if got := resp.GetStatus(); got == awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
+		t.Fatalf("status=%v: an anchor on a SIBLING is not an anchor on this file", got)
+	}
+}
+
+// packageAwareFake adds the OPTIONAL PackageAnchorStore capability to the fake,
+// so a test can exercise the sibling-inference walk.
+type packageAwareFake struct {
+	fakeStore
+	pkg []store.PackageImpactFact
+}
+
+func (f packageAwareFake) ImpactForPackage(_ context.Context, _ string) ([]store.PackageImpactFact, error) {
+	return f.pkg, nil
 }
