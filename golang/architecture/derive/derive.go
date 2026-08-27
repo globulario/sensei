@@ -124,22 +124,35 @@ func (p Proposition) String() string {
 	}
 }
 
-// Outcome is what an attempt produced. Three, and the third is not a failure.
+// Outcome is what an attempt produced. Four, and only one of them is a success.
+//
+// The distinction that matters most is between REFUTED and UNRESOLVED. The
+// first version had one word, NOT_DERIVED, for both "I found a counterexample"
+// and "I could not follow the code far enough to know", and it printed the
+// second as if it were the first: semaphore.Weighted.cur in golang/sync --
+// under mu at every access, on inspection -- came back as "6 of 10 access(es)
+// are not under mu", because the reader could not carry lock state through a
+// select or into a helper its callers lock for. A negative asserted on the
+// limits of the asserter is precisely the shape of claim this package exists
+// to refuse, so unknown is now distinguishable from false, and a detail never
+// says "not under" when it means "could not tell".
 type Outcome string
 
 const (
-	// Derived: the derivation ran and the proposition holds over the pinned
-	// inputs it read.
+	// Derived: holds over the pinned inputs at every access, and every access
+	// could be followed.
 	Derived Outcome = "DERIVED"
-	// NotDerived: the derivation ran and found a counterexample. This is a
-	// stronger answer than UNKNOWN and it refutes the proposition.
-	NotDerived Outcome = "NOT_DERIVED"
+	// Refuted: a counterexample the derivation can point at.
+	Refuted Outcome = "REFUTED"
+	// Unresolved: the derivation reached its completeness boundary on at least
+	// one access and found no counterexample elsewhere. Nothing established,
+	// nothing refuted. Earns no coverage, exactly like Refuted, and is never
+	// reported as Refuted.
+	Unresolved Outcome = "UNRESOLVED"
 	// Unknown: no registered derivation applies, or the inputs could not be
-	// read. Nothing was established and nothing was refuted.
-	//
-	// A purpose claim lands here. So does a claim about a family nobody has
-	// taught Sensei to compute. Both are honest, and neither may be quietly
-	// routed to a weaker admission path.
+	// read. A purpose claim lands here; so does a family nobody has taught
+	// Sensei to compute. Neither may be quietly routed to a weaker admission
+	// path.
 	Unknown Outcome = "UNKNOWN"
 )
 

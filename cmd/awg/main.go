@@ -418,7 +418,7 @@ Record or promote a lesson:
   feedback-check Warn when a durable fix added no graph feedback
   derive         Attempt one typed architectural proposition against pinned
                  source. Sensei reads the bytes; the caller supplies none of
-                 the answer. DERIVED / NOT_DERIVED / UNKNOWN.
+                 the answer. DERIVED / REFUTED / UNRESOLVED / UNKNOWN.
 
 Resolve uncertainty (not canonical knowledge; no routing surface reads it):
   epistemic declare      Declare a design question — >=2 viable alternatives, bound

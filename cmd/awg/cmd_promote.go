@@ -4,9 +4,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -47,6 +49,9 @@ func runPromote(args []string) int {
 	dryRun := fs.Bool("dry-run", false, "validate only, do not modify files")
 	noRebuild := fs.Bool("no-rebuild", false, "skip automatic rebuild after promotion")
 	noCheck := fs.Bool("no-check", false, "skip the coherence gate (validate + audit) after rebuild")
+	unverifiedEvidence := fs.Bool("unverified-evidence", false,
+		"promote a candidate that carries NO typed evidence references (legacy free-text evidence only); "+
+			"recorded in provenance as not verified. Never admits an unverifiable or claimant-controlled citation")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo (auto-detect)")
 	repoFlag := fs.String("repo", "", "PILOT: foreign repo domain, e.g. github.com/caddyserver/caddy — routes the promotion into pilot/<repo>/ as a separate domain-scoped graph")
@@ -155,6 +160,61 @@ Flags:
 		}
 	}
 	fmt.Println("validation: OK")
+
+	// Evidence. Structure above says the entry is well-formed; this says whether
+	// its citations are real and whether they are the claimant's own.
+	//
+	// The verifier existed and nothing called it. Three specimens -- a true
+	// claim, a plausible false one, and one whose evidence cited only what its
+	// own change introduced -- all printed "validation: OK" and would have been
+	// promoted identically, because the whole evidential check was that a
+	// string was non-empty. That is the self-approval shape the design forbids,
+	// and it sat underneath the closure loop this repository was busy proving
+	// safe. A candidate cannot become architectural truth merely because it has
+	// valid form.
+	ev := verifyEvidenceRefs(context.Background(), baseRepo, evidenceRefsOf(candidate),
+		introducingCommit(baseRepo, candidatePath))
+	switch ev.Verdict {
+	case evidenceVerified:
+		fmt.Printf("evidence: %s (%s)\n", ev.Verdict, ev.Detail)
+	case evidenceAbsent:
+		if !*unverifiedEvidence {
+			fmt.Fprintf(os.Stderr, "sensei promote: evidence not verified: %s\n"+
+				"  add typed evidence_refs (kind: source_fact, commit, file, contains), or pass\n"+
+				"  --unverified-evidence to promote on structure alone; the provenance will say so\n", ev.Detail)
+			return 1
+		}
+		fmt.Printf("evidence: %s -- promoting on structure alone by operator choice; recorded in provenance\n", ev.Verdict)
+	default:
+		// UNVERIFIABLE and CLAIMANT_CONTROLLED. No flag admits these: a citation
+		// that is not there, or that only the claimant brought, is exactly what
+		// an admission boundary exists to stop.
+		fmt.Fprintf(os.Stderr, "sensei promote: evidence refused: %s: %s\n", ev.Verdict, ev.Detail)
+		return 1
+	}
+	candidate[evidenceVerificationKey] = fmt.Sprintf("%s: %s", ev.Verdict, ev.Detail)
+
+	// Establishment. Citations exist; is the PROPOSITION established by
+	// something the claimant does not control? Design doc §8d: verified bytes
+	// plus a plausible sentence is not a derivation, and the state after a
+	// verified citation is candidate + evidence verified + NOT ESTABLISHED
+	// until a derivation re-run here, or an existing governed decision,
+	// crosses that boundary. There is no flag for this one.
+	est := establishCandidate(context.Background(), baseRepo, awarenessDir, candidate)
+	if est.Verdict == notEstablished {
+		fmt.Fprintf(os.Stderr, "sensei promote: not established: %s\n"+
+			"  the candidate remains a candidate, with verified evidence recorded; promotion does not proceed\n", est.Detail)
+		if !*dryRun {
+			if werr := recordNotEstablished(candidatePath, candidate, ev, est); werr != nil {
+				fmt.Fprintf(os.Stderr, "sensei promote: could not record the refused state on the candidate: %v\n", werr)
+			} else {
+				fmt.Fprintf(os.Stderr, "  recorded on %s: provenance.establishment = %s\n", relTo(baseRepo, candidatePath), est.Verdict)
+			}
+		}
+		return 1
+	}
+	fmt.Printf("established: %s (%s)\n", est.Verdict, est.Detail)
+	candidate[establishmentKey] = fmt.Sprintf("%s: %s", est.Verdict, est.Detail)
 
 	// Transform.
 	canonical := toCanonicalEntry(candidate)
@@ -565,6 +625,14 @@ func toCanonicalEntry(candidate map[string]interface{}) map[string]interface{} {
 		}
 	}
 	prov["promoted_from"] = "candidate"
+	if v := strFieldVal(candidate, establishmentKey); v != "" {
+		prov["establishment"] = v
+	}
+	if v := strFieldVal(candidate, evidenceVerificationKey); v != "" {
+		// The verdict travels with the rule. A reader of canonical YAML can
+		// see whether a rule's citations were checked, and against what.
+		prov["evidence_verification"] = v
+	}
 	if df := strFieldVal(candidate, "discovered_from"); df != "" {
 		prov["discovered_from"] = df
 	}
@@ -644,4 +712,93 @@ func removeCandidateEntry(path, id string) error {
 		return err
 	}
 	return os.WriteFile(path, out, 0o644)
+}
+
+// evidenceVerificationKey carries the verdict from the gate to the provenance
+// merge without it being a field a candidate could author.
+const evidenceVerificationKey = "\x00evidence_verification"
+
+// establishmentKey carries the second boundary's verdict the same way.
+const establishmentKey = "\x00establishment"
+
+// rewriteCandidateEntry replaces one candidate in its file, in place.
+func rewriteCandidateEntry(path string, candidate map[string]interface{}) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return err
+	}
+	id := strFieldVal(candidate, "id")
+	list, _ := doc["candidates"].([]interface{})
+	replaced := false
+	for i, c := range list {
+		if m, ok := c.(map[string]interface{}); ok && strFieldVal(m, "id") == id {
+			// The internal verdict keys never reach disk.
+			clean := map[string]interface{}{}
+			for k, v := range candidate {
+				if !strings.HasPrefix(k, "\x00") {
+					clean[k] = v
+				}
+			}
+			list[i] = clean
+			replaced = true
+		}
+	}
+	if !replaced {
+		return fmt.Errorf("candidate %q not found in %s", id, path)
+	}
+	doc["candidates"] = list
+	out, err := yaml.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o644)
+}
+
+// evidenceRefsOf reads the candidate's typed references, if any.
+//
+// Free text in `evidence` is not read here: a sentence is not an observation.
+func evidenceRefsOf(candidate map[string]interface{}) []evidenceRef {
+	raw, ok := candidate["evidence_refs"].([]interface{})
+	if !ok {
+		return nil
+	}
+	var refs []evidenceRef
+	for _, item := range raw {
+		m, ok := item.(map[string]interface{})
+		if !ok {
+			continue
+		}
+		refs = append(refs, evidenceRef{
+			Kind: strFieldVal(m, "kind"), Commit: strFieldVal(m, "commit"),
+			File: strFieldVal(m, "file"), Contains: strFieldVal(m, "contains"),
+		})
+	}
+	return refs
+}
+
+// introducingCommit is the commit that added the candidate file, or "" when
+// it is not yet committed.
+//
+// A reference citing that same commit is material the claimant brought with
+// it. An uncommitted candidate has no introducing commit yet, and a citation
+// of uncommitted material fails as unverifiable on its own -- git cannot show
+// what has not been committed.
+func introducingCommit(repoDir, candidatePath string) string {
+	rel, err := filepath.Rel(repoDir, candidatePath)
+	if err != nil {
+		return ""
+	}
+	out, err := exec.Command("git", "-C", repoDir, "log", "--diff-filter=A", "--format=%H", "--", rel).Output()
+	if err != nil {
+		return ""
+	}
+	lines := strings.Fields(string(out))
+	if len(lines) == 0 {
+		return ""
+	}
+	return lines[len(lines)-1]
 }

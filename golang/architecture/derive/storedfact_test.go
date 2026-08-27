@@ -53,7 +53,7 @@ func TestAForgedStoredFactEstablishesNothing(t *testing.T) {
 	if est != nil {
 		t.Fatal("a forged record produced an Established")
 	}
-	if receipt.Outcome != NotDerived {
+	if receipt.Outcome != Refuted {
 		t.Fatalf("outcome %s: %s", receipt.Outcome, receipt.Detail)
 	}
 	// The record's own prose has no effect on the answer.
@@ -88,7 +88,7 @@ func TestAStoredFactStopsProducingAFactWhenTheWorldMovesOn(t *testing.T) {
 	if est2 != nil {
 		t.Fatal("a stored fact still produced an Established after the code it described changed")
 	}
-	if r2.Outcome != NotDerived {
+	if r2.Outcome != Refuted {
 		t.Fatalf("outcome %s", r2.Outcome)
 	}
 	// And the record itself is unchanged and still useful: it still names the
