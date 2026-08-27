@@ -202,3 +202,84 @@ func TestAnAccessAfterUnlockIsRefuted(t *testing.T) {
 		t.Fatalf("the counterexample must be located: %q", receipt.Detail)
 	}
 }
+
+// singleflight's doCall: the body is an immediately-invoked closure containing
+// a deferred one, and a separate deferred closure locks for itself before
+// touching the map. Reader v2 recursed without bound here. The discipline holds.
+const singleflightLike = `package singleflight
+
+import "sync"
+
+type call struct{ err error }
+
+type Group struct {
+	mu sync.Mutex
+	m  map[string]*call
+}
+
+func (g *Group) Do(key string, fn func() error) error {
+	g.mu.Lock()
+	if g.m == nil {
+		g.m = make(map[string]*call)
+	}
+	if c, ok := g.m[key]; ok {
+		g.mu.Unlock()
+		return c.err
+	}
+	c := new(call)
+	g.m[key] = c
+	g.mu.Unlock()
+	g.doCall(c, key, fn)
+	return c.err
+}
+
+func (g *Group) doCall(c *call, key string, fn func() error) {
+	normalReturn := false
+	defer func() {
+		g.mu.Lock()
+		defer g.mu.Unlock()
+		if g.m[key] == c {
+			delete(g.m, key)
+		}
+	}()
+	func() {
+		defer func() {
+			if !normalReturn {
+				recover()
+			}
+		}()
+		c.err = fn()
+		normalReturn = true
+	}()
+}
+
+func (g *Group) Forget(key string) {
+	g.mu.Lock()
+	delete(g.m, key)
+	g.mu.Unlock()
+}
+`
+
+func TestNestedAndDeferredClosuresNeitherRecurseNorRefute(t *testing.T) {
+	src := pinned(t, map[string]string{"singleflight/singleflight.go": singleflightLike})
+	receipt, _ := Derive(src, Proposition{Kind: KindFieldAccessUnderLock, Dir: "singleflight",
+		Type: "Group", Field: "m", Lock: "mu"}, at("2026-08-27T02:00:00Z"))
+	if receipt.Outcome != Derived {
+		t.Fatalf("outcome %s: %s", receipt.Outcome, receipt.Detail)
+	}
+}
+
+// A deferred closure runs later. One that does NOT lock for itself cannot
+// inherit the state at the defer statement.
+func TestADeferredClosureDoesNotInheritTheCallersLock(t *testing.T) {
+	leaky := strings.Replace(singleflightLike,
+		"func (g *Group) Forget(key string) {\n\tg.mu.Lock()\n\tdelete(g.m, key)\n\tg.mu.Unlock()\n}",
+		"func (g *Group) Forget(key string) {\n\tg.mu.Lock()\n\tdefer func() { delete(g.m, key) }()\n\tg.mu.Unlock()\n}", 1)
+	src := pinned(t, map[string]string{"singleflight/singleflight.go": leaky})
+	receipt, _ := Derive(src, Proposition{Kind: KindFieldAccessUnderLock, Dir: "singleflight",
+		Type: "Group", Field: "m", Lock: "mu"}, at("2026-08-27T02:00:00Z"))
+	if receipt.Outcome != Unresolved {
+		t.Fatalf("outcome %s; a deferred closure that does not lock must be UNRESOLVED, not %s: %s",
+			receipt.Outcome, receipt.Outcome, receipt.Detail)
+	}
+}

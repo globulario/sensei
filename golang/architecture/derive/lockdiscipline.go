@@ -272,12 +272,19 @@ func (a *analysis) stateAt(fn *fnInfo, pos token.Pos, depth int, visiting map[st
 	// started as a goroutine, it runs later and this reader cannot say when.
 	if lit := enclosingFuncLit(fn.decl.Body, pos); lit != nil {
 		if call := immediateInvocation(fn.decl.Body, lit); call != nil {
-			outer, why := a.stateAt(fn, call.Pos(), depth, visiting)
-			if outer != held {
+			// The outer state is read at the invocation's closing paren, which
+			// lies OUTSIDE the literal. Reading it at call.Pos() -- the same
+			// position as the literal's own start -- re-entered this closure
+			// and recursed without bound on singleflight's doCall, whose
+			// body is an immediately-invoked closure containing a deferred one.
+			outer, why := a.stateAt(fn, call.Rparen, depth, visiting)
+			if outer == unresolved {
 				return outer, why
 			}
-			st, _ := walkTo(lit.Body.List, pos, held, fn.recv, a.lock)
-			return st, ""
+			// Walked from the outer state rather than assumed: a closure that
+			// locks for itself establishes the state whatever the caller held.
+			st, w := walkTo(lit.Body.List, pos, outer, fn.recv, a.lock)
+			return st, w
 		}
 		// Not invoked in place: it runs later, under whatever lock state the
 		// world has then. The closure's OWN locking still counts -- a body that
@@ -738,10 +745,22 @@ func isCalled(root ast.Node, sel *ast.SelectorExpr) bool {
 // immediateInvocation returns the call expression invoking lit in place, if
 // any: func(){...}() runs now; anything else runs later.
 func immediateInvocation(root ast.Node, lit *ast.FuncLit) *ast.CallExpr {
+	// A call that is the operand of `defer` or `go` runs later, whatever its
+	// syntax looks like, and must not be read as running here.
+	later := map[*ast.CallExpr]bool{}
+	ast.Inspect(root, func(n ast.Node) bool {
+		switch s := n.(type) {
+		case *ast.DeferStmt:
+			later[s.Call] = true
+		case *ast.GoStmt:
+			later[s.Call] = true
+		}
+		return true
+	})
 	var found *ast.CallExpr
 	ast.Inspect(root, func(n ast.Node) bool {
 		call, ok := n.(*ast.CallExpr)
-		if ok && call.Fun == lit {
+		if ok && call.Fun == lit && !later[call] {
 			found = call
 		}
 		return found == nil
