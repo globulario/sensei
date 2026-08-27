@@ -194,6 +194,28 @@ Flags:
 	}
 	candidate[evidenceVerificationKey] = fmt.Sprintf("%s: %s", ev.Verdict, ev.Detail)
 
+	// Establishment. Citations exist; is the PROPOSITION established by
+	// something the claimant does not control? Design doc §8d: verified bytes
+	// plus a plausible sentence is not a derivation, and the state after a
+	// verified citation is candidate + evidence verified + NOT ESTABLISHED
+	// until a derivation re-run here, or an existing governed decision,
+	// crosses that boundary. There is no flag for this one.
+	est := establishCandidate(context.Background(), baseRepo, awarenessDir, candidate)
+	if est.Verdict == notEstablished {
+		fmt.Fprintf(os.Stderr, "sensei promote: not established: %s\n"+
+			"  the candidate remains a candidate, with verified evidence recorded; promotion does not proceed\n", est.Detail)
+		if !*dryRun {
+			if werr := recordNotEstablished(candidatePath, candidate, ev, est); werr != nil {
+				fmt.Fprintf(os.Stderr, "sensei promote: could not record the refused state on the candidate: %v\n", werr)
+			} else {
+				fmt.Fprintf(os.Stderr, "  recorded on %s: provenance.establishment = %s\n", relTo(baseRepo, candidatePath), est.Verdict)
+			}
+		}
+		return 1
+	}
+	fmt.Printf("established: %s (%s)\n", est.Verdict, est.Detail)
+	candidate[establishmentKey] = fmt.Sprintf("%s: %s", est.Verdict, est.Detail)
+
 	// Transform.
 	canonical := toCanonicalEntry(candidate)
 	if pilot {
@@ -603,6 +625,9 @@ func toCanonicalEntry(candidate map[string]interface{}) map[string]interface{} {
 		}
 	}
 	prov["promoted_from"] = "candidate"
+	if v := strFieldVal(candidate, establishmentKey); v != "" {
+		prov["establishment"] = v
+	}
 	if v := strFieldVal(candidate, evidenceVerificationKey); v != "" {
 		// The verdict travels with the rule. A reader of canonical YAML can
 		// see whether a rule's citations were checked, and against what.
@@ -692,6 +717,46 @@ func removeCandidateEntry(path, id string) error {
 // evidenceVerificationKey carries the verdict from the gate to the provenance
 // merge without it being a field a candidate could author.
 const evidenceVerificationKey = "\x00evidence_verification"
+
+// establishmentKey carries the second boundary's verdict the same way.
+const establishmentKey = "\x00establishment"
+
+// rewriteCandidateEntry replaces one candidate in its file, in place.
+func rewriteCandidateEntry(path string, candidate map[string]interface{}) error {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	var doc map[string]interface{}
+	if err := yaml.Unmarshal(raw, &doc); err != nil {
+		return err
+	}
+	id := strFieldVal(candidate, "id")
+	list, _ := doc["candidates"].([]interface{})
+	replaced := false
+	for i, c := range list {
+		if m, ok := c.(map[string]interface{}); ok && strFieldVal(m, "id") == id {
+			// The internal verdict keys never reach disk.
+			clean := map[string]interface{}{}
+			for k, v := range candidate {
+				if !strings.HasPrefix(k, "\x00") {
+					clean[k] = v
+				}
+			}
+			list[i] = clean
+			replaced = true
+		}
+	}
+	if !replaced {
+		return fmt.Errorf("candidate %q not found in %s", id, path)
+	}
+	doc["candidates"] = list
+	out, err := yaml.Marshal(doc)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, out, 0o644)
+}
 
 // evidenceRefsOf reads the candidate's typed references, if any.
 //
