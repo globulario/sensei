@@ -68,7 +68,7 @@ func TestAFabricatedCitationCannotBeVerified(t *testing.T) {
 // material the same change introduced, so the claim rests only on assertions
 // the claimant controls.
 func TestEvidenceTheClaimantIntroducedCannotEstablishItsOwnAuthority(t *testing.T) {
-	commit := headCommit(t)
+	commit := baseCommit(t) // on the base: independent unless it is the introducing commit itself
 	refs := []evidenceRef{{
 		Kind: "source_fact", Commit: commit, File: "cmd/awg/promote_evidence.go",
 		Contains: "An authority-increasing claim may not be established solely",
