@@ -199,6 +199,7 @@ components:
       - cmd/awg/lock_unix.go
       - cmd/awg/lock_windows.go
       - cmd/awg/main.go
+      - cmd/awg/promote_establish.go
       - cmd/awg/promote_evidence.go
       - cmd/awg/proofrequirements_adapter.go
       - cmd/awg/repo_domain_binding.go
