@@ -5817,6 +5817,42 @@ test_symbols:
     package: main
     language: go
     doc: "Crash after change_observed but before scope_verified: a re-run with an\nidentical observation resumes from the recorded change without appending a\nsecond change_observed."
+  - id: cmd/awg/promote_establish_test.go:TestADerivationEstablishesOnlyWhenItDerives
+    file: cmd/awg/promote_establish_test.go
+    symbol: TestADerivationEstablishesOnlyWhenItDerives
+    package: main
+    language: go
+    doc: "A derivation, re-run here, establishes -- and only when it DERIVES."
+  - id: cmd/awg/promote_establish_test.go:TestAGovernedEntryEstablishesOnlyIfCanonical
+    file: cmd/awg/promote_establish_test.go
+    symbol: TestAGovernedEntryEstablishesOnlyIfCanonical
+    package: main
+    language: go
+    doc: "An existing governed entry establishes; a candidate-status or unknown one does not."
+  - id: cmd/awg/promote_establish_test.go:TestNotEstablishedIsRecordedOnTheCandidate
+    file: cmd/awg/promote_establish_test.go
+    symbol: TestNotEstablishedIsRecordedOnTheCandidate
+    package: main
+    language: go
+    doc: "The refused state is written INTO the candidate, so it is represented."
+  - id: cmd/awg/promote_establish_test.go:TestRunPromoteConsultsEstablishmentAndOffersNoEscape
+    file: cmd/awg/promote_establish_test.go
+    symbol: TestRunPromoteConsultsEstablishmentAndOffersNoEscape
+    package: main
+    language: go
+    doc: "runPromote must consult the second boundary before transforming, and there\nmust be no flag that crosses it."
+  - id: cmd/awg/promote_establish_test.go:TestVerifiedEvidenceAloneIsNotEstablished
+    file: cmd/awg/promote_establish_test.go
+    symbol: TestVerifiedEvidenceAloneIsNotEstablished
+    package: main
+    language: go
+    doc: "Verified citations alone do not cross the second boundary."
+  - id: cmd/awg/promote_evidence_test.go:TestACitationOnTheClaimantsOwnLineIsNotIndependent
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestACitationOnTheClaimantsOwnLineIsNotIndependent
+    package: main
+    language: go
+    doc: "The hole review found: an uncommitted candidate has no introducing commit,\nand an empty comparison made every real citation look independent. Now a\ncitation is independent only if it is already on the promotion base; a\ncommit on the claimant's own line, cited with no introducing commit known,\nis still the claimant's material."
   - id: cmd/awg/promote_evidence_test.go:TestAFabricatedCitationCannotBeVerified
     file: cmd/awg/promote_evidence_test.go
     symbol: TestAFabricatedCitationCannotBeVerified
@@ -5847,6 +5883,24 @@ test_symbols:
     package: main
     language: go
     doc: "The B specimen, encoded as a boundary rather than a hope.\n\nB's citations are genuinely real, so they verify. Its architectural\nconclusion is still wrong. Verified evidence must therefore never become an\nestablished semantic claim — and that is now guaranteed by there being no\nconstructor for one outside a successful derivation, rather than by a\nfunction returning false.\n\nThis test pins what remains true here: verification produces a verdict about\nCITATIONS, and this package has no vocabulary for establishing a claim."
+  - id: cmd/awg/promote_gate_test.go:TestRunPromoteCallsTheEvidenceGate
+    file: cmd/awg/promote_gate_test.go
+    symbol: TestRunPromoteCallsTheEvidenceGate
+    package: main
+    language: go
+    doc: "runPromote must actually call the gate. Asserted against the source, so the\nverifier cannot quietly become unreferenced again."
+  - id: cmd/awg/promote_gate_test.go:TestTheEvidenceVerdictIsRecordedInProvenance
+    file: cmd/awg/promote_gate_test.go
+    symbol: TestTheEvidenceVerdictIsRecordedInProvenance
+    package: main
+    language: go
+    doc: "The verdict must reach the canonical entry's provenance, so a reader of the\nYAML can see whether a rule's citations were ever checked."
+  - id: cmd/awg/promote_gate_test.go:TestThePromotionGateAdmitsOnlyIndependentlyVerifiedEvidence
+    file: cmd/awg/promote_gate_test.go
+    symbol: TestThePromotionGateAdmitsOnlyIndependentlyVerifiedEvidence
+    package: main
+    language: go
+    doc: "The gate, end to end, on the three specimen shapes -- through the same\nfunction runPromote now calls, with the same inputs it derives."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
@@ -11786,6 +11840,21 @@ test_symbols:
     package: derive
     language: go
     doc: "Reproducibility is the property that makes a receipt a record of a\ncomputation rather than a claim about one."
+  - id: golang/architecture/derive/review_test.go:TestADeferredCallSiteIsUnresolved
+    file: golang/architecture/derive/review_test.go
+    symbol: TestADeferredCallSiteIsUnresolved
+    package: derive
+    language: go
+  - id: golang/architecture/derive/review_test.go:TestAGoCallSiteIsACounterexample
+    file: golang/architecture/derive/review_test.go
+    symbol: TestAGoCallSiteIsACounterexample
+    package: derive
+    language: go
+  - id: golang/architecture/derive/review_test.go:TestAPackageLevelUnlockedCallerIsACallSite
+    file: golang/architecture/derive/review_test.go
+    symbol: TestAPackageLevelUnlockedCallerIsACallSite
+    package: derive
+    language: go
   - id: golang/architecture/derive/storedfact_test.go:TestADerivedFactIsNeverNormative
     file: golang/architecture/derive/storedfact_test.go
     symbol: TestADerivedFactIsNeverNormative
@@ -11816,6 +11885,47 @@ test_symbols:
     package: derive
     language: go
     doc: "The ratchet: what survives is which proposition is worth checking here — the\njudgment-bearing half an investigation produced. Recomputing the answer is\nparsing a package."
+  - id: golang/architecture/derive/tristate_test.go:TestADeferredClosureDoesNotInheritTheCallersLock
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestADeferredClosureDoesNotInheritTheCallersLock
+    package: derive
+    language: go
+    doc: "A deferred closure runs later. One that does NOT lock for itself cannot\ninherit the state at the defer statement."
+  - id: golang/architecture/derive/tristate_test.go:TestAHelperCalledWithoutTheLockIsRefutedAtTheCallSite
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestAHelperCalledWithoutTheLockIsRefutedAtTheCallSite
+    package: derive
+    language: go
+    doc: "REFUTED: a real counterexample the reader can point at -- a helper called\nfrom one site with the lock and from another without it."
+  - id: golang/architecture/derive/tristate_test.go:TestASemaphoreShapedDisciplineIsDerivedNotRefuted
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestASemaphoreShapedDisciplineIsDerivedNotRefuted
+    package: derive
+    language: go
+    doc: "THE SPECIMEN. A true discipline the v1 reader called false."
+  - id: golang/architecture/derive/tristate_test.go:TestAnAccessAfterUnlockIsRefuted
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestAnAccessAfterUnlockIsRefuted
+    package: derive
+    language: go
+    doc: "A genuinely unlocked access in a locking method is still REFUTED, and the\ndetail names the site."
+  - id: golang/architecture/derive/tristate_test.go:TestAnAccessInsideAStoredClosureIsUnresolvedNotRefuted
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestAnAccessInsideAStoredClosureIsUnresolvedNotRefuted
+    package: derive
+    language: go
+    doc: "UNRESOLVED: a stored closure. The reader cannot say when it runs, so it may\nneither assume the lock nor claim a counterexample."
+  - id: golang/architecture/derive/tristate_test.go:TestAnExportedHelperThatNeverLocksIsRefutedBecauseTheAPIPermitsIt
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestAnExportedHelperThatNeverLocksIsRefutedBecauseTheAPIPermitsIt
+    package: derive
+    language: go
+    doc: "An exported helper that never locks is a counterexample, not a boundary:\nthe type's API permits any caller to reach the access unlocked, and nothing\nin the package can prevent it. Whether an in-package caller happens to hold\nthe lock does not change what the API allows."
+  - id: golang/architecture/derive/tristate_test.go:TestNestedAndDeferredClosuresNeitherRecurseNorRefute
+    file: golang/architecture/derive/tristate_test.go
+    symbol: TestNestedAndDeferredClosuresNeitherRecurseNorRefute
+    package: derive
+    language: go
   - id: golang/architecture/deviation/deviation_test.go:TestAnalysisReceiptIndexesAreMandatoryAndExact
     file: golang/architecture/deviation/deviation_test.go
     symbol: TestAnalysisReceiptIndexesAreMandatoryAndExact
