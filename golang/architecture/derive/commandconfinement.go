@@ -63,7 +63,7 @@ func (commandConfinement) Applies(p Proposition) bool {
 }
 
 func (c commandConfinement) Derive(src PinnedSource, p Proposition) Attempt {
-	files, read, fset, failure := c.parseScope(src, p)
+	files, read, fset, failure := parseScope(src, p.SearchPaths)
 	if failure != nil {
 		return *failure
 	}
@@ -122,12 +122,13 @@ func (c commandConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		sites, p.Command, strings.Join(p.SearchPaths, ", "), owner, len(subjectFiles(subjects)), len(read))}
 }
 
-// parseScope reads every non-test Go file under the proposition's scope.
-func (commandConfinement) parseScope(src PinnedSource, p Proposition) ([]*ast.File, []string, *token.FileSet, *Attempt) {
+// parseScope reads every non-test Go file under the given search paths. Shared
+// by every family whose proposition names a repository scope.
+func parseScope(src PinnedSource, searchPaths []string) ([]*ast.File, []string, *token.FileSet, *Attempt) {
 	fset := token.NewFileSet()
 	var files []*ast.File
 	var read []string
-	for _, dir := range p.SearchPaths {
+	for _, dir := range searchPaths {
 		paths, err := src.ListRecursive(strings.Trim(strings.TrimSpace(dir), "/"))
 		if err != nil {
 			return nil, read, fset, &Attempt{Outcome: Unknown, Inputs: read,

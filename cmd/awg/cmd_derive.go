@@ -73,6 +73,12 @@ Exit status:
 			fmt.Fprintln(os.Stderr, "error: --command, --owner and at least one --search are required")
 			return 2
 		}
+	case derive.KindStateMutationConfinedToOwner:
+		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" ||
+			strings.TrimSpace(*field) == "" || len(searchPaths) == 0 {
+			fmt.Fprintln(os.Stderr, "error: --dir (the declaring package), --type, --field and at least one --search are required")
+			return 2
+		}
 	default:
 		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" ||
 			strings.TrimSpace(*field) == "" || strings.TrimSpace(*lock) == "" {
