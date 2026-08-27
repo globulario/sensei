@@ -94,7 +94,7 @@ func TestCommandConfinementRefutesABypass(t *testing.T) {
 		"internal/doctor/doctor.go": violatorPkg,
 	})
 	receipt, est := Derive(src, confinement(), at("2026-08-23T12:00:00Z"))
-	if receipt.Outcome != NotDerived {
+	if receipt.Outcome != Refuted {
 		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
 	}
 	if est != nil {
@@ -124,7 +124,7 @@ func TestANarrowSearchIsAWeakerClaimNotACheaperOne(t *testing.T) {
 	src := pinned(t, files)
 
 	wide, _ := Derive(src, confinement("internal"), at("2026-08-23T12:00:00Z"))
-	if wide.Outcome != NotDerived {
+	if wide.Outcome != Refuted {
 		t.Fatalf("wide search: %s", wide.Outcome)
 	}
 	narrow, _ := Derive(src, confinement("internal/gitx"), at("2026-08-23T12:00:00Z"))

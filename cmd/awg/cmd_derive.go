@@ -23,10 +23,10 @@ import (
 // not have to parse prose:
 //
 //	0  DERIVED       Sensei computed the proposition from pinned source
-//	1  NOT_DERIVED   Sensei computed it and found a counterexample
+//	1  REFUTED   Sensei computed it and found a counterexample
 //	3  UNKNOWN       no registered derivation applies, or inputs unreadable
 //
-// UNKNOWN is deliberately distinct from NOT_DERIVED. "Nobody taught me to
+// UNKNOWN is deliberately distinct from REFUTED. "Nobody taught me to
 // compute this" and "I checked and it is false" are different findings, and a
 // caller that collapsed them would treat ignorance as refutation.
 func runDerive(args []string) int {
@@ -57,7 +57,7 @@ rather than a weaker kind of yes.
 
 Exit status:
   0  DERIVED        computed from pinned source
-  1  NOT_DERIVED    computed, and a counterexample was found
+  1  REFUTED    computed, and a counterexample was found
   3  UNKNOWN        no registered derivation applies, or inputs unreadable
   2  usage error
 
@@ -121,8 +121,10 @@ Exit status:
 	switch receipt.Outcome {
 	case derive.Derived:
 		return 0
-	case derive.NotDerived:
+	case derive.Refuted:
 		return 1
+	case derive.Unresolved:
+		return 2
 	default:
 		return 3
 	}

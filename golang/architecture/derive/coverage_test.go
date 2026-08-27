@@ -71,7 +71,7 @@ func TestAForgedRecipeAnchorsNothing(t *testing.T) {
 	if anchor != nil {
 		t.Fatal("a forged recipe closed a coverage gap")
 	}
-	if r.Outcome != NotDerived {
+	if r.Outcome != Refuted {
 		t.Fatalf("outcome %s", r.Outcome)
 	}
 }
@@ -116,7 +116,7 @@ func TestAValidRecipeCannotCoverACandidateThatBrokeIt(t *testing.T) {
 	if a != nil {
 		t.Fatal("a fact established at the base anchored coverage for a candidate that broke it")
 	}
-	if r.Outcome != NotDerived {
+	if r.Outcome != Refuted {
 		t.Fatalf("outcome %s", r.Outcome)
 	}
 }

@@ -112,7 +112,7 @@ func (c commandConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	}
 	if len(outside) != 0 {
 		sort.Strings(outside)
-		return Attempt{Outcome: NotDerived, Inputs: read, Subjects: subjects, Detail: fmt.Sprintf(
+		return Attempt{Outcome: Refuted, Inputs: read, Subjects: subjects, Detail: fmt.Sprintf(
 			"%d of %d observable invocation(s) of %q originate outside %s: %s",
 			len(outside), sites, p.Command, owner, strings.Join(outside, "; "))}
 	}

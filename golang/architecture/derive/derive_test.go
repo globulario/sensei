@@ -220,7 +220,7 @@ func TestTheSameDerivationOverTheSamePinnedInputsAgrees(t *testing.T) {
 func TestAnUnprotectedAccessIsRefutedNotEstablished(t *testing.T) {
 	src := pinned(t, map[string]string{"internal/event/bus.go": busGoLeaky})
 	receipt, est := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
-	if receipt.Outcome != NotDerived {
+	if receipt.Outcome != Refuted {
 		t.Fatalf("outcome %s: %s", receipt.Outcome, receipt.Detail)
 	}
 	if est != nil {
@@ -466,7 +466,7 @@ func TestADerivedFactDoesNotSurviveAChangeToWhatItRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	reReceipt, reEst := Derive(candidateSrc, lockProp(), at("2026-08-23T13:00:00Z"))
-	if reReceipt.Outcome != NotDerived {
+	if reReceipt.Outcome != Refuted {
 		t.Fatalf("re-derivation against the candidate: %s (%s)", reReceipt.Outcome, reReceipt.Detail)
 	}
 	if reEst != nil {
@@ -480,7 +480,7 @@ func TestOnlyDerivedReceiptsCanGovernAnything(t *testing.T) {
 	src := pinned(t, map[string]string{"internal/event/bus.go": busGoLeaky})
 	dir := gitDirOf(src)
 	receipt, _ := Derive(src, lockProp(), at("2026-08-23T12:00:00Z"))
-	if receipt.Outcome != NotDerived {
+	if receipt.Outcome != Refuted {
 		t.Fatalf("fixture: %s", receipt.Outcome)
 	}
 	if a := receipt.GovernsWorld(context.Background(), dir, receipt.Commit); a.Governs {
