@@ -223,8 +223,27 @@ func topLevelKeyIDsAndStatus(data []byte) (string, []string, map[string]bool) {
 	var top string
 	var ids []string
 	noncanonical := map[string]bool{}
-	current := ""
-	fieldIndent := -1
+
+	// Each list entry is read AS A UNIT: its fields are gathered between one
+	// `- ` boundary and the next, and only then are id and status paired. The
+	// first version read the file as a stream and attached a status to the
+	// last id seen, so an entry whose `status:` preceded its own `id:` handed
+	// that status to the PREVIOUS entry -- which both re-created the defect
+	// (the candidate stayed required) and excused a canonical neighbour from
+	// closure. Field order inside an entry is not a fact about the entry, and
+	// a neighbour's formatting must never change an entry's obligation.
+	type entry struct {
+		id, status string
+	}
+	var entries []entry
+	var cur *entry
+	entryIndent := -1
+	flush := func() {
+		if cur != nil {
+			entries = append(entries, *cur)
+		}
+		cur = nil
+	}
 	for _, raw := range strings.Split(string(data), "\n") {
 		line := strings.TrimRight(raw, " \t\r")
 		if line == "" || strings.HasPrefix(strings.TrimSpace(line), "#") {
@@ -235,35 +254,48 @@ func topLevelKeyIDsAndStatus(data []byte) (string, []string, map[string]bool) {
 			top = strings.TrimSuffix(strings.TrimSpace(line), ":")
 			continue
 		}
+		indent := len(line) - len(strings.TrimLeft(line, " "))
 		t := strings.TrimSpace(line)
-		t = strings.TrimPrefix(t, "- ")
-		if strings.HasPrefix(t, "id:") {
-			v := strings.TrimSpace(strings.TrimPrefix(t, "id:"))
-			v = strings.Trim(v, `"'`)
-			// Only top-level entry ids: nested `id:` under a relation block is
-			// indented deeper than the entry's own key. Entry ids appear directly
-			// after a list dash, which TrimPrefix above has already removed.
-			if v == "" || strings.ContainsAny(v, " {}[]") {
-				continue
+		if strings.HasPrefix(t, "- ") || t == "-" {
+			// A new entry begins at the list's own indentation. A dash deeper
+			// than that is a nested list inside the current entry.
+			if entryIndent < 0 || indent <= entryIndent {
+				flush()
+				entryIndent = indent
+				cur = &entry{}
 			}
-			if strings.HasPrefix(line, strings.Repeat(" ", 8)) {
-				continue // too deep to be an entry id
+			t = strings.TrimSpace(strings.TrimPrefix(t, "-"))
+			indent += 2 // the field column for `- key: value`
+		}
+		if cur == nil {
+			continue
+		}
+		// Only the entry's OWN fields: those at the entry's field column.
+		// Anything deeper belongs to a nested block (a relation, an evidence
+		// list) and must not be read as the entry's id or status.
+		if indent != entryIndent+2 {
+			continue
+		}
+		switch {
+		case strings.HasPrefix(t, "id:"):
+			v := strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "id:")), `"'`)
+			if v != "" && !strings.ContainsAny(v, " {}[]") && cur.id == "" {
+				cur.id = v
 			}
-			ids = append(ids, v)
-			current = v
-			fieldIndent = strings.Index(line, "id:")
+		case strings.HasPrefix(t, "status:"):
+			if cur.status == "" {
+				cur.status = strings.ToLower(strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "status:")), `"'`))
+			}
+		}
+	}
+	flush()
+	for _, e := range entries {
+		if e.id == "" {
 			continue
 		}
-		// The entry's OWN status, at the same column its `id:` began.
-		if current == "" || fieldIndent < 0 || !strings.HasPrefix(t, "status:") {
-			continue
-		}
-		if strings.Index(line, "status:") != fieldIndent {
-			continue
-		}
-		v := strings.Trim(strings.TrimSpace(strings.TrimPrefix(t, "status:")), `"'`)
-		if nonCanonicalStatus[strings.ToLower(v)] {
-			noncanonical[current] = true
+		ids = append(ids, e.id)
+		if nonCanonicalStatus[e.status] {
+			noncanonical[e.id] = true
 		}
 	}
 	return top, ids, noncanonical

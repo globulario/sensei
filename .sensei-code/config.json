@@ -1,0 +1,145 @@
+{
+  "sensei": {
+    "command": "awareness-mcp",
+    "args": [
+      "--awareness-addr",
+      "localhost:10122"
+    ]
+  },
+  "architect": {
+    "name": "chatgpt",
+    "command": "codex",
+    "args": null
+  },
+  "implementors": [
+    {
+      "name": "claude",
+      "command": "claude",
+      "args": [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "bypassPermissions"
+      ]
+    },
+    {
+      "name": "codex",
+      "command": "codex",
+      "args": [
+        "exec",
+        "--sandbox",
+        "workspace-write",
+        "-"
+      ]
+    }
+  ],
+  "reviewer": {
+    "name": "codex",
+    "command": "codex",
+    "args": [
+      "exec",
+      "--sandbox",
+      "read-only",
+      "-"
+    ]
+  },
+  "reviewers": [
+    {
+      "name": "codex",
+      "command": "codex",
+      "args": [
+        "exec",
+        "--sandbox",
+        "read-only",
+        "-"
+      ]
+    },
+    {
+      "name": "claude",
+      "command": "claude",
+      "args": [
+        "-p",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--permission-mode",
+        "plan"
+      ]
+    }
+  ],
+  "workflow": {
+    "review_cycles": 3
+  },
+  "behavioral": {
+    "enabled": false,
+    "url": "",
+    "project": "",
+    "domain": "sensei_code",
+    "insecure_skip_verify": false
+  },
+  "permissions": {
+    "read_repository": true,
+    "write_candidates": true,
+    "create_worktrees": true,
+    "run_formatters": true,
+    "run_builds": true,
+    "run_tests": true,
+    "local_commit": true,
+    "push": false,
+    "force_push": false,
+    "production_deploy": false
+  },
+  "validation": {
+    "format": [
+      {
+        "command": "gofmt",
+        "args": [
+          "-w",
+          "cmd",
+          "internal"
+        ]
+      }
+    ],
+    "format_verify": [
+      {
+        "command": "gofmt",
+        "args": [
+          "-l",
+          "cmd",
+          "internal"
+        ],
+        "fail_if_output": true
+      }
+    ],
+    "vet": [
+      {
+        "command": "go",
+        "args": [
+          "vet",
+          "./..."
+        ]
+      }
+    ],
+    "build": [
+      {
+        "command": "go",
+        "args": [
+          "build",
+          "-buildvcs=false",
+          "./..."
+        ]
+      }
+    ],
+    "test": [
+      {
+        "command": "go",
+        "args": [
+          "test",
+          "./..."
+        ]
+      }
+    ]
+  }
+}

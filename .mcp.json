@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sensei": {
+      "command": "awareness-mcp",
+      "args": [
+        "--awareness-addr",
+        "localhost:10122"
+      ]
+    }
+  }
+}

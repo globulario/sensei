@@ -146,3 +146,59 @@ func TestANestedStatusDoesNotExcuseAnEntry(t *testing.T) {
 		t.Fatal("a nested candidate status excused the governed entry that contained it")
 	}
 }
+
+// Field order inside an entry is not a fact about the entry, and a neighbour's
+// formatting must never change an entry's obligation.
+//
+// The stream-based parser attached a `status:` that preceded its own `id:` to
+// the PREVIOUS entry: the candidate stayed required, and the canonical
+// neighbour was excused from closure -- a fail-open in the closure check
+// itself, triggered by formatting.
+func TestStatusBeforeIdBelongsToItsOwnEntry(t *testing.T) {
+	expected, excluded, err := expectedIdentities(closureCorpus(t, "invariants.yaml", `invariants:
+  - id: real.one
+    status: active
+  - status: candidate
+    id: candidate.two
+  - status: candidate
+    statement: nothing
+    id: candidate.three
+  - id: real.four
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []string{"real.one", "real.four"} {
+		if _, ok := expected[id]; !ok {
+			t.Fatalf("%s lost its obligation because of a neighbour's field order: expected=%v excluded=%v", id, expected, excluded)
+		}
+	}
+	for _, id := range []string{"candidate.two", "candidate.three"} {
+		if _, ok := expected[id]; ok {
+			t.Fatalf("%s is required to project although it declares status: candidate", id)
+		}
+	}
+	if len(excluded) != 2 {
+		t.Fatalf("expected exactly the two candidates excluded, got %v", excluded)
+	}
+}
+
+// A nested block's fields are not the entry's, whatever their order.
+func TestNestedIdAndStatusAreNotTheEntrys(t *testing.T) {
+	expected, _, err := expectedIdentities(closureCorpus(t, "invariants.yaml", `invariants:
+  - id: real.one
+    evidence:
+      - status: candidate
+        id: nested.thing
+    status: active
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := expected["real.one"]; !ok {
+		t.Fatal("a nested candidate excused the governed entry containing it")
+	}
+	if _, ok := expected["nested.thing"]; ok {
+		t.Fatal("a nested id was read as a top-level identity")
+	}
+}
