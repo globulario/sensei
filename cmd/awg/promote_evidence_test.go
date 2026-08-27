@@ -13,6 +13,18 @@ import (
 //
 // The point of the whole mechanism is that the proposer does not supply the
 // bytes, so a test that supplied its own bytes would be testing nothing.
+// baseCommit is a commit already on the promotion base -- independent of any
+// claimant by construction. Tests that expect EVIDENCE_VERIFIED cite this;
+// HEAD of a feature worktree is the claimant's own line and is not.
+func baseCommit(t *testing.T) string {
+	t.Helper()
+	out, err := exec.Command("git", "-C", "../..", "merge-base", "HEAD", "origin/main").Output()
+	if err != nil {
+		t.Skip("no origin/main to measure independence against")
+	}
+	return strings.TrimSpace(string(out))
+}
+
 func headCommit(t *testing.T) string {
 	t.Helper()
 	out, err := exec.Command("git", "-C", "../..", "rev-parse", "HEAD").Output()

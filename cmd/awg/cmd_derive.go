@@ -124,7 +124,9 @@ Exit status:
 	case derive.Refuted:
 		return 1
 	case derive.Unresolved:
-		return 2
+		// 2 is the usage-error code, and a reader that reached its boundary
+		// must not be mistaken for a caller that typed the flags wrong.
+		return 4
 	default:
 		return 3
 	}

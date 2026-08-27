@@ -37,6 +37,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -131,7 +132,17 @@ func verifyEvidenceRefs(ctx context.Context, repoDir string, refs []evidenceRef,
 				Detail: fmt.Sprintf("reference %d: %s at %s does not contain the cited text",
 					i, ref.File, shortCommit(ref.Commit))}
 		}
-		if introducedBy == "" || !strings.HasPrefix(strings.TrimSpace(ref.Commit), strings.TrimSpace(introducedBy)) {
+		// Independent means: already part of the world the candidate is being
+		// promoted INTO, i.e. an ancestor of the promotion base. Anything else
+		// -- the introducing commit, any commit on the claimant's branch, or an
+		// uncommitted state -- is material the claimant controls. The first
+		// version compared against "the commit that added the candidate
+		// file", which an uncommitted candidate made empty, and an empty
+		// comparison made every citation look independent.
+		if introducedBy != "" && strings.HasPrefix(strings.TrimSpace(ref.Commit), strings.TrimSpace(introducedBy)) {
+			continue
+		}
+		if isAncestorOfBase(ctx, repoDir, strings.TrimSpace(ref.Commit)) {
 			independent++
 		}
 	}
@@ -141,7 +152,8 @@ func verifyEvidenceRefs(ctx context.Context, repoDir string, refs []evidenceRef,
 				"an authority-increasing claim may not rest solely on assertions the claimant controls"}
 	}
 	return evidenceResult{Verdict: evidenceVerified, Checked: len(refs),
-		Detail: fmt.Sprintf("%d of %d reference(s) verified against material the claimant did not introduce",
+		Detail: fmt.Sprintf("%d of %d citation(s) exist in pinned source the claimant did not introduce; "+
+			"citations verified, semantic support NOT established -- whether these lines mean what the claim says is a derivation question",
 			independent, len(refs))}
 }
 
@@ -173,3 +185,30 @@ func shortCommit(c string) string {
 // derivation computes. The B specimen still cites entirely real lines and still
 // draws the wrong architectural conclusion; what changed is that there is now
 // nowhere for that conclusion to go.
+
+// promotionBase is the ref the candidate is being promoted into.
+//
+// origin/main when it exists, else main. Overridable so a test, or a pilot
+// promoting into another line, can name the base explicitly.
+var promotionBase = func(repoDir string) string {
+	if v := strings.TrimSpace(os.Getenv("SENSEI_PROMOTION_BASE")); v != "" {
+		return v
+	}
+	for _, ref := range []string{"origin/main", "main"} {
+		if exec.Command("git", "-C", repoDir, "rev-parse", "--verify", "-q", ref+"^{commit}").Run() == nil {
+			return ref
+		}
+	}
+	return ""
+}
+
+// isAncestorOfBase reports whether commit is already part of the promotion
+// base. A commit that is not -- on the claimant's branch, or unknown -- is not
+// independent of the claimant.
+func isAncestorOfBase(ctx context.Context, repoDir, commit string) bool {
+	base := promotionBase(repoDir)
+	if base == "" || commit == "" {
+		return false
+	}
+	return exec.CommandContext(ctx, "git", "-C", repoDir, "merge-base", "--is-ancestor", commit, base).Run() == nil
+}

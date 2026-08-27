@@ -333,12 +333,10 @@ func (a *analysis) callerContext(fn *fnInfo, depth int, visiting map[string]bool
 
 	sites := 0
 	for _, caller := range a.funcs {
-		if caller.recv == "" {
-			continue
-		}
 		var result lockState = held
 		var why string
 		stop := false
+		later := laterCalls(caller.decl.Body)
 		ast.Inspect(caller.decl.Body, func(n ast.Node) bool {
 			if stop {
 				return false
@@ -348,7 +346,23 @@ func (a *analysis) callerContext(fn *fnInfo, depth int, visiting map[string]bool
 				return true
 			}
 			id, ok := sel.X.(*ast.Ident)
-			if !ok || id.Name != caller.recv {
+			if !ok {
+				return true
+			}
+			if caller.recv == "" {
+				// A package-level function reaching in through some variable.
+				// It is a call site -- skipping it let an unlocked call from a
+				// plain function count as no call at all -- and this reader
+				// cannot know what lock that variable's owner holds.
+				if !isCalled(caller.decl.Body, sel) {
+					return true
+				}
+				sites++
+				result, why, stop = unresolved, fmt.Sprintf("called from package-level function %s, whose lock state for %s this reader cannot follow",
+					caller.decl.Name.Name, id.Name), true
+				return false
+			}
+			if id.Name != caller.recv {
 				return true
 			}
 			if !isCalled(caller.decl.Body, sel) {
@@ -356,6 +370,20 @@ func (a *analysis) callerContext(fn *fnInfo, depth int, visiting map[string]bool
 				return false
 			}
 			sites++
+			// `go s.helper()` runs on another goroutine, which holds no lock
+			// of the caller's; that is a counterexample. `defer s.helper()`
+			// runs at function exit, after whatever unlocks precede the
+			// return, in an order this reader does not model.
+			switch later[selCall(caller.decl.Body, sel)] {
+			case "go":
+				result, why, stop = unheld, fmt.Sprintf("started with `go` from %s: a new goroutine holds none of the caller's locks (%s)",
+					caller.decl.Name.Name, a.fset.Position(sel.Pos())), true
+				return false
+			case "defer":
+				result, why, stop = unresolved, fmt.Sprintf("deferred from %s: runs at function exit, after unlocks this reader does not order",
+					caller.decl.Name.Name), true
+				return false
+			}
 			st, w := a.stateAt(caller, sel.Pos(), depth+1, visiting)
 			switch st {
 			case held:
@@ -912,4 +940,32 @@ func callOf(st ast.Stmt) (*ast.CallExpr, bool) {
 		return s.Call, true
 	}
 	return nil, false
+}
+
+// laterCalls maps each call that is the operand of `go` or `defer` to which.
+func laterCalls(root ast.Node) map[*ast.CallExpr]string {
+	out := map[*ast.CallExpr]string{}
+	ast.Inspect(root, func(n ast.Node) bool {
+		switch s := n.(type) {
+		case *ast.GoStmt:
+			out[s.Call] = "go"
+		case *ast.DeferStmt:
+			out[s.Call] = "defer"
+		}
+		return true
+	})
+	return out
+}
+
+// selCall returns the call expression whose callee is sel, if any.
+func selCall(root ast.Node, sel *ast.SelectorExpr) *ast.CallExpr {
+	var found *ast.CallExpr
+	ast.Inspect(root, func(n ast.Node) bool {
+		call, ok := n.(*ast.CallExpr)
+		if ok && call.Fun == sel {
+			found = call
+		}
+		return found == nil
+	})
+	return found
 }
