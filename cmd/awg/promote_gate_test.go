@@ -9,19 +9,10 @@ import (
 	"testing"
 )
 
-func olderCommit(t *testing.T) string {
-	t.Helper()
-	out, err := exec.Command("git", "-C", "../..", "rev-parse", "HEAD~20").Output()
-	if err != nil {
-		t.Skip("history too shallow")
-	}
-	return strings.TrimSpace(string(out))
-}
-
 // The gate, end to end, on the three specimen shapes -- through the same
 // function runPromote now calls, with the same inputs it derives.
 func TestThePromotionGateAdmitsOnlyIndependentlyVerifiedEvidence(t *testing.T) {
-	head, older := headCommit(t), olderCommit(t)
+	head, older := headCommit(t), baseCommit(t)
 
 	// A: real citation, material the claimant did not introduce.
 	a := map[string]interface{}{"evidence_refs": []interface{}{map[string]interface{}{

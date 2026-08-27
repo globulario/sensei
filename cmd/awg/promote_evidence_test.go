@@ -37,7 +37,7 @@ func headCommit(t *testing.T) string {
 // A real citation verifies. The proposer chose where to look; git supplied
 // what is there.
 func TestARealCitationIsVerifiedFromGitNotFromTheCandidate(t *testing.T) {
-	commit := headCommit(t)
+	commit := baseCommit(t)
 	got := verifyEvidenceRefs(context.Background(), "../..", []evidenceRef{{
 		Kind: "source_fact", Commit: commit, File: "cmd/awg/promote_evidence.go",
 		Contains: "Evidence may be SELECTED by the proposer",
@@ -107,7 +107,7 @@ func TestFreeTextIsNotEvidence(t *testing.T) {
 // This test pins what remains true here: verification produces a verdict about
 // CITATIONS, and this package has no vocabulary for establishing a claim.
 func TestVerifiedEvidenceIsAVerdictAboutCitationsOnly(t *testing.T) {
-	commit := headCommit(t)
+	commit := baseCommit(t)
 	verified := verifyEvidenceRefs(context.Background(), "../..", []evidenceRef{{
 		Kind: "source_fact", Commit: commit, File: "cmd/awg/promote_evidence.go",
 		Contains: "the only function returning one is Derive",
@@ -125,5 +125,22 @@ func TestVerifiedEvidenceIsAVerdictAboutCitationsOnly(t *testing.T) {
 			t.Fatalf("verdict %q reads as establishment; establishment lives in "+
 				"golang/architecture/derive and requires a derivation receipt", v)
 		}
+	}
+}
+
+// The hole review found: an uncommitted candidate has no introducing commit,
+// and an empty comparison made every real citation look independent. Now a
+// citation is independent only if it is already on the promotion base; a
+// commit on the claimant's own line, cited with no introducing commit known,
+// is still the claimant's material.
+func TestACitationOnTheClaimantsOwnLineIsNotIndependent(t *testing.T) {
+	head := headCommit(t)
+	if head == baseCommit(t) {
+		t.Skip("HEAD is on the promotion base; nothing branch-only to cite")
+	}
+	got := verifyEvidenceRefs(context.Background(), "../..", []evidenceRef{{
+		Kind: "source_fact", Commit: head, File: "go.mod", Contains: "module github.com/globulario/sensei"}}, "")
+	if got.Verdict != evidenceClaimantControlled {
+		t.Fatalf("a branch-only citation with no introducing commit was accepted as independent: %+v", got)
 	}
 }
