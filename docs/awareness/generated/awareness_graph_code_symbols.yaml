@@ -1342,6 +1342,48 @@ test_symbols:
     symbol: TestSkillRoutingDoesNotLoadAllSkillsForOrdinaryEdit
     package: main
     language: go
+  - id: cmd/awg/candidate_closure_test.go:TestACandidateIsDeclaredButNeverRequiredToProject
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestACandidateIsDeclaredButNeverRequiredToProject
+    package: main
+    language: go
+    doc: "1. Candidate-only import: the candidate is declared, is not required to\n    project, and closure stays provable."
+  - id: cmd/awg/candidate_closure_test.go:TestACanonicalIdentityIsStillRequiredToProject
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestACanonicalIdentityIsStillRequiredToProject
+    package: main
+    language: go
+    doc: "2. A canonical governed identity that does not project still fails closure.\n    The fix must not become \"closure no longer notices absence\"."
+  - id: cmd/awg/candidate_closure_test.go:TestANestedStatusDoesNotExcuseAnEntry
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestANestedStatusDoesNotExcuseAnEntry
+    package: main
+    language: go
+    doc: "A `status:` nested inside a relation block is not the entry's own status."
+  - id: cmd/awg/candidate_closure_test.go:TestColdStartProvesClosureWithoutClaimingKnowledge
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestColdStartProvesClosureWithoutClaimingKnowledge
+    package: main
+    language: go
+    doc: "4. Cold start: a repository with zero canonical claims proves closure.\n\nPROVEN here means \"everything claiming canonical authority is accounted for\".\nIt does NOT mean the repository is understood, and nothing may read this\nstate as safety -- the graph is authoritative and architecturally EMPTY at the\nsame time, which is precisely the state the investigator is meant to operate\non."
+  - id: cmd/awg/candidate_closure_test.go:TestNestedIdAndStatusAreNotTheEntrys
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestNestedIdAndStatusAreNotTheEntrys
+    package: main
+    language: go
+    doc: "A nested block's fields are not the entry's, whatever their order."
+  - id: cmd/awg/candidate_closure_test.go:TestOnlyTheCandidateIsExcusedInAMixedFile
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestOnlyTheCandidateIsExcusedInAMixedFile
+    package: main
+    language: go
+    doc: "3. Mixed: the candidate is excused, the canonical one is not."
+  - id: cmd/awg/candidate_closure_test.go:TestStatusBeforeIdBelongsToItsOwnEntry
+    file: cmd/awg/candidate_closure_test.go
+    symbol: TestStatusBeforeIdBelongsToItsOwnEntry
+    package: main
+    language: go
+    doc: "Field order inside an entry is not a fact about the entry, and a neighbour's\nformatting must never change an entry's obligation.\n\nThe stream-based parser attached a `status:` that preceded its own `id:` to\nthe PREVIOUS entry: the candidate stayed required, and the canonical\nneighbour was excused from closure -- a fail-open in the closure check\nitself, triggered by formatting."
   - id: cmd/awg/cmd_admission_v2_test.go:TestAdmitChangeV2Admits
     file: cmd/awg/cmd_admission_v2_test.go
     symbol: TestAdmitChangeV2Admits
