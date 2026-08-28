@@ -75,6 +75,20 @@ const (
 	// discipline holds. It says nothing about WHY the lock exists, which is a
 	// different proposition that no derivation here attempts.
 	KindFieldAccessUnderLock Kind = "field_access_under_lock"
+
+	// KindStateMutationConfinedToOwner: every observable write to a named
+	// exported field of a named exported struct type, within a named
+	// repository scope, originates from the package that declares the type.
+	//
+	// A third family, and a composition: state identity, ownership, mutation
+	// sites, and the authorized boundary must be related to answer it. It is
+	// deliberately about the declaring PACKAGE and not the type's methods:
+	// a constructor in the owning package filling its own options struct is
+	// the owner exercising authority, not a bypass (experiments/mutation-v1
+	// in sensei-code closed on exactly that counterexample). A REFUTED here is
+	// a counterexample to confinement, not by itself an architectural defect:
+	// an exported structure may be intentionally caller-mutable.
+	KindStateMutationConfinedToOwner Kind = "state_mutation_confined_to_owner"
 )
 
 // Proposition is a claim in a shape a derivation can attempt.
@@ -118,6 +132,9 @@ func (p Proposition) String() string {
 	case KindCommandInvocationConfinedTo:
 		return fmt.Sprintf("every observable invocation of %q under %s originates from %s",
 			p.Command, strings.Join(p.SearchPaths, ", "), p.Owner)
+	case KindStateMutationConfinedToOwner:
+		return fmt.Sprintf("every observable write to %s.%s under %s originates from its declaring package %s",
+			p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir)
 	default:
 		return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
 			p.Type, p.Field, p.Dir, p.Type, p.Lock)
@@ -305,7 +322,7 @@ type PinnedSource interface {
 
 // registry is the set of derivations Sensei can attempt. Adding a family is a
 // reviewed change to this list, not something a claimant can request.
-var registry = []Deriver{lockDiscipline{}, commandConfinement{}}
+var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}}
 
 // Derive attempts a proposition against pinned project state.
 //

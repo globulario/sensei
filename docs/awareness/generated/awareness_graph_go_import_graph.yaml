@@ -1145,6 +1145,7 @@ components:
       - golang/architecture/derive/gitsource.go
       - golang/architecture/derive/governs.go
       - golang/architecture/derive/lockdiscipline.go
+      - golang/architecture/derive/mutationconfinement.go
       - golang/architecture/derive/storedfact.go
     uml:
       kind: Component
