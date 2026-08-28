@@ -11840,6 +11840,65 @@ test_symbols:
     package: derive
     language: go
     doc: "Reproducibility is the property that makes a receipt a record of a\ncomputation rather than a claim about one."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementAddressOutsideOwnerIsUnresolved
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementAddressOutsideOwnerIsUnresolved
+    package: derive
+    language: go
+    doc: "sensei#313 review, P2: the sealed relation says an address of T.F taken\noutside the owner is write authority that escapes -- UNRESOLVED, not a\ncounterexample. Inside the owner it is the owner's own site."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementDerivesWhenOnlyTheOwnerWrites
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementDerivesWhenOnlyTheOwnerWrites
+    package: derive
+    language: go
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementEmbeddedPromotionIsUnresolved
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementEmbeddedPromotionIsUnresolved
+    package: derive
+    language: go
+    doc: "sensei#313 review, P1: a write reaching F by promotion through an embedded\nfield is UNRESOLVED, never silently \"not this type\"."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementFieldChainsUseTheDeclaringFilesImports
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementFieldChainsUseTheDeclaringFilesImports
+    package: derive
+    language: go
+    doc: "sensei#313 review, P1: a struct field's qualified type is written in the\nDECLARING file's aliases. Here the declaring file imports the owner as\n`opts`, while the mutation-site file binds `pool` to a different package\nthat also has an Options type. Resolving the chain through the mutation\nsite's aliases would bind h.Opts to the wrong Options and hide the write."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementIsUnknownWhenNothingWrites
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementIsUnknownWhenNothingWrites
+    package: derive
+    language: go
+    doc: "Nothing writes the field: true and useless, and reported as nothing to\nestablish rather than as a confinement."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementIsUnresolvedWhenAReceiverCannotBeBound
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementIsUnresolvedWhenAReceiverCannotBeBound
+    package: derive
+    language: go
+    doc: "A receiver this derivation cannot bind is the completeness boundary:\nUNRESOLVED, with the site named, and never \"not this type\"."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementNarrowSearchIsAWeakerClaim
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementNarrowSearchIsAWeakerClaim
+    package: derive
+    language: go
+    doc: "A narrower search is a weaker claim: searching only the owner package\ncannot see the bypass, and the receipt says where it looked."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementReceiptIsBoundToGoMod
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementReceiptIsBoundToGoMod
+    package: derive
+    language: go
+    doc: "sensei#313 review, P2: go.mod decides how qualified names bind, so a\nreceipt that rests on it names it as an input -- a go.mod-only change can\nthen invalidate the derivation. Without a go.mod nothing is claimed read."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementRefutesACrossPackageWrite
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementRefutesACrossPackageWrite
+    package: derive
+    language: go
+    doc: "A cross-package write through a bound receiver is a counterexample to\nconfinement, named as such and located."
+  - id: golang/architecture/derive/mutationconfinement_test.go:TestMutationConfinementShadowingDoesNotHideABypass
+    file: golang/architecture/derive/mutationconfinement_test.go
+    symbol: TestMutationConfinementShadowingDoesNotHideABypass
+    package: derive
+    language: go
+    doc: "sensei#313 review, P1: a nested := that shadows the receiver must not erase\na genuine bypass after the block. One function-wide binding map did."
   - id: golang/architecture/derive/review_test.go:TestADeferredCallSiteIsUnresolved
     file: golang/architecture/derive/review_test.go
     symbol: TestADeferredCallSiteIsUnresolved
