@@ -68,6 +68,16 @@ func (mutationConfinement) Applies(p Proposition) bool {
 // typeRef names a struct type by declaring directory and name.
 type typeRef struct{ dir, name string }
 
+// structDecl is a struct type as declared, with the import map of the FILE
+// that declared it. A field's qualified type is written in that file's
+// aliases, not in the aliases of whichever file happens to write the field;
+// resolving it through the mutation-site file's imports let an alias
+// collision bind a chain to the wrong package (sensei#313 review, P1).
+type structDecl struct {
+	st      *ast.StructType
+	imports map[string]string
+}
+
 func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	files, read, fset, failure := parseScope(src, p.SearchPaths)
 	if failure != nil {
@@ -78,12 +88,20 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			Detail: fmt.Sprintf("no non-test Go files under %s at the pinned commit", strings.Join(p.SearchPaths, ", "))}
 	}
 	owner := typeRef{dir: cleanDir(p.Dir), name: p.Type}
-	modulePath := modulePathOf(src)
+	modulePath, modRead := modulePathOf(src)
+	if modRead {
+		// go.mod decides how qualified names bind, so a receipt that rests on
+		// it must name it as an input: a go.mod-only change that re-routes an
+		// import path must invalidate the derivation (sensei#313 review, P2).
+		read = append(read, "go.mod")
+	}
 
-	// Struct declarations in scope, by declaring directory and name.
-	structs := map[typeRef]*ast.StructType{}
+	// Struct declarations in scope, by declaring directory and name, each
+	// with the imports of the file that declared it.
+	structs := map[typeRef]structDecl{}
 	for i, f := range files {
 		dir := cleanDir(path.Dir(read[i]))
+		imports := importsOf(f)
 		for _, d := range f.Decls {
 			gd, ok := d.(*ast.GenDecl)
 			if !ok || gd.Tok != token.TYPE {
@@ -92,7 +110,7 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			for _, sp := range gd.Specs {
 				ts := sp.(*ast.TypeSpec)
 				if st, ok := ts.Type.(*ast.StructType); ok {
-					structs[typeRef{dir, ts.Name.Name}] = st
+					structs[typeRef{dir, ts.Name.Name}] = structDecl{st: st, imports: imports}
 				}
 			}
 		}
@@ -406,8 +424,8 @@ func (w *walker) target(e ast.Expr, sc *scope, kind string) {
 		// field. If it does not, F reaches it by promotion through an
 		// embedded field -- which may be T -- and promotion is not followed:
 		// UNRESOLVED, never silently "not this type".
-		st := w.r.structs[ref]
-		if st != nil && !structDeclares(st, w.field) && hasEmbedded(st) {
+		decl, ok := w.r.structs[ref]
+		if ok && !structDeclares(decl.st, w.field) && hasEmbedded(decl.st) {
 			*w.unresolved = append(*w.unresolved, fmt.Sprintf("%s:%d (%s reached through an embedded field of %s; promotion is not followed)", w.filePath, pos.Line, w.field, ref.name))
 		}
 	}
@@ -435,7 +453,7 @@ func hasEmbedded(st *ast.StructType) bool {
 
 // resolver binds expressions to struct types from what was parsed.
 type resolver struct {
-	structs    map[typeRef]*ast.StructType
+	structs    map[typeRef]structDecl
 	imports    map[string]string // alias -> import path
 	modulePath string
 	dir        string // directory of the file being read
@@ -456,14 +474,16 @@ func (r *resolver) typeOfIn(e ast.Expr, sc *scope) (typeRef, bool) {
 		if !ok {
 			return typeRef{}, false
 		}
-		st, ok := r.structs[base]
+		decl, ok := r.structs[base]
 		if !ok {
 			return typeRef{}, false
 		}
-		for _, fld := range st.Fields.List {
+		for _, fld := range decl.st.Fields.List {
 			for _, n := range fld.Names {
 				if n.Name == x.Sel.Name {
-					return r.typeExprIn(fld.Type, base.dir)
+					// The field's type is written in the DECLARING file's
+					// aliases.
+					return r.typeExprIn(fld.Type, base.dir, decl.imports)
 				}
 			}
 		}
@@ -480,18 +500,20 @@ func (r *resolver) typeOfIn(e ast.Expr, sc *scope) (typeRef, bool) {
 	return typeRef{}, false
 }
 
-// typeExpr binds a type expression written in the current file.
-func (r *resolver) typeExpr(t ast.Expr) (typeRef, bool) { return r.typeExprIn(t, r.dir) }
+// typeExpr binds a type expression written in the current file, through the
+// current file's imports.
+func (r *resolver) typeExpr(t ast.Expr) (typeRef, bool) { return r.typeExprIn(t, r.dir, r.imports) }
 
-// typeExprIn binds a type expression as written in a file of directory dir.
-// A qualified name resolves through the imports of the CURRENT file, which is
-// an approximation stated in Limits when the chain crosses files.
-func (r *resolver) typeExprIn(t ast.Expr, dir string) (typeRef, bool) {
+// typeExprIn binds a type expression as written in a file of directory dir
+// whose import map is imports. Every qualified name resolves through the
+// aliases of the file that WROTE the type expression -- the mutation-site
+// file for a binding, the declaring file for a struct field.
+func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string) (typeRef, bool) {
 	switch x := t.(type) {
 	case *ast.StarExpr:
-		return r.typeExprIn(x.X, dir)
+		return r.typeExprIn(x.X, dir, imports)
 	case *ast.ParenExpr:
-		return r.typeExprIn(x.X, dir)
+		return r.typeExprIn(x.X, dir, imports)
 	case *ast.Ident:
 		ref := typeRef{dir, x.Name}
 		if _, ok := r.structs[ref]; ok {
@@ -503,7 +525,7 @@ func (r *resolver) typeExprIn(t ast.Expr, dir string) (typeRef, bool) {
 		if !ok {
 			return typeRef{}, false
 		}
-		importPath, ok := r.imports[pkg.Name]
+		importPath, ok := imports[pkg.Name]
 		if !ok || r.modulePath == "" {
 			return typeRef{}, false
 		}
@@ -557,20 +579,20 @@ func importsOf(f *ast.File) map[string]string {
 	return out
 }
 
-// modulePathOf reads the module path from the pinned go.mod, or "" when the
-// tree has none -- in which case qualified references cannot be bound and say
-// so, rather than being guessed from directory names.
-func modulePathOf(src PinnedSource) string {
+// modulePathOf reads the module path from the pinned go.mod, reporting
+// whether the file was read at all. Without it qualified references cannot
+// be bound and say so, rather than being guessed from directory names.
+func modulePathOf(src PinnedSource) (string, bool) {
 	b, err := src.Read("go.mod")
 	if err != nil {
-		return ""
+		return "", false
 	}
 	for _, line := range strings.Split(string(b), "\n") {
 		if strings.HasPrefix(strings.TrimSpace(line), "module ") {
-			return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "module "))
+			return strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "module ")), true
 		}
 	}
-	return ""
+	return "", true
 }
 
 func cleanDir(d string) string {

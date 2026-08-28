@@ -162,7 +162,9 @@ func TestMutationConfinementNarrowSearchIsAWeakerClaim(t *testing.T) {
 	if receipt.Outcome != Derived || est == nil {
 		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
 	}
-	if !strings.Contains(receipt.Detail, "under pool") || len(receipt.Inputs) != 1 {
+	// Inputs are the one file in scope plus go.mod, which binds qualified
+	// names and is therefore part of what the receipt rests on.
+	if !strings.Contains(receipt.Detail, "under pool") || len(receipt.Inputs) != 2 || receipt.Inputs[0] != "pool/pool.go" || receipt.Inputs[1] != "go.mod" {
 		t.Fatalf("the receipt does not state its narrow scope: %s / %v", receipt.Detail, receipt.Inputs)
 	}
 }
@@ -260,5 +262,66 @@ func (p *Pool) ptr() *string { return &p.opts.BasePath }
 	receipt, _ = Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
 	if receipt.Outcome != Derived || !strings.Contains(receipt.Detail, "all 2 observable write(s)") {
 		t.Fatalf("an owner-side address was not the owner's own site: %s: %s", receipt.Outcome, receipt.Detail)
+	}
+}
+
+// sensei#313 review, P1: a struct field's qualified type is written in the
+// DECLARING file's aliases. Here the declaring file imports the owner as
+// `opts`, while the mutation-site file binds `pool` to a different package
+// that also has an Options type. Resolving the chain through the mutation
+// site's aliases would bind h.Opts to the wrong Options and hide the write.
+func TestMutationConfinementFieldChainsUseTheDeclaringFilesImports(t *testing.T) {
+	const holderDecl = `package holder
+
+import opts "example.com/m/pool"
+
+type H struct{ Opts *opts.Options }
+`
+	const decoy = `package pool2
+
+type Options struct{ BasePath string }
+`
+	const writer = `package writer
+
+import (
+	pool "example.com/m/pool2"
+	"example.com/m/holder"
+)
+
+var _ pool.Options
+
+func Set(h *holder.H) { h.Opts.BasePath = "/x/" }
+`
+	src := pinned(t, map[string]string{
+		"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg,
+		"holder/holder.go": holderDecl, "pool2/pool2.go": decoy, "writer/writer.go": writer,
+	})
+	receipt, _ := Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Refuted || !strings.Contains(receipt.Detail, "writer/writer.go:10 in writer") {
+		t.Fatalf("an alias collision hid a cross-package write: %s: %s", receipt.Outcome, receipt.Detail)
+	}
+}
+
+// sensei#313 review, P2: go.mod decides how qualified names bind, so a
+// receipt that rests on it names it as an input -- a go.mod-only change can
+// then invalidate the derivation. Without a go.mod nothing is claimed read.
+func TestMutationConfinementReceiptIsBoundToGoMod(t *testing.T) {
+	src := pinned(t, map[string]string{"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg, "config/config.go": mutBypass})
+	receipt, _ := Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	found := false
+	for _, in := range receipt.Inputs {
+		if in == "go.mod" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("go.mod is not among the receipt's inputs: %v", receipt.Inputs)
+	}
+	// Re-routing the module path in go.mod alone changes the answer: the
+	// qualified write no longer binds, so the same tree is UNRESOLVED.
+	src = pinned(t, map[string]string{"go.mod": "module example.com/elsewhere\n", "pool/pool.go": mutOwnerPkg, "config/config.go": mutBypass})
+	receipt, _ = Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Unresolved {
+		t.Fatalf("a go.mod-only change did not change the derivation: %s: %s", receipt.Outcome, receipt.Detail)
 	}
 }
