@@ -190,3 +190,75 @@ func TestMutationConfinementIsUnknownWhenNothingWrites(t *testing.T) {
 		t.Fatalf("without go.mod the qualified write was %s: %s", receipt.Outcome, receipt.Detail)
 	}
 }
+
+// sensei#313 review, P1: a nested := that shadows the receiver must not erase
+// a genuine bypass after the block. One function-wide binding map did.
+func TestMutationConfinementShadowingDoesNotHideABypass(t *testing.T) {
+	const shadow = `package config
+
+import "example.com/m/pool"
+
+type Other struct{ BasePath string }
+
+func Apply(o *pool.Options) {
+	if true {
+		o := &Other{}
+		o.BasePath = "/other/"
+	}
+	o.BasePath = "/override/"
+}
+`
+	src := pinned(t, map[string]string{"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg, "config/config.go": shadow})
+	receipt, _ := Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Refuted || !strings.Contains(receipt.Detail, "config/config.go:12 in config") {
+		t.Fatalf("a shadowed name hid the bypass: %s: %s", receipt.Outcome, receipt.Detail)
+	}
+	// And the inner write to Other.BasePath is Other's own field: not a site.
+	if strings.Contains(receipt.Detail, "config.go:10") {
+		t.Fatalf("another type's own field was counted: %s", receipt.Detail)
+	}
+}
+
+// sensei#313 review, P1: a write reaching F by promotion through an embedded
+// field is UNRESOLVED, never silently "not this type".
+func TestMutationConfinementEmbeddedPromotionIsUnresolved(t *testing.T) {
+	const wrap = `package wrap
+
+import "example.com/m/pool"
+
+type W struct{ *pool.Options }
+
+func Set(w *W) { w.BasePath = "/w/" }
+`
+	src := pinned(t, map[string]string{"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg, "wrap/wrap.go": wrap})
+	receipt, _ := Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Unresolved || !strings.Contains(receipt.Detail, "promotion is not followed") {
+		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
+	}
+}
+
+// sensei#313 review, P2: the sealed relation says an address of T.F taken
+// outside the owner is write authority that escapes -- UNRESOLVED, not a
+// counterexample. Inside the owner it is the owner's own site.
+func TestMutationConfinementAddressOutsideOwnerIsUnresolved(t *testing.T) {
+	const escape = `package leak
+
+import "example.com/m/pool"
+
+func Ptr(o *pool.Options) *string { return &o.BasePath }
+`
+	src := pinned(t, map[string]string{"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg, "leak/leak.go": escape})
+	receipt, _ := Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Unresolved || !strings.Contains(receipt.Detail, "write authority escapes") {
+		t.Fatalf("%s: %s", receipt.Outcome, receipt.Detail)
+	}
+	const inside = `package pool
+
+func (p *Pool) ptr() *string { return &p.opts.BasePath }
+`
+	src = pinned(t, map[string]string{"go.mod": mutGoMod, "pool/pool.go": mutOwnerPkg, "pool/ptr.go": inside})
+	receipt, _ = Derive(src, mutation(), at("2026-08-27T12:00:00Z"))
+	if receipt.Outcome != Derived || !strings.Contains(receipt.Detail, "all 2 observable write(s)") {
+		t.Fatalf("an owner-side address was not the owner's own site: %s: %s", receipt.Outcome, receipt.Detail)
+	}
+}

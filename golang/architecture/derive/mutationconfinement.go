@@ -49,7 +49,8 @@ func (mutationConfinement) Version() string { return "v1" }
 
 func (mutationConfinement) Limits() []string {
 	return []string{
-		"a write whose receiver expression this derivation cannot bind to a type: the result of a call, an indexed element beyond one level, a closure capture, a shadowed name, an interface value, an embedded-field promotion",
+		"a write whose receiver expression this derivation cannot bind to a type: the result of a call, an indexed or ranged element, a type-switch binding, an interface value -- each is UNRESOLVED, and a := it cannot read shadows an outer binding rather than leaking it",
+		"a write reaching the field by promotion through an embedded field, which is UNRESOLVED rather than followed",
 		"a write through reflection, unsafe, or an assembly routine",
 		"a write through a field address that escapes the declaring package",
 		"a write from a file outside the scope searched, or from a dependency outside the repository",
@@ -108,76 +109,24 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		filePath := read[i]
 		dir := cleanDir(path.Dir(filePath))
 		r := &resolver{structs: structs, imports: importsOf(f), modulePath: modulePath, dir: dir}
+		w := &walker{r: r, field: p.Field, owner: owner, fset: fset, filePath: filePath, dir: dir,
+			sites: &sites, subjects: &subjects, outside: &outside, unresolved: &unresolved}
 		for _, d := range f.Decls {
 			fn, ok := d.(*ast.FuncDecl)
 			if !ok || fn.Body == nil {
 				continue
 			}
-			r.bindings = map[string]ast.Expr{}
+			sc := newScope(nil)
 			if fn.Recv != nil {
-				for _, fld := range fn.Recv.List {
-					for _, n := range fld.Names {
-						r.bindings[n.Name] = fld.Type
-					}
-				}
+				bindFields(sc, fn.Recv.List)
 			}
 			if fn.Type.Params != nil {
-				for _, fld := range fn.Type.Params.List {
-					for _, n := range fld.Names {
-						r.bindings[n.Name] = fld.Type
-					}
-				}
+				bindFields(sc, fn.Type.Params.List)
 			}
-			ast.Inspect(fn.Body, func(n ast.Node) bool {
-				switch x := n.(type) {
-				case *ast.DeclStmt:
-					if gd, ok := x.Decl.(*ast.GenDecl); ok && gd.Tok == token.VAR {
-						for _, sp := range gd.Specs {
-							vs := sp.(*ast.ValueSpec)
-							for j, name := range vs.Names {
-								switch {
-								case vs.Type != nil:
-									r.bindings[name.Name] = vs.Type
-								case j < len(vs.Values):
-									if t := literalType(vs.Values[j]); t != nil {
-										r.bindings[name.Name] = t
-									} else {
-										delete(r.bindings, name.Name)
-									}
-								}
-							}
-						}
-					}
-				case *ast.AssignStmt:
-					if x.Tok == token.DEFINE {
-						for j, lhs := range x.Lhs {
-							id, ok := lhs.(*ast.Ident)
-							if !ok {
-								continue
-							}
-							if j < len(x.Rhs) && len(x.Lhs) == len(x.Rhs) {
-								if t := literalType(x.Rhs[j]); t != nil {
-									r.bindings[id.Name] = t
-									continue
-								}
-							}
-							delete(r.bindings, id.Name)
-						}
-					}
-					if x.Tok != token.DEFINE {
-						for _, lhs := range x.Lhs {
-							classify(r, lhs, p.Field, owner, fset, filePath, dir, &sites, &subjects, &outside, &unresolved)
-						}
-					}
-				case *ast.IncDecStmt:
-					classify(r, x.X, p.Field, owner, fset, filePath, dir, &sites, &subjects, &outside, &unresolved)
-				case *ast.UnaryExpr:
-					if x.Op == token.AND {
-						classify(r, x.X, p.Field, owner, fset, filePath, dir, &sites, &subjects, &outside, &unresolved)
-					}
-				}
-				return true
-			})
+			if fn.Type.Results != nil {
+				bindFields(sc, fn.Type.Results.List)
+			}
+			w.block(fn.Body, sc)
 		}
 	}
 
@@ -202,27 +151,286 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		sites, p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir, len(subjectFiles(subjects)), len(read))}
 }
 
-// classify decides what one written expression is: a write to the subject, a
-// write to some other type's field of the same name, or a write this
-// derivation cannot bind.
-func classify(r *resolver, e ast.Expr, field string, owner typeRef, fset *token.FileSet, filePath, dir string,
-	sites *int, subjects *[]Subject, outside, unresolved *[]string) {
-	sel, ok := unparen(e).(*ast.SelectorExpr)
-	if !ok || sel.Sel.Name != field {
-		return
-	}
-	pos := fset.Position(sel.Pos())
-	ref, bound := r.typeOf(sel.X)
-	switch {
-	case !bound:
-		*unresolved = append(*unresolved, fmt.Sprintf("%s:%d (receiver %s not bound)", filePath, pos.Line, exprString(sel.X)))
-	case ref == owner:
-		*sites++
-		*subjects = append(*subjects, Subject{File: filePath, Line: pos.Line, Entity: owner.name + "." + field, Role: "mutation-site"})
-		if dir != owner.dir {
-			*outside = append(*outside, fmt.Sprintf("%s:%d in %s", filePath, pos.Line, dir))
+// scope is one lexical binding frame. A name bound to nil is UNBOUND here: a
+// := whose type this derivation cannot read shadows an outer binding rather
+// than leaking it. Lookups walk outward; a hit on nil stops the walk.
+type scope struct {
+	parent *scope
+	names  map[string]ast.Expr
+}
+
+func newScope(parent *scope) *scope { return &scope{parent: parent, names: map[string]ast.Expr{}} }
+
+func (s *scope) lookup(name string) (ast.Expr, bool) {
+	for cur := s; cur != nil; cur = cur.parent {
+		if t, ok := cur.names[name]; ok {
+			return t, t != nil
 		}
 	}
+	return nil, false
+}
+
+func bindFields(sc *scope, fields []*ast.Field) {
+	for _, fld := range fields {
+		for _, n := range fld.Names {
+			sc.names[n.Name] = fld.Type
+		}
+	}
+}
+
+// walker visits statements with an explicit scope chain. ast.Inspect has no
+// exit hook, and a single function-wide map let a nested `o := &Other{}`
+// overwrite an outer `o *pool.Options` for the rest of the function -- a real
+// bypass after the block then vanished from the proof (sensei#313 review).
+type walker struct {
+	r          *resolver
+	field      string
+	owner      typeRef
+	fset       *token.FileSet
+	filePath   string
+	dir        string
+	sites      *int
+	subjects   *[]Subject
+	outside    *[]string
+	unresolved *[]string
+}
+
+func (w *walker) block(b *ast.BlockStmt, parent *scope) {
+	if b == nil {
+		return
+	}
+	sc := newScope(parent)
+	for _, st := range b.List {
+		w.stmt(st, sc)
+	}
+}
+
+func (w *walker) stmt(n ast.Stmt, sc *scope) {
+	switch x := n.(type) {
+	case nil:
+		return
+	case *ast.BlockStmt:
+		w.block(x, sc)
+	case *ast.DeclStmt:
+		gd, ok := x.Decl.(*ast.GenDecl)
+		if !ok {
+			return
+		}
+		for _, spec := range gd.Specs {
+			vs, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for _, v := range vs.Values {
+				w.expr(v, sc)
+			}
+			if gd.Tok != token.VAR {
+				continue
+			}
+			for j, name := range vs.Names {
+				switch {
+				case vs.Type != nil:
+					sc.names[name.Name] = vs.Type
+				case j < len(vs.Values):
+					sc.names[name.Name] = literalType(vs.Values[j]) // nil = unbound, shadowing
+				default:
+					sc.names[name.Name] = nil
+				}
+			}
+		}
+	case *ast.AssignStmt:
+		for _, rhs := range x.Rhs {
+			w.expr(rhs, sc)
+		}
+		if x.Tok == token.DEFINE {
+			for j, lhs := range x.Lhs {
+				id, ok := lhs.(*ast.Ident)
+				if !ok || id.Name == "_" {
+					continue
+				}
+				var t ast.Expr
+				if len(x.Lhs) == len(x.Rhs) && j < len(x.Rhs) {
+					t = literalType(x.Rhs[j])
+				}
+				sc.names[id.Name] = t // nil = unbound, and it SHADOWS
+			}
+			return
+		}
+		for _, lhs := range x.Lhs {
+			w.target(lhs, sc, "write")
+			w.expr(lhs, sc)
+		}
+	case *ast.IncDecStmt:
+		w.target(x.X, sc, "write")
+	case *ast.ExprStmt:
+		w.expr(x.X, sc)
+	case *ast.ReturnStmt:
+		for _, e := range x.Results {
+			w.expr(e, sc)
+		}
+	case *ast.IfStmt:
+		inner := newScope(sc)
+		w.stmt(x.Init, inner)
+		w.expr(x.Cond, inner)
+		w.block(x.Body, inner)
+		w.stmt(x.Else, inner)
+	case *ast.ForStmt:
+		inner := newScope(sc)
+		w.stmt(x.Init, inner)
+		w.expr(x.Cond, inner)
+		w.stmt(x.Post, inner)
+		w.block(x.Body, inner)
+	case *ast.RangeStmt:
+		inner := newScope(sc)
+		w.expr(x.X, inner)
+		for _, e := range []ast.Expr{x.Key, x.Value} {
+			if e == nil {
+				continue
+			}
+			if x.Tok == token.DEFINE {
+				if id, ok := e.(*ast.Ident); ok && id.Name != "_" {
+					inner.names[id.Name] = nil // element types are not followed
+				}
+			} else {
+				w.target(e, inner, "write")
+			}
+		}
+		w.block(x.Body, inner)
+	case *ast.SwitchStmt:
+		inner := newScope(sc)
+		w.stmt(x.Init, inner)
+		w.expr(x.Tag, inner)
+		for _, c := range x.Body.List {
+			cc := c.(*ast.CaseClause)
+			cs := newScope(inner)
+			for _, e := range cc.List {
+				w.expr(e, cs)
+			}
+			for _, st := range cc.Body {
+				w.stmt(st, cs)
+			}
+		}
+	case *ast.TypeSwitchStmt:
+		inner := newScope(sc)
+		w.stmt(x.Init, inner)
+		var bound string
+		if as, ok := x.Assign.(*ast.AssignStmt); ok && len(as.Lhs) == 1 {
+			if id, ok := as.Lhs[0].(*ast.Ident); ok {
+				bound = id.Name
+			}
+		}
+		for _, c := range x.Body.List {
+			cc := c.(*ast.CaseClause)
+			cs := newScope(inner)
+			if bound != "" {
+				cs.names[bound] = nil // type switches are not followed
+			}
+			for _, st := range cc.Body {
+				w.stmt(st, cs)
+			}
+		}
+	case *ast.SelectStmt:
+		for _, c := range x.Body.List {
+			cc := c.(*ast.CommClause)
+			cs := newScope(sc)
+			w.stmt(cc.Comm, cs)
+			for _, st := range cc.Body {
+				w.stmt(st, cs)
+			}
+		}
+	case *ast.LabeledStmt:
+		w.stmt(x.Stmt, sc)
+	case *ast.GoStmt:
+		w.expr(x.Call, sc)
+	case *ast.DeferStmt:
+		w.expr(x.Call, sc)
+	case *ast.SendStmt:
+		w.expr(x.Chan, sc)
+		w.expr(x.Value, sc)
+	}
+}
+
+// expr descends into an expression for two things: &e.F, which is write
+// authority, and function literals, which open a scope of their own.
+func (w *walker) expr(e ast.Expr, sc *scope) {
+	if e == nil {
+		return
+	}
+	ast.Inspect(e, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.FuncLit:
+			inner := newScope(sc)
+			if x.Type.Params != nil {
+				bindFields(inner, x.Type.Params.List)
+			}
+			w.block(x.Body, inner)
+			return false
+		case *ast.UnaryExpr:
+			if x.Op == token.AND {
+				w.target(x.X, sc, "address")
+			}
+		}
+		return true
+	})
+}
+
+// target classifies one written or address-taken expression: a site on the
+// subject; another type's own field of the same name; a receiver the binder
+// cannot resolve; or, for an embedded promotion, authority this derivation
+// does not follow.
+func (w *walker) target(e ast.Expr, sc *scope, kind string) {
+	sel, ok := unparen(e).(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != w.field {
+		return
+	}
+	pos := w.fset.Position(sel.Pos())
+	ref, bound := w.r.typeOfIn(sel.X, sc)
+	switch {
+	case !bound:
+		*w.unresolved = append(*w.unresolved, fmt.Sprintf("%s:%d (receiver %s not bound)", w.filePath, pos.Line, exprString(sel.X)))
+	case ref == w.owner:
+		if kind == "address" && w.dir != w.owner.dir {
+			// The sealed relation: an address of T.F taken outside the owner
+			// is write authority handed across the boundary and not followed
+			// -- neither a confinement nor a counterexample.
+			*w.unresolved = append(*w.unresolved, fmt.Sprintf("%s:%d (address of %s.%s taken outside %s; write authority escapes)", w.filePath, pos.Line, w.owner.name, w.field, w.owner.dir))
+			return
+		}
+		*w.sites++
+		*w.subjects = append(*w.subjects, Subject{File: w.filePath, Line: pos.Line, Entity: w.owner.name + "." + w.field, Role: "mutation-site"})
+		if w.dir != w.owner.dir {
+			*w.outside = append(*w.outside, fmt.Sprintf("%s:%d in %s", w.filePath, pos.Line, w.dir))
+		}
+	default:
+		// Bound to another struct. If it declares F itself, this is its own
+		// field. If it does not, F reaches it by promotion through an
+		// embedded field -- which may be T -- and promotion is not followed:
+		// UNRESOLVED, never silently "not this type".
+		st := w.r.structs[ref]
+		if st != nil && !structDeclares(st, w.field) && hasEmbedded(st) {
+			*w.unresolved = append(*w.unresolved, fmt.Sprintf("%s:%d (%s reached through an embedded field of %s; promotion is not followed)", w.filePath, pos.Line, w.field, ref.name))
+		}
+	}
+}
+
+func structDeclares(st *ast.StructType, name string) bool {
+	for _, fld := range st.Fields.List {
+		for _, n := range fld.Names {
+			if n.Name == name {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasEmbedded(st *ast.StructType) bool {
+	for _, fld := range st.Fields.List {
+		if len(fld.Names) == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // resolver binds expressions to struct types from what was parsed.
@@ -231,20 +439,20 @@ type resolver struct {
 	imports    map[string]string // alias -> import path
 	modulePath string
 	dir        string // directory of the file being read
-	bindings   map[string]ast.Expr
 }
 
-// typeOf binds an expression to a struct type, or reports that it cannot.
-func (r *resolver) typeOf(e ast.Expr) (typeRef, bool) {
+// typeOfIn binds an expression to a struct type under a scope chain, or
+// reports that it cannot.
+func (r *resolver) typeOfIn(e ast.Expr, sc *scope) (typeRef, bool) {
 	switch x := unparen(e).(type) {
 	case *ast.Ident:
-		t, ok := r.bindings[x.Name]
+		t, ok := sc.lookup(x.Name)
 		if !ok {
 			return typeRef{}, false
 		}
 		return r.typeExpr(t)
 	case *ast.SelectorExpr:
-		base, ok := r.typeOf(x.X)
+		base, ok := r.typeOfIn(x.X, sc)
 		if !ok {
 			return typeRef{}, false
 		}
@@ -261,18 +469,11 @@ func (r *resolver) typeOf(e ast.Expr) (typeRef, bool) {
 		}
 		return typeRef{}, false
 	case *ast.StarExpr:
-		return r.typeOf(x.X)
+		return r.typeOfIn(x.X, sc)
 	case *ast.UnaryExpr:
 		if x.Op == token.AND {
-			return r.typeOf(x.X)
+			return r.typeOfIn(x.X, sc)
 		}
-	case *ast.IndexExpr:
-		base, ok := r.typeOf(x.X)
-		_ = base
-		if !ok {
-			return typeRef{}, false
-		}
-		return typeRef{}, false
 	case *ast.CompositeLit:
 		return r.typeExpr(x.Type)
 	}
