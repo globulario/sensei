@@ -49,7 +49,15 @@ func TestEveryFieldMutationIsRefused(t *testing.T) {
 	base := v2Receipt()
 	schema, _ := SchemaFor(ReceiptV2)
 	valid := mustStatements(t, base)
-	subject := base.IRI()
+
+	// SUBJECT DELIBERATELY EMPTY.
+	//
+	// Keeping the real subject makes every mutation of an identity-bearing
+	// field fail at the final hash comparison, so the test would pass even if
+	// the SCHEMA accepted the malformed value -- passing for the wrong reason,
+	// and hiding exactly the gaps this generator exists to find. Identity
+	// mismatch is proved separately below.
+	const subject = ""
 
 	find := func(pred string) (int, bool) {
 		for i, st := range valid {
@@ -217,4 +225,68 @@ func shortPred(p string) string {
 		return p[i+1:]
 	}
 	return p
+}
+
+// Identity mismatch is its own property, tested where it cannot mask a schema
+// gap.
+func TestIdentityMismatchIsRefusedSeparately(t *testing.T) {
+	base := v2Receipt()
+	terms := mustStatements(t, base)
+	if _, err := DecodeStoredReceipt(base.IRI(), terms); err != nil {
+		t.Fatalf("the valid specimen failed under its own subject: %v", err)
+	}
+	if _, err := DecodeStoredReceipt(receiptPrefix+strings.Repeat("0", 64), terms); err == nil {
+		t.Fatal("a receipt decoded under a subject it does not hash to")
+	}
+}
+
+// EVERY identity-bearing field must actually change the identity.
+//
+// FieldSpec.IdentityBearing states the law while Receipt.Identity() keeps a
+// hand-maintained field list, so a future version could mark a field
+// identity-bearing in the schema and forget it in the hash -- reintroducing
+// present-and-unhashed through schema evolution rather than through a missing
+// check. This proves the two agree, mechanically, for every version.
+func TestEveryIdentityBearingFieldChangesTheIdentity(t *testing.T) {
+	setters := map[string]func(*Receipt, string){
+		pDomain:    func(r *Receipt, v string) { r.Domain = v },
+		pRevision:  func(r *Receipt, v string) { r.Revision = v },
+		pTree:      func(r *Receipt, v string) { r.Tree = v },
+		pState:     func(r *Receipt, v string) { r.State = SourceState(v) },
+		pPath:      func(r *Receipt, v string) { r.SourcePath = v },
+		pSourceDig: func(r *Receipt, v string) { r.SourceDigest = v },
+		pRoot:      func(r *Receipt, v string) { r.SourceRoot = v },
+		pVersion:   func(r *Receipt, v string) { r.Version = ReceiptVersion(v) },
+	}
+	for _, version := range KnownVersions() {
+		schema, _ := SchemaFor(version)
+		for _, pred := range sortedFieldNames(schema.Fields) {
+			spec := schema.Fields[pred]
+			set, known := setters[pred]
+			if !known {
+				t.Fatalf("schema %s defines %s but this test has no setter for it: "+
+					"a new field must be wired here or its identity coverage is unproven", version, pred)
+			}
+			base := v2Receipt()
+			if version == ReceiptV1 {
+				base = Receipt{
+					Domain: "d", Revision: "abc", Tree: "t",
+					State: CleanExact, SourceDigest: strings.Repeat("a", 64),
+				}
+			}
+			before := base.Identity()
+			mutated := base
+			set(&mutated, "mutated-value")
+			changed := mutated.Identity() != before
+
+			if spec.IdentityBearing && !changed {
+				t.Errorf("%s/%s is marked IdentityBearing but changing it does not change the identity: "+
+					"it is present and unhashed", version, pred)
+			}
+			if !spec.IdentityBearing && changed {
+				t.Errorf("%s/%s is not marked IdentityBearing yet changing it changes the identity: "+
+					"the schema understates what the digest covers", version, pred)
+			}
+		}
+	}
 }

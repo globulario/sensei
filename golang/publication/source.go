@@ -57,7 +57,14 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 		// ^{tree} to it does not resolve.
 		treeRef = "HEAD:" + filepath.ToSlash(rel)
 	}
-	tree, _ = git(ctx, abs, "rev-parse", treeRef)
+	tree, treeErr := git(ctx, abs, "rev-parse", treeRef)
+	if treeErr != nil || tree == "" {
+		// CLEAN_EXACT asserts "produced from exactly this revision", and the
+		// tree is what identifies the corpus that revision holds. A publication
+		// that could not resolve the tree cannot make the exact claim, so the
+		// state is UNKNOWN rather than a CLEAN_EXACT missing its evidence.
+		return "", "", Unknown, resolvedRoot, relPath
+	}
 
 	// Dirtiness is asked about THIS ROOT, not the whole repository. A change
 	// elsewhere in the repo does not make these compiled inputs unfaithful to
@@ -68,6 +75,10 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 		return head, tree, Unknown, resolvedRoot, relPath
 	}
 	if strings.TrimSpace(dirty) != "" {
+		// DIRTY carries the tree DELIBERATELY, and it is the tree AS COMMITTED
+		// at HEAD -- not the working tree, which has no object id. It records
+		// what the revision holds while the state says the compiled inputs are
+		// not that. Leaving this implicit is how the two would drift.
 		return head, tree, Dirty, resolvedRoot, relPath
 	}
 	return head, tree, CleanExact, resolvedRoot, relPath

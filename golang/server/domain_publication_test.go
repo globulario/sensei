@@ -84,11 +84,7 @@ func (p publicationStore) Describe(ctx context.Context, iri string) ([]store.Tri
 		if p.storedTarget == "" {
 			return nil, nil
 		}
-		return []store.Triple{{
-			Predicate:   publication.CurrentPublicationPredicate,
-			Object:      p.storedTarget,
-			ObjectIsIRI: true,
-		}}, nil
+		return pointerTriples(healthyReceipt(), p.storedTarget), nil
 	case p.storedTarget:
 		return p.body, nil
 	}
@@ -318,7 +314,7 @@ func TestTwoCurrentPublicationTargetsAreUnreadable(t *testing.T) {
 	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
 		t.Fatalf("resolution = %v, want UNREADABLE: an ambiguous pointer attested one of two receipts", got.GetResolution())
 	}
-	if !strings.Contains(got.GetDetail(), "distinct IRI target") {
+	if !strings.Contains(got.GetDetail(), "exactly 1 is required") {
 		t.Fatalf("the refusal does not name the ambiguity: %q", got.GetDetail())
 	}
 
@@ -342,8 +338,8 @@ func (p ambiguousPointerStore) DescribeTerms(ctx context.Context, iri string) ([
 
 func (p ambiguousPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
-		var out []store.Triple
-		for _, t := range p.targets {
+		out := pointerTriples(healthyReceipt(), p.targets[0])
+		for _, t := range p.targets[1:] {
 			out = append(out, store.Triple{
 				Predicate:   publication.CurrentPublicationPredicate,
 				Object:      t,
@@ -370,7 +366,7 @@ func TestAMalformedPointerIsUnreadableRatherThanAbsent(t *testing.T) {
 	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
 		t.Fatalf("resolution = %v, want UNREADABLE: a malformed pointer read as never-published", got.GetResolution())
 	}
-	if !strings.Contains(got.GetDetail(), "currentPublication edge") {
+	if !strings.Contains(got.GetDetail(), "stored as LITERAL") {
 		t.Fatalf("the refusal does not name the malformed edge: %q", got.GetDetail())
 	}
 
@@ -391,11 +387,13 @@ func (p literalPointerStore) DescribeTerms(ctx context.Context, iri string) ([]s
 func (p literalPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
 		// The predicate is present; its object is a literal, not an IRI.
-		return []store.Triple{{
-			Predicate:   publication.CurrentPublicationPredicate,
-			Object:      "not-an-iri",
-			ObjectIsIRI: false,
-		}}, nil
+		out := pointerTriples(healthyReceipt(), "")
+		for i := range out {
+			if out[i].Predicate == publication.CurrentPublicationPredicate {
+				out[i] = store.Triple{Predicate: out[i].Predicate, Object: "not-an-iri"}
+			}
+		}
+		return out, nil
 	}
 	return p.fakeStore.Describe(ctx, iri)
 }
@@ -505,10 +503,8 @@ func (p mixedPointerStore) DescribeTerms(ctx context.Context, iri string) ([]sto
 
 func (p mixedPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
-		return []store.Triple{
-			{Predicate: publication.CurrentPublicationPredicate, Object: p.valid, ObjectIsIRI: true},
-			{Predicate: publication.CurrentPublicationPredicate, Object: "garbage", ObjectIsIRI: false},
-		}, nil
+		return append(pointerTriples(healthyReceipt(), p.valid),
+			store.Triple{Predicate: publication.CurrentPublicationPredicate, Object: "garbage"}), nil
 	}
 	if body, ok := p.bodies[iri]; ok {
 		return body, nil
@@ -621,4 +617,109 @@ func asStatements(tr []store.Triple) []store.Statement {
 		out = append(out, store.Statement{Predicate: t.Predicate, Object: store.Term{Kind: kind, Value: t.Object}})
 	}
 	return out
+}
+
+// pointerTriples returns the pointer exactly as the WRITER emits it, so the
+// fakes cannot accidentally test a pointer shape the publisher never produces.
+func pointerTriples(r publication.Receipt, target string) []store.Triple {
+	var out []store.Triple
+	subj := "<" + publication.PointerIRI(r.Domain) + "> <"
+	for _, line := range strings.Split(string(r.Triples()), "\n") {
+		if !strings.HasPrefix(line, subj) {
+			continue
+		}
+		rest := strings.TrimPrefix(line, subj)
+		i := strings.Index(rest, ">")
+		if i < 0 {
+			continue
+		}
+		pred := rest[:i]
+		obj := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(rest[i+1:]), "."))
+		if strings.HasPrefix(obj, `"`) {
+			out = append(out, store.Triple{Predicate: pred, Object: strings.Trim(obj, `"`)})
+			continue
+		}
+		iri := strings.Trim(obj, "<>")
+		if pred == publication.CurrentPublicationPredicate && target != "" {
+			iri = target
+		}
+		out = append(out, store.Triple{Predicate: pred, Object: iri, ObjectIsIRI: true})
+	}
+	return out
+}
+
+// FALSIFIER 14. An EMPTY current-publication edge must not vanish.
+//
+// The pointer was the last thing outside the lossless law. The simplified
+// transport drops empty lexical objects, so currentPublication "" disappeared
+// and the pointer read as ABSENT -- corrupt state becoming "never published",
+// which is the one answer a start gate may treat as benign.
+func TestAnEmptyPointerTargetDoesNotVanishIntoAbsence(t *testing.T) {
+	st := emptyTargetPointerStore{}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() == awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT {
+		t.Fatal("an empty pointer target vanished and read as never-published")
+	}
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE", got.GetResolution())
+	}
+}
+
+type emptyTargetPointerStore struct{ fakeStore }
+
+func (p emptyTargetPointerStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	if iri == publication.PointerIRI(pubTestDomain) {
+		out := asStatements(pointerTriples(healthyReceipt(), ""))
+		for i := range out {
+			if out[i].Predicate == publication.CurrentPublicationPredicate {
+				// Present, IRI-kind, EMPTY value: exactly what Describe drops.
+				out[i].Object = store.Term{Kind: store.TermIRI, Value: ""}
+			}
+		}
+		return out, nil
+	}
+	return nil, nil
+}
+
+// FALSIFIER 15. A pointer whose own domain metadata describes something else is
+// not a pointer with a usable target.
+func TestAPointerDeclaringAnotherDomainIsUnreadable(t *testing.T) {
+	other := healthyReceipt()
+	other.Domain = "example.com/other"
+	st := foreignPointerStore{pointer: pointerTriples(other, healthyReceipt().IRI())}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: a pointer for another domain was used", got.GetResolution())
+	}
+}
+
+type foreignPointerStore struct {
+	fakeStore
+	pointer []store.Triple
+}
+
+func (p foreignPointerStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	if iri == publication.PointerIRI(pubTestDomain) {
+		// The writer emitted this for a different domain; only the subject IRI
+		// matches what we asked about.
+		return asStatements(p.pointer), nil
+	}
+	return nil, nil
+}
+
+// FALSIFIER 16. CLEAN_EXACT without a tree cannot be verified.
+//
+// The exact-source claim IS the tree claim: a start gate comparing R.tree
+// against its own checkout would have nothing to compare.
+func TestCleanExactWithoutATreeIsUnreadable(t *testing.T) {
+	r := healthyReceipt()
+	r.Tree = ""
+	st := publicationStore{storedTarget: r.IRI(), body: receiptTriples(r), failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: CLEAN_EXACT verified with no tree", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "source tree") {
+		t.Fatalf("the refusal does not name the missing tree: %q", got.GetDetail())
+	}
 }

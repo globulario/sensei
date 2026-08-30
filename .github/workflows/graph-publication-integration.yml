@@ -8,6 +8,7 @@ on:
       - 'cmd/awg/cmd_build*_test.go'
       - 'cmd/awg/graph_publication_lock*.go'
       - 'golang/store/oxigraph/**'
+      - 'golang/publication/**'
       - 'scripts/fetch-oxigraph.sh'
       - '.github/workflows/graph-publication-integration.yml'
   pull_request:
@@ -17,6 +18,7 @@ on:
       - 'cmd/awg/cmd_build*_test.go'
       - 'cmd/awg/graph_publication_lock*.go'
       - 'golang/store/oxigraph/**'
+      - 'golang/publication/**'
       - 'scripts/fetch-oxigraph.sh'
       - '.github/workflows/graph-publication-integration.yml'
 
@@ -42,3 +44,20 @@ jobs:
           go test -tags=integration ./cmd/awg \
             -run '^TestIntegration_ScopedRepoPublication_RealOxigraph$' \
             -count=1 -timeout 5m
+
+      # The adapter boundary is where representation loss lives, and in-process
+      # fakes structurally cannot catch it. This seeds controlled good and
+      # malformed terms into the pinned Oxigraph and asserts the lossless read
+      # preserves term kind, datatype and language.
+      - name: Prove the publication adapter preserves RDF terms
+        run: |
+          PATH="$PWD/bin:$PATH" go test -tags=integration ./cmd/awg \
+            -run '^TestIntegration_PublicationAdapterPreservesTerms_RealOxigraph$' \
+            -count=1 -timeout 5m -v 2>&1 | tee adapter.log
+          # A skip is NOT evidence. This job installs Oxigraph, so an
+          # unavailable binary means the job is misconfigured, not that the
+          # property holds.
+          if grep -q -- '--- SKIP' adapter.log; then
+            echo "::error::the adapter test SKIPPED in a job that installs Oxigraph; a skip is not evidence"
+            exit 1
+          fi

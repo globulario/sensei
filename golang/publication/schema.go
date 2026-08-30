@@ -112,6 +112,36 @@ func oneOfStates(v string) error {
 	return nil
 }
 
+// gitObjectID accepts a git object name: 40 hex for SHA-1, 64 for SHA-256.
+//
+// nonEmpty was not a lexical law, it was the absence of one -- the generated
+// matrix accepted "/absolute/../nonsense" as a revision because nothing said
+// what a revision looks like.
+func gitObjectID(v string) error {
+	if len(v) != 40 && len(v) != 64 {
+		return fmt.Errorf("expected a 40- or 64-character git object id, got %d characters", len(v))
+	}
+	for _, c := range v {
+		if !strings.ContainsRune("0123456789abcdef", c) {
+			return fmt.Errorf("contains non-lowercase-hex character %q", c)
+		}
+	}
+	return nil
+}
+
+// domainName rejects anything that is not a repository domain key. It is not a
+// path, and it is not a URL.
+func domainName(v string) error {
+	if err := nonEmpty(v); err != nil {
+		return err
+	}
+	if strings.ContainsAny(v, " \t\n\"<>") || strings.Contains(v, "..") ||
+		strings.HasPrefix(v, "/") || strings.Contains(v, "://") {
+		return fmt.Errorf("%q is not a repository domain key", v)
+	}
+	return nil
+}
+
 // relativePath rejects an absolute or traversing path. The whole point of
 // SourcePath is that it is durable and repository-relative; an absolute path
 // would be the operational SourceRoot wearing the durable field's name.
@@ -138,9 +168,22 @@ func crossFieldRules(r Receipt) error {
 				"state UNKNOWN carries revision %q and tree %q: an unestablished revision must be absent, not stated",
 				r.Revision, r.Tree)
 		}
-	case CleanExact, Dirty:
+	case CleanExact:
+		// The exact-source claim IS the tree claim. A CLEAN_EXACT receipt with
+		// no tree asserts "produced from exactly this revision" while carrying
+		// nothing that identifies the corpus that revision holds, and a start
+		// gate comparing R.tree against its own checkout would have nothing to
+		// compare.
 		if r.Revision == "" {
-			return fmt.Errorf("state %s requires a source revision, which is absent", r.State)
+			return fmt.Errorf("state CLEAN_EXACT requires a source revision, which is absent")
+		}
+		if r.Tree == "" {
+			return fmt.Errorf("state CLEAN_EXACT requires a source tree, which is absent: " +
+				"the exact-source claim depends on it")
+		}
+	case Dirty:
+		if r.Revision == "" {
+			return fmt.Errorf("state DIRTY requires a source revision, which is absent")
 		}
 	}
 	if r.Domain == "" {
@@ -153,9 +196,9 @@ var schemas = map[ReceiptVersion]ReceiptSchema{
 	ReceiptV1: {
 		Version: ReceiptV1,
 		Fields: map[string]FieldSpec{
-			pDomain:    {1, 1, TermLiteral, "", nonEmpty, true},
-			pRevision:  {0, 1, TermLiteral, "", nonEmpty, true},
-			pTree:      {0, 1, TermLiteral, "", nonEmpty, true},
+			pDomain:    {1, 1, TermLiteral, "", domainName, true},
+			pRevision:  {0, 1, TermLiteral, "", gitObjectID, true},
+			pTree:      {0, 1, TermLiteral, "", gitObjectID, true},
 			pState:     {1, 1, TermLiteral, "", oneOfStates, true},
 			pSourceDig: {1, 1, TermLiteral, "", hexOfLength(64), true},
 			// v1's operational root: legal historical baggage, NOT hashed, and
@@ -175,9 +218,9 @@ var schemas = map[ReceiptVersion]ReceiptSchema{
 		Version: ReceiptV2,
 		Fields: map[string]FieldSpec{
 			pVersion:   {1, 1, TermLiteral, "", nonEmpty, true},
-			pDomain:    {1, 1, TermLiteral, "", nonEmpty, true},
-			pRevision:  {0, 1, TermLiteral, "", nonEmpty, true},
-			pTree:      {0, 1, TermLiteral, "", nonEmpty, true},
+			pDomain:    {1, 1, TermLiteral, "", domainName, true},
+			pRevision:  {0, 1, TermLiteral, "", gitObjectID, true},
+			pTree:      {0, 1, TermLiteral, "", gitObjectID, true},
 			pState:     {1, 1, TermLiteral, "", oneOfStates, true},
 			pPath:      {1, 1, TermLiteral, "", relativePath, true},
 			pSourceDig: {1, 1, TermLiteral, "", hexOfLength(64), true},

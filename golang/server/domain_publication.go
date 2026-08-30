@@ -12,12 +12,6 @@ import (
 	"github.com/globulario/sensei/golang/store"
 )
 
-// describer is the bounded read this resolution needs: two subject lookups
-// rather than a whole-graph dump.
-type describer interface {
-	Describe(context.Context, string) ([]store.Triple, error)
-}
-
 // resolveCurrentPublication answers "which governed revision produced the
 // knowledge you are serving for this domain".
 //
@@ -49,100 +43,40 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	if strings.TrimSpace(domain) == "" {
 		return unreadable("no domain was named, so no per-domain publication can be resolved")
 	}
-	d, ok := s.store.(describer)
+	// The pointer is read through the SAME lossless path as the receipt. The
+	// simplified transport drops empty lexical objects, so a currentPublication
+	// "" would vanish and the missing edge be reported as ABSENT -- corrupt
+	// state becoming "never published", the one answer a start gate may treat
+	// as benign.
+	terms, ok := s.store.(interface {
+		DescribeTerms(context.Context, string) ([]store.Statement, error)
+	})
 	if !ok || s.store == nil {
-		return unreadable("this store cannot be described, so no receipt can be verified")
+		return unreadable(
+			"this store cannot return RDF terms losslessly, so no receipt can be verified against what it holds")
 	}
-
-	// 1. The pointer. Bounded: one subject.
-	ptr, err := d.Describe(ctx, publication.PointerIRI(domain))
+	ptr, err := terms.DescribeTerms(ctx, publication.PointerIRI(domain))
 	if err != nil {
 		return unreadable("the current-publication pointer could not be read: %v", err)
 	}
-	// EXACTLY ONE TARGET, or there is no current publication.
-	//
-	// Describe returns rows in no defined order, so keeping "the last one"
-	// meant the same ambiguous graph could attest either receipt depending on
-	// row order. Two targets do not mean one of them is current; they mean the
-	// question has no single answer, and answering anyway is how a race becomes
-	// an attestation.
-	// A pointer edge that EXISTS but does not name exactly one IRI is
-	// unreadable, never absent.
-	//
-	// Excluding a literal-valued edge and reporting the empty result as ABSENT
-	// discards the only evidence that a pointer was ever written, and a start
-	// gate allowed to bootstrap on absence would fail OPEN over malformed
-	// stored state. Presence of the predicate is the fact; whether it is usable
-	// is a separate question, and the two must not be answered together.
-	edges := 0
-	targets := map[string]struct{}{}
-	for _, t := range ptr {
-		if t.Predicate != publication.CurrentPublicationPredicate {
-			continue
-		}
-		edges++
-		if t.ObjectIsIRI {
-			targets[t.Object] = struct{}{}
-		}
-	}
-	// THE PROPERTY, not the instances: exactly one well-formed edge.
-	//
-	// Requiring only "one distinct IRI target" accepted a pointer carrying a
-	// valid IRI edge ALONGSIDE a malformed one, because the malformed edge
-	// contributed no target and the count still read 1. A pointer that contains
-	// anything the server cannot interpret is not a pointer with a usable
-	// target and some noise -- it is stored state whose meaning is unknown, and
-	// attesting the readable half is choosing which half to believe.
-	if edges > 0 && (edges != 1 || len(targets) != 1) {
-		return unreadable(
-			"the pointer for %q has %d currentPublication edge(s) naming %d distinct IRI target(s); "+
-				"exactly one well-formed edge is required for there to be a current publication",
-			domain, edges, len(targets))
-	}
-	var storedTarget string
-	for iri := range targets {
-		storedTarget = iri
-	}
-	if storedTarget == "" {
+	storedTarget, outcome, perr := publication.DecodePointer(domain, asPublicationTerms(ptr))
+	switch outcome {
+	case publication.PointerNone:
 		return &awarenesspb.DomainPublication{
 			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT,
 			RequestedDomain: domain,
 			Domain:          domain,
 			Detail:          fmt.Sprintf("no current publication pointer exists for %q", domain),
 		}
+	case publication.PointerBroken:
+		return unreadable("%v", perr)
 	}
 
-	// 2. The receipt the pointer names. Bounded: one more subject.
-	// LOSSLESS, OR NOT AT ALL.
-	//
-	// The simplified Describe remembers only "is this an IRI" and drops empty
-	// lexical values, so a verifier reading through it cannot prove the term it
-	// hashes is the term the store holds. A store that cannot answer losslessly
-	// is not one an authority-bearing read may use, and saying so is better
-	// than silently verifying a normalisation.
-	terms, ok := s.store.(interface {
-		DescribeTerms(context.Context, string) ([]store.Statement, error)
-	})
-	if !ok {
-		return unreadable(
-			"this store cannot return RDF terms losslessly, so no receipt can be verified against what it holds")
-	}
 	body, err := terms.DescribeTerms(ctx, storedTarget)
 	if err != nil {
 		return unreadable("the receipt %s could not be read: %v", shortIRI(storedTarget), err)
 	}
-	stmts := make([]publication.RDFStatement, 0, len(body))
-	for _, st := range body {
-		stmts = append(stmts, publication.RDFStatement{
-			Predicate: st.Predicate,
-			Object: publication.Term{
-				Kind:     publication.TermKind(st.Object.Kind),
-				Value:    st.Object.Value,
-				Datatype: st.Object.Datatype,
-				Language: st.Object.Language,
-			},
-		})
-	}
+	stmts := asPublicationTerms(body)
 	// ONE OPERATION: schema selection, cardinality, term kind, datatype,
 	// lexical validity, cross-field rules and the stored-IRI comparison all
 	// happen inside DecodeStoredReceipt, in that order, before a Receipt this
@@ -194,4 +128,22 @@ func versionOrV1(v publication.ReceiptVersion) publication.ReceiptVersion {
 		return publication.ReceiptV1
 	}
 	return v
+}
+
+// asPublicationTerms lifts lossless store statements into the publication
+// package's term type without simplifying any of them.
+func asPublicationTerms(in []store.Statement) []publication.RDFStatement {
+	out := make([]publication.RDFStatement, 0, len(in))
+	for _, st := range in {
+		out = append(out, publication.RDFStatement{
+			Predicate: st.Predicate,
+			Object: publication.Term{
+				Kind:     publication.TermKind(st.Object.Kind),
+				Value:    st.Object.Value,
+				Datatype: st.Object.Datatype,
+				Language: st.Object.Language,
+			},
+		})
+	}
+	return out
 }

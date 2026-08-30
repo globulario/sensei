@@ -2848,6 +2848,7 @@ components:
     assertion: inferred
     source_files:
       - golang/publication/decode.go
+      - golang/publication/pointer.go
       - golang/publication/receipt.go
       - golang/publication/schema.go
       - golang/publication/source.go

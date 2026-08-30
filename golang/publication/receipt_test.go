@@ -420,3 +420,27 @@ func TestReceiptFromTriplesMatchesTheDumpPath(t *testing.T) {
 		t.Fatalf("the bounded path produced a different receipt: %+v", back)
 	}
 }
+
+// A publication that could not resolve its tree must not claim CLEAN_EXACT.
+//
+// The verifier now requires a tree for the exact claim; the WRITER must not be
+// able to produce a receipt the verifier would refuse, or the refusal surfaces
+// at a start gate instead of at publication.
+func TestUnresolvableTreeCannotClaimCleanExact(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+
+	rev, tree, state, _, _ := InspectSource(aw)
+	if state != CleanExact || tree == "" || rev == "" {
+		t.Fatalf("the specimen is wrong: want a clean checkout with a tree, got %q/%q/%q", rev, tree, state)
+	}
+	// A path inside the repo that HEAD does not contain has no tree object.
+	missing := filepath.Join(dir, "docs", "not-committed")
+	if err := os.MkdirAll(missing, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	_, tree, state, _, _ = InspectSource(missing)
+	if state.ClaimsExactRevision() {
+		t.Fatalf("state %q claimed an exact revision with tree %q, which HEAD does not contain", state, tree)
+	}
+}
