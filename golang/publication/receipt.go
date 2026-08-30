@@ -397,13 +397,50 @@ func Resolve(nt []byte, domain string) (storedTarget string, r Receipt, state Po
 // ReceiptFromTriples parses one receipt from the triples describing a single
 // subject, for callers that resolve by bounded lookup rather than a whole-graph
 // dump.
-func ReceiptFromTriples(subject string, predicates, objects []string) (Receipt, bool) {
+//
+// AMBIGUITY IS AN ERROR, NOT AN INPUT. A subject carrying two distinct values
+// for one identity-bearing predicate has no single value, and the parser would
+// otherwise keep whichever row arrived last. SPARQL SELECT has no defined
+// order, so the same stored graph could verify under one ordering and refuse
+// under another -- a receipt whose meaning depends on row order is not an
+// identity. This is the pointer-ambiguity rule applied to the receipt body,
+// which is where it was missing.
+func ReceiptFromTriples(subject string, predicates, objects []string) (Receipt, error) {
+	seen := map[string]map[string]struct{}{}
+	for i := range predicates {
+		if !strings.HasPrefix(predicates[i], seedmeta.NamespaceIRI+"publication") {
+			continue
+		}
+		if seen[predicates[i]] == nil {
+			seen[predicates[i]] = map[string]struct{}{}
+		}
+		seen[predicates[i]][objects[i]] = struct{}{}
+	}
+	for _, pred := range sortedKeys(seen) {
+		if len(seen[pred]) > 1 {
+			return Receipt{}, fmt.Errorf(
+				"receipt field %s has %d distinct values, so the receipt has no single identity",
+				pred, len(seen[pred]))
+		}
+	}
 	var b strings.Builder
 	for i := range predicates {
 		fmt.Fprintf(&b, "<%s> <%s> %q .\n", subject, predicates[i], objects[i])
 	}
 	r, ok := Parse([]byte(b.String()))[subject]
-	return r, ok
+	if !ok {
+		return Receipt{}, fmt.Errorf("no receipt could be parsed from the triples describing %s", subject)
+	}
+	return r, nil
+}
+
+func sortedKeys(m map[string]map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Current returns the receipt the pointer for domain names, and whether the

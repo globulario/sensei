@@ -66,16 +66,30 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	// row order. Two targets do not mean one of them is current; they mean the
 	// question has no single answer, and answering anyway is how a race becomes
 	// an attestation.
+	// A pointer edge that EXISTS but does not name exactly one IRI is
+	// unreadable, never absent.
+	//
+	// Excluding a literal-valued edge and reporting the empty result as ABSENT
+	// discards the only evidence that a pointer was ever written, and a start
+	// gate allowed to bootstrap on absence would fail OPEN over malformed
+	// stored state. Presence of the predicate is the fact; whether it is usable
+	// is a separate question, and the two must not be answered together.
+	edges := 0
 	targets := map[string]struct{}{}
 	for _, t := range ptr {
-		if t.Predicate == publication.CurrentPublicationPredicate && t.ObjectIsIRI {
+		if t.Predicate != publication.CurrentPublicationPredicate {
+			continue
+		}
+		edges++
+		if t.ObjectIsIRI {
 			targets[t.Object] = struct{}{}
 		}
 	}
-	if len(targets) > 1 {
+	if edges > 0 && len(targets) != 1 {
 		return unreadable(
-			"the pointer for %q names %d distinct current publications, so there is no singular current publication",
-			domain, len(targets))
+			"the pointer for %q has %d currentPublication edge(s) naming %d distinct IRI target(s); "+
+				"exactly one is required for there to be a current publication",
+			domain, edges, len(targets))
 	}
 	var storedTarget string
 	for iri := range targets {
@@ -101,14 +115,27 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 		preds = append(preds, t.Predicate)
 		objs = append(objs, t.Object)
 	}
-	r, ok := publication.ReceiptFromTriples(storedTarget, preds, objs)
-	if !ok || r.Domain == "" {
+	r, err := publication.ReceiptFromTriples(storedTarget, preds, objs)
+	if err != nil {
+		return unreadable(
+			"the current-publication pointer for %q names %s: %v",
+			domain, shortIRI(storedTarget), err)
+	}
+	if r.Domain == "" {
 		return unreadable(
 			"the current-publication pointer for %q names %s, which is missing or unparseable",
 			domain, shortIRI(storedTarget))
 	}
 	if r.Version != "" && !r.Version.Valid() {
 		return unreadable("receipt version %q is not one this server defines", r.Version)
+	}
+	// The source state is a CLOSED vocabulary and is read by membership. An
+	// unrecognised state that happens to be self-consistent would otherwise be
+	// projected as VERIFIED, presenting semantics this server cannot interpret
+	// as an attestation it can.
+	if !r.State.Valid() {
+		return unreadable(
+			"receipt source state %q is not one this schema defines", r.State)
 	}
 	if err := r.FieldsMatchVersion(); err != nil {
 		return unreadable("%v", err)

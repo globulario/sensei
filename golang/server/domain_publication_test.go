@@ -310,7 +310,7 @@ func TestTwoCurrentPublicationTargetsAreUnreadable(t *testing.T) {
 	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
 		t.Fatalf("resolution = %v, want UNREADABLE: an ambiguous pointer attested one of two receipts", got.GetResolution())
 	}
-	if !strings.Contains(got.GetDetail(), "distinct current publications") {
+	if !strings.Contains(got.GetDetail(), "distinct IRI target") {
 		t.Fatalf("the refusal does not name the ambiguity: %q", got.GetDetail())
 	}
 
@@ -343,4 +343,98 @@ func (p ambiguousPointerStore) Describe(ctx context.Context, iri string) ([]stor
 		return body, nil
 	}
 	return p.fakeStore.Describe(ctx, iri)
+}
+
+// FALSIFIER 8. A pointer edge that exists but names no IRI is UNREADABLE.
+//
+// Excluding a literal-valued edge and reporting the empty result as ABSENT
+// discards the only evidence that a pointer was ever written. A start gate
+// allowed to bootstrap on absence would fail OPEN over malformed stored state,
+// which is worse than the dangling case already repaired.
+func TestAMalformedPointerIsUnreadableRatherThanAbsent(t *testing.T) {
+	st := literalPointerStore{}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: a malformed pointer read as never-published", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "currentPublication edge") {
+		t.Fatalf("the refusal does not name the malformed edge: %q", got.GetDetail())
+	}
+
+	// Control: a genuinely absent pointer is still ABSENT.
+	absent := publicationStore{storedTarget: "", failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(absent), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT {
+		t.Fatalf("a genuinely missing pointer reported %v, want ABSENT", got.GetResolution())
+	}
+}
+
+type literalPointerStore struct{ fakeStore }
+
+func (p literalPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
+	if iri == publication.PointerIRI(pubTestDomain) {
+		// The predicate is present; its object is a literal, not an IRI.
+		return []store.Triple{{
+			Predicate:   publication.CurrentPublicationPredicate,
+			Object:      "not-an-iri",
+			ObjectIsIRI: false,
+		}}, nil
+	}
+	return p.fakeStore.Describe(ctx, iri)
+}
+
+// FALSIFIER 9. Two distinct values for one identity-bearing receipt field mean
+// the receipt has no single identity.
+//
+// The pointer-ambiguity repair counted pointer targets and left the receipt
+// BODY with the same last-row-wins defect: SELECT has no ordering, so the value
+// matching the stored IRI could win under one ordering and lose under another,
+// making VERIFIED depend on row order.
+func TestAReceiptWithTwoValuesForOneFieldIsUnreadable(t *testing.T) {
+	healthy := healthyReceipt()
+	body := receiptTriples(healthy)
+	body = append(body, store.Triple{
+		Predicate: "https://globular.io/awareness#publicationSourceRevision",
+		Object:    "0000000000000000000000000000000000000000",
+	})
+	st := publicationStore{storedTarget: healthy.IRI(), body: body, failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an ambiguous receipt field was attested", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "distinct values") {
+		t.Fatalf("the refusal does not name the ambiguity: %q", got.GetDetail())
+	}
+
+	// Control: the unambiguous body verifies.
+	clean := publicationStore{storedTarget: healthy.IRI(), body: receiptTriples(healthy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(clean), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("an unambiguous receipt failed: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
+
+// FALSIFIER 10. The source state is a closed vocabulary, read by membership.
+//
+// A self-consistent receipt carrying an unrecognised state would otherwise
+// verify and be projected as VERIFIED, presenting semantics this server cannot
+// interpret as an attestation it can.
+func TestAReceiptWithAnUnknownSourceStateIsUnreadable(t *testing.T) {
+	odd := healthyReceipt()
+	odd.State = publication.SourceState("PROBABLY_FINE")
+	st := publicationStore{storedTarget: odd.IRI(), body: receiptTriples(odd), failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an undefined source state was attested", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "source state") {
+		t.Fatalf("the refusal does not name the state: %q", got.GetDetail())
+	}
+	// Control: every member of the vocabulary is accepted.
+	for _, ok := range []publication.SourceState{publication.CleanExact, publication.Dirty, publication.Unknown} {
+		r := healthyReceipt()
+		r.State = ok
+		st := publicationStore{storedTarget: r.IRI(), body: receiptTriples(r), failDump: true}
+		if got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+			t.Fatalf("state %q was refused: %v %s", ok, got.GetResolution(), got.GetDetail())
+		}
+	}
 }
