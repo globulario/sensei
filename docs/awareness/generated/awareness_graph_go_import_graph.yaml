@@ -2590,6 +2590,7 @@ components:
       - golang/extractor/authority_domains_yaml_import.go
       - golang/extractor/authority_policy_yaml_import.go
       - golang/extractor/code_symbols_import.go
+      - golang/extractor/consumed_source.go
       - golang/extractor/contract_realizations_yaml_import.go
       - golang/extractor/contract_set_yaml_import.go
       - golang/extractor/contradiction_validator.go
@@ -2847,7 +2848,10 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/publication/decode.go
+      - golang/publication/pointer.go
       - golang/publication/receipt.go
+      - golang/publication/schema.go
       - golang/publication/source.go
     depends_on:
       - component.golang.seedmeta
@@ -2967,6 +2971,7 @@ components:
       - golang/server/controlstate_mutation_rpcs.go
       - golang/server/controlstate_provider.go
       - golang/server/controlstate_rpcs.go
+      - golang/server/domain_publication.go
       - golang/server/domain_scope.go
       - golang/server/domain_slice.go
       - golang/server/edit_check.go
@@ -3013,6 +3018,7 @@ components:
       - component.golang.graphgeneration
       - component.golang.netcfg
       - component.golang.propose
+      - component.golang.publication
       - component.golang.rdf
       - component.golang.runtimedescriptor
       - component.golang.seedmeta
@@ -3080,6 +3086,7 @@ components:
     assertion: inferred
     source_files:
       - golang/store/store.go
+      - golang/store/term.go
     uml:
       kind: Component
       stereotype: module
@@ -3090,6 +3097,8 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/store/oxigraph/authority_snapshot.go
+      - golang/store/oxigraph/describe_terms.go
       - golang/store/oxigraph/oxigraph.go
       - golang/store/oxigraph/sparql_literal.go
     depends_on:

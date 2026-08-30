@@ -30,7 +30,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -82,7 +81,7 @@ type yamlImplementationPattern struct {
 // file and emits its typed node with all required relations. Empty id is
 // a soft skip — file produces no triples but importer does not error.
 func importImplementationPattern(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

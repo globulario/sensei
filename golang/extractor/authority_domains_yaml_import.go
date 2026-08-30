@@ -39,7 +39,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -77,7 +76,7 @@ type yamlAuthorityDomainsDoc struct {
 // importAuthorityDomains imports a YAML file carrying the authority_domains
 // top-level list. One AuthorityDomain node per entry.
 func importAuthorityDomains(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

@@ -312,9 +312,10 @@ func (b *bridge) tools() []tool {
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"task":   map[string]interface{}{"type": "string"},
-					"files":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
-					"domain": map[string]interface{}{"type": "string", "description": "repo/domain scope passed through to per-file impact queries"},
+					"task":               map[string]interface{}{"type": "string"},
+					"files":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+					"domain":             map[string]interface{}{"type": "string", "description": "repo/domain scope passed through to per-file impact queries"},
+					"publication_domain": map[string]interface{}{"type": "string", "description": "domain whose CURRENT PUBLICATION receipt to resolve -- a start gate's KnowledgeContract domain. Distinct from `domain`: scoping a query and asking which governed revision produced the served knowledge are different questions. When omitted no publication is resolved and the projection says UNSPECIFIED."},
 					"mode": map[string]interface{}{
 						"type": "string",
 						"enum": []string{"compact", "standard"},
@@ -718,7 +719,12 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 			return nil, fmt.Errorf("task is required")
 		}
 		domain, _ := args["domain"].(string)
-		req := &awarenesspb.PreflightRequest{Task: strings.TrimSpace(task), Domain: strings.TrimSpace(domain)}
+		publicationDomain, _ := args["publication_domain"].(string)
+		req := &awarenesspb.PreflightRequest{
+			Task:              strings.TrimSpace(task),
+			Domain:            strings.TrimSpace(domain),
+			PublicationDomain: strings.TrimSpace(publicationDomain),
+		}
 		if raw, ok := args["files"].([]interface{}); ok {
 			for _, f := range raw {
 				if s, ok := f.(string); ok && strings.TrimSpace(s) != "" {
@@ -1583,6 +1589,31 @@ func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
 	if d := strings.TrimSpace(a.GetEmbeddedTransactionDetail()); d != "" {
 		obj["embedded_transaction_detail"] = d
 	}
+	// The per-domain publication receipt the served generation selects.
+	//
+	// Always stated, including when it could not be resolved: a consumer
+	// deciding whether to start governed work must be able to tell ABSENT from
+	// UNREADABLE from VERIFIED, and an omitted key would make all three look
+	// like "the bridge is old".
+	pub := a.GetCurrentPublication()
+	p := map[string]interface{}{
+		"resolution":       pub.GetResolution().String(),
+		"requested_domain": pub.GetRequestedDomain(),
+	}
+	if d := strings.TrimSpace(pub.GetDetail()); d != "" {
+		p["detail"] = d
+	}
+	if pub.GetResolution() == awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		p["receipt_iri"] = pub.GetReceiptIri()
+		p["receipt_version"] = pub.GetReceiptVersion()
+		p["domain"] = pub.GetDomain()
+		p["source_revision"] = pub.GetSourceRevision()
+		p["source_tree"] = pub.GetSourceTree()
+		p["source_state"] = pub.GetSourceState()
+		p["source_path"] = pub.GetSourcePath()
+		p["source_digest_sha256"] = pub.GetSourceDigestSha256()
+	}
+	obj["current_publication"] = p
 	return obj
 }
 

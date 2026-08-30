@@ -35,6 +35,39 @@ import (
 	"github.com/globulario/sensei/golang/seedmeta"
 )
 
+// ReceiptVersion is the receipt shape a publication speaks.
+//
+// It exists because v1 receipts are IMMUTABLE HISTORICAL EVIDENCE. A1's
+// succession proof rests on one, and changing the identity algorithm in place
+// would make that receipt fail to verify under the very code that improved it --
+// rewriting history in the costume of a repair. So the algorithm is versioned
+// and v1 stays exactly as it was.
+type ReceiptVersion string
+
+const (
+	// ReceiptV1 is the shape A1 published. Its identity covers domain,
+	// revision, tree, state and source_digest. It also carries an operational
+	// SourceRoot -- an absolute filesystem path -- which is NOT identity
+	// bearing, and that is the defect v2 exists to remove.
+	ReceiptV1 ReceiptVersion = "v1"
+	// ReceiptV2 replaces the operational SourceRoot with a durable
+	// repository-relative SourcePath, and every field it carries participates
+	// in identity.
+	ReceiptV2 ReceiptVersion = "v2"
+)
+
+// CurrentReceiptVersion is what new publications emit.
+const CurrentReceiptVersion = ReceiptV2
+
+// Valid reads membership by enumeration.
+func (v ReceiptVersion) Valid() bool {
+	switch v {
+	case ReceiptV1, ReceiptV2:
+		return true
+	}
+	return false
+}
+
 // SourceState says how much the revision is allowed to claim.
 //
 // It is a closed vocabulary read by membership. An unrecognised value is not
@@ -81,10 +114,32 @@ type Receipt struct {
 	// Tree is the git tree object of the compiled source root. It distinguishes
 	// two commits whose awareness corpus is identical, without being the
 	// content digest of the compiled output.
-	Tree         string
-	State        SourceState
-	SourceRoot   string
+	Tree  string
+	State SourceState
+	// SourceRoot is the absolute filesystem path a publication ran from. It is
+	// OPERATIONAL, it is v1-only, and it is deliberately not identity bearing:
+	// /tmp/build-7f2/docs/awareness says nothing durable about which knowledge
+	// was published, and two machines publishing the same corpus would disagree
+	// on it. v2 records SourcePath instead and drops this field entirely.
+	SourceRoot string
+	// SourcePath is the source root RELATIVE TO THE REPOSITORY the domain names
+	// -- "docs/awareness". It is durable across machines and checkouts, it is
+	// what a knowledge contract can be written against, and in v2 it
+	// participates in identity.
+	SourcePath   string
 	SourceDigest string
+	// Version selects the identity algorithm. The zero value resolves to
+	// ReceiptV1, because that is what every receipt published before versioning
+	// existed actually is -- a migration fact, not a guess.
+	Version ReceiptVersion
+}
+
+// version resolves the zero value to v1 without pretending it was stated.
+func (r Receipt) version() ReceiptVersion {
+	if r.Version == "" {
+		return ReceiptV1
+	}
+	return r.Version
 }
 
 // CLOSURE IS DELIBERATELY NOT A RECEIPT FIELD. It is proven after promotion, so
@@ -131,25 +186,50 @@ const (
 	pTree      = seedmeta.NamespaceIRI + "publicationSourceTree"
 	pState     = seedmeta.NamespaceIRI + "publicationSourceState"
 	pRoot      = seedmeta.NamespaceIRI + "publicationSourceRoot"
+	pPath      = seedmeta.NamespaceIRI + "publicationSourcePath"
+	pVersion   = seedmeta.NamespaceIRI + "publicationReceiptVersion"
 	pSourceDig = seedmeta.NamespaceIRI + "publicationSourceDigest"
 	pClosure   = seedmeta.NamespaceIRI + "publicationClosure"
 	pCurrent   = seedmeta.NamespaceIRI + "currentPublication"
 	pRepo      = seedmeta.NamespaceIRI + "repo"
 )
 
-// Identity is the receipt's immutable name: a digest over every field.
+// Identity is the receipt's immutable name: a digest over every field its
+// version carries.
 //
 // Revision participates directly, so two commits with identical sources get
 // DIFFERENT receipt identities. That is the point -- see the package comment.
+//
+// THE ALGORITHM IS VERSIONED AND v1 IS FROZEN. A1's succession proof rests on a
+// v1 receipt; recomputing it under a changed algorithm would report that
+// historical evidence as invalid, which is rewriting the past rather than
+// improving the present. v2 is a different algorithm over a different field
+// set, not a correction applied retroactively to v1.
 func (r Receipt) Identity() string {
-	var b strings.Builder
-	for _, kv := range [][2]string{
+	fields := [][2]string{
 		{"domain", r.Domain},
 		{"revision", r.Revision},
 		{"tree", r.Tree},
 		{"state", string(r.State)},
 		{"source_digest", r.SourceDigest},
-	} {
+	}
+	if r.version() == ReceiptV2 {
+		// Every field a v2 receipt carries participates. SourceRoot is absent
+		// from v2 entirely rather than present-and-unhashed, which is the shape
+		// that let an operational path ride inside an immutable record without
+		// being covered by its digest.
+		fields = [][2]string{
+			{"version", string(ReceiptV2)},
+			{"domain", r.Domain},
+			{"revision", r.Revision},
+			{"tree", r.Tree},
+			{"state", string(r.State)},
+			{"source_path", r.SourcePath},
+			{"source_digest", r.SourceDigest},
+		}
+	}
+	var b strings.Builder
+	for _, kv := range fields {
 		// Length-prefixed so no field's value can impersonate a field boundary.
 		fmt.Fprintf(&b, "%s:%d:%s\n", kv[0], len(kv[1]), kv[1])
 	}
@@ -164,6 +244,10 @@ func (r Receipt) IRI() string { return receiptPrefix + r.Identity() }
 // publications; only what it points AT changes.
 func PointerIRI(domain string) string { return pointerPrefix + escapeIRISegment(domain) }
 
+// CurrentPublicationPredicate is the pointer edge, exported so a server can
+// resolve it by bounded lookup instead of dumping the graph.
+const CurrentPublicationPredicate = pCurrent
+
 // Triples renders the receipt and the pointer that names it current.
 //
 // The receipt carries NO aw:repo tag, so the scoped per-domain replacement --
@@ -176,15 +260,41 @@ func (r Receipt) Triples() []byte {
 	var out strings.Builder
 	iri := r.IRI()
 	fmt.Fprintf(&out, "<%s> <%s> <%s> .\n", iri, typeIRI, receiptClassIRI)
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", iri, labelIRI, r.label())
-	for _, kv := range [][2]string{
+	// NO LABEL IS STORED.
+	//
+	// The label repeated the domain, revision and state as prose. It was
+	// authority-bearing -- a reader could act on it -- and it sat outside the
+	// schema, so an altered label left the receipt VERIFIED while stating
+	// contradictory provenance. That is present-and-unhashed again, in a field
+	// this writer emitted.
+	//
+	// The repair is DELETION, not another validator. The label carried no fact
+	// the authenticated fields do not already carry, so storing a second copy
+	// only created something that could disagree with the first. Label() derives
+	// it for presentation, from the fields that are authenticated.
+	// v2 publishes the durable repo-relative path and NOT the operational
+	// SourceRoot. Emitting both would reintroduce exactly what v2 removes: a
+	// field inside an immutable record that its digest does not cover.
+	stated := [][2]string{
 		{pDomain, r.Domain},
 		{pRevision, r.Revision},
 		{pTree, r.Tree},
 		{pState, string(r.State)},
 		{pRoot, r.SourceRoot},
 		{pSourceDig, r.SourceDigest},
-	} {
+	}
+	if r.version() == ReceiptV2 {
+		stated = [][2]string{
+			{pVersion, string(ReceiptV2)},
+			{pDomain, r.Domain},
+			{pRevision, r.Revision},
+			{pTree, r.Tree},
+			{pState, string(r.State)},
+			{pPath, r.SourcePath},
+			{pSourceDig, r.SourceDigest},
+		}
+	}
+	for _, kv := range stated {
 		if kv[1] == "" {
 			// An absent revision is left ABSENT. Writing "" would be a stated
 			// value, and Unknown means the field was never established.
@@ -199,6 +309,11 @@ func (r Receipt) Triples() []byte {
 	fmt.Fprintf(&out, "<%s> <%s> <%s> .\n", ptr, pCurrent, iri)
 	return []byte(out.String())
 }
+
+// Label is a DERIVED presentation string, reconstructed from authenticated
+// fields. It is never stored: a stored copy is a fact that can drift from the
+// fact it copies.
+func (r Receipt) Label() string { return r.label() }
 
 func (r Receipt) label() string {
 	rev := r.Revision
@@ -235,6 +350,10 @@ func Parse(nt []byte) map[string]Receipt {
 			r.State = SourceState(obj)
 		case pRoot:
 			r.SourceRoot = obj
+		case pPath:
+			r.SourcePath = obj
+		case pVersion:
+			r.Version = ReceiptVersion(obj)
 		case pSourceDig:
 			r.SourceDigest = obj
 		}
@@ -243,12 +362,123 @@ func Parse(nt []byte) map[string]Receipt {
 	return out
 }
 
+// PointerState is how a current-publication lookup ended.
+//
+// ABSENT and DANGLING are DIFFERENT WORLDS and collapsing them fails open on
+// the second: "nothing was ever published here" is a benign steady state, while
+// "a pointer exists and its target cannot be found" means the publication
+// record is corrupt. A start gate told ABSENT for a dangling pointer would
+// report never-published for a broken world.
+type PointerState int
+
+const (
+	// PointerAbsent: no current-publication pointer exists for the domain.
+	PointerAbsent PointerState = iota
+	// PointerDangling: a pointer exists and names a receipt that is not
+	// present, or is present and unparseable.
+	PointerDangling
+	// PointerResolved: the pointer names a receipt that was found.
+	PointerResolved
+)
+
+// Resolve returns the STORED pointer target, the receipt it names, and how the
+// lookup ended.
+//
+// The stored target is returned because verification must compare two
+// INDEPENDENTLY DERIVED values. Recomputing an identity from a receipt's fields
+// and then checking it against an identity recomputed from the same fields is a
+// tautology that passes for any tampered receipt; the honest check is
+// recomputed-vs-stored, and only a caller holding the stored value can make it.
+func Resolve(nt []byte, domain string) (storedTarget string, r Receipt, state PointerState) {
+	want := "<" + PointerIRI(domain) + "> <" + pCurrent + "> <"
+	for _, raw := range strings.Split(string(nt), "\n") {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, want) {
+			rest := strings.TrimPrefix(line, want)
+			if i := strings.Index(rest, ">"); i >= 0 {
+				storedTarget = rest[:i]
+			}
+		}
+	}
+	if storedTarget == "" {
+		return "", Receipt{}, PointerAbsent
+	}
+	r, ok := Parse(nt)[storedTarget]
+	if !ok {
+		return storedTarget, Receipt{}, PointerDangling
+	}
+	return storedTarget, r, PointerResolved
+}
+
+// ReceiptFromTriples parses one receipt from the triples describing a single
+// subject, for callers that resolve by bounded lookup rather than a whole-graph
+// dump.
+//
+// AMBIGUITY IS AN ERROR, NOT AN INPUT. A subject carrying two distinct values
+// for one identity-bearing predicate has no single value, and the parser would
+// otherwise keep whichever row arrived last. SPARQL SELECT has no defined
+// order, so the same stored graph could verify under one ordering and refuse
+// under another -- a receipt whose meaning depends on row order is not an
+// identity. This is the pointer-ambiguity rule applied to the receipt body,
+// which is where it was missing.
+func ReceiptFromTriples(subject string, predicates, objects []string, objectIsIRI []bool) (Receipt, error) {
+	// TERM KIND IS PART OF THE VALUE. Every publication field is published as a
+	// LITERAL. Discarding whether a stored object was an IRI and re-rendering it
+	// as a quoted literal normalises a malformed term into a well-formed one --
+	// the receipt then verifies, because the digest is computed over the
+	// normalised text rather than over what the store actually holds.
+	for i := range predicates {
+		if !strings.HasPrefix(predicates[i], seedmeta.NamespaceIRI+"publication") {
+			continue
+		}
+		if i < len(objectIsIRI) && objectIsIRI[i] {
+			return Receipt{}, fmt.Errorf(
+				"receipt field %s is stored as an IRI term; publication fields are literals, "+
+					"and reinterpreting the term would verify a value the store does not hold", predicates[i])
+		}
+	}
+	seen := map[string]map[string]struct{}{}
+	for i := range predicates {
+		if !strings.HasPrefix(predicates[i], seedmeta.NamespaceIRI+"publication") {
+			continue
+		}
+		if seen[predicates[i]] == nil {
+			seen[predicates[i]] = map[string]struct{}{}
+		}
+		seen[predicates[i]][objects[i]] = struct{}{}
+	}
+	for _, pred := range sortedKeys(seen) {
+		if len(seen[pred]) > 1 {
+			return Receipt{}, fmt.Errorf(
+				"receipt field %s has %d distinct values, so the receipt has no single identity",
+				pred, len(seen[pred]))
+		}
+	}
+	var b strings.Builder
+	for i := range predicates {
+		fmt.Fprintf(&b, "<%s> <%s> %q .\n", subject, predicates[i], objects[i])
+	}
+	r, ok := Parse([]byte(b.String()))[subject]
+	if !ok {
+		return Receipt{}, fmt.Errorf("no receipt could be parsed from the triples describing %s", subject)
+	}
+	return r, nil
+}
+
+func sortedKeys(m map[string]map[string]struct{}) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 // Current returns the receipt the pointer for domain names, and whether the
 // pointer resolved to a receipt actually present in nt.
 //
-// A dangling pointer reports false rather than the zero Receipt, because
-// "there is no current publication" and "the current publication is empty" are
-// different worlds.
+// Prefer Resolve: this loses the stored target, so a caller cannot verify the
+// receipt against anything but itself.
 func Current(nt []byte, domain string) (Receipt, bool) {
 	want := "<" + PointerIRI(domain) + "> <" + pCurrent + "> <"
 	var target string
@@ -266,6 +496,83 @@ func Current(nt []byte, domain string) (Receipt, bool) {
 	}
 	r, ok := Parse(nt)[target]
 	return r, ok
+}
+
+// definedFields is the CLOSED set of publication predicates each receipt
+// version defines and authenticates.
+//
+// It is a closed vocabulary read by MEMBERSHIP, for the reason this package
+// keeps rediscovering: a field the identity does not cover can otherwise ride
+// inside a receipt that verifies. v1's SourcePath was one instance; ANY
+// unrecognised aw:publication... predicate is the same defect, so the rule is
+// stated over the namespace rather than over the one field that was caught.
+//
+// Scoped to publication fields deliberately. rdf:type and rdfs:label are a
+// different category -- ordinary metadata, not attested content -- and
+// rejecting every unfamiliar triple would refuse receipts over facts the
+// identity never claimed to cover.
+var definedFields = map[ReceiptVersion]map[string]struct{}{
+	ReceiptV1: {
+		pDomain: {}, pRevision: {}, pTree: {}, pState: {}, pRoot: {}, pSourceDig: {},
+	},
+	ReceiptV2: {
+		pVersion: {}, pDomain: {}, pRevision: {}, pTree: {}, pState: {}, pPath: {}, pSourceDig: {},
+	},
+}
+
+// PublicationFieldPrefix is the namespace whose predicates a receipt version
+// must define.
+const PublicationFieldPrefix = seedmeta.NamespaceIRI + "publication"
+
+// UndefinedFields returns the publication predicates present on a receipt that
+// its version does not define.
+func UndefinedFields(v ReceiptVersion, predicates []string) []string {
+	if v == "" {
+		v = ReceiptV1
+	}
+	defined, known := definedFields[v]
+	if !known {
+		return []string{"<the receipt version is not one this reader defines>"}
+	}
+	var bad []string
+	seen := map[string]struct{}{}
+	for _, p := range predicates {
+		if !strings.HasPrefix(p, PublicationFieldPrefix) {
+			continue
+		}
+		if _, ok := defined[p]; ok {
+			continue
+		}
+		if _, dup := seen[p]; dup {
+			continue
+		}
+		seen[p] = struct{}{}
+		bad = append(bad, p)
+	}
+	sort.Strings(bad)
+	return bad
+}
+
+// FieldsMatchVersion refuses a receipt carrying fields its version does not
+// authenticate.
+//
+// A v1 receipt backfilled with publicationSourcePath parses fine, and the FROZEN
+// v1 identity does not hash that field -- so the receipt still verifies while
+// exposing an unauthenticated path. That is precisely the present-and-unhashed
+// shape v2 was created to remove, reappearing through the version-agnostic
+// parser. A field a version cannot authenticate must make the receipt
+// unreadable, not decorate it.
+func (r Receipt) FieldsMatchVersion() error {
+	if r.version() == ReceiptV1 && r.SourcePath != "" {
+		return fmt.Errorf(
+			"a v1 receipt carries publicationSourcePath %q, which the v1 identity does not hash: "+
+				"the field is unauthenticated and must not be served as verified", r.SourcePath)
+	}
+	if r.version() == ReceiptV2 && r.SourceRoot != "" {
+		return fmt.Errorf(
+			"a v2 receipt carries publicationSourceRoot, which v2 does not hash or publish")
+	}
+	return nil
 }
 
 // VerifyIdentity reports whether a receipt read back from the store still

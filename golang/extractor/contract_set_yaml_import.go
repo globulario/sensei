@@ -4,7 +4,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -105,7 +104,7 @@ func (p *requiredPathY) UnmarshalYAML(node *yaml.Node) error {
 }
 
 func importFrozenContractSet(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

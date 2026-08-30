@@ -21,7 +21,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -46,7 +45,7 @@ type fileAnnotationsFile struct {
 }
 
 func importFileAnnotations(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return err
 	}
@@ -155,7 +154,7 @@ type sourcePatternsFile struct {
 const ClassSourcePattern = rdf.AwNS + "SourcePattern"
 
 func importSourcePatterns(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return err
 	}
@@ -203,7 +202,7 @@ type renderingGroupsFile struct {
 const ClassRenderingGroup = rdf.AwNS + "RenderingGroup"
 
 func importRenderingGroups(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return err
 	}

@@ -149,7 +149,7 @@ func ImportAwarenessYAMLs(docsDir string, w io.Writer) (*rdf.Emitter, error) {
 // ─── Per-source importers ────────────────────────────────────────────────
 
 func importInvariants(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -283,7 +283,7 @@ func importInvariants(e *rdf.Emitter, path string) error {
 }
 
 func importFailureModes(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -360,7 +360,7 @@ func importFailureModes(e *rdf.Emitter, path string) error {
 }
 
 func importIncidentPatterns(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

@@ -14,7 +14,7 @@ import (
 )
 
 func importArchitectureEvidenceProbes(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

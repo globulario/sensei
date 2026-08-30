@@ -759,6 +759,68 @@ func (AuthorityVerdict) EnumDescriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{10}
 }
 
+// PublicationResolution distinguishes the ways a receipt lookup can end.
+//
+// ABSENT and UNREADABLE are different worlds: no publication has been recorded
+// for this domain, versus one exists and this reader cannot vouch for it. A
+// consumer that collapses them fails open on the second.
+type PublicationResolution int32
+
+const (
+	PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED PublicationResolution = 0
+	// A receipt was found and its recomputed identity matches the IRI it is
+	// stored under.
+	PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED PublicationResolution = 1
+	// No current-publication pointer exists for this domain.
+	PublicationResolution_PUBLICATION_RESOLUTION_ABSENT PublicationResolution = 2
+	// A pointer or receipt exists but could not be verified: dangling pointer,
+	// identity mismatch, or a receipt version this server does not define.
+	PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE PublicationResolution = 3
+)
+
+// Enum value maps for PublicationResolution.
+var (
+	PublicationResolution_name = map[int32]string{
+		0: "PUBLICATION_RESOLUTION_UNSPECIFIED",
+		1: "PUBLICATION_RESOLUTION_VERIFIED",
+		2: "PUBLICATION_RESOLUTION_ABSENT",
+		3: "PUBLICATION_RESOLUTION_UNREADABLE",
+	}
+	PublicationResolution_value = map[string]int32{
+		"PUBLICATION_RESOLUTION_UNSPECIFIED": 0,
+		"PUBLICATION_RESOLUTION_VERIFIED":    1,
+		"PUBLICATION_RESOLUTION_ABSENT":      2,
+		"PUBLICATION_RESOLUTION_UNREADABLE":  3,
+	}
+)
+
+func (x PublicationResolution) Enum() *PublicationResolution {
+	p := new(PublicationResolution)
+	*p = x
+	return p
+}
+
+func (x PublicationResolution) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PublicationResolution) Descriptor() protoreflect.EnumDescriptor {
+	return file_awareness_graph_proto_enumTypes[11].Descriptor()
+}
+
+func (PublicationResolution) Type() protoreflect.EnumType {
+	return &file_awareness_graph_proto_enumTypes[11]
+}
+
+func (x PublicationResolution) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PublicationResolution.Descriptor instead.
+func (PublicationResolution) EnumDescriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{11}
+}
+
 type CandidateQueueState int32
 
 const (
@@ -795,11 +857,11 @@ func (x CandidateQueueState) String() string {
 }
 
 func (CandidateQueueState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[11].Descriptor()
+	return file_awareness_graph_proto_enumTypes[12].Descriptor()
 }
 
 func (CandidateQueueState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[11]
+	return &file_awareness_graph_proto_enumTypes[12]
 }
 
 func (x CandidateQueueState) Number() protoreflect.EnumNumber {
@@ -808,7 +870,7 @@ func (x CandidateQueueState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CandidateQueueState.Descriptor instead.
 func (CandidateQueueState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{11}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{12}
 }
 
 type BenchmarkState int32
@@ -847,11 +909,11 @@ func (x BenchmarkState) String() string {
 }
 
 func (BenchmarkState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[12].Descriptor()
+	return file_awareness_graph_proto_enumTypes[13].Descriptor()
 }
 
 func (BenchmarkState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[12]
+	return &file_awareness_graph_proto_enumTypes[13]
 }
 
 func (x BenchmarkState) Number() protoreflect.EnumNumber {
@@ -860,7 +922,7 @@ func (x BenchmarkState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BenchmarkState.Descriptor instead.
 func (BenchmarkState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{12}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{13}
 }
 
 type GovernancePackState int32
@@ -908,11 +970,11 @@ func (x GovernancePackState) String() string {
 }
 
 func (GovernancePackState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[13].Descriptor()
+	return file_awareness_graph_proto_enumTypes[14].Descriptor()
 }
 
 func (GovernancePackState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[13]
+	return &file_awareness_graph_proto_enumTypes[14]
 }
 
 func (x GovernancePackState) Number() protoreflect.EnumNumber {
@@ -921,7 +983,7 @@ func (x GovernancePackState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GovernancePackState.Descriptor instead.
 func (GovernancePackState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{13}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{14}
 }
 
 type EvidenceLaneMode int32
@@ -960,11 +1022,11 @@ func (x EvidenceLaneMode) String() string {
 }
 
 func (EvidenceLaneMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[14].Descriptor()
+	return file_awareness_graph_proto_enumTypes[15].Descriptor()
 }
 
 func (EvidenceLaneMode) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[14]
+	return &file_awareness_graph_proto_enumTypes[15]
 }
 
 func (x EvidenceLaneMode) Number() protoreflect.EnumNumber {
@@ -973,7 +1035,7 @@ func (x EvidenceLaneMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use EvidenceLaneMode.Descriptor instead.
 func (EvidenceLaneMode) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{14}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{15}
 }
 
 type CertificationVerdict int32
@@ -1033,11 +1095,11 @@ func (x CertificationVerdict) String() string {
 }
 
 func (CertificationVerdict) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[15].Descriptor()
+	return file_awareness_graph_proto_enumTypes[16].Descriptor()
 }
 
 func (CertificationVerdict) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[15]
+	return &file_awareness_graph_proto_enumTypes[16]
 }
 
 func (x CertificationVerdict) Number() protoreflect.EnumNumber {
@@ -1046,7 +1108,7 @@ func (x CertificationVerdict) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use CertificationVerdict.Descriptor instead.
 func (CertificationVerdict) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{15}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{16}
 }
 
 type PromotionDecision int32
@@ -1085,11 +1147,11 @@ func (x PromotionDecision) String() string {
 }
 
 func (PromotionDecision) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[16].Descriptor()
+	return file_awareness_graph_proto_enumTypes[17].Descriptor()
 }
 
 func (PromotionDecision) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[16]
+	return &file_awareness_graph_proto_enumTypes[17]
 }
 
 func (x PromotionDecision) Number() protoreflect.EnumNumber {
@@ -1098,7 +1160,7 @@ func (x PromotionDecision) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PromotionDecision.Descriptor instead.
 func (PromotionDecision) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{16}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{17}
 }
 
 type PreflightMode int32
@@ -1134,11 +1196,11 @@ func (x PreflightMode) String() string {
 }
 
 func (PreflightMode) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[17].Descriptor()
+	return file_awareness_graph_proto_enumTypes[18].Descriptor()
 }
 
 func (PreflightMode) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[17]
+	return &file_awareness_graph_proto_enumTypes[18]
 }
 
 func (x PreflightMode) Number() protoreflect.EnumNumber {
@@ -1147,7 +1209,7 @@ func (x PreflightMode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PreflightMode.Descriptor instead.
 func (PreflightMode) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{17}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{18}
 }
 
 type PreflightStatus int32
@@ -1186,11 +1248,11 @@ func (x PreflightStatus) String() string {
 }
 
 func (PreflightStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[18].Descriptor()
+	return file_awareness_graph_proto_enumTypes[19].Descriptor()
 }
 
 func (PreflightStatus) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[18]
+	return &file_awareness_graph_proto_enumTypes[19]
 }
 
 func (x PreflightStatus) Number() protoreflect.EnumNumber {
@@ -1199,7 +1261,7 @@ func (x PreflightStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PreflightStatus.Descriptor instead.
 func (PreflightStatus) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{18}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
 }
 
 type RiskClass int32
@@ -1247,11 +1309,11 @@ func (x RiskClass) String() string {
 }
 
 func (RiskClass) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[19].Descriptor()
+	return file_awareness_graph_proto_enumTypes[20].Descriptor()
 }
 
 func (RiskClass) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[19]
+	return &file_awareness_graph_proto_enumTypes[20]
 }
 
 func (x RiskClass) Number() protoreflect.EnumNumber {
@@ -1260,7 +1322,7 @@ func (x RiskClass) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use RiskClass.Descriptor instead.
 func (RiskClass) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
 }
 
 type Confidence int32
@@ -1299,11 +1361,11 @@ func (x Confidence) String() string {
 }
 
 func (Confidence) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[20].Descriptor()
+	return file_awareness_graph_proto_enumTypes[21].Descriptor()
 }
 
 func (Confidence) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[20]
+	return &file_awareness_graph_proto_enumTypes[21]
 }
 
 func (x Confidence) Number() protoreflect.EnumNumber {
@@ -1312,7 +1374,7 @@ func (x Confidence) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Confidence.Descriptor instead.
 func (Confidence) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
 }
 
 // BlastRadius mirrors golang/server/blast_radius.go's blastRadiusOrder exactly,
@@ -1370,11 +1432,11 @@ func (x BlastRadius) String() string {
 }
 
 func (BlastRadius) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[21].Descriptor()
+	return file_awareness_graph_proto_enumTypes[22].Descriptor()
 }
 
 func (BlastRadius) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[21]
+	return &file_awareness_graph_proto_enumTypes[22]
 }
 
 func (x BlastRadius) Number() protoreflect.EnumNumber {
@@ -1383,7 +1445,7 @@ func (x BlastRadius) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BlastRadius.Descriptor instead.
 func (BlastRadius) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
 }
 
 // ApprovalGate mirrors approvalGateOrder, likewise severity-ordered.
@@ -1431,11 +1493,11 @@ func (x ApprovalGate) String() string {
 }
 
 func (ApprovalGate) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[22].Descriptor()
+	return file_awareness_graph_proto_enumTypes[23].Descriptor()
 }
 
 func (ApprovalGate) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[22]
+	return &file_awareness_graph_proto_enumTypes[23]
 }
 
 func (x ApprovalGate) Number() protoreflect.EnumNumber {
@@ -1444,7 +1506,7 @@ func (x ApprovalGate) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ApprovalGate.Descriptor instead.
 func (ApprovalGate) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
 }
 
 type ProposeStatus int32
@@ -1480,11 +1542,11 @@ func (x ProposeStatus) String() string {
 }
 
 func (ProposeStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[23].Descriptor()
+	return file_awareness_graph_proto_enumTypes[24].Descriptor()
 }
 
 func (ProposeStatus) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[23]
+	return &file_awareness_graph_proto_enumTypes[24]
 }
 
 func (x ProposeStatus) Number() protoreflect.EnumNumber {
@@ -1493,7 +1555,7 @@ func (x ProposeStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ProposeStatus.Descriptor instead.
 func (ProposeStatus) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
 }
 
 // ArchitectureAvailability mirrors controlstate.Availability.
@@ -1536,11 +1598,11 @@ func (x ArchitectureAvailability) String() string {
 }
 
 func (ArchitectureAvailability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[24].Descriptor()
+	return file_awareness_graph_proto_enumTypes[25].Descriptor()
 }
 
 func (ArchitectureAvailability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[24]
+	return &file_awareness_graph_proto_enumTypes[25]
 }
 
 func (x ArchitectureAvailability) Number() protoreflect.EnumNumber {
@@ -1549,7 +1611,7 @@ func (x ArchitectureAvailability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAvailability.Descriptor instead.
 func (ArchitectureAvailability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
 }
 
 // ArchitectureSourceAvailability mirrors controlstate.SourceAvailability.
@@ -1592,11 +1654,11 @@ func (x ArchitectureSourceAvailability) String() string {
 }
 
 func (ArchitectureSourceAvailability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[25].Descriptor()
+	return file_awareness_graph_proto_enumTypes[26].Descriptor()
 }
 
 func (ArchitectureSourceAvailability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[25]
+	return &file_awareness_graph_proto_enumTypes[26]
 }
 
 func (x ArchitectureSourceAvailability) Number() protoreflect.EnumNumber {
@@ -1605,7 +1667,7 @@ func (x ArchitectureSourceAvailability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureSourceAvailability.Descriptor instead.
 func (ArchitectureSourceAvailability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
 }
 
 // ArchitectureSourceImpact mirrors controlstate.SourceImpact.
@@ -1648,11 +1710,11 @@ func (x ArchitectureSourceImpact) String() string {
 }
 
 func (ArchitectureSourceImpact) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[26].Descriptor()
+	return file_awareness_graph_proto_enumTypes[27].Descriptor()
 }
 
 func (ArchitectureSourceImpact) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[26]
+	return &file_awareness_graph_proto_enumTypes[27]
 }
 
 func (x ArchitectureSourceImpact) Number() protoreflect.EnumNumber {
@@ -1661,7 +1723,7 @@ func (x ArchitectureSourceImpact) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureSourceImpact.Descriptor instead.
 func (ArchitectureSourceImpact) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
 }
 
 // ArchitectureArtifactClosure mirrors controlstate.ArtifactClosure. UNKNOWN is
@@ -1708,11 +1770,11 @@ func (x ArchitectureArtifactClosure) String() string {
 }
 
 func (ArchitectureArtifactClosure) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[27].Descriptor()
+	return file_awareness_graph_proto_enumTypes[28].Descriptor()
 }
 
 func (ArchitectureArtifactClosure) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[27]
+	return &file_awareness_graph_proto_enumTypes[28]
 }
 
 func (x ArchitectureArtifactClosure) Number() protoreflect.EnumNumber {
@@ -1721,7 +1783,7 @@ func (x ArchitectureArtifactClosure) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureArtifactClosure.Descriptor instead.
 func (ArchitectureArtifactClosure) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
 }
 
 // ArchitectureDimensionState mirrors controlstate.DimensionState.
@@ -1767,11 +1829,11 @@ func (x ArchitectureDimensionState) String() string {
 }
 
 func (ArchitectureDimensionState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[28].Descriptor()
+	return file_awareness_graph_proto_enumTypes[29].Descriptor()
 }
 
 func (ArchitectureDimensionState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[28]
+	return &file_awareness_graph_proto_enumTypes[29]
 }
 
 func (x ArchitectureDimensionState) Number() protoreflect.EnumNumber {
@@ -1780,7 +1842,7 @@ func (x ArchitectureDimensionState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDimensionState.Descriptor instead.
 func (ArchitectureDimensionState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
 }
 
 // ArchitectureLifecycleState mirrors controlstate.LifecycleState. Absence of a
@@ -1833,11 +1895,11 @@ func (x ArchitectureLifecycleState) String() string {
 }
 
 func (ArchitectureLifecycleState) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[29].Descriptor()
+	return file_awareness_graph_proto_enumTypes[30].Descriptor()
 }
 
 func (ArchitectureLifecycleState) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[29]
+	return &file_awareness_graph_proto_enumTypes[30]
 }
 
 func (x ArchitectureLifecycleState) Number() protoreflect.EnumNumber {
@@ -1846,7 +1908,7 @@ func (x ArchitectureLifecycleState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureLifecycleState.Descriptor instead.
 func (ArchitectureLifecycleState) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
 }
 
 // ArchitectureAttentionSeverity mirrors controlstate.AttentionSeverity — the
@@ -1891,11 +1953,11 @@ func (x ArchitectureAttentionSeverity) String() string {
 }
 
 func (ArchitectureAttentionSeverity) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[30].Descriptor()
+	return file_awareness_graph_proto_enumTypes[31].Descriptor()
 }
 
 func (ArchitectureAttentionSeverity) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[30]
+	return &file_awareness_graph_proto_enumTypes[31]
 }
 
 func (x ArchitectureAttentionSeverity) Number() protoreflect.EnumNumber {
@@ -1904,7 +1966,7 @@ func (x ArchitectureAttentionSeverity) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAttentionSeverity.Descriptor instead.
 func (ArchitectureAttentionSeverity) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
 }
 
 // ArchitectureAssessmentCoverage mirrors controlstate.AssessmentCoverage.
@@ -1947,11 +2009,11 @@ func (x ArchitectureAssessmentCoverage) String() string {
 }
 
 func (ArchitectureAssessmentCoverage) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[31].Descriptor()
+	return file_awareness_graph_proto_enumTypes[32].Descriptor()
 }
 
 func (ArchitectureAssessmentCoverage) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[31]
+	return &file_awareness_graph_proto_enumTypes[32]
 }
 
 func (x ArchitectureAssessmentCoverage) Number() protoreflect.EnumNumber {
@@ -1960,7 +2022,7 @@ func (x ArchitectureAssessmentCoverage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureAssessmentCoverage.Descriptor instead.
 func (ArchitectureAssessmentCoverage) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
 }
 
 type ArchitectureDisposition int32
@@ -2002,11 +2064,11 @@ func (x ArchitectureDisposition) String() string {
 }
 
 func (ArchitectureDisposition) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[32].Descriptor()
+	return file_awareness_graph_proto_enumTypes[33].Descriptor()
 }
 
 func (ArchitectureDisposition) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[32]
+	return &file_awareness_graph_proto_enumTypes[33]
 }
 
 func (x ArchitectureDisposition) Number() protoreflect.EnumNumber {
@@ -2015,7 +2077,7 @@ func (x ArchitectureDisposition) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDisposition.Descriptor instead.
 func (ArchitectureDisposition) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{33}
 }
 
 type ArchitectureReusability int32
@@ -2054,11 +2116,11 @@ func (x ArchitectureReusability) String() string {
 }
 
 func (ArchitectureReusability) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[33].Descriptor()
+	return file_awareness_graph_proto_enumTypes[34].Descriptor()
 }
 
 func (ArchitectureReusability) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[33]
+	return &file_awareness_graph_proto_enumTypes[34]
 }
 
 func (x ArchitectureReusability) Number() protoreflect.EnumNumber {
@@ -2067,7 +2129,7 @@ func (x ArchitectureReusability) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureReusability.Descriptor instead.
 func (ArchitectureReusability) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{33}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{34}
 }
 
 type ArchitectureDispositionOutcome int32
@@ -2109,11 +2171,11 @@ func (x ArchitectureDispositionOutcome) String() string {
 }
 
 func (ArchitectureDispositionOutcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_awareness_graph_proto_enumTypes[34].Descriptor()
+	return file_awareness_graph_proto_enumTypes[35].Descriptor()
 }
 
 func (ArchitectureDispositionOutcome) Type() protoreflect.EnumType {
-	return &file_awareness_graph_proto_enumTypes[34]
+	return &file_awareness_graph_proto_enumTypes[35]
 }
 
 func (x ArchitectureDispositionOutcome) Number() protoreflect.EnumNumber {
@@ -2122,7 +2184,7 @@ func (x ArchitectureDispositionOutcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ArchitectureDispositionOutcome.Descriptor instead.
 func (ArchitectureDispositionOutcome) EnumDescriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{34}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{35}
 }
 
 type BriefingRequest struct {
@@ -3973,9 +4035,16 @@ type GraphAuthority struct {
 	// The composed conclusion, stated explicitly. Consumers that must
 	// distinguish "not authoritative" from "not observed" MUST read this rather
 	// than `authoritative`.
-	Verdict       AuthorityVerdict `protobuf:"varint,17,opt,name=verdict,proto3,enum=globular.awareness_graph.AuthorityVerdict" json:"verdict,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Verdict AuthorityVerdict `protobuf:"varint,17,opt,name=verdict,proto3,enum=globular.awareness_graph.AuthorityVerdict" json:"verdict,omitempty"`
+	// The current per-domain publication receipt the served generation selects.
+	//
+	// A narrow projection on purpose. A start gate must ask "which governed world
+	// produced the knowledge you are serving me", and answering that by teaching
+	// the generic typed query API to return arbitrary publication classes would
+	// widen a read surface for one experiment's convenience.
+	CurrentPublication *DomainPublication `protobuf:"bytes,18,opt,name=current_publication,json=currentPublication,proto3" json:"current_publication,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *GraphAuthority) Reset() {
@@ -4125,6 +4194,171 @@ func (x *GraphAuthority) GetVerdict() AuthorityVerdict {
 		return x.Verdict
 	}
 	return AuthorityVerdict_AUTHORITY_VERDICT_UNSPECIFIED
+}
+
+func (x *GraphAuthority) GetCurrentPublication() *DomainPublication {
+	if x != nil {
+		return x.CurrentPublication
+	}
+	return nil
+}
+
+// DomainPublication is the authenticated answer to "which governed revision
+// produced the knowledge currently served for this domain".
+type DomainPublication struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The domain this projection actually answers for.
+	//
+	// A consumer MUST compare this with the domain it asked about. A server that
+	// returns a perfectly valid receipt for a different domain has not answered
+	// the question, and "a receipt came back" is not evidence that it did.
+	RequestedDomain string                `protobuf:"bytes,11,opt,name=requested_domain,json=requestedDomain,proto3" json:"requested_domain,omitempty"`
+	Resolution      PublicationResolution `protobuf:"varint,1,opt,name=resolution,proto3,enum=globular.awareness_graph.PublicationResolution" json:"resolution,omitempty"`
+	// Why, when resolution is not VERIFIED. Never empty in that case.
+	Detail string `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
+	// The receipt's own immutable name, recomputed by this server rather than
+	// echoed from storage.
+	ReceiptIri string `protobuf:"bytes,3,opt,name=receipt_iri,json=receiptIri,proto3" json:"receipt_iri,omitempty"`
+	// Receipt shape: "v1", "v2". A consumer must refuse a version it does not
+	// define rather than reading the fields it recognises.
+	ReceiptVersion string `protobuf:"bytes,4,opt,name=receipt_version,json=receiptVersion,proto3" json:"receipt_version,omitempty"`
+	Domain         string `protobuf:"bytes,5,opt,name=domain,proto3" json:"domain,omitempty"`
+	// The revision the published corpus came from. Empty when the publication
+	// recorded UNKNOWN, and never inferred.
+	SourceRevision string `protobuf:"bytes,6,opt,name=source_revision,json=sourceRevision,proto3" json:"source_revision,omitempty"`
+	// The git tree of the published corpus, for comparison against the corpus a
+	// run actually carries.
+	SourceTree string `protobuf:"bytes,7,opt,name=source_tree,json=sourceTree,proto3" json:"source_tree,omitempty"`
+	// CLEAN_EXACT, DIRTY or UNKNOWN. Only CLEAN_EXACT may be read as "produced
+	// from exactly source_revision".
+	SourceState string `protobuf:"bytes,8,opt,name=source_state,json=sourceState,proto3" json:"source_state,omitempty"`
+	// Repository-relative knowledge path, e.g. "docs/awareness". v2 and later.
+	SourcePath         string `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
+	SourceDigestSha256 string `protobuf:"bytes,10,opt,name=source_digest_sha256,json=sourceDigestSha256,proto3" json:"source_digest_sha256,omitempty"`
+	// The generation this publication was READ FROM, taken from the same
+	// single-query snapshot as the pointer and receipt.
+	//
+	// A consumer must compare it with the authority's own live graph digest. Two
+	// separate reads bracketed by a digest comparison accept an A -> B -> A
+	// transition; this carries the world the receipt actually came from, so the
+	// composite can be checked rather than assumed.
+	SnapshotGeneration string `protobuf:"bytes,12,opt,name=snapshot_generation,json=snapshotGeneration,proto3" json:"snapshot_generation,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *DomainPublication) Reset() {
+	*x = DomainPublication{}
+	mi := &file_awareness_graph_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DomainPublication) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DomainPublication) ProtoMessage() {}
+
+func (x *DomainPublication) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DomainPublication.ProtoReflect.Descriptor instead.
+func (*DomainPublication) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DomainPublication) GetRequestedDomain() string {
+	if x != nil {
+		return x.RequestedDomain
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetResolution() PublicationResolution {
+	if x != nil {
+		return x.Resolution
+	}
+	return PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED
+}
+
+func (x *DomainPublication) GetDetail() string {
+	if x != nil {
+		return x.Detail
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetReceiptIri() string {
+	if x != nil {
+		return x.ReceiptIri
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetReceiptVersion() string {
+	if x != nil {
+		return x.ReceiptVersion
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSourceRevision() string {
+	if x != nil {
+		return x.SourceRevision
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSourceTree() string {
+	if x != nil {
+		return x.SourceTree
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSourceState() string {
+	if x != nil {
+		return x.SourceState
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSourcePath() string {
+	if x != nil {
+		return x.SourcePath
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSourceDigestSha256() string {
+	if x != nil {
+		return x.SourceDigestSha256
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSnapshotGeneration() string {
+	if x != nil {
+		return x.SnapshotGeneration
+	}
+	return ""
 }
 
 type MetadataResponse struct {
@@ -4294,7 +4528,7 @@ type MetadataResponse struct {
 
 func (x *MetadataResponse) Reset() {
 	*x = MetadataResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[19]
+	mi := &file_awareness_graph_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4306,7 +4540,7 @@ func (x *MetadataResponse) String() string {
 func (*MetadataResponse) ProtoMessage() {}
 
 func (x *MetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[19]
+	mi := &file_awareness_graph_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4319,7 +4553,7 @@ func (x *MetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetadataResponse.ProtoReflect.Descriptor instead.
 func (*MetadataResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *MetadataResponse) GetGraphBuildCommit() string {
@@ -4809,7 +5043,7 @@ type AuthoritySurface struct {
 
 func (x *AuthoritySurface) Reset() {
 	*x = AuthoritySurface{}
-	mi := &file_awareness_graph_proto_msgTypes[20]
+	mi := &file_awareness_graph_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4821,7 +5055,7 @@ func (x *AuthoritySurface) String() string {
 func (*AuthoritySurface) ProtoMessage() {}
 
 func (x *AuthoritySurface) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[20]
+	mi := &file_awareness_graph_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4834,7 +5068,7 @@ func (x *AuthoritySurface) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AuthoritySurface.ProtoReflect.Descriptor instead.
 func (*AuthoritySurface) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{20}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AuthoritySurface) GetId() string {
@@ -4921,7 +5155,7 @@ type ProofSlot struct {
 
 func (x *ProofSlot) Reset() {
 	*x = ProofSlot{}
-	mi := &file_awareness_graph_proto_msgTypes[21]
+	mi := &file_awareness_graph_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4933,7 +5167,7 @@ func (x *ProofSlot) String() string {
 func (*ProofSlot) ProtoMessage() {}
 
 func (x *ProofSlot) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[21]
+	mi := &file_awareness_graph_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4946,7 +5180,7 @@ func (x *ProofSlot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProofSlot.ProtoReflect.Descriptor instead.
 func (*ProofSlot) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{21}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProofSlot) GetId() string {
@@ -5004,7 +5238,7 @@ type ProofObligation struct {
 
 func (x *ProofObligation) Reset() {
 	*x = ProofObligation{}
-	mi := &file_awareness_graph_proto_msgTypes[22]
+	mi := &file_awareness_graph_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5016,7 +5250,7 @@ func (x *ProofObligation) String() string {
 func (*ProofObligation) ProtoMessage() {}
 
 func (x *ProofObligation) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[22]
+	mi := &file_awareness_graph_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5029,7 +5263,7 @@ func (x *ProofObligation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProofObligation.ProtoReflect.Descriptor instead.
 func (*ProofObligation) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{22}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ProofObligation) GetId() string {
@@ -5080,7 +5314,7 @@ type ForbiddenRepairMove struct {
 
 func (x *ForbiddenRepairMove) Reset() {
 	*x = ForbiddenRepairMove{}
-	mi := &file_awareness_graph_proto_msgTypes[23]
+	mi := &file_awareness_graph_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5092,7 +5326,7 @@ func (x *ForbiddenRepairMove) String() string {
 func (*ForbiddenRepairMove) ProtoMessage() {}
 
 func (x *ForbiddenRepairMove) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[23]
+	mi := &file_awareness_graph_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5105,7 +5339,7 @@ func (x *ForbiddenRepairMove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForbiddenRepairMove.ProtoReflect.Descriptor instead.
 func (*ForbiddenRepairMove) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{23}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *ForbiddenRepairMove) GetId() string {
@@ -5153,7 +5387,7 @@ type ForbiddenMoveEvidence struct {
 
 func (x *ForbiddenMoveEvidence) Reset() {
 	*x = ForbiddenMoveEvidence{}
-	mi := &file_awareness_graph_proto_msgTypes[24]
+	mi := &file_awareness_graph_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5165,7 +5399,7 @@ func (x *ForbiddenMoveEvidence) String() string {
 func (*ForbiddenMoveEvidence) ProtoMessage() {}
 
 func (x *ForbiddenMoveEvidence) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[24]
+	mi := &file_awareness_graph_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5178,7 +5412,7 @@ func (x *ForbiddenMoveEvidence) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForbiddenMoveEvidence.ProtoReflect.Descriptor instead.
 func (*ForbiddenMoveEvidence) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{24}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ForbiddenMoveEvidence) GetKind() string {
@@ -5206,7 +5440,7 @@ type DetectedForbiddenMove struct {
 
 func (x *DetectedForbiddenMove) Reset() {
 	*x = DetectedForbiddenMove{}
-	mi := &file_awareness_graph_proto_msgTypes[25]
+	mi := &file_awareness_graph_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5218,7 +5452,7 @@ func (x *DetectedForbiddenMove) String() string {
 func (*DetectedForbiddenMove) ProtoMessage() {}
 
 func (x *DetectedForbiddenMove) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[25]
+	mi := &file_awareness_graph_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5231,7 +5465,7 @@ func (x *DetectedForbiddenMove) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DetectedForbiddenMove.ProtoReflect.Descriptor instead.
 func (*DetectedForbiddenMove) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{25}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DetectedForbiddenMove) GetId() string {
@@ -5270,7 +5504,7 @@ type RepairClaim struct {
 
 func (x *RepairClaim) Reset() {
 	*x = RepairClaim{}
-	mi := &file_awareness_graph_proto_msgTypes[26]
+	mi := &file_awareness_graph_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5282,7 +5516,7 @@ func (x *RepairClaim) String() string {
 func (*RepairClaim) ProtoMessage() {}
 
 func (x *RepairClaim) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[26]
+	mi := &file_awareness_graph_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5295,7 +5529,7 @@ func (x *RepairClaim) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RepairClaim.ProtoReflect.Descriptor instead.
 func (*RepairClaim) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{26}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *RepairClaim) GetId() string {
@@ -5362,7 +5596,7 @@ type CertificationRequirement struct {
 
 func (x *CertificationRequirement) Reset() {
 	*x = CertificationRequirement{}
-	mi := &file_awareness_graph_proto_msgTypes[27]
+	mi := &file_awareness_graph_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5374,7 +5608,7 @@ func (x *CertificationRequirement) String() string {
 func (*CertificationRequirement) ProtoMessage() {}
 
 func (x *CertificationRequirement) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[27]
+	mi := &file_awareness_graph_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5387,7 +5621,7 @@ func (x *CertificationRequirement) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificationRequirement.ProtoReflect.Descriptor instead.
 func (*CertificationRequirement) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{27}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *CertificationRequirement) GetId() string {
@@ -5450,7 +5684,7 @@ type CertificationLaneResult struct {
 
 func (x *CertificationLaneResult) Reset() {
 	*x = CertificationLaneResult{}
-	mi := &file_awareness_graph_proto_msgTypes[28]
+	mi := &file_awareness_graph_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5462,7 +5696,7 @@ func (x *CertificationLaneResult) String() string {
 func (*CertificationLaneResult) ProtoMessage() {}
 
 func (x *CertificationLaneResult) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[28]
+	mi := &file_awareness_graph_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5475,7 +5709,7 @@ func (x *CertificationLaneResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CertificationLaneResult.ProtoReflect.Descriptor instead.
 func (*CertificationLaneResult) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{28}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *CertificationLaneResult) GetLane() string {
@@ -5516,7 +5750,7 @@ type GovernanceCertification struct {
 
 func (x *GovernanceCertification) Reset() {
 	*x = GovernanceCertification{}
-	mi := &file_awareness_graph_proto_msgTypes[29]
+	mi := &file_awareness_graph_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5528,7 +5762,7 @@ func (x *GovernanceCertification) String() string {
 func (*GovernanceCertification) ProtoMessage() {}
 
 func (x *GovernanceCertification) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[29]
+	mi := &file_awareness_graph_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5541,7 +5775,7 @@ func (x *GovernanceCertification) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GovernanceCertification.ProtoReflect.Descriptor instead.
 func (*GovernanceCertification) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{29}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GovernanceCertification) GetRepairClaimId() string {
@@ -5624,14 +5858,24 @@ type PreflightRequest struct {
 	// so a multi-domain graph scopes correctly (and fails closed when empty).
 	// Same semantics as BriefingRequest.domain. Preflight semantics are
 	// otherwise unchanged — this is scope correctness, not enforcement.
-	Domain        string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Domain string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	// The domain whose CURRENT PUBLICATION the caller wants resolved -- a start
+	// gate's KnowledgeContract domain.
+	//
+	// Separate from `domain` because scoping a preflight query and asking "which
+	// governed revision produced the knowledge for this domain" are different
+	// questions, and a multi-domain graph can answer them differently. When
+	// empty NO publication is resolved and the projection says UNSPECIFIED:
+	// answering an unasked question with the server's own domain would hand back
+	// a well-formed receipt for something the caller never asked about.
+	PublicationDomain string `protobuf:"bytes,5,opt,name=publication_domain,json=publicationDomain,proto3" json:"publication_domain,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PreflightRequest) Reset() {
 	*x = PreflightRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[30]
+	mi := &file_awareness_graph_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5643,7 +5887,7 @@ func (x *PreflightRequest) String() string {
 func (*PreflightRequest) ProtoMessage() {}
 
 func (x *PreflightRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[30]
+	mi := &file_awareness_graph_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5656,7 +5900,7 @@ func (x *PreflightRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreflightRequest.ProtoReflect.Descriptor instead.
 func (*PreflightRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{30}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *PreflightRequest) GetTask() string {
@@ -5683,6 +5927,13 @@ func (x *PreflightRequest) GetMode() PreflightMode {
 func (x *PreflightRequest) GetDomain() string {
 	if x != nil {
 		return x.Domain
+	}
+	return ""
+}
+
+func (x *PreflightRequest) GetPublicationDomain() string {
+	if x != nil {
+		return x.PublicationDomain
 	}
 	return ""
 }
@@ -5732,7 +5983,7 @@ type PreflightResponse struct {
 
 func (x *PreflightResponse) Reset() {
 	*x = PreflightResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[31]
+	mi := &file_awareness_graph_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5744,7 +5995,7 @@ func (x *PreflightResponse) String() string {
 func (*PreflightResponse) ProtoMessage() {}
 
 func (x *PreflightResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[31]
+	mi := &file_awareness_graph_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5757,7 +6008,7 @@ func (x *PreflightResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreflightResponse.ProtoReflect.Descriptor instead.
 func (*PreflightResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{31}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *PreflightResponse) GetStatus() PreflightStatus {
@@ -5911,7 +6162,7 @@ type ChangeRisk struct {
 
 func (x *ChangeRisk) Reset() {
 	*x = ChangeRisk{}
-	mi := &file_awareness_graph_proto_msgTypes[32]
+	mi := &file_awareness_graph_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5923,7 +6174,7 @@ func (x *ChangeRisk) String() string {
 func (*ChangeRisk) ProtoMessage() {}
 
 func (x *ChangeRisk) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[32]
+	mi := &file_awareness_graph_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5936,7 +6187,7 @@ func (x *ChangeRisk) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChangeRisk.ProtoReflect.Descriptor instead.
 func (*ChangeRisk) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{32}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ChangeRisk) GetBlastRadius() BlastRadius {
@@ -5973,7 +6224,7 @@ type CoverageSummary struct {
 
 func (x *CoverageSummary) Reset() {
 	*x = CoverageSummary{}
-	mi := &file_awareness_graph_proto_msgTypes[33]
+	mi := &file_awareness_graph_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5985,7 +6236,7 @@ func (x *CoverageSummary) String() string {
 func (*CoverageSummary) ProtoMessage() {}
 
 func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[33]
+	mi := &file_awareness_graph_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5998,7 +6249,7 @@ func (x *CoverageSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CoverageSummary.ProtoReflect.Descriptor instead.
 func (*CoverageSummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{33}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *CoverageSummary) GetDirectAnchorCount() int32 {
@@ -6054,7 +6305,7 @@ type EditCheckRequest struct {
 
 func (x *EditCheckRequest) Reset() {
 	*x = EditCheckRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[34]
+	mi := &file_awareness_graph_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6066,7 +6317,7 @@ func (x *EditCheckRequest) String() string {
 func (*EditCheckRequest) ProtoMessage() {}
 
 func (x *EditCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[34]
+	mi := &file_awareness_graph_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6079,7 +6330,7 @@ func (x *EditCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditCheckRequest.ProtoReflect.Descriptor instead.
 func (*EditCheckRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{34}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *EditCheckRequest) GetFile() string {
@@ -6124,7 +6375,7 @@ type EditWarning struct {
 
 func (x *EditWarning) Reset() {
 	*x = EditWarning{}
-	mi := &file_awareness_graph_proto_msgTypes[35]
+	mi := &file_awareness_graph_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6136,7 +6387,7 @@ func (x *EditWarning) String() string {
 func (*EditWarning) ProtoMessage() {}
 
 func (x *EditWarning) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[35]
+	mi := &file_awareness_graph_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6149,7 +6400,7 @@ func (x *EditWarning) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditWarning.ProtoReflect.Descriptor instead.
 func (*EditWarning) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{35}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *EditWarning) GetRuleId() string {
@@ -6216,7 +6467,7 @@ type EditCheckResponse struct {
 
 func (x *EditCheckResponse) Reset() {
 	*x = EditCheckResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[36]
+	mi := &file_awareness_graph_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6228,7 +6479,7 @@ func (x *EditCheckResponse) String() string {
 func (*EditCheckResponse) ProtoMessage() {}
 
 func (x *EditCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[36]
+	mi := &file_awareness_graph_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6241,7 +6492,7 @@ func (x *EditCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditCheckResponse.ProtoReflect.Descriptor instead.
 func (*EditCheckResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{36}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *EditCheckResponse) GetWarnings() []*EditWarning {
@@ -6296,7 +6547,7 @@ type ProposeRequest struct {
 
 func (x *ProposeRequest) Reset() {
 	*x = ProposeRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[37]
+	mi := &file_awareness_graph_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6308,7 +6559,7 @@ func (x *ProposeRequest) String() string {
 func (*ProposeRequest) ProtoMessage() {}
 
 func (x *ProposeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[37]
+	mi := &file_awareness_graph_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6321,7 +6572,7 @@ func (x *ProposeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeRequest.ProtoReflect.Descriptor instead.
 func (*ProposeRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{37}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ProposeRequest) GetKind() string {
@@ -6460,7 +6711,7 @@ type ProposeResponse struct {
 
 func (x *ProposeResponse) Reset() {
 	*x = ProposeResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[38]
+	mi := &file_awareness_graph_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6472,7 +6723,7 @@ func (x *ProposeResponse) String() string {
 func (*ProposeResponse) ProtoMessage() {}
 
 func (x *ProposeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[38]
+	mi := &file_awareness_graph_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6485,7 +6736,7 @@ func (x *ProposeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeResponse.ProtoReflect.Descriptor instead.
 func (*ProposeResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{38}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ProposeResponse) GetStatus() ProposeStatus {
@@ -6544,7 +6795,7 @@ type ReferenceSitesRequest struct {
 
 func (x *ReferenceSitesRequest) Reset() {
 	*x = ReferenceSitesRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[39]
+	mi := &file_awareness_graph_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6556,7 +6807,7 @@ func (x *ReferenceSitesRequest) String() string {
 func (*ReferenceSitesRequest) ProtoMessage() {}
 
 func (x *ReferenceSitesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[39]
+	mi := &file_awareness_graph_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6569,7 +6820,7 @@ func (x *ReferenceSitesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReferenceSitesRequest.ProtoReflect.Descriptor instead.
 func (*ReferenceSitesRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{39}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ReferenceSitesRequest) GetSymbolIds() []string {
@@ -6598,7 +6849,7 @@ type ReferenceFamily struct {
 
 func (x *ReferenceFamily) Reset() {
 	*x = ReferenceFamily{}
-	mi := &file_awareness_graph_proto_msgTypes[40]
+	mi := &file_awareness_graph_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6610,7 +6861,7 @@ func (x *ReferenceFamily) String() string {
 func (*ReferenceFamily) ProtoMessage() {}
 
 func (x *ReferenceFamily) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[40]
+	mi := &file_awareness_graph_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6623,7 +6874,7 @@ func (x *ReferenceFamily) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReferenceFamily.ProtoReflect.Descriptor instead.
 func (*ReferenceFamily) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{40}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *ReferenceFamily) GetSymbolId() string {
@@ -6651,7 +6902,7 @@ type ReferenceSitesResponse struct {
 
 func (x *ReferenceSitesResponse) Reset() {
 	*x = ReferenceSitesResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[41]
+	mi := &file_awareness_graph_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6663,7 +6914,7 @@ func (x *ReferenceSitesResponse) String() string {
 func (*ReferenceSitesResponse) ProtoMessage() {}
 
 func (x *ReferenceSitesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[41]
+	mi := &file_awareness_graph_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6676,7 +6927,7 @@ func (x *ReferenceSitesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReferenceSitesResponse.ProtoReflect.Descriptor instead.
 func (*ReferenceSitesResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{41}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *ReferenceSitesResponse) GetFamilies() []*ReferenceFamily {
@@ -6718,7 +6969,7 @@ type ArchitectureSourceStatus struct {
 
 func (x *ArchitectureSourceStatus) Reset() {
 	*x = ArchitectureSourceStatus{}
-	mi := &file_awareness_graph_proto_msgTypes[42]
+	mi := &file_awareness_graph_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6730,7 +6981,7 @@ func (x *ArchitectureSourceStatus) String() string {
 func (*ArchitectureSourceStatus) ProtoMessage() {}
 
 func (x *ArchitectureSourceStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[42]
+	mi := &file_awareness_graph_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6743,7 +6994,7 @@ func (x *ArchitectureSourceStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureSourceStatus.ProtoReflect.Descriptor instead.
 func (*ArchitectureSourceStatus) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{42}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *ArchitectureSourceStatus) GetOwner() string {
@@ -6816,7 +7067,7 @@ type ArchitectureProjectionMeta struct {
 
 func (x *ArchitectureProjectionMeta) Reset() {
 	*x = ArchitectureProjectionMeta{}
-	mi := &file_awareness_graph_proto_msgTypes[43]
+	mi := &file_awareness_graph_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6828,7 +7079,7 @@ func (x *ArchitectureProjectionMeta) String() string {
 func (*ArchitectureProjectionMeta) ProtoMessage() {}
 
 func (x *ArchitectureProjectionMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[43]
+	mi := &file_awareness_graph_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6841,7 +7092,7 @@ func (x *ArchitectureProjectionMeta) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureProjectionMeta.ProtoReflect.Descriptor instead.
 func (*ArchitectureProjectionMeta) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{43}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ArchitectureProjectionMeta) GetSchemaVersion() string {
@@ -6932,7 +7183,7 @@ type ArchitectureArtifactIdentity struct {
 
 func (x *ArchitectureArtifactIdentity) Reset() {
 	*x = ArchitectureArtifactIdentity{}
-	mi := &file_awareness_graph_proto_msgTypes[44]
+	mi := &file_awareness_graph_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6944,7 +7195,7 @@ func (x *ArchitectureArtifactIdentity) String() string {
 func (*ArchitectureArtifactIdentity) ProtoMessage() {}
 
 func (x *ArchitectureArtifactIdentity) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[44]
+	mi := &file_awareness_graph_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6957,7 +7208,7 @@ func (x *ArchitectureArtifactIdentity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureArtifactIdentity.ProtoReflect.Descriptor instead.
 func (*ArchitectureArtifactIdentity) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{44}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ArchitectureArtifactIdentity) GetNodeIri() string {
@@ -7025,7 +7276,7 @@ type ArchitectureLifecycleAssessment struct {
 
 func (x *ArchitectureLifecycleAssessment) Reset() {
 	*x = ArchitectureLifecycleAssessment{}
-	mi := &file_awareness_graph_proto_msgTypes[45]
+	mi := &file_awareness_graph_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7037,7 +7288,7 @@ func (x *ArchitectureLifecycleAssessment) String() string {
 func (*ArchitectureLifecycleAssessment) ProtoMessage() {}
 
 func (x *ArchitectureLifecycleAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[45]
+	mi := &file_awareness_graph_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7050,7 +7301,7 @@ func (x *ArchitectureLifecycleAssessment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureLifecycleAssessment.ProtoReflect.Descriptor instead.
 func (*ArchitectureLifecycleAssessment) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{45}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ArchitectureLifecycleAssessment) GetApplicable() bool {
@@ -7119,7 +7370,7 @@ type ArchitectureDimensionExplanation struct {
 
 func (x *ArchitectureDimensionExplanation) Reset() {
 	*x = ArchitectureDimensionExplanation{}
-	mi := &file_awareness_graph_proto_msgTypes[46]
+	mi := &file_awareness_graph_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7131,7 +7382,7 @@ func (x *ArchitectureDimensionExplanation) String() string {
 func (*ArchitectureDimensionExplanation) ProtoMessage() {}
 
 func (x *ArchitectureDimensionExplanation) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[46]
+	mi := &file_awareness_graph_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7144,7 +7395,7 @@ func (x *ArchitectureDimensionExplanation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureDimensionExplanation.ProtoReflect.Descriptor instead.
 func (*ArchitectureDimensionExplanation) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{46}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ArchitectureDimensionExplanation) GetKind() string {
@@ -7203,7 +7454,7 @@ type ArchitectureDimensionAssessment struct {
 
 func (x *ArchitectureDimensionAssessment) Reset() {
 	*x = ArchitectureDimensionAssessment{}
-	mi := &file_awareness_graph_proto_msgTypes[47]
+	mi := &file_awareness_graph_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7215,7 +7466,7 @@ func (x *ArchitectureDimensionAssessment) String() string {
 func (*ArchitectureDimensionAssessment) ProtoMessage() {}
 
 func (x *ArchitectureDimensionAssessment) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[47]
+	mi := &file_awareness_graph_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7228,7 +7479,7 @@ func (x *ArchitectureDimensionAssessment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureDimensionAssessment.ProtoReflect.Descriptor instead.
 func (*ArchitectureDimensionAssessment) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{47}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ArchitectureDimensionAssessment) GetDimension() string {
@@ -7341,7 +7592,7 @@ type ArchitectureAttentionItem struct {
 
 func (x *ArchitectureAttentionItem) Reset() {
 	*x = ArchitectureAttentionItem{}
-	mi := &file_awareness_graph_proto_msgTypes[48]
+	mi := &file_awareness_graph_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7353,7 +7604,7 @@ func (x *ArchitectureAttentionItem) String() string {
 func (*ArchitectureAttentionItem) ProtoMessage() {}
 
 func (x *ArchitectureAttentionItem) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[48]
+	mi := &file_awareness_graph_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7366,7 +7617,7 @@ func (x *ArchitectureAttentionItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureAttentionItem.ProtoReflect.Descriptor instead.
 func (*ArchitectureAttentionItem) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{48}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ArchitectureAttentionItem) GetId() string {
@@ -7479,7 +7730,7 @@ type ArchitectureKeyedCount struct {
 
 func (x *ArchitectureKeyedCount) Reset() {
 	*x = ArchitectureKeyedCount{}
-	mi := &file_awareness_graph_proto_msgTypes[49]
+	mi := &file_awareness_graph_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7491,7 +7742,7 @@ func (x *ArchitectureKeyedCount) String() string {
 func (*ArchitectureKeyedCount) ProtoMessage() {}
 
 func (x *ArchitectureKeyedCount) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[49]
+	mi := &file_awareness_graph_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7504,7 +7755,7 @@ func (x *ArchitectureKeyedCount) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureKeyedCount.ProtoReflect.Descriptor instead.
 func (*ArchitectureKeyedCount) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{49}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ArchitectureKeyedCount) GetKey() string {
@@ -7535,7 +7786,7 @@ type ArchitectureGraphAuthoritySummary struct {
 
 func (x *ArchitectureGraphAuthoritySummary) Reset() {
 	*x = ArchitectureGraphAuthoritySummary{}
-	mi := &file_awareness_graph_proto_msgTypes[50]
+	mi := &file_awareness_graph_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7547,7 +7798,7 @@ func (x *ArchitectureGraphAuthoritySummary) String() string {
 func (*ArchitectureGraphAuthoritySummary) ProtoMessage() {}
 
 func (x *ArchitectureGraphAuthoritySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[50]
+	mi := &file_awareness_graph_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7560,7 +7811,7 @@ func (x *ArchitectureGraphAuthoritySummary) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ArchitectureGraphAuthoritySummary.ProtoReflect.Descriptor instead.
 func (*ArchitectureGraphAuthoritySummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{50}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ArchitectureGraphAuthoritySummary) GetObserved() bool {
@@ -7603,7 +7854,7 @@ type ArchitectureCoverageSummary struct {
 
 func (x *ArchitectureCoverageSummary) Reset() {
 	*x = ArchitectureCoverageSummary{}
-	mi := &file_awareness_graph_proto_msgTypes[51]
+	mi := &file_awareness_graph_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7615,7 +7866,7 @@ func (x *ArchitectureCoverageSummary) String() string {
 func (*ArchitectureCoverageSummary) ProtoMessage() {}
 
 func (x *ArchitectureCoverageSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[51]
+	mi := &file_awareness_graph_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7628,7 +7879,7 @@ func (x *ArchitectureCoverageSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureCoverageSummary.ProtoReflect.Descriptor instead.
 func (*ArchitectureCoverageSummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{51}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ArchitectureCoverageSummary) GetSufficient() bool {
@@ -7666,7 +7917,7 @@ type ArchitectureTaskSummary struct {
 
 func (x *ArchitectureTaskSummary) Reset() {
 	*x = ArchitectureTaskSummary{}
-	mi := &file_awareness_graph_proto_msgTypes[52]
+	mi := &file_awareness_graph_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7678,7 +7929,7 @@ func (x *ArchitectureTaskSummary) String() string {
 func (*ArchitectureTaskSummary) ProtoMessage() {}
 
 func (x *ArchitectureTaskSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[52]
+	mi := &file_awareness_graph_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7691,7 +7942,7 @@ func (x *ArchitectureTaskSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureTaskSummary.ProtoReflect.Descriptor instead.
 func (*ArchitectureTaskSummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{52}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ArchitectureTaskSummary) GetTaskId() string {
@@ -7734,7 +7985,7 @@ type ArchitectureCompletionSummary struct {
 
 func (x *ArchitectureCompletionSummary) Reset() {
 	*x = ArchitectureCompletionSummary{}
-	mi := &file_awareness_graph_proto_msgTypes[53]
+	mi := &file_awareness_graph_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7746,7 +7997,7 @@ func (x *ArchitectureCompletionSummary) String() string {
 func (*ArchitectureCompletionSummary) ProtoMessage() {}
 
 func (x *ArchitectureCompletionSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[53]
+	mi := &file_awareness_graph_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7759,7 +8010,7 @@ func (x *ArchitectureCompletionSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureCompletionSummary.ProtoReflect.Descriptor instead.
 func (*ArchitectureCompletionSummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{53}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ArchitectureCompletionSummary) GetTerminalState() string {
@@ -7790,7 +8041,7 @@ type ArchitectureFeedbackContext struct {
 
 func (x *ArchitectureFeedbackContext) Reset() {
 	*x = ArchitectureFeedbackContext{}
-	mi := &file_awareness_graph_proto_msgTypes[54]
+	mi := &file_awareness_graph_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7802,7 +8053,7 @@ func (x *ArchitectureFeedbackContext) String() string {
 func (*ArchitectureFeedbackContext) ProtoMessage() {}
 
 func (x *ArchitectureFeedbackContext) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[54]
+	mi := &file_awareness_graph_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7815,7 +8066,7 @@ func (x *ArchitectureFeedbackContext) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureFeedbackContext.ProtoReflect.Descriptor instead.
 func (*ArchitectureFeedbackContext) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{54}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ArchitectureFeedbackContext) GetCapable() bool {
@@ -7848,7 +8099,7 @@ type ArchitectureScopedFeedbackRef struct {
 
 func (x *ArchitectureScopedFeedbackRef) Reset() {
 	*x = ArchitectureScopedFeedbackRef{}
-	mi := &file_awareness_graph_proto_msgTypes[55]
+	mi := &file_awareness_graph_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7860,7 +8111,7 @@ func (x *ArchitectureScopedFeedbackRef) String() string {
 func (*ArchitectureScopedFeedbackRef) ProtoMessage() {}
 
 func (x *ArchitectureScopedFeedbackRef) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[55]
+	mi := &file_awareness_graph_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7873,7 +8124,7 @@ func (x *ArchitectureScopedFeedbackRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureScopedFeedbackRef.ProtoReflect.Descriptor instead.
 func (*ArchitectureScopedFeedbackRef) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{55}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *ArchitectureScopedFeedbackRef) GetScopeIdentity() string {
@@ -7947,7 +8198,7 @@ type ArchitectureControlSnapshot struct {
 
 func (x *ArchitectureControlSnapshot) Reset() {
 	*x = ArchitectureControlSnapshot{}
-	mi := &file_awareness_graph_proto_msgTypes[56]
+	mi := &file_awareness_graph_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7959,7 +8210,7 @@ func (x *ArchitectureControlSnapshot) String() string {
 func (*ArchitectureControlSnapshot) ProtoMessage() {}
 
 func (x *ArchitectureControlSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[56]
+	mi := &file_awareness_graph_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7972,7 +8223,7 @@ func (x *ArchitectureControlSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureControlSnapshot.ProtoReflect.Descriptor instead.
 func (*ArchitectureControlSnapshot) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{56}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ArchitectureControlSnapshot) GetMeta() *ArchitectureProjectionMeta {
@@ -8125,7 +8376,7 @@ type ArchitectureArtifactSummary struct {
 
 func (x *ArchitectureArtifactSummary) Reset() {
 	*x = ArchitectureArtifactSummary{}
-	mi := &file_awareness_graph_proto_msgTypes[57]
+	mi := &file_awareness_graph_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8137,7 +8388,7 @@ func (x *ArchitectureArtifactSummary) String() string {
 func (*ArchitectureArtifactSummary) ProtoMessage() {}
 
 func (x *ArchitectureArtifactSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[57]
+	mi := &file_awareness_graph_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8150,7 +8401,7 @@ func (x *ArchitectureArtifactSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureArtifactSummary.ProtoReflect.Descriptor instead.
 func (*ArchitectureArtifactSummary) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{57}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ArchitectureArtifactSummary) GetIdentity() *ArchitectureArtifactIdentity {
@@ -8253,7 +8504,7 @@ type ArchitectureArtifactIndex struct {
 
 func (x *ArchitectureArtifactIndex) Reset() {
 	*x = ArchitectureArtifactIndex{}
-	mi := &file_awareness_graph_proto_msgTypes[58]
+	mi := &file_awareness_graph_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8265,7 +8516,7 @@ func (x *ArchitectureArtifactIndex) String() string {
 func (*ArchitectureArtifactIndex) ProtoMessage() {}
 
 func (x *ArchitectureArtifactIndex) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[58]
+	mi := &file_awareness_graph_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8278,7 +8529,7 @@ func (x *ArchitectureArtifactIndex) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureArtifactIndex.ProtoReflect.Descriptor instead.
 func (*ArchitectureArtifactIndex) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{58}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ArchitectureArtifactIndex) GetMeta() *ArchitectureProjectionMeta {
@@ -8339,7 +8590,7 @@ type ArchitectureArtifactState struct {
 
 func (x *ArchitectureArtifactState) Reset() {
 	*x = ArchitectureArtifactState{}
-	mi := &file_awareness_graph_proto_msgTypes[59]
+	mi := &file_awareness_graph_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8351,7 +8602,7 @@ func (x *ArchitectureArtifactState) String() string {
 func (*ArchitectureArtifactState) ProtoMessage() {}
 
 func (x *ArchitectureArtifactState) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[59]
+	mi := &file_awareness_graph_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8364,7 +8615,7 @@ func (x *ArchitectureArtifactState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureArtifactState.ProtoReflect.Descriptor instead.
 func (*ArchitectureArtifactState) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{59}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ArchitectureArtifactState) GetMeta() *ArchitectureProjectionMeta {
@@ -8479,7 +8730,7 @@ type ArchitectureNavigationClass struct {
 
 func (x *ArchitectureNavigationClass) Reset() {
 	*x = ArchitectureNavigationClass{}
-	mi := &file_awareness_graph_proto_msgTypes[60]
+	mi := &file_awareness_graph_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8491,7 +8742,7 @@ func (x *ArchitectureNavigationClass) String() string {
 func (*ArchitectureNavigationClass) ProtoMessage() {}
 
 func (x *ArchitectureNavigationClass) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[60]
+	mi := &file_awareness_graph_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8504,7 +8755,7 @@ func (x *ArchitectureNavigationClass) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureNavigationClass.ProtoReflect.Descriptor instead.
 func (*ArchitectureNavigationClass) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{60}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ArchitectureNavigationClass) GetClassIri() string {
@@ -8597,7 +8848,7 @@ type ArchitectureNavigationFamily struct {
 
 func (x *ArchitectureNavigationFamily) Reset() {
 	*x = ArchitectureNavigationFamily{}
-	mi := &file_awareness_graph_proto_msgTypes[61]
+	mi := &file_awareness_graph_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8609,7 +8860,7 @@ func (x *ArchitectureNavigationFamily) String() string {
 func (*ArchitectureNavigationFamily) ProtoMessage() {}
 
 func (x *ArchitectureNavigationFamily) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[61]
+	mi := &file_awareness_graph_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8622,7 +8873,7 @@ func (x *ArchitectureNavigationFamily) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureNavigationFamily.ProtoReflect.Descriptor instead.
 func (*ArchitectureNavigationFamily) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{61}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ArchitectureNavigationFamily) GetId() string {
@@ -8667,7 +8918,7 @@ type OntologyNavigationDescriptor struct {
 
 func (x *OntologyNavigationDescriptor) Reset() {
 	*x = OntologyNavigationDescriptor{}
-	mi := &file_awareness_graph_proto_msgTypes[62]
+	mi := &file_awareness_graph_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8679,7 +8930,7 @@ func (x *OntologyNavigationDescriptor) String() string {
 func (*OntologyNavigationDescriptor) ProtoMessage() {}
 
 func (x *OntologyNavigationDescriptor) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[62]
+	mi := &file_awareness_graph_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8692,7 +8943,7 @@ func (x *OntologyNavigationDescriptor) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OntologyNavigationDescriptor.ProtoReflect.Descriptor instead.
 func (*OntologyNavigationDescriptor) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{62}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *OntologyNavigationDescriptor) GetMeta() *ArchitectureProjectionMeta {
@@ -8733,7 +8984,7 @@ type GetArchitectureControlSnapshotRequest struct {
 
 func (x *GetArchitectureControlSnapshotRequest) Reset() {
 	*x = GetArchitectureControlSnapshotRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[63]
+	mi := &file_awareness_graph_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8745,7 +8996,7 @@ func (x *GetArchitectureControlSnapshotRequest) String() string {
 func (*GetArchitectureControlSnapshotRequest) ProtoMessage() {}
 
 func (x *GetArchitectureControlSnapshotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[63]
+	mi := &file_awareness_graph_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8758,7 +9009,7 @@ func (x *GetArchitectureControlSnapshotRequest) ProtoReflect() protoreflect.Mess
 
 // Deprecated: Use GetArchitectureControlSnapshotRequest.ProtoReflect.Descriptor instead.
 func (*GetArchitectureControlSnapshotRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{63}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *GetArchitectureControlSnapshotRequest) GetRepositoryIdentity() string {
@@ -8784,7 +9035,7 @@ type GetArchitectureControlSnapshotResponse struct {
 
 func (x *GetArchitectureControlSnapshotResponse) Reset() {
 	*x = GetArchitectureControlSnapshotResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[64]
+	mi := &file_awareness_graph_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8796,7 +9047,7 @@ func (x *GetArchitectureControlSnapshotResponse) String() string {
 func (*GetArchitectureControlSnapshotResponse) ProtoMessage() {}
 
 func (x *GetArchitectureControlSnapshotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[64]
+	mi := &file_awareness_graph_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8809,7 +9060,7 @@ func (x *GetArchitectureControlSnapshotResponse) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetArchitectureControlSnapshotResponse.ProtoReflect.Descriptor instead.
 func (*GetArchitectureControlSnapshotResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{64}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *GetArchitectureControlSnapshotResponse) GetSnapshot() *ArchitectureControlSnapshot {
@@ -8838,7 +9089,7 @@ type ListArchitectureArtifactsRequest struct {
 
 func (x *ListArchitectureArtifactsRequest) Reset() {
 	*x = ListArchitectureArtifactsRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[65]
+	mi := &file_awareness_graph_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8850,7 +9101,7 @@ func (x *ListArchitectureArtifactsRequest) String() string {
 func (*ListArchitectureArtifactsRequest) ProtoMessage() {}
 
 func (x *ListArchitectureArtifactsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[65]
+	mi := &file_awareness_graph_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8863,7 +9114,7 @@ func (x *ListArchitectureArtifactsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListArchitectureArtifactsRequest.ProtoReflect.Descriptor instead.
 func (*ListArchitectureArtifactsRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{65}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *ListArchitectureArtifactsRequest) GetRepositoryIdentity() string {
@@ -8931,7 +9182,7 @@ type ListArchitectureArtifactsResponse struct {
 
 func (x *ListArchitectureArtifactsResponse) Reset() {
 	*x = ListArchitectureArtifactsResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[66]
+	mi := &file_awareness_graph_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8943,7 +9194,7 @@ func (x *ListArchitectureArtifactsResponse) String() string {
 func (*ListArchitectureArtifactsResponse) ProtoMessage() {}
 
 func (x *ListArchitectureArtifactsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[66]
+	mi := &file_awareness_graph_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8956,7 +9207,7 @@ func (x *ListArchitectureArtifactsResponse) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListArchitectureArtifactsResponse.ProtoReflect.Descriptor instead.
 func (*ListArchitectureArtifactsResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{66}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *ListArchitectureArtifactsResponse) GetIndex() *ArchitectureArtifactIndex {
@@ -8981,7 +9232,7 @@ type GetArchitectureArtifactStateRequest struct {
 
 func (x *GetArchitectureArtifactStateRequest) Reset() {
 	*x = GetArchitectureArtifactStateRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[67]
+	mi := &file_awareness_graph_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8993,7 +9244,7 @@ func (x *GetArchitectureArtifactStateRequest) String() string {
 func (*GetArchitectureArtifactStateRequest) ProtoMessage() {}
 
 func (x *GetArchitectureArtifactStateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[67]
+	mi := &file_awareness_graph_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9006,7 +9257,7 @@ func (x *GetArchitectureArtifactStateRequest) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetArchitectureArtifactStateRequest.ProtoReflect.Descriptor instead.
 func (*GetArchitectureArtifactStateRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{67}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *GetArchitectureArtifactStateRequest) GetRepositoryIdentity() string {
@@ -9053,7 +9304,7 @@ type GetArchitectureArtifactStateResponse struct {
 
 func (x *GetArchitectureArtifactStateResponse) Reset() {
 	*x = GetArchitectureArtifactStateResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[68]
+	mi := &file_awareness_graph_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9065,7 +9316,7 @@ func (x *GetArchitectureArtifactStateResponse) String() string {
 func (*GetArchitectureArtifactStateResponse) ProtoMessage() {}
 
 func (x *GetArchitectureArtifactStateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[68]
+	mi := &file_awareness_graph_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9078,7 +9329,7 @@ func (x *GetArchitectureArtifactStateResponse) ProtoReflect() protoreflect.Messa
 
 // Deprecated: Use GetArchitectureArtifactStateResponse.ProtoReflect.Descriptor instead.
 func (*GetArchitectureArtifactStateResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{68}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *GetArchitectureArtifactStateResponse) GetState() *ArchitectureArtifactState {
@@ -9099,7 +9350,7 @@ type GetOntologyNavigationDescriptorRequest struct {
 
 func (x *GetOntologyNavigationDescriptorRequest) Reset() {
 	*x = GetOntologyNavigationDescriptorRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[69]
+	mi := &file_awareness_graph_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9111,7 +9362,7 @@ func (x *GetOntologyNavigationDescriptorRequest) String() string {
 func (*GetOntologyNavigationDescriptorRequest) ProtoMessage() {}
 
 func (x *GetOntologyNavigationDescriptorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[69]
+	mi := &file_awareness_graph_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9124,7 +9375,7 @@ func (x *GetOntologyNavigationDescriptorRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use GetOntologyNavigationDescriptorRequest.ProtoReflect.Descriptor instead.
 func (*GetOntologyNavigationDescriptorRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{69}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{70}
 }
 
 type GetOntologyNavigationDescriptorResponse struct {
@@ -9136,7 +9387,7 @@ type GetOntologyNavigationDescriptorResponse struct {
 
 func (x *GetOntologyNavigationDescriptorResponse) Reset() {
 	*x = GetOntologyNavigationDescriptorResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[70]
+	mi := &file_awareness_graph_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9148,7 +9399,7 @@ func (x *GetOntologyNavigationDescriptorResponse) String() string {
 func (*GetOntologyNavigationDescriptorResponse) ProtoMessage() {}
 
 func (x *GetOntologyNavigationDescriptorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[70]
+	mi := &file_awareness_graph_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9161,7 +9412,7 @@ func (x *GetOntologyNavigationDescriptorResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use GetOntologyNavigationDescriptorResponse.ProtoReflect.Descriptor instead.
 func (*GetOntologyNavigationDescriptorResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{70}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *GetOntologyNavigationDescriptorResponse) GetDescriptor_() *OntologyNavigationDescriptor {
@@ -9191,7 +9442,7 @@ type ArchitectureMutationRefusal struct {
 
 func (x *ArchitectureMutationRefusal) Reset() {
 	*x = ArchitectureMutationRefusal{}
-	mi := &file_awareness_graph_proto_msgTypes[71]
+	mi := &file_awareness_graph_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9203,7 +9454,7 @@ func (x *ArchitectureMutationRefusal) String() string {
 func (*ArchitectureMutationRefusal) ProtoMessage() {}
 
 func (x *ArchitectureMutationRefusal) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[71]
+	mi := &file_awareness_graph_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9216,7 +9467,7 @@ func (x *ArchitectureMutationRefusal) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureMutationRefusal.ProtoReflect.Descriptor instead.
 func (*ArchitectureMutationRefusal) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{71}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *ArchitectureMutationRefusal) GetReasonCode() string {
@@ -9280,7 +9531,7 @@ type ArchitectureMutationAudit struct {
 
 func (x *ArchitectureMutationAudit) Reset() {
 	*x = ArchitectureMutationAudit{}
-	mi := &file_awareness_graph_proto_msgTypes[72]
+	mi := &file_awareness_graph_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9292,7 +9543,7 @@ func (x *ArchitectureMutationAudit) String() string {
 func (*ArchitectureMutationAudit) ProtoMessage() {}
 
 func (x *ArchitectureMutationAudit) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[72]
+	mi := &file_awareness_graph_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9305,7 +9556,7 @@ func (x *ArchitectureMutationAudit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureMutationAudit.ProtoReflect.Descriptor instead.
 func (*ArchitectureMutationAudit) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{72}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ArchitectureMutationAudit) GetOperationIdentity() string {
@@ -9424,7 +9675,7 @@ type ArchitectureDispositionInput struct {
 
 func (x *ArchitectureDispositionInput) Reset() {
 	*x = ArchitectureDispositionInput{}
-	mi := &file_awareness_graph_proto_msgTypes[73]
+	mi := &file_awareness_graph_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9436,7 +9687,7 @@ func (x *ArchitectureDispositionInput) String() string {
 func (*ArchitectureDispositionInput) ProtoMessage() {}
 
 func (x *ArchitectureDispositionInput) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[73]
+	mi := &file_awareness_graph_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9449,7 +9700,7 @@ func (x *ArchitectureDispositionInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureDispositionInput.ProtoReflect.Descriptor instead.
 func (*ArchitectureDispositionInput) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{73}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ArchitectureDispositionInput) GetRepositoryIdentity() string {
@@ -9566,7 +9817,7 @@ type ArchitectureDispositionCandidate struct {
 
 func (x *ArchitectureDispositionCandidate) Reset() {
 	*x = ArchitectureDispositionCandidate{}
-	mi := &file_awareness_graph_proto_msgTypes[74]
+	mi := &file_awareness_graph_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9578,7 +9829,7 @@ func (x *ArchitectureDispositionCandidate) String() string {
 func (*ArchitectureDispositionCandidate) ProtoMessage() {}
 
 func (x *ArchitectureDispositionCandidate) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[74]
+	mi := &file_awareness_graph_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9591,7 +9842,7 @@ func (x *ArchitectureDispositionCandidate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureDispositionCandidate.ProtoReflect.Descriptor instead.
 func (*ArchitectureDispositionCandidate) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{74}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *ArchitectureDispositionCandidate) GetQuestionId() string {
@@ -9638,7 +9889,7 @@ type PrepareArchitectAnswerDispositionRequest struct {
 
 func (x *PrepareArchitectAnswerDispositionRequest) Reset() {
 	*x = PrepareArchitectAnswerDispositionRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[75]
+	mi := &file_awareness_graph_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9650,7 +9901,7 @@ func (x *PrepareArchitectAnswerDispositionRequest) String() string {
 func (*PrepareArchitectAnswerDispositionRequest) ProtoMessage() {}
 
 func (x *PrepareArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[75]
+	mi := &file_awareness_graph_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9663,7 +9914,7 @@ func (x *PrepareArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.M
 
 // Deprecated: Use PrepareArchitectAnswerDispositionRequest.ProtoReflect.Descriptor instead.
 func (*PrepareArchitectAnswerDispositionRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{75}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *PrepareArchitectAnswerDispositionRequest) GetInput() *ArchitectureDispositionInput {
@@ -9684,7 +9935,7 @@ type PrepareArchitectAnswerDispositionResponse struct {
 
 func (x *PrepareArchitectAnswerDispositionResponse) Reset() {
 	*x = PrepareArchitectAnswerDispositionResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[76]
+	mi := &file_awareness_graph_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9696,7 +9947,7 @@ func (x *PrepareArchitectAnswerDispositionResponse) String() string {
 func (*PrepareArchitectAnswerDispositionResponse) ProtoMessage() {}
 
 func (x *PrepareArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[76]
+	mi := &file_awareness_graph_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9709,7 +9960,7 @@ func (x *PrepareArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.
 
 // Deprecated: Use PrepareArchitectAnswerDispositionResponse.ProtoReflect.Descriptor instead.
 func (*PrepareArchitectAnswerDispositionResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{76}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *PrepareArchitectAnswerDispositionResponse) GetCandidate() *ArchitectureDispositionCandidate {
@@ -9746,7 +9997,7 @@ type ArchitectureDispositionReceipt struct {
 
 func (x *ArchitectureDispositionReceipt) Reset() {
 	*x = ArchitectureDispositionReceipt{}
-	mi := &file_awareness_graph_proto_msgTypes[77]
+	mi := &file_awareness_graph_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9758,7 +10009,7 @@ func (x *ArchitectureDispositionReceipt) String() string {
 func (*ArchitectureDispositionReceipt) ProtoMessage() {}
 
 func (x *ArchitectureDispositionReceipt) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[77]
+	mi := &file_awareness_graph_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9771,7 +10022,7 @@ func (x *ArchitectureDispositionReceipt) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchitectureDispositionReceipt.ProtoReflect.Descriptor instead.
 func (*ArchitectureDispositionReceipt) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{77}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *ArchitectureDispositionReceipt) GetOutcome() ArchitectureDispositionOutcome {
@@ -9855,7 +10106,7 @@ type RecordArchitectAnswerDispositionRequest struct {
 
 func (x *RecordArchitectAnswerDispositionRequest) Reset() {
 	*x = RecordArchitectAnswerDispositionRequest{}
-	mi := &file_awareness_graph_proto_msgTypes[78]
+	mi := &file_awareness_graph_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9867,7 +10118,7 @@ func (x *RecordArchitectAnswerDispositionRequest) String() string {
 func (*RecordArchitectAnswerDispositionRequest) ProtoMessage() {}
 
 func (x *RecordArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[78]
+	mi := &file_awareness_graph_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9880,7 +10131,7 @@ func (x *RecordArchitectAnswerDispositionRequest) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use RecordArchitectAnswerDispositionRequest.ProtoReflect.Descriptor instead.
 func (*RecordArchitectAnswerDispositionRequest) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{78}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *RecordArchitectAnswerDispositionRequest) GetInput() *ArchitectureDispositionInput {
@@ -9908,7 +10159,7 @@ type RecordArchitectAnswerDispositionResponse struct {
 
 func (x *RecordArchitectAnswerDispositionResponse) Reset() {
 	*x = RecordArchitectAnswerDispositionResponse{}
-	mi := &file_awareness_graph_proto_msgTypes[79]
+	mi := &file_awareness_graph_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9920,7 +10171,7 @@ func (x *RecordArchitectAnswerDispositionResponse) String() string {
 func (*RecordArchitectAnswerDispositionResponse) ProtoMessage() {}
 
 func (x *RecordArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_awareness_graph_proto_msgTypes[79]
+	mi := &file_awareness_graph_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9933,7 +10184,7 @@ func (x *RecordArchitectAnswerDispositionResponse) ProtoReflect() protoreflect.M
 
 // Deprecated: Use RecordArchitectAnswerDispositionResponse.ProtoReflect.Descriptor instead.
 func (*RecordArchitectAnswerDispositionResponse) Descriptor() ([]byte, []int) {
-	return file_awareness_graph_proto_rawDescGZIP(), []int{79}
+	return file_awareness_graph_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *RecordArchitectAnswerDispositionResponse) GetReceipt() *ArchitectureDispositionReceipt {
@@ -10118,7 +10369,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x05found\x18\x04 \x01(\bR\x05found\x12F\n" +
 	"\tauthority\x18\x05 \x01(\v2(.globular.awareness_graph.GraphAuthorityR\tauthorityJ\x04\b\x02\x10\x03J\x04\b\x03\x10\x04R\atriplesR\x0finverse_triples\")\n" +
 	"\x0fMetadataRequest\x12\x16\n" +
-	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xf9\b\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xd7\t\n" +
 	"\x0eGraphAuthority\x12$\n" +
 	"\rauthoritative\x18\x01 \x01(\bR\rauthoritative\x12a\n" +
 	"\x15graph_freshness_state\x18\x02 \x01(\x0e2-.globular.awareness_graph.GraphFreshnessStateR\x13graphFreshnessState\x124\n" +
@@ -10138,7 +10389,27 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1ecertified_services_repo_commit\x18\x0e \x01(\tR\x1bcertifiedServicesRepoCommit\x12I\n" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
 	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\x12D\n" +
-	"\averdict\x18\x11 \x01(\x0e2*.globular.awareness_graph.AuthorityVerdictR\averdict\"\xe5\x1e\n" +
+	"\averdict\x18\x11 \x01(\x0e2*.globular.awareness_graph.AuthorityVerdictR\averdict\x12\\\n" +
+	"\x13current_publication\x18\x12 \x01(\v2+.globular.awareness_graph.DomainPublicationR\x12currentPublication\"\xfa\x03\n" +
+	"\x11DomainPublication\x12)\n" +
+	"\x10requested_domain\x18\v \x01(\tR\x0frequestedDomain\x12O\n" +
+	"\n" +
+	"resolution\x18\x01 \x01(\x0e2/.globular.awareness_graph.PublicationResolutionR\n" +
+	"resolution\x12\x16\n" +
+	"\x06detail\x18\x02 \x01(\tR\x06detail\x12\x1f\n" +
+	"\vreceipt_iri\x18\x03 \x01(\tR\n" +
+	"receiptIri\x12'\n" +
+	"\x0freceipt_version\x18\x04 \x01(\tR\x0ereceiptVersion\x12\x16\n" +
+	"\x06domain\x18\x05 \x01(\tR\x06domain\x12'\n" +
+	"\x0fsource_revision\x18\x06 \x01(\tR\x0esourceRevision\x12\x1f\n" +
+	"\vsource_tree\x18\a \x01(\tR\n" +
+	"sourceTree\x12!\n" +
+	"\fsource_state\x18\b \x01(\tR\vsourceState\x12\x1f\n" +
+	"\vsource_path\x18\t \x01(\tR\n" +
+	"sourcePath\x120\n" +
+	"\x14source_digest_sha256\x18\n" +
+	" \x01(\tR\x12sourceDigestSha256\x12/\n" +
+	"\x13snapshot_generation\x18\f \x01(\tR\x12snapshotGeneration\"\xe5\x1e\n" +
 	"\x10MetadataResponse\x12,\n" +
 	"\x12graph_build_commit\x18\x01 \x01(\tR\x10graphBuildCommit\x121\n" +
 	"\x15graph_build_time_unix\x18\x02 \x01(\x03R\x12graphBuildTimeUnix\x12,\n" +
@@ -10279,12 +10550,13 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1cscore_used_for_certification\x18\x06 \x01(\bR\x19scoreUsedForCertification\x12)\n" +
 	"\x10missing_evidence\x18\a \x03(\tR\x0fmissingEvidence\x12@\n" +
 	"\x1dblocked_by_forbidden_move_ids\x18\b \x03(\tR\x19blockedByForbiddenMoveIds\x12\x14\n" +
-	"\x05notes\x18\t \x03(\tR\x05notes\"\x91\x01\n" +
+	"\x05notes\x18\t \x03(\tR\x05notes\"\xc0\x01\n" +
 	"\x10PreflightRequest\x12\x12\n" +
 	"\x04task\x18\x01 \x01(\tR\x04task\x12\x14\n" +
 	"\x05files\x18\x02 \x03(\tR\x05files\x12;\n" +
 	"\x04mode\x18\x03 \x01(\x0e2'.globular.awareness_graph.PreflightModeR\x04mode\x12\x16\n" +
-	"\x06domain\x18\x04 \x01(\tR\x06domain\"\xa1\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12-\n" +
+	"\x12publication_domain\x18\x05 \x01(\tR\x11publicationDomain\"\xa1\n" +
 	"\n" +
 	"\x11PreflightResponse\x12A\n" +
 	"\x06status\x18\x01 \x01(\x0e2).globular.awareness_graph.PreflightStatusR\x06status\x12B\n" +
@@ -10781,7 +11053,12 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x10AuthorityVerdict\x12!\n" +
 	"\x1dAUTHORITY_VERDICT_UNSPECIFIED\x10\x00\x12#\n" +
 	"\x1fAUTHORITY_VERDICT_AUTHORITATIVE\x10\x01\x12'\n" +
-	"#AUTHORITY_VERDICT_NOT_AUTHORITATIVE\x10\x02*\xa8\x01\n" +
+	"#AUTHORITY_VERDICT_NOT_AUTHORITATIVE\x10\x02*\xae\x01\n" +
+	"\x15PublicationResolution\x12&\n" +
+	"\"PUBLICATION_RESOLUTION_UNSPECIFIED\x10\x00\x12#\n" +
+	"\x1fPUBLICATION_RESOLUTION_VERIFIED\x10\x01\x12!\n" +
+	"\x1dPUBLICATION_RESOLUTION_ABSENT\x10\x02\x12%\n" +
+	"!PUBLICATION_RESOLUTION_UNREADABLE\x10\x03*\xa8\x01\n" +
 	"\x13CandidateQueueState\x12%\n" +
 	"!CANDIDATE_QUEUE_STATE_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"CANDIDATE_QUEUE_STATE_NOT_DETECTED\x10\x01\x12\x1f\n" +
@@ -10965,8 +11242,8 @@ func file_awareness_graph_proto_rawDescGZIP() []byte {
 	return file_awareness_graph_proto_rawDescData
 }
 
-var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 35)
-var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 80)
+var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 36)
+var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 81)
 var file_awareness_graph_proto_goTypes = []any{
 	(BriefingStatus)(0),                               // 0: globular.awareness_graph.BriefingStatus
 	(BriefingFeedbackAvailability)(0),                 // 1: globular.awareness_graph.BriefingFeedbackAvailability
@@ -10979,275 +11256,279 @@ var file_awareness_graph_proto_goTypes = []any{
 	(SeedState)(0),                                    // 8: globular.awareness_graph.SeedState
 	(GraphFreshnessState)(0),                          // 9: globular.awareness_graph.GraphFreshnessState
 	(AuthorityVerdict)(0),                             // 10: globular.awareness_graph.AuthorityVerdict
-	(CandidateQueueState)(0),                          // 11: globular.awareness_graph.CandidateQueueState
-	(BenchmarkState)(0),                               // 12: globular.awareness_graph.BenchmarkState
-	(GovernancePackState)(0),                          // 13: globular.awareness_graph.GovernancePackState
-	(EvidenceLaneMode)(0),                             // 14: globular.awareness_graph.EvidenceLaneMode
-	(CertificationVerdict)(0),                         // 15: globular.awareness_graph.CertificationVerdict
-	(PromotionDecision)(0),                            // 16: globular.awareness_graph.PromotionDecision
-	(PreflightMode)(0),                                // 17: globular.awareness_graph.PreflightMode
-	(PreflightStatus)(0),                              // 18: globular.awareness_graph.PreflightStatus
-	(RiskClass)(0),                                    // 19: globular.awareness_graph.RiskClass
-	(Confidence)(0),                                   // 20: globular.awareness_graph.Confidence
-	(BlastRadius)(0),                                  // 21: globular.awareness_graph.BlastRadius
-	(ApprovalGate)(0),                                 // 22: globular.awareness_graph.ApprovalGate
-	(ProposeStatus)(0),                                // 23: globular.awareness_graph.ProposeStatus
-	(ArchitectureAvailability)(0),                     // 24: globular.awareness_graph.ArchitectureAvailability
-	(ArchitectureSourceAvailability)(0),               // 25: globular.awareness_graph.ArchitectureSourceAvailability
-	(ArchitectureSourceImpact)(0),                     // 26: globular.awareness_graph.ArchitectureSourceImpact
-	(ArchitectureArtifactClosure)(0),                  // 27: globular.awareness_graph.ArchitectureArtifactClosure
-	(ArchitectureDimensionState)(0),                   // 28: globular.awareness_graph.ArchitectureDimensionState
-	(ArchitectureLifecycleState)(0),                   // 29: globular.awareness_graph.ArchitectureLifecycleState
-	(ArchitectureAttentionSeverity)(0),                // 30: globular.awareness_graph.ArchitectureAttentionSeverity
-	(ArchitectureAssessmentCoverage)(0),               // 31: globular.awareness_graph.ArchitectureAssessmentCoverage
-	(ArchitectureDisposition)(0),                      // 32: globular.awareness_graph.ArchitectureDisposition
-	(ArchitectureReusability)(0),                      // 33: globular.awareness_graph.ArchitectureReusability
-	(ArchitectureDispositionOutcome)(0),               // 34: globular.awareness_graph.ArchitectureDispositionOutcome
-	(*BriefingRequest)(nil),                           // 35: globular.awareness_graph.BriefingRequest
-	(*BriefingResponse)(nil),                          // 36: globular.awareness_graph.BriefingResponse
-	(*BriefingFeedbackVerifiedRecord)(nil),            // 37: globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	(*BriefingFeedbackFinding)(nil),                   // 38: globular.awareness_graph.BriefingFeedbackFinding
-	(*BriefingFeedbackProjection)(nil),                // 39: globular.awareness_graph.BriefingFeedbackProjection
-	(*MatchedImplementationPattern)(nil),              // 40: globular.awareness_graph.MatchedImplementationPattern
-	(*ImpactRequest)(nil),                             // 41: globular.awareness_graph.ImpactRequest
-	(*ImpactResponse)(nil),                            // 42: globular.awareness_graph.ImpactResponse
-	(*CodeSymbolNode)(nil),                            // 43: globular.awareness_graph.CodeSymbolNode
-	(*KnowledgeNode)(nil),                             // 44: globular.awareness_graph.KnowledgeNode
-	(*NodeFact)(nil),                                  // 45: globular.awareness_graph.NodeFact
-	(*CodeAnchor)(nil),                                // 46: globular.awareness_graph.CodeAnchor
-	(*QueryRequest)(nil),                              // 47: globular.awareness_graph.QueryRequest
-	(*QueryRow)(nil),                                  // 48: globular.awareness_graph.QueryRow
-	(*QueryResponse)(nil),                             // 49: globular.awareness_graph.QueryResponse
-	(*ResolveRequest)(nil),                            // 50: globular.awareness_graph.ResolveRequest
-	(*ResolveResponse)(nil),                           // 51: globular.awareness_graph.ResolveResponse
-	(*MetadataRequest)(nil),                           // 52: globular.awareness_graph.MetadataRequest
-	(*GraphAuthority)(nil),                            // 53: globular.awareness_graph.GraphAuthority
-	(*MetadataResponse)(nil),                          // 54: globular.awareness_graph.MetadataResponse
-	(*AuthoritySurface)(nil),                          // 55: globular.awareness_graph.AuthoritySurface
-	(*ProofSlot)(nil),                                 // 56: globular.awareness_graph.ProofSlot
-	(*ProofObligation)(nil),                           // 57: globular.awareness_graph.ProofObligation
-	(*ForbiddenRepairMove)(nil),                       // 58: globular.awareness_graph.ForbiddenRepairMove
-	(*ForbiddenMoveEvidence)(nil),                     // 59: globular.awareness_graph.ForbiddenMoveEvidence
-	(*DetectedForbiddenMove)(nil),                     // 60: globular.awareness_graph.DetectedForbiddenMove
-	(*RepairClaim)(nil),                               // 61: globular.awareness_graph.RepairClaim
-	(*CertificationRequirement)(nil),                  // 62: globular.awareness_graph.CertificationRequirement
-	(*CertificationLaneResult)(nil),                   // 63: globular.awareness_graph.CertificationLaneResult
-	(*GovernanceCertification)(nil),                   // 64: globular.awareness_graph.GovernanceCertification
-	(*PreflightRequest)(nil),                          // 65: globular.awareness_graph.PreflightRequest
-	(*PreflightResponse)(nil),                         // 66: globular.awareness_graph.PreflightResponse
-	(*ChangeRisk)(nil),                                // 67: globular.awareness_graph.ChangeRisk
-	(*CoverageSummary)(nil),                           // 68: globular.awareness_graph.CoverageSummary
-	(*EditCheckRequest)(nil),                          // 69: globular.awareness_graph.EditCheckRequest
-	(*EditWarning)(nil),                               // 70: globular.awareness_graph.EditWarning
-	(*EditCheckResponse)(nil),                         // 71: globular.awareness_graph.EditCheckResponse
-	(*ProposeRequest)(nil),                            // 72: globular.awareness_graph.ProposeRequest
-	(*ProposeResponse)(nil),                           // 73: globular.awareness_graph.ProposeResponse
-	(*ReferenceSitesRequest)(nil),                     // 74: globular.awareness_graph.ReferenceSitesRequest
-	(*ReferenceFamily)(nil),                           // 75: globular.awareness_graph.ReferenceFamily
-	(*ReferenceSitesResponse)(nil),                    // 76: globular.awareness_graph.ReferenceSitesResponse
-	(*ArchitectureSourceStatus)(nil),                  // 77: globular.awareness_graph.ArchitectureSourceStatus
-	(*ArchitectureProjectionMeta)(nil),                // 78: globular.awareness_graph.ArchitectureProjectionMeta
-	(*ArchitectureArtifactIdentity)(nil),              // 79: globular.awareness_graph.ArchitectureArtifactIdentity
-	(*ArchitectureLifecycleAssessment)(nil),           // 80: globular.awareness_graph.ArchitectureLifecycleAssessment
-	(*ArchitectureDimensionExplanation)(nil),          // 81: globular.awareness_graph.ArchitectureDimensionExplanation
-	(*ArchitectureDimensionAssessment)(nil),           // 82: globular.awareness_graph.ArchitectureDimensionAssessment
-	(*ArchitectureAttentionItem)(nil),                 // 83: globular.awareness_graph.ArchitectureAttentionItem
-	(*ArchitectureKeyedCount)(nil),                    // 84: globular.awareness_graph.ArchitectureKeyedCount
-	(*ArchitectureGraphAuthoritySummary)(nil),         // 85: globular.awareness_graph.ArchitectureGraphAuthoritySummary
-	(*ArchitectureCoverageSummary)(nil),               // 86: globular.awareness_graph.ArchitectureCoverageSummary
-	(*ArchitectureTaskSummary)(nil),                   // 87: globular.awareness_graph.ArchitectureTaskSummary
-	(*ArchitectureCompletionSummary)(nil),             // 88: globular.awareness_graph.ArchitectureCompletionSummary
-	(*ArchitectureFeedbackContext)(nil),               // 89: globular.awareness_graph.ArchitectureFeedbackContext
-	(*ArchitectureScopedFeedbackRef)(nil),             // 90: globular.awareness_graph.ArchitectureScopedFeedbackRef
-	(*ArchitectureControlSnapshot)(nil),               // 91: globular.awareness_graph.ArchitectureControlSnapshot
-	(*ArchitectureArtifactSummary)(nil),               // 92: globular.awareness_graph.ArchitectureArtifactSummary
-	(*ArchitectureArtifactIndex)(nil),                 // 93: globular.awareness_graph.ArchitectureArtifactIndex
-	(*ArchitectureArtifactState)(nil),                 // 94: globular.awareness_graph.ArchitectureArtifactState
-	(*ArchitectureNavigationClass)(nil),               // 95: globular.awareness_graph.ArchitectureNavigationClass
-	(*ArchitectureNavigationFamily)(nil),              // 96: globular.awareness_graph.ArchitectureNavigationFamily
-	(*OntologyNavigationDescriptor)(nil),              // 97: globular.awareness_graph.OntologyNavigationDescriptor
-	(*GetArchitectureControlSnapshotRequest)(nil),     // 98: globular.awareness_graph.GetArchitectureControlSnapshotRequest
-	(*GetArchitectureControlSnapshotResponse)(nil),    // 99: globular.awareness_graph.GetArchitectureControlSnapshotResponse
-	(*ListArchitectureArtifactsRequest)(nil),          // 100: globular.awareness_graph.ListArchitectureArtifactsRequest
-	(*ListArchitectureArtifactsResponse)(nil),         // 101: globular.awareness_graph.ListArchitectureArtifactsResponse
-	(*GetArchitectureArtifactStateRequest)(nil),       // 102: globular.awareness_graph.GetArchitectureArtifactStateRequest
-	(*GetArchitectureArtifactStateResponse)(nil),      // 103: globular.awareness_graph.GetArchitectureArtifactStateResponse
-	(*GetOntologyNavigationDescriptorRequest)(nil),    // 104: globular.awareness_graph.GetOntologyNavigationDescriptorRequest
-	(*GetOntologyNavigationDescriptorResponse)(nil),   // 105: globular.awareness_graph.GetOntologyNavigationDescriptorResponse
-	(*ArchitectureMutationRefusal)(nil),               // 106: globular.awareness_graph.ArchitectureMutationRefusal
-	(*ArchitectureMutationAudit)(nil),                 // 107: globular.awareness_graph.ArchitectureMutationAudit
-	(*ArchitectureDispositionInput)(nil),              // 108: globular.awareness_graph.ArchitectureDispositionInput
-	(*ArchitectureDispositionCandidate)(nil),          // 109: globular.awareness_graph.ArchitectureDispositionCandidate
-	(*PrepareArchitectAnswerDispositionRequest)(nil),  // 110: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
-	(*PrepareArchitectAnswerDispositionResponse)(nil), // 111: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
-	(*ArchitectureDispositionReceipt)(nil),            // 112: globular.awareness_graph.ArchitectureDispositionReceipt
-	(*RecordArchitectAnswerDispositionRequest)(nil),   // 113: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
-	(*RecordArchitectAnswerDispositionResponse)(nil),  // 114: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	(PublicationResolution)(0),                        // 11: globular.awareness_graph.PublicationResolution
+	(CandidateQueueState)(0),                          // 12: globular.awareness_graph.CandidateQueueState
+	(BenchmarkState)(0),                               // 13: globular.awareness_graph.BenchmarkState
+	(GovernancePackState)(0),                          // 14: globular.awareness_graph.GovernancePackState
+	(EvidenceLaneMode)(0),                             // 15: globular.awareness_graph.EvidenceLaneMode
+	(CertificationVerdict)(0),                         // 16: globular.awareness_graph.CertificationVerdict
+	(PromotionDecision)(0),                            // 17: globular.awareness_graph.PromotionDecision
+	(PreflightMode)(0),                                // 18: globular.awareness_graph.PreflightMode
+	(PreflightStatus)(0),                              // 19: globular.awareness_graph.PreflightStatus
+	(RiskClass)(0),                                    // 20: globular.awareness_graph.RiskClass
+	(Confidence)(0),                                   // 21: globular.awareness_graph.Confidence
+	(BlastRadius)(0),                                  // 22: globular.awareness_graph.BlastRadius
+	(ApprovalGate)(0),                                 // 23: globular.awareness_graph.ApprovalGate
+	(ProposeStatus)(0),                                // 24: globular.awareness_graph.ProposeStatus
+	(ArchitectureAvailability)(0),                     // 25: globular.awareness_graph.ArchitectureAvailability
+	(ArchitectureSourceAvailability)(0),               // 26: globular.awareness_graph.ArchitectureSourceAvailability
+	(ArchitectureSourceImpact)(0),                     // 27: globular.awareness_graph.ArchitectureSourceImpact
+	(ArchitectureArtifactClosure)(0),                  // 28: globular.awareness_graph.ArchitectureArtifactClosure
+	(ArchitectureDimensionState)(0),                   // 29: globular.awareness_graph.ArchitectureDimensionState
+	(ArchitectureLifecycleState)(0),                   // 30: globular.awareness_graph.ArchitectureLifecycleState
+	(ArchitectureAttentionSeverity)(0),                // 31: globular.awareness_graph.ArchitectureAttentionSeverity
+	(ArchitectureAssessmentCoverage)(0),               // 32: globular.awareness_graph.ArchitectureAssessmentCoverage
+	(ArchitectureDisposition)(0),                      // 33: globular.awareness_graph.ArchitectureDisposition
+	(ArchitectureReusability)(0),                      // 34: globular.awareness_graph.ArchitectureReusability
+	(ArchitectureDispositionOutcome)(0),               // 35: globular.awareness_graph.ArchitectureDispositionOutcome
+	(*BriefingRequest)(nil),                           // 36: globular.awareness_graph.BriefingRequest
+	(*BriefingResponse)(nil),                          // 37: globular.awareness_graph.BriefingResponse
+	(*BriefingFeedbackVerifiedRecord)(nil),            // 38: globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	(*BriefingFeedbackFinding)(nil),                   // 39: globular.awareness_graph.BriefingFeedbackFinding
+	(*BriefingFeedbackProjection)(nil),                // 40: globular.awareness_graph.BriefingFeedbackProjection
+	(*MatchedImplementationPattern)(nil),              // 41: globular.awareness_graph.MatchedImplementationPattern
+	(*ImpactRequest)(nil),                             // 42: globular.awareness_graph.ImpactRequest
+	(*ImpactResponse)(nil),                            // 43: globular.awareness_graph.ImpactResponse
+	(*CodeSymbolNode)(nil),                            // 44: globular.awareness_graph.CodeSymbolNode
+	(*KnowledgeNode)(nil),                             // 45: globular.awareness_graph.KnowledgeNode
+	(*NodeFact)(nil),                                  // 46: globular.awareness_graph.NodeFact
+	(*CodeAnchor)(nil),                                // 47: globular.awareness_graph.CodeAnchor
+	(*QueryRequest)(nil),                              // 48: globular.awareness_graph.QueryRequest
+	(*QueryRow)(nil),                                  // 49: globular.awareness_graph.QueryRow
+	(*QueryResponse)(nil),                             // 50: globular.awareness_graph.QueryResponse
+	(*ResolveRequest)(nil),                            // 51: globular.awareness_graph.ResolveRequest
+	(*ResolveResponse)(nil),                           // 52: globular.awareness_graph.ResolveResponse
+	(*MetadataRequest)(nil),                           // 53: globular.awareness_graph.MetadataRequest
+	(*GraphAuthority)(nil),                            // 54: globular.awareness_graph.GraphAuthority
+	(*DomainPublication)(nil),                         // 55: globular.awareness_graph.DomainPublication
+	(*MetadataResponse)(nil),                          // 56: globular.awareness_graph.MetadataResponse
+	(*AuthoritySurface)(nil),                          // 57: globular.awareness_graph.AuthoritySurface
+	(*ProofSlot)(nil),                                 // 58: globular.awareness_graph.ProofSlot
+	(*ProofObligation)(nil),                           // 59: globular.awareness_graph.ProofObligation
+	(*ForbiddenRepairMove)(nil),                       // 60: globular.awareness_graph.ForbiddenRepairMove
+	(*ForbiddenMoveEvidence)(nil),                     // 61: globular.awareness_graph.ForbiddenMoveEvidence
+	(*DetectedForbiddenMove)(nil),                     // 62: globular.awareness_graph.DetectedForbiddenMove
+	(*RepairClaim)(nil),                               // 63: globular.awareness_graph.RepairClaim
+	(*CertificationRequirement)(nil),                  // 64: globular.awareness_graph.CertificationRequirement
+	(*CertificationLaneResult)(nil),                   // 65: globular.awareness_graph.CertificationLaneResult
+	(*GovernanceCertification)(nil),                   // 66: globular.awareness_graph.GovernanceCertification
+	(*PreflightRequest)(nil),                          // 67: globular.awareness_graph.PreflightRequest
+	(*PreflightResponse)(nil),                         // 68: globular.awareness_graph.PreflightResponse
+	(*ChangeRisk)(nil),                                // 69: globular.awareness_graph.ChangeRisk
+	(*CoverageSummary)(nil),                           // 70: globular.awareness_graph.CoverageSummary
+	(*EditCheckRequest)(nil),                          // 71: globular.awareness_graph.EditCheckRequest
+	(*EditWarning)(nil),                               // 72: globular.awareness_graph.EditWarning
+	(*EditCheckResponse)(nil),                         // 73: globular.awareness_graph.EditCheckResponse
+	(*ProposeRequest)(nil),                            // 74: globular.awareness_graph.ProposeRequest
+	(*ProposeResponse)(nil),                           // 75: globular.awareness_graph.ProposeResponse
+	(*ReferenceSitesRequest)(nil),                     // 76: globular.awareness_graph.ReferenceSitesRequest
+	(*ReferenceFamily)(nil),                           // 77: globular.awareness_graph.ReferenceFamily
+	(*ReferenceSitesResponse)(nil),                    // 78: globular.awareness_graph.ReferenceSitesResponse
+	(*ArchitectureSourceStatus)(nil),                  // 79: globular.awareness_graph.ArchitectureSourceStatus
+	(*ArchitectureProjectionMeta)(nil),                // 80: globular.awareness_graph.ArchitectureProjectionMeta
+	(*ArchitectureArtifactIdentity)(nil),              // 81: globular.awareness_graph.ArchitectureArtifactIdentity
+	(*ArchitectureLifecycleAssessment)(nil),           // 82: globular.awareness_graph.ArchitectureLifecycleAssessment
+	(*ArchitectureDimensionExplanation)(nil),          // 83: globular.awareness_graph.ArchitectureDimensionExplanation
+	(*ArchitectureDimensionAssessment)(nil),           // 84: globular.awareness_graph.ArchitectureDimensionAssessment
+	(*ArchitectureAttentionItem)(nil),                 // 85: globular.awareness_graph.ArchitectureAttentionItem
+	(*ArchitectureKeyedCount)(nil),                    // 86: globular.awareness_graph.ArchitectureKeyedCount
+	(*ArchitectureGraphAuthoritySummary)(nil),         // 87: globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	(*ArchitectureCoverageSummary)(nil),               // 88: globular.awareness_graph.ArchitectureCoverageSummary
+	(*ArchitectureTaskSummary)(nil),                   // 89: globular.awareness_graph.ArchitectureTaskSummary
+	(*ArchitectureCompletionSummary)(nil),             // 90: globular.awareness_graph.ArchitectureCompletionSummary
+	(*ArchitectureFeedbackContext)(nil),               // 91: globular.awareness_graph.ArchitectureFeedbackContext
+	(*ArchitectureScopedFeedbackRef)(nil),             // 92: globular.awareness_graph.ArchitectureScopedFeedbackRef
+	(*ArchitectureControlSnapshot)(nil),               // 93: globular.awareness_graph.ArchitectureControlSnapshot
+	(*ArchitectureArtifactSummary)(nil),               // 94: globular.awareness_graph.ArchitectureArtifactSummary
+	(*ArchitectureArtifactIndex)(nil),                 // 95: globular.awareness_graph.ArchitectureArtifactIndex
+	(*ArchitectureArtifactState)(nil),                 // 96: globular.awareness_graph.ArchitectureArtifactState
+	(*ArchitectureNavigationClass)(nil),               // 97: globular.awareness_graph.ArchitectureNavigationClass
+	(*ArchitectureNavigationFamily)(nil),              // 98: globular.awareness_graph.ArchitectureNavigationFamily
+	(*OntologyNavigationDescriptor)(nil),              // 99: globular.awareness_graph.OntologyNavigationDescriptor
+	(*GetArchitectureControlSnapshotRequest)(nil),     // 100: globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	(*GetArchitectureControlSnapshotResponse)(nil),    // 101: globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	(*ListArchitectureArtifactsRequest)(nil),          // 102: globular.awareness_graph.ListArchitectureArtifactsRequest
+	(*ListArchitectureArtifactsResponse)(nil),         // 103: globular.awareness_graph.ListArchitectureArtifactsResponse
+	(*GetArchitectureArtifactStateRequest)(nil),       // 104: globular.awareness_graph.GetArchitectureArtifactStateRequest
+	(*GetArchitectureArtifactStateResponse)(nil),      // 105: globular.awareness_graph.GetArchitectureArtifactStateResponse
+	(*GetOntologyNavigationDescriptorRequest)(nil),    // 106: globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	(*GetOntologyNavigationDescriptorResponse)(nil),   // 107: globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	(*ArchitectureMutationRefusal)(nil),               // 108: globular.awareness_graph.ArchitectureMutationRefusal
+	(*ArchitectureMutationAudit)(nil),                 // 109: globular.awareness_graph.ArchitectureMutationAudit
+	(*ArchitectureDispositionInput)(nil),              // 110: globular.awareness_graph.ArchitectureDispositionInput
+	(*ArchitectureDispositionCandidate)(nil),          // 111: globular.awareness_graph.ArchitectureDispositionCandidate
+	(*PrepareArchitectAnswerDispositionRequest)(nil),  // 112: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	(*PrepareArchitectAnswerDispositionResponse)(nil), // 113: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	(*ArchitectureDispositionReceipt)(nil),            // 114: globular.awareness_graph.ArchitectureDispositionReceipt
+	(*RecordArchitectAnswerDispositionRequest)(nil),   // 115: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	(*RecordArchitectAnswerDispositionResponse)(nil),  // 116: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
 }
 var file_awareness_graph_proto_depIdxs = []int32{
 	0,   // 0: globular.awareness_graph.BriefingResponse.status:type_name -> globular.awareness_graph.BriefingStatus
-	40,  // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	53,  // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	39,  // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
+	41,  // 1: globular.awareness_graph.BriefingResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	54,  // 2: globular.awareness_graph.BriefingResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	40,  // 3: globular.awareness_graph.BriefingResponse.feedback:type_name -> globular.awareness_graph.BriefingFeedbackProjection
 	2,   // 4: globular.awareness_graph.BriefingFeedbackVerifiedRecord.verification_class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
 	2,   // 5: globular.awareness_graph.BriefingFeedbackFinding.class:type_name -> globular.awareness_graph.BriefingFeedbackFindingClass
 	3,   // 6: globular.awareness_graph.BriefingFeedbackFinding.disposition:type_name -> globular.awareness_graph.BriefingFeedbackDisposition
 	1,   // 7: globular.awareness_graph.BriefingFeedbackProjection.availability:type_name -> globular.awareness_graph.BriefingFeedbackAvailability
-	37,  // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
-	38,  // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
-	44,  // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	53,  // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	43,  // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
-	46,  // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
-	45,  // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
+	38,  // 8: globular.awareness_graph.BriefingFeedbackProjection.records:type_name -> globular.awareness_graph.BriefingFeedbackVerifiedRecord
+	39,  // 9: globular.awareness_graph.BriefingFeedbackProjection.findings:type_name -> globular.awareness_graph.BriefingFeedbackFinding
+	45,  // 10: globular.awareness_graph.ImpactResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 11: globular.awareness_graph.ImpactResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 12: globular.awareness_graph.ImpactResponse.direct_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 13: globular.awareness_graph.ImpactResponse.inferred_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 14: globular.awareness_graph.ImpactResponse.inferred_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 15: globular.awareness_graph.ImpactResponse.inferred_incident_patterns:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 16: globular.awareness_graph.ImpactResponse.required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 17: globular.awareness_graph.ImpactResponse.forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 18: globular.awareness_graph.ImpactResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 19: globular.awareness_graph.ImpactResponse.inferred_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 20: globular.awareness_graph.ImpactResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	54,  // 21: globular.awareness_graph.ImpactResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	44,  // 22: globular.awareness_graph.ImpactResponse.symbols:type_name -> globular.awareness_graph.CodeSymbolNode
+	47,  // 23: globular.awareness_graph.KnowledgeNode.anchor:type_name -> globular.awareness_graph.CodeAnchor
+	46,  // 24: globular.awareness_graph.KnowledgeNode.facts:type_name -> globular.awareness_graph.NodeFact
 	4,   // 25: globular.awareness_graph.QueryRequest.mode:type_name -> globular.awareness_graph.QueryMode
 	5,   // 26: globular.awareness_graph.QueryRequest.class:type_name -> globular.awareness_graph.QueryClass
-	48,  // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
-	53,  // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	44,  // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
-	53,  // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	49,  // 27: globular.awareness_graph.QueryResponse.rows:type_name -> globular.awareness_graph.QueryRow
+	54,  // 28: globular.awareness_graph.QueryResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	45,  // 29: globular.awareness_graph.ResolveResponse.node:type_name -> globular.awareness_graph.KnowledgeNode
+	54,  // 30: globular.awareness_graph.ResolveResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
 	9,   // 31: globular.awareness_graph.GraphAuthority.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
 	6,   // 32: globular.awareness_graph.GraphAuthority.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
 	8,   // 33: globular.awareness_graph.GraphAuthority.seed_state:type_name -> globular.awareness_graph.SeedState
 	10,  // 34: globular.awareness_graph.GraphAuthority.verdict:type_name -> globular.awareness_graph.AuthorityVerdict
-	6,   // 35: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
-	7,   // 36: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
-	8,   // 37: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
-	9,   // 38: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
-	11,  // 39: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
-	12,  // 40: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
-	13,  // 41: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
-	53,  // 42: globular.awareness_graph.MetadataResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	14,  // 43: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	56,  // 44: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
-	59,  // 45: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
-	14,  // 46: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
-	63,  // 47: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
-	15,  // 48: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
-	16,  // 49: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
-	17,  // 50: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
-	18,  // 51: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
-	19,  // 52: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
-	20,  // 53: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
-	44,  // 54: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 55: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 56: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 57: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
-	44,  // 58: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
-	40,  // 59: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
-	68,  // 60: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
-	44,  // 61: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
-	53,  // 62: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	67,  // 63: globular.awareness_graph.PreflightResponse.change_risk:type_name -> globular.awareness_graph.ChangeRisk
-	21,  // 64: globular.awareness_graph.ChangeRisk.blast_radius:type_name -> globular.awareness_graph.BlastRadius
-	22,  // 65: globular.awareness_graph.ChangeRisk.approval_gate:type_name -> globular.awareness_graph.ApprovalGate
-	70,  // 66: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
-	23,  // 67: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
-	75,  // 68: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
-	53,  // 69: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
-	25,  // 70: globular.awareness_graph.ArchitectureSourceStatus.availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
-	26,  // 71: globular.awareness_graph.ArchitectureSourceStatus.impact:type_name -> globular.awareness_graph.ArchitectureSourceImpact
-	24,  // 72: globular.awareness_graph.ArchitectureProjectionMeta.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
-	77,  // 73: globular.awareness_graph.ArchitectureProjectionMeta.sources:type_name -> globular.awareness_graph.ArchitectureSourceStatus
-	29,  // 74: globular.awareness_graph.ArchitectureLifecycleAssessment.state:type_name -> globular.awareness_graph.ArchitectureLifecycleState
-	25,  // 75: globular.awareness_graph.ArchitectureLifecycleAssessment.source_availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
-	28,  // 76: globular.awareness_graph.ArchitectureDimensionAssessment.state:type_name -> globular.awareness_graph.ArchitectureDimensionState
-	81,  // 77: globular.awareness_graph.ArchitectureDimensionAssessment.explanation:type_name -> globular.awareness_graph.ArchitectureDimensionExplanation
-	30,  // 78: globular.awareness_graph.ArchitectureAttentionItem.severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	78,  // 79: globular.awareness_graph.ArchitectureControlSnapshot.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	85,  // 80: globular.awareness_graph.ArchitectureControlSnapshot.graph_authority:type_name -> globular.awareness_graph.ArchitectureGraphAuthoritySummary
-	84,  // 81: globular.awareness_graph.ArchitectureControlSnapshot.counts_by_class:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	84,  // 82: globular.awareness_graph.ArchitectureControlSnapshot.assessment_coverage_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	84,  // 83: globular.awareness_graph.ArchitectureControlSnapshot.closure_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	84,  // 84: globular.awareness_graph.ArchitectureControlSnapshot.attention_counts_by_severity:type_name -> globular.awareness_graph.ArchitectureKeyedCount
-	83,  // 85: globular.awareness_graph.ArchitectureControlSnapshot.top_attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
-	86,  // 86: globular.awareness_graph.ArchitectureControlSnapshot.coverage:type_name -> globular.awareness_graph.ArchitectureCoverageSummary
-	87,  // 87: globular.awareness_graph.ArchitectureControlSnapshot.active_task:type_name -> globular.awareness_graph.ArchitectureTaskSummary
-	88,  // 88: globular.awareness_graph.ArchitectureControlSnapshot.completion:type_name -> globular.awareness_graph.ArchitectureCompletionSummary
-	89,  // 89: globular.awareness_graph.ArchitectureControlSnapshot.feedback_context:type_name -> globular.awareness_graph.ArchitectureFeedbackContext
-	79,  // 90: globular.awareness_graph.ArchitectureArtifactSummary.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
-	31,  // 91: globular.awareness_graph.ArchitectureArtifactSummary.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	29,  // 92: globular.awareness_graph.ArchitectureArtifactSummary.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleState
-	27,  // 93: globular.awareness_graph.ArchitectureArtifactSummary.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	30,  // 94: globular.awareness_graph.ArchitectureArtifactSummary.highest_severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	24,  // 95: globular.awareness_graph.ArchitectureArtifactSummary.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
-	78,  // 96: globular.awareness_graph.ArchitectureArtifactIndex.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	92,  // 97: globular.awareness_graph.ArchitectureArtifactIndex.page:type_name -> globular.awareness_graph.ArchitectureArtifactSummary
-	78,  // 98: globular.awareness_graph.ArchitectureArtifactState.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	79,  // 99: globular.awareness_graph.ArchitectureArtifactState.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
-	31,  // 100: globular.awareness_graph.ArchitectureArtifactState.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	27,  // 101: globular.awareness_graph.ArchitectureArtifactState.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	80,  // 102: globular.awareness_graph.ArchitectureArtifactState.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleAssessment
-	82,  // 103: globular.awareness_graph.ArchitectureArtifactState.dimensions:type_name -> globular.awareness_graph.ArchitectureDimensionAssessment
-	83,  // 104: globular.awareness_graph.ArchitectureArtifactState.attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
-	90,  // 105: globular.awareness_graph.ArchitectureArtifactState.feedback:type_name -> globular.awareness_graph.ArchitectureScopedFeedbackRef
-	31,  // 106: globular.awareness_graph.ArchitectureNavigationClass.coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
-	95,  // 107: globular.awareness_graph.ArchitectureNavigationFamily.classes:type_name -> globular.awareness_graph.ArchitectureNavigationClass
-	78,  // 108: globular.awareness_graph.OntologyNavigationDescriptor.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
-	96,  // 109: globular.awareness_graph.OntologyNavigationDescriptor.families:type_name -> globular.awareness_graph.ArchitectureNavigationFamily
-	95,  // 110: globular.awareness_graph.OntologyNavigationDescriptor.unknown_class_fallback:type_name -> globular.awareness_graph.ArchitectureNavigationClass
-	91,  // 111: globular.awareness_graph.GetArchitectureControlSnapshotResponse.snapshot:type_name -> globular.awareness_graph.ArchitectureControlSnapshot
-	27,  // 112: globular.awareness_graph.ListArchitectureArtifactsRequest.closure_filter:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
-	30,  // 113: globular.awareness_graph.ListArchitectureArtifactsRequest.severity_filter:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
-	93,  // 114: globular.awareness_graph.ListArchitectureArtifactsResponse.index:type_name -> globular.awareness_graph.ArchitectureArtifactIndex
-	94,  // 115: globular.awareness_graph.GetArchitectureArtifactStateResponse.state:type_name -> globular.awareness_graph.ArchitectureArtifactState
-	97,  // 116: globular.awareness_graph.GetOntologyNavigationDescriptorResponse.descriptor:type_name -> globular.awareness_graph.OntologyNavigationDescriptor
-	107, // 117: globular.awareness_graph.ArchitectureMutationRefusal.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
-	32,  // 118: globular.awareness_graph.ArchitectureDispositionInput.disposition:type_name -> globular.awareness_graph.ArchitectureDisposition
-	33,  // 119: globular.awareness_graph.ArchitectureDispositionInput.reusability:type_name -> globular.awareness_graph.ArchitectureReusability
-	108, // 120: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
-	109, // 121: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.candidate:type_name -> globular.awareness_graph.ArchitectureDispositionCandidate
-	106, // 122: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
-	34,  // 123: globular.awareness_graph.ArchitectureDispositionReceipt.outcome:type_name -> globular.awareness_graph.ArchitectureDispositionOutcome
-	107, // 124: globular.awareness_graph.ArchitectureDispositionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
-	108, // 125: globular.awareness_graph.RecordArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
-	112, // 126: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.receipt:type_name -> globular.awareness_graph.ArchitectureDispositionReceipt
-	106, // 127: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
-	35,  // 128: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
-	41,  // 129: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
-	47,  // 130: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
-	50,  // 131: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
-	52,  // 132: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
-	65,  // 133: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
-	69,  // 134: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
-	72,  // 135: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
-	74,  // 136: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
-	98,  // 137: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:input_type -> globular.awareness_graph.GetArchitectureControlSnapshotRequest
-	100, // 138: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:input_type -> globular.awareness_graph.ListArchitectureArtifactsRequest
-	102, // 139: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:input_type -> globular.awareness_graph.GetArchitectureArtifactStateRequest
-	104, // 140: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
-	110, // 141: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
-	113, // 142: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
-	36,  // 143: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
-	42,  // 144: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
-	49,  // 145: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
-	51,  // 146: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
-	54,  // 147: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
-	66,  // 148: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
-	71,  // 149: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
-	73,  // 150: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
-	76,  // 151: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
-	99,  // 152: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
-	101, // 153: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
-	103, // 154: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
-	105, // 155: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
-	111, // 156: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
-	114, // 157: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
-	143, // [143:158] is the sub-list for method output_type
-	128, // [128:143] is the sub-list for method input_type
-	128, // [128:128] is the sub-list for extension type_name
-	128, // [128:128] is the sub-list for extension extendee
-	0,   // [0:128] is the sub-list for field type_name
+	55,  // 35: globular.awareness_graph.GraphAuthority.current_publication:type_name -> globular.awareness_graph.DomainPublication
+	11,  // 36: globular.awareness_graph.DomainPublication.resolution:type_name -> globular.awareness_graph.PublicationResolution
+	6,   // 37: globular.awareness_graph.MetadataResponse.build_provenance_state:type_name -> globular.awareness_graph.BuildProvenanceState
+	7,   // 38: globular.awareness_graph.MetadataResponse.coverage_state:type_name -> globular.awareness_graph.CoverageState
+	8,   // 39: globular.awareness_graph.MetadataResponse.seed_state:type_name -> globular.awareness_graph.SeedState
+	9,   // 40: globular.awareness_graph.MetadataResponse.graph_freshness_state:type_name -> globular.awareness_graph.GraphFreshnessState
+	12,  // 41: globular.awareness_graph.MetadataResponse.candidate_queue_state:type_name -> globular.awareness_graph.CandidateQueueState
+	13,  // 42: globular.awareness_graph.MetadataResponse.benchmark_state:type_name -> globular.awareness_graph.BenchmarkState
+	14,  // 43: globular.awareness_graph.MetadataResponse.governance_pack_state:type_name -> globular.awareness_graph.GovernancePackState
+	54,  // 44: globular.awareness_graph.MetadataResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	15,  // 45: globular.awareness_graph.ProofObligation.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	58,  // 46: globular.awareness_graph.ProofObligation.required_slots:type_name -> globular.awareness_graph.ProofSlot
+	61,  // 47: globular.awareness_graph.DetectedForbiddenMove.evidence:type_name -> globular.awareness_graph.ForbiddenMoveEvidence
+	15,  // 48: globular.awareness_graph.CertificationRequirement.lane_mode:type_name -> globular.awareness_graph.EvidenceLaneMode
+	65,  // 49: globular.awareness_graph.GovernanceCertification.lanes:type_name -> globular.awareness_graph.CertificationLaneResult
+	16,  // 50: globular.awareness_graph.GovernanceCertification.verdict:type_name -> globular.awareness_graph.CertificationVerdict
+	17,  // 51: globular.awareness_graph.GovernanceCertification.promotion:type_name -> globular.awareness_graph.PromotionDecision
+	18,  // 52: globular.awareness_graph.PreflightRequest.mode:type_name -> globular.awareness_graph.PreflightMode
+	19,  // 53: globular.awareness_graph.PreflightResponse.status:type_name -> globular.awareness_graph.PreflightStatus
+	20,  // 54: globular.awareness_graph.PreflightResponse.risk_class:type_name -> globular.awareness_graph.RiskClass
+	21,  // 55: globular.awareness_graph.PreflightResponse.confidence:type_name -> globular.awareness_graph.Confidence
+	45,  // 56: globular.awareness_graph.PreflightResponse.direct_invariants:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 57: globular.awareness_graph.PreflightResponse.direct_failure_modes:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 58: globular.awareness_graph.PreflightResponse.direct_intents:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 59: globular.awareness_graph.PreflightResponse.direct_forbidden_fixes:type_name -> globular.awareness_graph.KnowledgeNode
+	45,  // 60: globular.awareness_graph.PreflightResponse.direct_required_tests:type_name -> globular.awareness_graph.KnowledgeNode
+	41,  // 61: globular.awareness_graph.PreflightResponse.implementation_patterns:type_name -> globular.awareness_graph.MatchedImplementationPattern
+	70,  // 62: globular.awareness_graph.PreflightResponse.coverage:type_name -> globular.awareness_graph.CoverageSummary
+	45,  // 63: globular.awareness_graph.PreflightResponse.direct_architecture:type_name -> globular.awareness_graph.KnowledgeNode
+	54,  // 64: globular.awareness_graph.PreflightResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	69,  // 65: globular.awareness_graph.PreflightResponse.change_risk:type_name -> globular.awareness_graph.ChangeRisk
+	22,  // 66: globular.awareness_graph.ChangeRisk.blast_radius:type_name -> globular.awareness_graph.BlastRadius
+	23,  // 67: globular.awareness_graph.ChangeRisk.approval_gate:type_name -> globular.awareness_graph.ApprovalGate
+	72,  // 68: globular.awareness_graph.EditCheckResponse.warnings:type_name -> globular.awareness_graph.EditWarning
+	24,  // 69: globular.awareness_graph.ProposeResponse.status:type_name -> globular.awareness_graph.ProposeStatus
+	77,  // 70: globular.awareness_graph.ReferenceSitesResponse.families:type_name -> globular.awareness_graph.ReferenceFamily
+	54,  // 71: globular.awareness_graph.ReferenceSitesResponse.authority:type_name -> globular.awareness_graph.GraphAuthority
+	26,  // 72: globular.awareness_graph.ArchitectureSourceStatus.availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	27,  // 73: globular.awareness_graph.ArchitectureSourceStatus.impact:type_name -> globular.awareness_graph.ArchitectureSourceImpact
+	25,  // 74: globular.awareness_graph.ArchitectureProjectionMeta.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	79,  // 75: globular.awareness_graph.ArchitectureProjectionMeta.sources:type_name -> globular.awareness_graph.ArchitectureSourceStatus
+	30,  // 76: globular.awareness_graph.ArchitectureLifecycleAssessment.state:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	26,  // 77: globular.awareness_graph.ArchitectureLifecycleAssessment.source_availability:type_name -> globular.awareness_graph.ArchitectureSourceAvailability
+	29,  // 78: globular.awareness_graph.ArchitectureDimensionAssessment.state:type_name -> globular.awareness_graph.ArchitectureDimensionState
+	83,  // 79: globular.awareness_graph.ArchitectureDimensionAssessment.explanation:type_name -> globular.awareness_graph.ArchitectureDimensionExplanation
+	31,  // 80: globular.awareness_graph.ArchitectureAttentionItem.severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	80,  // 81: globular.awareness_graph.ArchitectureControlSnapshot.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	87,  // 82: globular.awareness_graph.ArchitectureControlSnapshot.graph_authority:type_name -> globular.awareness_graph.ArchitectureGraphAuthoritySummary
+	86,  // 83: globular.awareness_graph.ArchitectureControlSnapshot.counts_by_class:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	86,  // 84: globular.awareness_graph.ArchitectureControlSnapshot.assessment_coverage_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	86,  // 85: globular.awareness_graph.ArchitectureControlSnapshot.closure_counts:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	86,  // 86: globular.awareness_graph.ArchitectureControlSnapshot.attention_counts_by_severity:type_name -> globular.awareness_graph.ArchitectureKeyedCount
+	85,  // 87: globular.awareness_graph.ArchitectureControlSnapshot.top_attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	88,  // 88: globular.awareness_graph.ArchitectureControlSnapshot.coverage:type_name -> globular.awareness_graph.ArchitectureCoverageSummary
+	89,  // 89: globular.awareness_graph.ArchitectureControlSnapshot.active_task:type_name -> globular.awareness_graph.ArchitectureTaskSummary
+	90,  // 90: globular.awareness_graph.ArchitectureControlSnapshot.completion:type_name -> globular.awareness_graph.ArchitectureCompletionSummary
+	91,  // 91: globular.awareness_graph.ArchitectureControlSnapshot.feedback_context:type_name -> globular.awareness_graph.ArchitectureFeedbackContext
+	81,  // 92: globular.awareness_graph.ArchitectureArtifactSummary.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	32,  // 93: globular.awareness_graph.ArchitectureArtifactSummary.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	30,  // 94: globular.awareness_graph.ArchitectureArtifactSummary.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleState
+	28,  // 95: globular.awareness_graph.ArchitectureArtifactSummary.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	31,  // 96: globular.awareness_graph.ArchitectureArtifactSummary.highest_severity:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	25,  // 97: globular.awareness_graph.ArchitectureArtifactSummary.availability:type_name -> globular.awareness_graph.ArchitectureAvailability
+	80,  // 98: globular.awareness_graph.ArchitectureArtifactIndex.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	94,  // 99: globular.awareness_graph.ArchitectureArtifactIndex.page:type_name -> globular.awareness_graph.ArchitectureArtifactSummary
+	80,  // 100: globular.awareness_graph.ArchitectureArtifactState.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	81,  // 101: globular.awareness_graph.ArchitectureArtifactState.identity:type_name -> globular.awareness_graph.ArchitectureArtifactIdentity
+	32,  // 102: globular.awareness_graph.ArchitectureArtifactState.assessment_coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	28,  // 103: globular.awareness_graph.ArchitectureArtifactState.closure:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	82,  // 104: globular.awareness_graph.ArchitectureArtifactState.lifecycle:type_name -> globular.awareness_graph.ArchitectureLifecycleAssessment
+	84,  // 105: globular.awareness_graph.ArchitectureArtifactState.dimensions:type_name -> globular.awareness_graph.ArchitectureDimensionAssessment
+	85,  // 106: globular.awareness_graph.ArchitectureArtifactState.attention:type_name -> globular.awareness_graph.ArchitectureAttentionItem
+	92,  // 107: globular.awareness_graph.ArchitectureArtifactState.feedback:type_name -> globular.awareness_graph.ArchitectureScopedFeedbackRef
+	32,  // 108: globular.awareness_graph.ArchitectureNavigationClass.coverage:type_name -> globular.awareness_graph.ArchitectureAssessmentCoverage
+	97,  // 109: globular.awareness_graph.ArchitectureNavigationFamily.classes:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	80,  // 110: globular.awareness_graph.OntologyNavigationDescriptor.meta:type_name -> globular.awareness_graph.ArchitectureProjectionMeta
+	98,  // 111: globular.awareness_graph.OntologyNavigationDescriptor.families:type_name -> globular.awareness_graph.ArchitectureNavigationFamily
+	97,  // 112: globular.awareness_graph.OntologyNavigationDescriptor.unknown_class_fallback:type_name -> globular.awareness_graph.ArchitectureNavigationClass
+	93,  // 113: globular.awareness_graph.GetArchitectureControlSnapshotResponse.snapshot:type_name -> globular.awareness_graph.ArchitectureControlSnapshot
+	28,  // 114: globular.awareness_graph.ListArchitectureArtifactsRequest.closure_filter:type_name -> globular.awareness_graph.ArchitectureArtifactClosure
+	31,  // 115: globular.awareness_graph.ListArchitectureArtifactsRequest.severity_filter:type_name -> globular.awareness_graph.ArchitectureAttentionSeverity
+	95,  // 116: globular.awareness_graph.ListArchitectureArtifactsResponse.index:type_name -> globular.awareness_graph.ArchitectureArtifactIndex
+	96,  // 117: globular.awareness_graph.GetArchitectureArtifactStateResponse.state:type_name -> globular.awareness_graph.ArchitectureArtifactState
+	99,  // 118: globular.awareness_graph.GetOntologyNavigationDescriptorResponse.descriptor:type_name -> globular.awareness_graph.OntologyNavigationDescriptor
+	109, // 119: globular.awareness_graph.ArchitectureMutationRefusal.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	33,  // 120: globular.awareness_graph.ArchitectureDispositionInput.disposition:type_name -> globular.awareness_graph.ArchitectureDisposition
+	34,  // 121: globular.awareness_graph.ArchitectureDispositionInput.reusability:type_name -> globular.awareness_graph.ArchitectureReusability
+	110, // 122: globular.awareness_graph.PrepareArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	111, // 123: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.candidate:type_name -> globular.awareness_graph.ArchitectureDispositionCandidate
+	108, // 124: globular.awareness_graph.PrepareArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	35,  // 125: globular.awareness_graph.ArchitectureDispositionReceipt.outcome:type_name -> globular.awareness_graph.ArchitectureDispositionOutcome
+	109, // 126: globular.awareness_graph.ArchitectureDispositionReceipt.audit:type_name -> globular.awareness_graph.ArchitectureMutationAudit
+	110, // 127: globular.awareness_graph.RecordArchitectAnswerDispositionRequest.input:type_name -> globular.awareness_graph.ArchitectureDispositionInput
+	114, // 128: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.receipt:type_name -> globular.awareness_graph.ArchitectureDispositionReceipt
+	108, // 129: globular.awareness_graph.RecordArchitectAnswerDispositionResponse.refusal:type_name -> globular.awareness_graph.ArchitectureMutationRefusal
+	36,  // 130: globular.awareness_graph.AwarenessGraph.Briefing:input_type -> globular.awareness_graph.BriefingRequest
+	42,  // 131: globular.awareness_graph.AwarenessGraph.Impact:input_type -> globular.awareness_graph.ImpactRequest
+	48,  // 132: globular.awareness_graph.AwarenessGraph.Query:input_type -> globular.awareness_graph.QueryRequest
+	51,  // 133: globular.awareness_graph.AwarenessGraph.Resolve:input_type -> globular.awareness_graph.ResolveRequest
+	53,  // 134: globular.awareness_graph.AwarenessGraph.Metadata:input_type -> globular.awareness_graph.MetadataRequest
+	67,  // 135: globular.awareness_graph.AwarenessGraph.Preflight:input_type -> globular.awareness_graph.PreflightRequest
+	71,  // 136: globular.awareness_graph.AwarenessGraph.EditCheck:input_type -> globular.awareness_graph.EditCheckRequest
+	74,  // 137: globular.awareness_graph.AwarenessGraph.Propose:input_type -> globular.awareness_graph.ProposeRequest
+	76,  // 138: globular.awareness_graph.AwarenessGraph.ReferenceSites:input_type -> globular.awareness_graph.ReferenceSitesRequest
+	100, // 139: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:input_type -> globular.awareness_graph.GetArchitectureControlSnapshotRequest
+	102, // 140: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:input_type -> globular.awareness_graph.ListArchitectureArtifactsRequest
+	104, // 141: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:input_type -> globular.awareness_graph.GetArchitectureArtifactStateRequest
+	106, // 142: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
+	112, // 143: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
+	115, // 144: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
+	37,  // 145: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
+	43,  // 146: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
+	50,  // 147: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
+	52,  // 148: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
+	56,  // 149: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
+	68,  // 150: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
+	73,  // 151: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
+	75,  // 152: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
+	78,  // 153: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
+	101, // 154: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	103, // 155: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
+	105, // 156: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
+	107, // 157: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	113, // 158: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	116, // 159: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	145, // [145:160] is the sub-list for method output_type
+	130, // [130:145] is the sub-list for method input_type
+	130, // [130:130] is the sub-list for extension type_name
+	130, // [130:130] is the sub-list for extension extendee
+	0,   // [0:130] is the sub-list for field type_name
 }
 
 func init() { file_awareness_graph_proto_init() }
@@ -11255,16 +11536,16 @@ func file_awareness_graph_proto_init() {
 	if File_awareness_graph_proto != nil {
 		return
 	}
-	file_awareness_graph_proto_msgTypes[56].OneofWrappers = []any{}
 	file_awareness_graph_proto_msgTypes[57].OneofWrappers = []any{}
-	file_awareness_graph_proto_msgTypes[65].OneofWrappers = []any{}
+	file_awareness_graph_proto_msgTypes[58].OneofWrappers = []any{}
+	file_awareness_graph_proto_msgTypes[66].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_awareness_graph_proto_rawDesc), len(file_awareness_graph_proto_rawDesc)),
-			NumEnums:      35,
-			NumMessages:   80,
+			NumEnums:      36,
+			NumMessages:   81,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -72,7 +72,7 @@ func TestBuildHelpersDelegateToGraphbuild(t *testing.T) {
 	root := migCorpus(t)
 	dir := filepath.Join(root, "docs", "awareness")
 
-	raw, _, err := compileAwarenessInputs([]string{dir}, repofixture.DefaultDomain, "", "", "", false)
+	raw, _, _, err := compileAwarenessInputs([]string{dir}, repofixture.DefaultDomain, "", "", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -737,7 +737,7 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	awarenessDir := filepath.Join(root, "docs", "awareness")
 	generatedDir := filepath.Join(awarenessDir, "generated")
 
-	raw, _, err := compileAwarenessInputs([]string{awarenessDir, generatedDir}, domain, domain, "", "", false)
+	raw, _, _, err := compileAwarenessInputs([]string{awarenessDir, generatedDir}, domain, domain, "", "", false)
 	if err != nil {
 		return phase2Readiness{}, err
 	}
@@ -769,7 +769,7 @@ func reconstructImportedProject(root, domain string, includeHistory bool) (phase
 	}
 
 	compileFinal := func() ([]byte, error) {
-		finalRaw, _, compileErr := compileAwarenessInputs([]string{awarenessDir, generatedDir, knowledgeDir}, domain, domain, "", "", false)
+		finalRaw, _, _, compileErr := compileAwarenessInputs([]string{awarenessDir, generatedDir, knowledgeDir}, domain, domain, "", "", false)
 		if compileErr != nil {
 			return nil, compileErr
 		}

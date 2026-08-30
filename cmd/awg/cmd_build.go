@@ -145,7 +145,13 @@ Flags:
 		fmt.Fprintf(os.Stderr, "  admission: %s (corpus roots: %s)\n", decision.Source, decision.CorpusRoots)
 	}
 
-	rawProjectNT, _, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
+	// The source witness is established AT COMPILATION, over every root the
+	// compiler reads, and re-proven unchanged before the receipt is built. See
+	// publication.SourceWitness: the digest and the revision must describe one
+	// world, and one set.
+	sourceWitness := publication.InspectCompiledSources(inputDirs)
+
+	rawProjectNT, _, consumed, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
@@ -156,7 +162,7 @@ Flags:
 	// finalize) so a managed-governance requirement or the global marker never
 	// gates a single-domain refresh. --output and --all fall through below.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, *storeURL,
+		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
 			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag)
 	}
 
@@ -464,7 +470,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
+func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -563,15 +569,48 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// Receipts carry no domain tag and therefore survive the scoped replacement,
 	// so history accumulates. The pointer that names the current one IS tagged,
 	// so exactly one publication is current per domain.
-	receiptRoot := domainSourceRoot(inputDirs)
-	rev, tree, srcState, resolvedRoot := publication.InspectSource(receiptRoot)
+	// Re-prove the witness still describes the world the bytes came from. A
+	// checkout that moved between compilation and here would otherwise let the
+	// digest come from one revision and the exact claim from another.
+	witness, unchanged := sourceWitness.Unchanged()
+	if !unchanged {
+		fmt.Fprintf(os.Stderr,
+			"  source witness: the checkout changed between compilation and publication; "+
+				"no exact claim can be made for these bytes\n")
+		witness.State = publication.Unknown
+		witness.Revision, witness.Tree = "", ""
+	}
+	// THE WITNESS OF THE EVENT, not two observations compatible with it.
+	//
+	// The state comparison above accepts a file that was changed, compiled and
+	// restored: both observations are identical while the compiled bytes came
+	// from a state no revision holds. This proves what was actually READ
+	// against what the revision HOLDS, per file, and refuses the exact claim
+	// when they differ.
+	if witness.State.ClaimsExactRevision() {
+		if err := publication.ProveConsumedAgainstRevision(
+			domainSourceRoot(inputDirs), witness.Revision, consumed); err != nil {
+			fmt.Fprintf(os.Stderr, "  source witness: %v; no exact claim can be made for these bytes\n", err)
+			witness.State = publication.Unknown
+			witness.Revision, witness.Tree = "", ""
+		}
+	}
 	receipt := publication.Receipt{
+		Version:      publication.CurrentReceiptVersion,
 		Domain:       domain,
-		Revision:     rev,
-		Tree:         tree,
-		State:        srcState,
-		SourceRoot:   resolvedRoot,
+		Revision:     witness.Revision,
+		Tree:         witness.Tree,
+		State:        witness.State,
+		SourcePath:   witness.RelPath,
 		SourceDigest: publication.DigestBytes(sliceNT),
+	}
+	// EMISSION USES THE SAME SCHEMA AS VERIFICATION. Without this the publisher
+	// could produce a record its own reader would later refuse, and the failure
+	// would surface at a start gate rather than here where it can still be
+	// fixed.
+	if err := publication.ValidateForPublication(receipt); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: refusing to publish an invalid domain receipt: %v\n", err)
+		return 1
 	}
 	sliceNT = append(append([]byte{}, sliceNT...), receipt.Triples()...)
 

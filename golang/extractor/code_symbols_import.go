@@ -105,7 +105,7 @@ type codeReferencesFile struct {
 //   - typed relation edges to knowledge graph nodes
 //   - flat aw:implements reverse edges from SourceFile for impact compatibility
 func importCodeSymbols(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -181,7 +181,7 @@ func importCodeSymbols(e *rdf.Emitter, path string) error {
 // edges. Idempotent: safe to run after importCodeSymbols since RDF triples
 // deduplicate.
 func importCodeEdges(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -212,7 +212,7 @@ func importCodeEdges(e *rdf.Emitter, path string) error {
 // as CodeSymbol nodes with id "external:<name>" so a single query can gather
 // every site that references a shared symbol (the sibling-convention query).
 func importCodeReferences(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

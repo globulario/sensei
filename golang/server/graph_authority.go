@@ -14,11 +14,92 @@ import (
 )
 
 func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority {
+	return s.graphAuthorityFor(ctx, "")
+}
+
+// graphAuthorityFor resolves the publication for an explicitly requested
+// domain. An empty request falls back to the server's home domain and SAYS SO
+// through requested_domain, so a caller that asked about something else refuses
+// rather than reading the answer to a different question.
+func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
-	return graphAuthorityFromSnapshot(snap, s)
+	a := graphAuthorityFromSnapshotFor(snap, s, publicationDomain)
+	// RESOLVED ONLY WHEN ASKED.
+	//
+	// This projection exists for start gates. Attaching it to every RPC that
+	// carries authority put two extra store reads on impact, query, briefing
+	// and reference-site lookups -- paths that never consume it -- and made the
+	// composition below run twice per call for nothing.
+	//
+	// There is also no home-domain fallback. Answering an unasked question with
+	// the server's favourite domain produces a well-formed receipt for
+	// something the caller did not ask about, and "a receipt came back" is
+	// exactly the evidence a careless consumer would accept.
+	if strings.TrimSpace(publicationDomain) == "" {
+		a.CurrentPublication = &awarenesspb.DomainPublication{
+			Resolution: awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED,
+			Detail:     "no publication_domain was requested, so no publication was resolved",
+		}
+		return a
+	}
+	pub := resolveCurrentPublication(ctx, s, publicationDomain)
+
+	// ONE GENERATION, OR NEITHER CLAIM.
+	//
+	// Freshness and the publication are two separate reads, and an earlier
+	// version of this function merely ASSERTED in a comment that they described
+	// the same store. A publication landing between them yields a composite
+	// whose graph digest describes generation A while its receipt describes
+	// generation B -- individually accurate in both halves, false as a whole,
+	// and precisely the composition a start gate would rely on.
+	//
+	// So the generation is re-read afterwards and required to be the one the
+	// freshness verdict describes. A change is not resolved in favour of either
+	// read: what this call observed was two worlds, so it reports that it
+	// cannot attest to one.
+	// BIND THE VERDICT TO THE SNAPSHOT'S OWN GENERATION.
+	//
+	// The publication now reports the world it was read from. If that differs
+	// from the world the freshness verdict describes, the two halves of this
+	// response describe different graphs and the composite must refuse --
+	// including the A -> B -> A case, which no amount of endpoint comparison
+	// can detect.
+	if got := pub.GetSnapshotGeneration(); got != "" && got != snap.verification.Live.Digest {
+		pub = &awarenesspb.DomainPublication{
+			Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+			RequestedDomain:    publicationDomain,
+			Domain:             publicationDomain,
+			SnapshotGeneration: got,
+			Detail: fmt.Sprintf(
+				"the publication was read from generation %s while this authority describes %s, "+
+					"so the two halves of this response describe different graphs",
+				shortDigest(got), shortDigest(snap.verification.Live.Digest)),
+		}
+		a.CurrentPublication = pub
+		return a
+	}
+
+	after := snapshotGraphFreshness(ctx, s)
+	if before, now := snap.verification.Live.Digest, after.verification.Live.Digest; before != now {
+		pub = &awarenesspb.DomainPublication{
+			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+			RequestedDomain: publicationDomain,
+			Domain:          publicationDomain,
+			Detail: fmt.Sprintf(
+				"the served generation changed while this authority was being composed (%s -> %s), "+
+					"so its freshness and its publication receipt would describe different worlds",
+				shortDigest(before), shortDigest(now)),
+		}
+	}
+	a.CurrentPublication = pub
+	return a
 }
 
 func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarenesspb.GraphAuthority {
+	return graphAuthorityFromSnapshotFor(snap, s, "")
+}
+
+func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closureDomain string) *awarenesspb.GraphAuthority {
 	stamp, txMode, txPath, txReadErr := transactionStampForGraph(s)
 	transactionMatchesSeed, transactionDetail := evaluateTransactionForGraph(
 		snap.verification.Expected,
@@ -43,7 +124,7 @@ func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarene
 	// publication. The evaluator is the shared one in golang/closure that
 	// `sensei domain-closure` uses — one canonical implementation, not two that
 	// can drift apart.
-	semanticState, semanticDetail := graphClosureState(s, snap)
+	semanticState, semanticDetail := graphClosureStateFor(s, snap, closureDomain)
 	freshnessCurrent := snap.verification.State == seedmeta.FreshnessCurrent
 
 	detail := snap.verification.Detail
@@ -91,13 +172,21 @@ func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarene
 // cannot locate a closure report at all, and "I could not check" must never be
 // reported as "it passed" — that is the precise shape of the defect this whole
 // change exists to remove.
+// closureDomain is the domain the closure verdict is ABOUT. Empty means the
+// server's own home domain.
 func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.SemanticState, string) {
+	return graphClosureStateFor(s, snap, "")
+}
+
+func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain string) (closure.SemanticState, string) {
 	// Injectable at the same seam the fake store injects freshness: a fixture
 	// that declares its synthetic publication current must be able to declare it
 	// closed too. The DEFAULT (nil) is the real file-based evaluator, so
 	// production never gains a bypass — omitting the hook fails closed.
 	if s != nil && s.closureEval != nil {
-		return s.closureEval()
+		// The hook carries the SAME referent the verdict is about, so a test
+		// can prove the requested domain reached the closure evaluation.
+		return s.closureEval(closureDomain)
 	}
 	if s == nil {
 		return closure.SemanticClosureUnproven, "no server context, so no closure report can be located"
@@ -106,7 +195,7 @@ func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.Semantic
 	// publication that is actually live. It holds one proof per registered
 	// domain, so a rebuild of some OTHER domain no longer takes authority away
 	// from this one.
-	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest); ok {
+	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest, closureDomain); ok {
 		return state, detail
 	}
 	// Fall back to this repository's own copy. Reached when the proof set has
@@ -130,7 +219,7 @@ func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.Semantic
 // including when the answer is that this domain is unproven: a set that covers
 // the live generation and does not vouch for this domain is a real negative,
 // not a reason to go looking for a more agreeable file elsewhere.
-func storeScopedClosureState(s *server, liveDigest string) (closure.SemanticState, string, bool) {
+func storeScopedClosureState(s *server, liveDigest, closureDomain string) (closure.SemanticState, string, bool) {
 	if s.oxigraphQueryURL == "" || strings.TrimSpace(liveDigest) == "" {
 		return "", "", false
 	}
@@ -146,7 +235,18 @@ func storeScopedClosureState(s *server, liveDigest string) (closure.SemanticStat
 		return "", "", false
 	}
 
-	domain := strings.TrimSpace(s.homeDomain)
+	// THE CLOSURE MUST ANSWER FOR THE DOMAIN BEING ASKED ABOUT.
+	//
+	// This read s.homeDomain unconditionally while the publication receipt was
+	// resolved for the REQUESTED domain, so one response could pair an
+	// AUTHORITATIVE verdict earned by the home domain's proof with a VERIFIED
+	// receipt for a foreign domain that has no proof at all. A compound
+	// attestation whose parts describe different referents is not an
+	// attestation.
+	domain := strings.TrimSpace(closureDomain)
+	if domain == "" {
+		domain = strings.TrimSpace(s.homeDomain)
+	}
 	if domain == "" {
 		return closure.SemanticClosureUnproven,
 			"the store's proof set covers this publication but this server declares no domain, so none of its proofs can be claimed", true

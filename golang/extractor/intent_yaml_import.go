@@ -24,7 +24,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -71,7 +70,7 @@ var intentSubclass = map[string]string{
 // importIntent imports a single intent YAML file and emits its typed node
 // with all cross-links. A file whose id is empty produces no triples.
 func importIntent(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}
