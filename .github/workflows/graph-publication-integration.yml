@@ -49,14 +49,25 @@ jobs:
       # fakes structurally cannot catch it. This seeds controlled good and
       # malformed terms into the pinned Oxigraph and asserts the lossless read
       # preserves term kind, datatype and language.
-      - name: Prove the publication adapter preserves RDF terms
+      # The -run filter is a NAME LIST, so a new integration test is silently
+      # absent from CI until it is added here. That is the same failure as a
+      # skip: a property proven locally and unproven on the runner.
+      - name: Prove the publication adapter and authority snapshot
         run: |
           PATH="$PWD/bin:$PATH" go test -tags=integration ./cmd/awg \
-            -run '^TestIntegration_PublicationAdapterPreservesTerms_RealOxigraph$' \
+            -run '^TestIntegration_(PublicationAdapterPreservesTerms|AuthoritySnapshotReadsOneWorld)_RealOxigraph$' \
             -count=1 -timeout 5m -v 2>&1 | tee adapter.log
           # A skip is NOT evidence. This job installs Oxigraph, so an
           # unavailable binary means the job is misconfigured, not that the
           # property holds.
+          # Both tests must actually have run. A filter that matches nothing
+          # produces a green step with no evidence in it.
+          for want in PublicationAdapterPreservesTerms AuthoritySnapshotReadsOneWorld; do
+            if ! grep -q -- "--- PASS: TestIntegration_${want}_RealOxigraph" adapter.log; then
+              echo "::error::${want} did not run; the -run filter or the test name has drifted"
+              exit 1
+            fi
+          done
           if grep -q -- '--- SKIP' adapter.log; then
             echo "::error::the adapter test SKIPPED in a job that installs Oxigraph; a skip is not evidence"
             exit 1
