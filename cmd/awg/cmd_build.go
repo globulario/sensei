@@ -574,6 +574,14 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		SourcePath:   relPath,
 		SourceDigest: publication.DigestBytes(sliceNT),
 	}
+	// EMISSION USES THE SAME SCHEMA AS VERIFICATION. Without this the publisher
+	// could produce a record its own reader would later refuse, and the failure
+	// would surface at a start gate rather than here where it can still be
+	// fixed.
+	if err := publication.ValidateForPublication(receipt); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: refusing to publish an invalid domain receipt: %v\n", err)
+		return 1
+	}
 	sliceNT = append(append([]byte{}, sliceNT...), receipt.Triples()...)
 
 	retainedBase := retainScopedGraph(fullBase, domain)

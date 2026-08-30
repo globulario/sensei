@@ -67,6 +67,14 @@ type publicationStore struct {
 	failDump     bool
 }
 
+// DescribeTerms is the LOSSLESS read the verifier requires. The fakes provide
+// it so the falsifiers exercise the real path; a store offering only the
+// simplified Describe is refused by design.
+func (p publicationStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	tr, err := p.Describe(ctx, iri)
+	return asStatements(tr), err
+}
+
 func (p publicationStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if p.describes != nil {
 		atomic.AddInt64(p.describes, 1)
@@ -265,8 +273,8 @@ func TestANilStoreStillPreservesTheCallersPublicationQuestion(t *testing.T) {
 // defect v2 removed, returning through the version-agnostic parser.
 func TestAV1ReceiptCarryingAV2OnlyFieldIsUnreadable(t *testing.T) {
 	legacy := publication.Receipt{ // no Version: this is v1
-		Domain: pubTestDomain, Revision: "f6b4755", Tree: "ad916f77",
-		State: publication.CleanExact, SourceDigest: "cff0d611",
+		Domain: pubTestDomain, Revision: "f6b4755ff4d12591e9e802b2094b16a938260cc2", Tree: "ad916f771bbc07523c92ff299c27af53c852aacd",
+		State: publication.CleanExact, SourceDigest: "cff0d6113939b6f986b873dffad22847491669d903d1254386ef57c18cdf9c23",
 	}
 	stored := legacy.IRI()
 
@@ -327,6 +335,11 @@ type ambiguousPointerStore struct {
 	bodies  map[string][]store.Triple
 }
 
+func (p ambiguousPointerStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	tr, err := p.Describe(ctx, iri)
+	return asStatements(tr), err
+}
+
 func (p ambiguousPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
 		var out []store.Triple
@@ -370,6 +383,11 @@ func TestAMalformedPointerIsUnreadableRatherThanAbsent(t *testing.T) {
 
 type literalPointerStore struct{ fakeStore }
 
+func (p literalPointerStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	tr, err := p.Describe(ctx, iri)
+	return asStatements(tr), err
+}
+
 func (p literalPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
 		// The predicate is present; its object is a literal, not an IRI.
@@ -401,8 +419,8 @@ func TestAReceiptWithTwoValuesForOneFieldIsUnreadable(t *testing.T) {
 	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
 		t.Fatalf("resolution = %v, want UNREADABLE: an ambiguous receipt field was attested", got.GetResolution())
 	}
-	if !strings.Contains(got.GetDetail(), "distinct values") {
-		t.Fatalf("the refusal does not name the ambiguity: %q", got.GetDetail())
+	if !strings.Contains(got.GetDetail(), "at most 1 time") {
+		t.Fatalf("the refusal does not name the cardinality violation: %q", got.GetDetail())
 	}
 
 	// Control: the unambiguous body verifies.
@@ -432,6 +450,12 @@ func TestAReceiptWithAnUnknownSourceStateIsUnreadable(t *testing.T) {
 	for _, ok := range []publication.SourceState{publication.CleanExact, publication.Dirty, publication.Unknown} {
 		r := healthyReceipt()
 		r.State = ok
+		if ok == publication.Unknown {
+			// UNKNOWN means the revision was never established, so it must be
+			// absent. Carrying one would violate the cross-field law this
+			// control is not the place to test.
+			r.Revision, r.Tree = "", ""
+		}
 		st := publicationStore{storedTarget: r.IRI(), body: receiptTriples(r), failDump: true}
 		if got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
 			t.Fatalf("state %q was refused: %v %s", ok, got.GetResolution(), got.GetDetail())
@@ -474,6 +498,11 @@ type mixedPointerStore struct {
 	bodies map[string][]store.Triple
 }
 
+func (p mixedPointerStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	tr, err := p.Describe(ctx, iri)
+	return asStatements(tr), err
+}
+
 func (p mixedPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
 	if iri == publication.PointerIRI(pubTestDomain) {
 		return []store.Triple{
@@ -508,7 +537,7 @@ func TestAnIRIValuedReceiptFieldIsUnreadable(t *testing.T) {
 	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
 		t.Fatalf("resolution = %v, want UNREADABLE: an IRI term was normalised into a literal and verified", got.GetResolution())
 	}
-	if !strings.Contains(got.GetDetail(), "IRI term") {
+	if !strings.Contains(got.GetDetail(), "stored as IRI") {
 		t.Fatalf("the refusal does not name the term kind: %q", got.GetDetail())
 	}
 
@@ -569,12 +598,27 @@ func TestAnUndefinedPublicationFieldIsUnreadable(t *testing.T) {
 // historical shape would stop verifying.
 func TestEachVersionIsJudgedAgainstItsOwnVocabulary(t *testing.T) {
 	legacy := publication.Receipt{
-		Domain: pubTestDomain, Revision: "f6b4755", Tree: "ad916f77",
-		State: publication.CleanExact, SourceDigest: "cff0d611",
+		Domain: pubTestDomain, Revision: "f6b4755ff4d12591e9e802b2094b16a938260cc2", Tree: "ad916f771bbc07523c92ff299c27af53c852aacd",
+		State: publication.CleanExact, SourceDigest: "cff0d6113939b6f986b873dffad22847491669d903d1254386ef57c18cdf9c23",
 		SourceRoot: "/tmp/build/docs/awareness",
 	}
 	st := publicationStore{storedTarget: legacy.IRI(), body: receiptTriples(legacy), failDump: true}
 	if got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
 		t.Fatalf("a v1 receipt carrying v1's own SourceRoot was refused: %v %s", got.GetResolution(), got.GetDetail())
 	}
+}
+
+// asStatements lifts simplified triples into lossless statements for the fakes.
+// Term kind is carried through; a test that needs a datatype or language sets
+// it explicitly on the Statement instead.
+func asStatements(tr []store.Triple) []store.Statement {
+	out := make([]store.Statement, 0, len(tr))
+	for _, t := range tr {
+		kind := store.TermLiteral
+		if t.ObjectIsIRI {
+			kind = store.TermIRI
+		}
+		out = append(out, store.Statement{Predicate: t.Predicate, Object: store.Term{Kind: kind, Value: t.Object}})
+	}
+	return out
 }

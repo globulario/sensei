@@ -113,61 +113,52 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	}
 
 	// 2. The receipt the pointer names. Bounded: one more subject.
-	body, err := d.Describe(ctx, storedTarget)
+	// LOSSLESS, OR NOT AT ALL.
+	//
+	// The simplified Describe remembers only "is this an IRI" and drops empty
+	// lexical values, so a verifier reading through it cannot prove the term it
+	// hashes is the term the store holds. A store that cannot answer losslessly
+	// is not one an authority-bearing read may use, and saying so is better
+	// than silently verifying a normalisation.
+	terms, ok := s.store.(interface {
+		DescribeTerms(context.Context, string) ([]store.Statement, error)
+	})
+	if !ok {
+		return unreadable(
+			"this store cannot return RDF terms losslessly, so no receipt can be verified against what it holds")
+	}
+	body, err := terms.DescribeTerms(ctx, storedTarget)
 	if err != nil {
 		return unreadable("the receipt %s could not be read: %v", shortIRI(storedTarget), err)
 	}
-	preds := make([]string, 0, len(body))
-	objs := make([]string, 0, len(body))
-	iris := make([]bool, 0, len(body))
-	for _, t := range body {
-		preds = append(preds, t.Predicate)
-		objs = append(objs, t.Object)
-		iris = append(iris, t.ObjectIsIRI)
+	stmts := make([]publication.RDFStatement, 0, len(body))
+	for _, st := range body {
+		stmts = append(stmts, publication.RDFStatement{
+			Predicate: st.Predicate,
+			Object: publication.Term{
+				Kind:     publication.TermKind(st.Object.Kind),
+				Value:    st.Object.Value,
+				Datatype: st.Object.Datatype,
+				Language: st.Object.Language,
+			},
+		})
 	}
-	r, err := publication.ReceiptFromTriples(storedTarget, preds, objs, iris)
+	// ONE OPERATION: schema selection, cardinality, term kind, datatype,
+	// lexical validity, cross-field rules and the stored-IRI comparison all
+	// happen inside DecodeStoredReceipt, in that order, before a Receipt this
+	// server will project exists at all.
+	r, err := publication.DecodeStoredReceipt(storedTarget, stmts)
 	if err != nil {
 		return unreadable(
 			"the current-publication pointer for %q names %s: %v",
 			domain, shortIRI(storedTarget), err)
 	}
-	if r.Domain == "" {
-		return unreadable(
-			"the current-publication pointer for %q names %s, which is missing or unparseable",
-			domain, shortIRI(storedTarget))
-	}
-	if r.Version != "" && !r.Version.Valid() {
-		return unreadable("receipt version %q is not one this server defines", r.Version)
-	}
-	// Every publication field must be one this version DEFINES and
-	// authenticates. A field the identity does not cover would otherwise ride
-	// inside a receipt that verifies -- v1's SourcePath was one instance of
-	// this, and the rule is stated over the namespace so the next one is not a
-	// separate discovery.
-	if undefined := publication.UndefinedFields(r.Version, preds); len(undefined) != 0 {
-		return unreadable(
-			"the receipt carries publication field(s) %v that version %s does not define, "+
-				"so they are present but unauthenticated",
-			undefined, versionOrV1(r.Version))
-	}
 	// The source state is a CLOSED vocabulary and is read by membership. An
 	// unrecognised state that happens to be self-consistent would otherwise be
 	// projected as VERIFIED, presenting semantics this server cannot interpret
 	// as an attestation it can.
-	if !r.State.Valid() {
-		return unreadable(
-			"receipt source state %q is not one this schema defines", r.State)
-	}
-	if err := r.FieldsMatchVersion(); err != nil {
-		return unreadable("%v", err)
-	}
 
 	// 3. The check that is not a tautology: recomputed against STORED.
-	if !publication.VerifyIdentity(storedTarget, r) {
-		return unreadable(
-			"the receipt stored as %s recomputes to %s: its fields have changed since it was published",
-			shortIRI(storedTarget), shortIRI(r.IRI()))
-	}
 	if r.Domain != domain {
 		return unreadable(
 			"the pointer for %q resolved to a receipt for %q", domain, r.Domain)

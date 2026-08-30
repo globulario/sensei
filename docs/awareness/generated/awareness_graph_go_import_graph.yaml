@@ -2847,7 +2847,9 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/publication/decode.go
       - golang/publication/receipt.go
+      - golang/publication/schema.go
       - golang/publication/source.go
     depends_on:
       - component.golang.seedmeta
@@ -3082,6 +3084,7 @@ components:
     assertion: inferred
     source_files:
       - golang/store/store.go
+      - golang/store/term.go
     uml:
       kind: Component
       stereotype: module
@@ -3092,6 +3095,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/store/oxigraph/describe_terms.go
       - golang/store/oxigraph/oxigraph.go
       - golang/store/oxigraph/sparql_literal.go
     depends_on:
