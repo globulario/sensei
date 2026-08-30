@@ -23,6 +23,13 @@ const (
 
 // pointer field predicates, and their closed schema.
 var pointerFields = map[string]FieldSpec{
+	// The pointer's TYPE is authority-bearing: it says what this subject is.
+	// Omitting it from a "closed" schema meant a stored fact was discarded --
+	// a type changed to a literal, or to another class, was silently ignored
+	// while the target was still projected as VERIFIED. That is the same
+	// family as every other finding here, surviving because the schema was
+	// incomplete rather than because a check was missing.
+	typeIRI:  {MinCount: 1, MaxCount: 1, TermKind: TermIRI, ValidateLexical: exactly(pointerClassIRI)},
 	pCurrent: {MinCount: 1, MaxCount: 1, TermKind: TermIRI, ValidateLexical: nonEmpty},
 	pRepo:    {MinCount: 1, MaxCount: 1, TermKind: TermLiteral, ValidateLexical: domainName},
 	pDomain:  {MinCount: 1, MaxCount: 1, TermKind: TermLiteral, ValidateLexical: domainName},
@@ -46,7 +53,14 @@ func DecodePointer(domain string, terms []RDFStatement) (target string, outcome 
 	byPred := map[string][]Term{}
 	present := false
 	for _, st := range terms {
-		if strings.HasPrefix(st.Predicate, PublicationFieldPrefix) || st.Predicate == pCurrent || st.Predicate == pRepo {
+		// ANY pointer-defining fact makes the subject present. A type-only
+		// remnant is a BROKEN pointer, not an absent one: reporting it as
+		// ABSENT would let a half-deleted pointer read as never-published,
+		// which is the one answer a start gate may treat as benign.
+		if _, defines := pointerFields[st.Predicate]; defines {
+			present = true
+		}
+		if strings.HasPrefix(st.Predicate, PublicationFieldPrefix) {
 			present = true
 		}
 		byPred[st.Predicate] = append(byPred[st.Predicate], st.Object)
@@ -113,6 +127,17 @@ func DecodePointer(domain string, terms []RDFStatement) (target string, outcome 
 			"the pointer carries publication field(s) %v that its schema does not define", undefined)
 	}
 	return byPred[pCurrent][0].Value, PointerOK, nil
+}
+
+// exactly requires one specific value, for fields whose only legal content is
+// a constant.
+func exactly(want string) func(string) error {
+	return func(v string) error {
+		if v != want {
+			return fmt.Errorf("expected %q, got %q", want, v)
+		}
+		return nil
+	}
 }
 
 func shortPredicate(p string) string {

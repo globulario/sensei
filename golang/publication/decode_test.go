@@ -290,3 +290,101 @@ func TestEveryIdentityBearingFieldChangesTheIdentity(t *testing.T) {
 		}
 	}
 }
+
+// The pointer's TYPE is authority-bearing and belongs to its closed schema.
+func TestThePointerTypeIsPartOfItsSchema(t *testing.T) {
+	good := v2Receipt()
+	pointer := func(mut func([]RDFStatement) []RDFStatement) []RDFStatement {
+		var out []RDFStatement
+		for _, line := range strings.Split(string(good.Triples()), "\n") {
+			p := "<" + PointerIRI(good.Domain) + "> <"
+			if !strings.HasPrefix(line, p) {
+				continue
+			}
+			_, pred, obj, ok := splitTriple(line)
+			if !ok {
+				continue
+			}
+			kind := TermLiteral
+			if pred == typeIRI || pred == pCurrent {
+				kind = TermIRI
+			}
+			out = append(out, RDFStatement{Predicate: pred, Object: Term{Kind: kind, Value: obj}})
+		}
+		if mut != nil {
+			out = mut(out)
+		}
+		return out
+	}
+
+	if _, outcome, err := DecodePointer(good.Domain, pointer(nil)); outcome != PointerOK {
+		t.Fatalf("the writer's own pointer was refused: %v %v", outcome, err)
+	}
+
+	cases := map[string]func([]RDFStatement) []RDFStatement{
+		"type changed to a literal": func(in []RDFStatement) []RDFStatement {
+			for i := range in {
+				if in[i].Predicate == typeIRI {
+					in[i].Object.Kind = TermLiteral
+				}
+			}
+			return in
+		},
+		"type changed to another class": func(in []RDFStatement) []RDFStatement {
+			for i := range in {
+				if in[i].Predicate == typeIRI {
+					in[i].Object.Value = receiptClassIRI
+				}
+			}
+			return in
+		},
+		"type removed": func(in []RDFStatement) []RDFStatement {
+			var out []RDFStatement
+			for _, st := range in {
+				if st.Predicate != typeIRI {
+					out = append(out, st)
+				}
+			}
+			return out
+		},
+	}
+	for name, mut := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, outcome, _ := DecodePointer(good.Domain, pointer(mut)); outcome == PointerOK {
+				t.Fatalf("%s was accepted", name)
+			}
+		})
+	}
+
+	// A type-only remnant is BROKEN, not absent: a half-deleted pointer must
+	// not read as never-published.
+	remnant := []RDFStatement{{Predicate: typeIRI, Object: Term{Kind: TermIRI, Value: pointerClassIRI}}}
+	if _, outcome, _ := DecodePointer(good.Domain, remnant); outcome != PointerBroken {
+		t.Fatalf("a type-only remnant resolved %v, want PointerBroken", outcome)
+	}
+	// Genuinely nothing is still ABSENT.
+	if _, outcome, _ := DecodePointer(good.Domain, nil); outcome != PointerNone {
+		t.Fatalf("an empty pointer resolved %v, want PointerNone", outcome)
+	}
+}
+
+// v2 DIRTY must carry the tree its own writer records.
+func TestV2DirtyRequiresTheCommittedTree(t *testing.T) {
+	r := v2Receipt()
+	r.State = Dirty
+	if err := ValidateForPublication(r); err != nil {
+		t.Fatalf("a v2 DIRTY receipt WITH a tree was refused: %v", err)
+	}
+	r.Tree = ""
+	if err := ValidateForPublication(r); err == nil {
+		t.Fatal("a v2 DIRTY receipt with no tree passed validation")
+	}
+	// v1 keeps the looser rule: its receipts are historical and not reissued.
+	legacy := Receipt{
+		Domain: "d", Revision: strings.Repeat("a", 40), State: Dirty,
+		SourceDigest: strings.Repeat("c", 64),
+	}
+	if _, err := DecodeStoredReceipt("", mustStatements(t, legacy)); err != nil {
+		t.Fatalf("a v1 DIRTY receipt without a tree was refused, repainting history: %v", err)
+	}
+}

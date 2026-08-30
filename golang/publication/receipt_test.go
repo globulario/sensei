@@ -444,3 +444,36 @@ func TestUnresolvableTreeCannotClaimCleanExact(t *testing.T) {
 		t.Fatalf("state %q claimed an exact revision with tree %q, which HEAD does not contain", state, tree)
 	}
 }
+
+// An IGNORED compiled input must break the exact claim.
+//
+// The extractor walks the corpus with filepath.WalkDir, which knows nothing
+// about .gitignore, while `git status --untracked-files=all` omits ignored
+// files. Cleanliness was measured over a different set than the one compiled,
+// so an ignored YAML produced a CLEAN_EXACT attestation for bytes the named
+// revision does not contain. This is a DIFFERENT defect family from the RDF
+// ones: two definitions of "the compiled inputs" disagreeing, not a stored
+// fact being normalised.
+func TestAnIgnoredCompiledInputBreaksTheExactClaim(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+	if _, _, state, _, _ := InspectSource(aw); state != CleanExact {
+		t.Fatalf("the specimen is wrong: want CLEAN_EXACT, got %q", state)
+	}
+	// Ignored, and therefore invisible to --untracked-files=all -- but the
+	// compiler still walks and compiles it.
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("docs/awareness/hidden.yaml\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run(t, dir, "git", "add", ".gitignore")
+	run(t, dir, "git", "commit", "-q", "-m", "ignore")
+	if err := os.WriteFile(filepath.Join(aw, "hidden.yaml"), []byte("b: 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if out := run(t, dir, "git", "status", "--porcelain", "--untracked-files=all", "--", aw); out != "" {
+		t.Fatalf("the specimen is wrong: the ignored file must be invisible to plain status, got %q", out)
+	}
+	if _, _, state, _, _ := InspectSource(aw); state.ClaimsExactRevision() {
+		t.Fatalf("state %q claimed an exact revision while compiling a file that revision does not contain", state)
+	}
+}

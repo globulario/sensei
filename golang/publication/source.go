@@ -69,7 +69,19 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 	// Dirtiness is asked about THIS ROOT, not the whole repository. A change
 	// elsewhere in the repo does not make these compiled inputs unfaithful to
 	// their commit.
-	dirty, err := git(ctx, abs, "status", "--porcelain", "--untracked-files=all", "--", abs)
+	// IGNORED FILES COUNT, because the compiler compiles them.
+	//
+	// The extractor walks the corpus with filepath.WalkDir, which knows nothing
+	// about .gitignore, while `git status --untracked-files=all` OMITS ignored
+	// files. Cleanliness was therefore measured over a different set than the
+	// one actually compiled: an ignored YAML under the corpus produced empty
+	// status output and a CLEAN_EXACT attestation for bytes the named revision
+	// does not contain.
+	//
+	// --ignored=matching brings those files back into the answer, so the
+	// question being asked is "is everything I compiled in this commit" rather
+	// than "is everything git chose to tell me about in this commit".
+	dirty, err := git(ctx, abs, "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "--", abs)
 	if err != nil {
 		// The question could not be answered, so the answer is not "clean".
 		return head, tree, Unknown, resolvedRoot, relPath

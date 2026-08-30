@@ -186,6 +186,24 @@ func crossFieldRules(r Receipt) error {
 			return fmt.Errorf("state DIRTY requires a source revision, which is absent")
 		}
 	}
+	return nil
+}
+
+// v2CrossFieldRules adds what v2 can require without repainting v1.
+//
+// The WRITER defines DIRTY as carrying the tree committed at HEAD, so a v2
+// DIRTY receipt with no tree is a record its own producer would not have
+// written. v1 keeps the looser rule because its receipts are historical
+// evidence and are not reissued.
+func v2CrossFieldRules(r Receipt) error {
+	if err := crossFieldRules(r); err != nil {
+		return err
+	}
+	if r.State == Dirty && r.Tree == "" {
+		return fmt.Errorf(
+			"state DIRTY requires a source tree on v2: the writer records the tree committed at HEAD, " +
+				"so a v2 DIRTY receipt without one was not produced by this publisher")
+	}
 	if r.Domain == "" {
 		return fmt.Errorf("a receipt with no domain attests nothing")
 	}
@@ -228,7 +246,7 @@ var schemas = map[ReceiptVersion]ReceiptSchema{
 			// v2 record.
 			pRoot: {0, 0, TermLiteral, "", nonEmpty, false},
 		},
-		ValidateCrossFields: crossFieldRules,
+		ValidateCrossFields: v2CrossFieldRules,
 	},
 }
 
