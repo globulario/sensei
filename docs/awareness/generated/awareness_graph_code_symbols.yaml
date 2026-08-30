@@ -25496,6 +25496,60 @@ test_symbols:
     symbol: TestValidate_ContractFirst
     package: propose
     language: go
+  - id: golang/publication/receipt_test.go:TestACleanCheckoutClaimsItsExactRevision
+    file: golang/publication/receipt_test.go
+    symbol: TestACleanCheckoutClaimsItsExactRevision
+    package: publication
+    language: go
+    doc: "A clean checkout publishes its exact revision and may claim it."
+  - id: golang/publication/receipt_test.go:TestADanglingPointerIsNotAnEmptyPublication
+    file: golang/publication/receipt_test.go
+    symbol: TestADanglingPointerIsNotAnEmptyPublication
+    package: publication
+    language: go
+    doc: "A pointer naming a receipt that is not present must report \"no current\npublication\", not an empty one."
+  - id: golang/publication/receipt_test.go:TestADirtyCheckoutCannotClaimExactRevision
+    file: golang/publication/receipt_test.go
+    symbol: TestADirtyCheckoutCannotClaimExactRevision
+    package: publication
+    language: go
+    doc: "A dirty tree whose HEAD is M must NOT claim it was produced from M."
+  - id: golang/publication/receipt_test.go:TestAReceiptReadsBackAndVerifiesItsIdentity
+    file: golang/publication/receipt_test.go
+    symbol: TestAReceiptReadsBackAndVerifiesItsIdentity
+    package: publication
+    language: go
+    doc: "The receipt must survive a round trip through N-Triples and still verify."
+  - id: golang/publication/receipt_test.go:TestAnUntrackedInputBreaksTheExactClaim
+    file: golang/publication/receipt_test.go
+    symbol: TestAnUntrackedInputBreaksTheExactClaim
+    package: publication
+    language: go
+    doc: "An UNTRACKED file under the source root also breaks the exact claim: it was\ncompiled, and it is in no commit."
+  - id: golang/publication/receipt_test.go:TestIdenticalContentAtTwoCommitsKeepsDistinctProvenance
+    file: golang/publication/receipt_test.go
+    symbol: TestIdenticalContentAtTwoCommitsKeepsDistinctProvenance
+    package: publication
+    language: go
+    doc: "THE CENTRAL FALSIFIER.\n\nTwo different commits with byte-identical awareness content must publish the\nSAME content digest and DIFFERENT revision provenance, and must not collapse\nto one receipt identity. Collapsing them is the defect this package exists to\nprevent: it is how a graph loses which world produced it while still looking\nperfectly verified."
+  - id: golang/publication/receipt_test.go:TestNonGitSourcePublishesUnknownAndNeverInfers
+    file: golang/publication/receipt_test.go
+    symbol: TestNonGitSourcePublishesUnknownAndNeverInfers
+    package: publication
+    language: go
+    doc: "A source root that is not a git checkout publishes UNKNOWN and an EMPTY\nrevision. It must never be inferred, and the absent field must be absent\nrather than stated empty."
+  - id: golang/publication/receipt_test.go:TestSourceStateIsReadByMembership
+    file: golang/publication/receipt_test.go
+    symbol: TestSourceStateIsReadByMembership
+    package: publication
+    language: go
+    doc: "The closed vocabulary is read by membership."
+  - id: golang/publication/receipt_test.go:TestTamperingWithAPublishedReceiptBreaksItsIdentity
+    file: golang/publication/receipt_test.go
+    symbol: TestTamperingWithAPublishedReceiptBreaksItsIdentity
+    package: publication
+    language: go
+    doc: "A tampered field must break the identity, or the IRI proves nothing."
   - id: golang/rdf/closure_protocol_drift_test.go:TestClosureProtocolClassesExistInOntology
     file: golang/rdf/closure_protocol_drift_test.go
     symbol: TestClosureProtocolClassesExistInOntology
