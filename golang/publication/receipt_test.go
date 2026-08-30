@@ -477,3 +477,58 @@ func TestAnIgnoredCompiledInputBreaksTheExactClaim(t *testing.T) {
 		t.Fatalf("state %q claimed an exact revision while compiling a file that revision does not contain", state)
 	}
 }
+
+// FAMILY B: every compiled root must be described, or no exact claim is made.
+//
+// The compiler read every --input root while the inspection read only the
+// first, so a dirty supplementary root could contribute authenticated output
+// under another root's CLEAN_EXACT commit. Two mechanisms saying "the compiled
+// inputs" and quantifying over different sets.
+func TestAllCompiledRootsMustAgreeForAnExactClaim(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+
+	if w := InspectCompiledSources([]string{aw}); !w.State.ClaimsExactRevision() {
+		t.Fatalf("the specimen is wrong: one clean root should be exact, got %q", w.State)
+	}
+
+	// A SECOND repository, independently versioned, also compiled.
+	other, _ := repoWithCorpus(t, "b: 2\n")
+	otherAW := filepath.Join(other, "docs", "awareness")
+	if w := InspectCompiledSources([]string{aw, otherAW}); w.State.ClaimsExactRevision() {
+		t.Fatalf("two roots from different repositories produced an exact claim: rev=%q state=%q", w.Revision, w.State)
+	}
+
+	// A supplementary root that is DIRTY must also defeat the exact claim,
+	// even though the first root is clean.
+	if err := os.WriteFile(filepath.Join(otherAW, "x.yaml"), []byte("b: 3\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if w := InspectCompiledSources([]string{aw, otherAW}); w.State.ClaimsExactRevision() {
+		t.Fatal("a dirty supplementary root still produced an exact claim")
+	}
+}
+
+// FAMILY B, temporal: the digest and the revision must describe one world.
+//
+// The bytes were compiled at one moment and HEAD/tree/cleanliness read at a
+// later one, so a checkout that moved in between produced an exact claim for a
+// revision that did not produce those bytes.
+func TestAWitnessDetectsAMovingCheckout(t *testing.T) {
+	dir, commits := repoWithCorpus(t, "a: 1\n", "a: 2\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+
+	before := InspectCompiledSources([]string{aw})
+	if !before.State.ClaimsExactRevision() {
+		t.Fatalf("the specimen is wrong: want an exact witness, got %q", before.State)
+	}
+	if _, ok := before.Unchanged(); !ok {
+		t.Fatal("an unmoved checkout reported as changed")
+	}
+
+	// Someone resets the checkout while the build is doing its store reads.
+	run(t, dir, "git", "checkout", "-q", commits[0])
+	if _, ok := before.Unchanged(); ok {
+		t.Fatal("a checkout that moved between compilation and publication reported as unchanged")
+	}
+}

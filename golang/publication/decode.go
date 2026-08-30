@@ -45,8 +45,11 @@ func DecodeStoredReceipt(subject string, terms []RDFStatement) (Receipt, error) 
 	// an unauthenticated one.
 	var undefined []string
 	for pred := range byPred {
+		if _, isField := schema.Fields[pred]; isField {
+			continue // defined by this version, validated below
+		}
 		if !strings.HasPrefix(pred, PublicationFieldPrefix) {
-			continue // rdf:type, labels: metadata, not attested content
+			continue // labels and other metadata: not attested content
 		}
 		if _, defined := schema.Fields[pred]; !defined {
 			undefined = append(undefined, pred)
@@ -183,10 +186,22 @@ func statementsOf(r Receipt) ([]RDFStatement, error) {
 		if !ok {
 			return nil, fmt.Errorf("a rendered receipt line is unparseable: %q", line)
 		}
-		if !strings.HasPrefix(pred, PublicationFieldPrefix) {
+		if _, isField := receiptSchemaFields(r)[pred]; !isField {
 			continue
 		}
-		out = append(out, RDFStatement{Predicate: pred, Object: Term{Kind: TermLiteral, Value: obj}})
+		kind := TermLiteral
+		if pred == typeIRI {
+			kind = TermIRI
+		}
+		out = append(out, RDFStatement{Predicate: pred, Object: Term{Kind: kind, Value: obj}})
 	}
 	return out, nil
+}
+
+// receiptSchemaFields is the field set of a receipt's own version.
+func receiptSchemaFields(r Receipt) map[string]FieldSpec {
+	if s, ok := SchemaFor(r.version()); ok {
+		return s.Fields
+	}
+	return nil
 }

@@ -214,6 +214,13 @@ var schemas = map[ReceiptVersion]ReceiptSchema{
 	ReceiptV1: {
 		Version: ReceiptV1,
 		Fields: map[string]FieldSpec{
+			// The receipt's TYPE is authority-bearing, for the same reason the
+			// pointer's is: it says what this subject IS. It was added to the
+			// pointer schema and not to this one, so a receipt whose type was
+			// removed or changed still verified -- the endpoint reporting
+			// VERIFIED for a resource the store no longer identifies as a
+			// publication receipt.
+			typeIRI:    {1, 1, TermIRI, "", exactly(receiptClassIRI), false},
 			pDomain:    {1, 1, TermLiteral, "", domainName, true},
 			pRevision:  {0, 1, TermLiteral, "", gitObjectID, true},
 			pTree:      {0, 1, TermLiteral, "", gitObjectID, true},
@@ -235,6 +242,7 @@ var schemas = map[ReceiptVersion]ReceiptSchema{
 	ReceiptV2: {
 		Version: ReceiptV2,
 		Fields: map[string]FieldSpec{
+			typeIRI:    {1, 1, TermIRI, "", exactly(receiptClassIRI), false},
 			pVersion:   {1, 1, TermLiteral, "", nonEmpty, true},
 			pDomain:    {1, 1, TermLiteral, "", domainName, true},
 			pRevision:  {0, 1, TermLiteral, "", gitObjectID, true},

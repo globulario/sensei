@@ -134,3 +134,67 @@ func git(ctx context.Context, dir string, args ...string) (string, error) {
 	}
 	return strings.TrimSpace(string(out)), nil
 }
+
+// SourceWitness is what a publication actually compiled, established ONCE.
+//
+// THE SHARED-REFERENT LAW. Two mechanisms were describing "the compiled
+// inputs" and quantifying over different things:
+//
+//	the compiler read EVERY --input root; the inspection read only the first,
+//	so a dirty or separately versioned supplementary root could contribute
+//	authenticated output under another root's CLEAN_EXACT commit;
+//
+//	the digest was taken from bytes compiled at one moment while HEAD, tree and
+//	cleanliness were read at a later one, so a checkout that moved in between
+//	produced an exact claim for a revision that did not produce those bytes.
+//
+// Agreement of terminology is not agreement of referent. This makes the roots
+// and the moment explicit, and REFUSES the exact claim when they cannot be
+// proven equivalent rather than making two independent answers happen to match.
+type SourceWitness struct {
+	Revision string
+	Tree     string
+	State    SourceState
+	RelPath  string
+	Roots    []string
+}
+
+// InspectCompiledSources establishes one witness over EVERY compiled root.
+//
+// The exact claim survives only if every root resolves to the same revision and
+// the same tree and is individually clean. Roots that disagree are not a
+// tie to break: the receipt has one revision, one tree and one path, so a set
+// it cannot describe with them is a set it must not claim.
+func InspectCompiledSources(roots []string) SourceWitness {
+	if len(roots) == 0 {
+		return SourceWitness{State: Unknown}
+	}
+	first := SourceWitness{Roots: append([]string(nil), roots...)}
+	for i, root := range roots {
+		rev, tree, state, _, rel := InspectSource(root)
+		if i == 0 {
+			first.Revision, first.Tree, first.State, first.RelPath = rev, tree, state, rel
+			continue
+		}
+		if !state.ClaimsExactRevision() || rev != first.Revision || tree != first.Tree || rel != first.RelPath {
+			// Downgrade rather than pick a winner. UNKNOWN is the honest state
+			// for a set whose members this receipt cannot describe together.
+			first.State = Unknown
+			first.Revision, first.Tree = "", ""
+			return first
+		}
+	}
+	return first
+}
+
+// Unchanged reports whether a witness still describes the working tree.
+//
+// Compilation and inspection are two reads of one world. Re-establishing the
+// witness afterwards and requiring it identical proves the snapshot did not
+// move between them; a change is not resolved in favour of either read, because
+// what was observed was two worlds.
+func (w SourceWitness) Unchanged() (SourceWitness, bool) {
+	now := InspectCompiledSources(w.Roots)
+	return now, now.Revision == w.Revision && now.Tree == w.Tree &&
+		now.State == w.State && now.RelPath == w.RelPath
+}

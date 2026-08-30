@@ -94,7 +94,13 @@ func TestEveryFieldMutationIsRefused(t *testing.T) {
 
 			{"change the RDF term kind", func() []RDFStatement {
 				out := clone()
-				out[idx].Object.Kind = TermIRI
+				// Must differ FROM THE SPEC. Hard-coding TermIRI made this a
+				// no-op on fields that are already IRI-valued, so the mutation
+				// was "accepted" because nothing had changed.
+				out[idx].Object.Kind = TermLiteral
+				if spec.TermKind == TermLiteral {
+					out[idx].Object.Kind = TermIRI
+				}
 				return out
 			}, !present},
 
@@ -264,8 +270,20 @@ func TestEveryIdentityBearingFieldChangesTheIdentity(t *testing.T) {
 			spec := schema.Fields[pred]
 			set, known := setters[pred]
 			if !known {
-				t.Fatalf("schema %s defines %s but this test has no setter for it: "+
-					"a new field must be wired here or its identity coverage is unproven", version, pred)
+				// A CONSTANT field -- one whose only legal value is fixed by
+				// the schema, like the receipt's rdf:type -- has no struct
+				// representation and cannot vary. It therefore cannot be
+				// identity-bearing, and saying so is the proof rather than an
+				// exemption.
+				if spec.ValidateLexical == nil {
+					t.Fatalf("schema %s defines %s with no setter and no fixed value: "+
+						"a new field must be wired here or its identity coverage is unproven", version, pred)
+				}
+				if spec.IdentityBearing {
+					t.Errorf("%s/%s has no struct representation yet is marked IdentityBearing: "+
+						"a constant cannot be hashed as if it varied", version, pred)
+				}
+				continue
 			}
 			base := v2Receipt()
 			if version == ReceiptV1 {
@@ -386,5 +404,56 @@ func TestV2DirtyRequiresTheCommittedTree(t *testing.T) {
 	}
 	if _, err := DecodeStoredReceipt("", mustStatements(t, legacy)); err != nil {
 		t.Fatalf("a v1 DIRTY receipt without a tree was refused, repainting history: %v", err)
+	}
+}
+
+// FAMILY A: the receipt's own rdf:type is authority-bearing.
+//
+// It was added to the POINTER schema and not to the receipt schema, so a
+// receipt whose type was removed or changed still verified -- the endpoint
+// reporting VERIFIED for a resource the store no longer identifies as a
+// publication receipt. The same fix applied to one of two places, again.
+func TestTheReceiptTypeIsPartOfItsSchema(t *testing.T) {
+	base := v2Receipt()
+	valid := mustStatements(t, base)
+	if _, err := DecodeStoredReceipt(base.IRI(), valid); err != nil {
+		t.Fatalf("the valid specimen was refused: %v", err)
+	}
+
+	cases := map[string]func([]RDFStatement) []RDFStatement{
+		"type removed": func(in []RDFStatement) []RDFStatement {
+			var out []RDFStatement
+			for _, st := range in {
+				if st.Predicate != typeIRI {
+					out = append(out, st)
+				}
+			}
+			return out
+		},
+		"type as a literal": func(in []RDFStatement) []RDFStatement {
+			out := append([]RDFStatement(nil), in...)
+			for i := range out {
+				if out[i].Predicate == typeIRI {
+					out[i].Object.Kind = TermLiteral
+				}
+			}
+			return out
+		},
+		"type of another class": func(in []RDFStatement) []RDFStatement {
+			out := append([]RDFStatement(nil), in...)
+			for i := range out {
+				if out[i].Predicate == typeIRI {
+					out[i].Object.Value = pointerClassIRI
+				}
+			}
+			return out
+		},
+	}
+	for name, mut := range cases {
+		t.Run(name, func(t *testing.T) {
+			if _, err := DecodeStoredReceipt(base.IRI(), mut(append([]RDFStatement(nil), valid...))); err == nil {
+				t.Fatalf("%s was accepted", name)
+			}
+		})
 	}
 }
