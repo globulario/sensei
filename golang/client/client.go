@@ -21,6 +21,7 @@ import (
 	"os"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/transport"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -91,6 +92,13 @@ func Dial(addr string, opts ...Option) (*Client, error) {
 	if cred := BearerToken(TokenFromEnv()); cred != nil {
 		grpcOpts = append(grpcOpts, grpc.WithPerRPCCredentials(cred))
 	}
+	// The same ceiling as the server, from the same constant. EditCheck sends a
+	// whole changed file, so a client left on gRPC's 4 MiB default reports large
+	// legitimate evidence as an unverifiable backend error.
+	grpcOpts = append(grpcOpts, grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(transport.MaxMessageBytes),
+		grpc.MaxCallSendMsgSize(transport.MaxMessageBytes),
+	))
 	grpcOpts = append(grpcOpts, do.extra...)
 
 	cc, err := grpc.NewClient(addr, grpcOpts...)

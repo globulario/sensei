@@ -8,6 +8,8 @@ import (
 	"strings"
 
 	"google.golang.org/grpc"
+
+	"github.com/globulario/sensei/golang/transport"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -54,7 +56,16 @@ func BearerToken(token string) credentials.PerRPCCredentials {
 // token from $SENSEI_TOKEN, or legacy $AWG_TOKEN, when set. Shared by the CLI
 // commands and the MCP bridge so token handling lives in exactly one place.
 func DialConn(addr string) (*grpc.ClientConn, error) {
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
+	opts := []grpc.DialOption{
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		// The gate dials through HERE, not through client.Dial. Both dial sites
+		// must carry the same ceiling as the server or large evidence fails at
+		// whichever end was left on the 4 MiB default.
+		grpc.WithDefaultCallOptions(
+			grpc.MaxCallRecvMsgSize(transport.MaxMessageBytes),
+			grpc.MaxCallSendMsgSize(transport.MaxMessageBytes),
+		),
+	}
 	if cred := BearerToken(TokenFromEnv()); cred != nil {
 		opts = append(opts, grpc.WithPerRPCCredentials(cred))
 	}
