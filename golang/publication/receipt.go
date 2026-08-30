@@ -430,6 +430,28 @@ func Current(nt []byte, domain string) (Receipt, bool) {
 	return r, ok
 }
 
+// FieldsMatchVersion refuses a receipt carrying fields its version does not
+// authenticate.
+//
+// A v1 receipt backfilled with publicationSourcePath parses fine, and the FROZEN
+// v1 identity does not hash that field -- so the receipt still verifies while
+// exposing an unauthenticated path. That is precisely the present-and-unhashed
+// shape v2 was created to remove, reappearing through the version-agnostic
+// parser. A field a version cannot authenticate must make the receipt
+// unreadable, not decorate it.
+func (r Receipt) FieldsMatchVersion() error {
+	if r.version() == ReceiptV1 && r.SourcePath != "" {
+		return fmt.Errorf(
+			"a v1 receipt carries publicationSourcePath %q, which the v1 identity does not hash: "+
+				"the field is unauthenticated and must not be served as verified", r.SourcePath)
+	}
+	if r.version() == ReceiptV2 && r.SourceRoot != "" {
+		return fmt.Errorf(
+			"a v2 receipt carries publicationSourceRoot, which v2 does not hash or publish")
+	}
+	return nil
+}
+
 // VerifyIdentity reports whether a receipt read back from the store still
 // hashes to the IRI it is stored under. It catches a receipt whose fields were
 // altered after publication.

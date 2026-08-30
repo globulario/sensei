@@ -104,7 +104,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 
 	// Degraded path — store unavailable but we still build a useful response.
 	if s.store == nil {
-		return s.degradedPreflightResponse(task, files, start), nil
+		return s.degradedPreflightResponse(task, files, start, req.GetPublicationDomain()), nil
 	}
 	if err := s.requireCurrentGraphAuthority(ctx, "preflight"); err != nil {
 		return nil, err
@@ -391,12 +391,12 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 
 // degradedPreflightResponse is the bounded fallback for nil store.
 // Always carries UNKNOWN_IMPACT + LOW confidence + a retry hint.
-func (s *server) degradedPreflightResponse(task string, files []string, start time.Time) *awarenesspb.PreflightResponse {
+func (s *server) degradedPreflightResponse(task string, files []string, start time.Time, publicationDomain string) *awarenesspb.PreflightResponse {
 	return &awarenesspb.PreflightResponse{
 		Status:     awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED,
 		RiskClass:  awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		Confidence: awarenesspb.Confidence_CONFIDENCE_LOW,
-		Authority:  degradedAuthority(s, "", "the store is unavailable, so no publication could be resolved"),
+		Authority:  degradedAuthority(s, publicationDomain, "the store is unavailable, so no publication could be resolved"),
 		Coverage: &awarenesspb.CoverageSummary{
 			FileCount:  int32(len(files)),
 			Sufficient: false,

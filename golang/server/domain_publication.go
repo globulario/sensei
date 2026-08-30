@@ -59,11 +59,27 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	if err != nil {
 		return unreadable("the current-publication pointer could not be read: %v", err)
 	}
-	var storedTarget string
+	// EXACTLY ONE TARGET, or there is no current publication.
+	//
+	// Describe returns rows in no defined order, so keeping "the last one"
+	// meant the same ambiguous graph could attest either receipt depending on
+	// row order. Two targets do not mean one of them is current; they mean the
+	// question has no single answer, and answering anyway is how a race becomes
+	// an attestation.
+	targets := map[string]struct{}{}
 	for _, t := range ptr {
 		if t.Predicate == publication.CurrentPublicationPredicate && t.ObjectIsIRI {
-			storedTarget = t.Object
+			targets[t.Object] = struct{}{}
 		}
+	}
+	if len(targets) > 1 {
+		return unreadable(
+			"the pointer for %q names %d distinct current publications, so there is no singular current publication",
+			domain, len(targets))
+	}
+	var storedTarget string
+	for iri := range targets {
+		storedTarget = iri
 	}
 	if storedTarget == "" {
 		return &awarenesspb.DomainPublication{
@@ -93,6 +109,9 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	}
 	if r.Version != "" && !r.Version.Valid() {
 		return unreadable("receipt version %q is not one this server defines", r.Version)
+	}
+	if err := r.FieldsMatchVersion(); err != nil {
+		return unreadable("%v", err)
 	}
 
 	// 3. The check that is not a tautology: recomputed against STORED.

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/publication"
@@ -225,4 +226,121 @@ func TestThePublicationLookupIsBounded(t *testing.T) {
 	if n := atomic.LoadInt64(&idle); n != 0 {
 		t.Fatalf("an unasked authority still made %d publication Describe calls", n)
 	}
+}
+
+// FALSIFIER 5. The caller's publication question must survive EVERY degraded
+// branch, including the earliest one.
+//
+// The scope-degraded path was repaired first; this nil-store return dropped the
+// same predicate one branch earlier, and none of the previous falsifiers
+// reached it. A degraded response must say "you asked and I cannot answer",
+// never "nobody asked".
+func TestANilStoreStillPreservesTheCallersPublicationQuestion(t *testing.T) {
+	s := newServer(nil)
+	s.homeDomain = "github.com/globulario/sensei"
+
+	asked := s.degradedPreflightResponse("t", nil, time.Now(), pubTestDomain)
+	pub := asked.GetAuthority().GetCurrentPublication()
+	if pub.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: a supplied question was reported as unasked", pub.GetResolution())
+	}
+	if pub.GetRequestedDomain() != pubTestDomain {
+		t.Fatalf("requested_domain = %q, want %q", pub.GetRequestedDomain(), pubTestDomain)
+	}
+	if !strings.Contains(pub.GetDetail(), "store is unavailable") {
+		t.Fatalf("the refusal does not name the degradation: %q", pub.GetDetail())
+	}
+
+	// Control: nobody asked, so UNSPECIFIED remains correct.
+	unasked := s.degradedPreflightResponse("t", nil, time.Now(), "")
+	if got := unasked.GetAuthority().GetCurrentPublication().GetResolution(); got != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED {
+		t.Fatalf("an unasked degraded response reported %v, want UNSPECIFIED", got)
+	}
+}
+
+// FALSIFIER 6. A v1 receipt cannot serve a field the v1 identity does not hash.
+//
+// The frozen v1 algorithm omits source_path, so a backfilled v1 receipt still
+// verifies while exposing an unauthenticated path -- the present-and-unhashed
+// defect v2 removed, returning through the version-agnostic parser.
+func TestAV1ReceiptCarryingAV2OnlyFieldIsUnreadable(t *testing.T) {
+	legacy := publication.Receipt{ // no Version: this is v1
+		Domain: pubTestDomain, Revision: "f6b4755", Tree: "ad916f77",
+		State: publication.CleanExact, SourceDigest: "cff0d611",
+	}
+	stored := legacy.IRI()
+
+	backfilled := legacy
+	backfilled.SourcePath = "docs/attacker-controlled"
+	if backfilled.IRI() != stored {
+		t.Fatal("the specimen is wrong: v1 identity must be unchanged by source_path, or this proves nothing")
+	}
+
+	body := receiptTriples(legacy)
+	body = append(body, store.Triple{
+		Predicate: "https://globular.io/awareness#publicationSourcePath",
+		Object:    "docs/attacker-controlled",
+	})
+	st := publicationStore{storedTarget: stored, body: body, failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an unauthenticated path was served as verified", got.GetResolution())
+	}
+
+	// Control: the same v1 receipt without the smuggled field verifies.
+	clean := publicationStore{storedTarget: stored, body: receiptTriples(legacy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(clean), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a clean v1 receipt failed to verify: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
+
+// FALSIFIER 7. Two current-publication targets mean the question has no single
+// answer. Describe has no defined row order, so keeping the last one let the
+// same graph attest either receipt.
+func TestTwoCurrentPublicationTargetsAreUnreadable(t *testing.T) {
+	a := healthyReceipt()
+	b := a
+	b.Revision = "0000000000000000000000000000000000000000"
+
+	st := ambiguousPointerStore{targets: []string{a.IRI(), b.IRI()}, bodies: map[string][]store.Triple{
+		a.IRI(): receiptTriples(a),
+		b.IRI(): receiptTriples(b),
+	}}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an ambiguous pointer attested one of two receipts", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "distinct current publications") {
+		t.Fatalf("the refusal does not name the ambiguity: %q", got.GetDetail())
+	}
+
+	// Control: one target still verifies.
+	single := ambiguousPointerStore{targets: []string{a.IRI()}, bodies: map[string][]store.Triple{a.IRI(): receiptTriples(a)}}
+	if got := resolveCurrentPublication(context.Background(), serverWith(single), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a single target failed to verify: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
+
+type ambiguousPointerStore struct {
+	fakeStore
+	targets []string
+	bodies  map[string][]store.Triple
+}
+
+func (p ambiguousPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
+	if iri == publication.PointerIRI(pubTestDomain) {
+		var out []store.Triple
+		for _, t := range p.targets {
+			out = append(out, store.Triple{
+				Predicate:   publication.CurrentPublicationPredicate,
+				Object:      t,
+				ObjectIsIRI: true,
+			})
+		}
+		return out, nil
+	}
+	if body, ok := p.bodies[iri]; ok {
+		return body, nil
+	}
+	return p.fakeStore.Describe(ctx, iri)
 }
