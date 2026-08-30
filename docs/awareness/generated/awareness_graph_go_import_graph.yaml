@@ -288,6 +288,7 @@ components:
       - component.golang.graphgeneration
       - component.golang.netcfg
       - component.golang.propose
+      - component.golang.publication
       - component.golang.rdf
       - component.golang.repoeval
       - component.golang.runtimedescriptor
@@ -2836,6 +2837,20 @@ components:
       - golang/propose/propose.go
     external_imports:
       - gopkg.in/yaml.v3
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.publication
+    name: publication
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/publication/receipt.go
+      - golang/publication/source.go
+    depends_on:
+      - component.golang.seedmeta
     uml:
       kind: Component
       stereotype: module
