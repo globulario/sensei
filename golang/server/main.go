@@ -54,6 +54,7 @@ import (
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
 	"github.com/globulario/sensei/golang/store/oxigraph"
+	"github.com/globulario/sensei/golang/transport"
 )
 
 // seedNT is the compiled awareness knowledge graph embedded at build time.
@@ -422,6 +423,15 @@ func serve(addr string, cfg serviceConfig, requireStore, noSeed, allowStaleSeed 
 		)
 		logger.Printf("awareness-graph: bearer-token auth ENABLED (health/reflection exempt)")
 	}
+
+	// Both ends must agree on the ceiling, so it is stated once in
+	// golang/transport. EditCheck carries a whole changed file, and gRPC's 4 MiB
+	// default turned "this file is large" into "this file could not be
+	// verified".
+	grpcOpts = append(grpcOpts,
+		grpc.MaxRecvMsgSize(transport.MaxMessageBytes),
+		grpc.MaxSendMsgSize(transport.MaxMessageBytes),
+	)
 
 	grpcServer := grpc.NewServer(grpcOpts...)
 	srv := newServer(rdfStore)
