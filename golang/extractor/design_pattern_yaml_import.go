@@ -17,7 +17,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
@@ -66,7 +65,7 @@ type yamlDesignPattern struct {
 }
 
 func importDesignPattern(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}
@@ -127,7 +126,7 @@ type yamlPatternMisuse struct {
 }
 
 func importPatternMisuse(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

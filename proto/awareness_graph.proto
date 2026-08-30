@@ -801,6 +801,15 @@ message DomainPublication {
   // Repository-relative knowledge path, e.g. "docs/awareness". v2 and later.
   string source_path = 9;
   string source_digest_sha256 = 10;
+
+  // The generation this publication was READ FROM, taken from the same
+  // single-query snapshot as the pointer and receipt.
+  //
+  // A consumer must compare it with the authority's own live graph digest. Two
+  // separate reads bracketed by a digest comparison accept an A -> B -> A
+  // transition; this carries the world the receipt actually came from, so the
+  // composite can be checked rather than assumed.
+  string snapshot_generation = 12;
 }
 
 enum CandidateQueueState {

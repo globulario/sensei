@@ -215,7 +215,7 @@ type yamlActivationPolicyTier struct {
 // are not YAML mappings are silently skipped so those files can be
 // imported without error even though they produce 0 ForbiddenFix nodes.
 func importForbiddenFixes(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -295,7 +295,7 @@ func importForbiddenFixes(e *rdf.Emitter, path string) error {
 // It enriches aw:Test nodes with labels and links back to the invariants
 // and failure modes they protect.
 func importRequiredTests(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -339,7 +339,7 @@ func importRequiredTests(e *rdf.Emitter, path string) error {
 // importContracts imports files with the versioned_doc schema that carry a
 // contracts: list (authority_contracts.yaml, service_contracts.yaml).
 func importContracts(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -380,7 +380,7 @@ func importContracts(e *rdf.Emitter, path string) error {
 // to avoid a second read. This function IS called from classifyAndImport which
 // has already read the raw map; to avoid two reads we parse from data bytes.
 func importIncident(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -398,7 +398,7 @@ func importIncident(e *rdf.Emitter, path string) error {
 }
 
 func importIncidents(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -452,7 +452,7 @@ func emitIncident(e *rdf.Emitter, path string, inc yamlIncident) error {
 // ── importDecisions ───────────────────────────────────────────────────────────
 
 func importDecisions(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -508,7 +508,7 @@ func importDecisions(e *rdf.Emitter, path string) error {
 // ── importGuardrails ──────────────────────────────────────────────────────────
 
 func importGuardrails(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -547,7 +547,7 @@ func importGuardrails(e *rdf.Emitter, path string) error {
 // ── importRules ───────────────────────────────────────────────────────────────
 
 func importRules(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -589,7 +589,7 @@ func importRules(e *rdf.Emitter, path string) error {
 
 // importPatterns handles both patterns: and design_patterns: schemas.
 func importPatterns(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -629,7 +629,7 @@ func importPatterns(e *rdf.Emitter, path string) error {
 // ── importServices ────────────────────────────────────────────────────────────
 
 func importServices(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -660,7 +660,7 @@ func importServices(e *rdf.Emitter, path string) error {
 // The registry is authoritative operational policy, so even an empty list emits
 // a guardrail node carrying authoredIn provenance.
 func importHighRiskFiles(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -694,7 +694,7 @@ func importHighRiskFiles(e *rdf.Emitter, path string) error {
 // importActivationRules imports the policy that decides when agents must ask
 // Sensei for context and how they treat EMPTY briefing results.
 func importActivationRules(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

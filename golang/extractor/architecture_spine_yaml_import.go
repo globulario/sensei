@@ -110,7 +110,7 @@ type componentsFile struct {
 }
 
 func importComponents(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -187,7 +187,7 @@ type boundariesFile struct {
 }
 
 func importBoundaries(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -259,7 +259,7 @@ type archContractsFile struct {
 }
 
 func importArchitectureContracts(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -333,7 +333,7 @@ type evidenceFile struct {
 }
 
 func importEvidence(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -397,7 +397,7 @@ type metaPrincipleLinksFile struct {
 }
 
 func importMetaPrincipleLinks(e *rdf.Emitter, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil

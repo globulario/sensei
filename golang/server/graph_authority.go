@@ -57,6 +57,28 @@ func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string
 	// freshness verdict describes. A change is not resolved in favour of either
 	// read: what this call observed was two worlds, so it reports that it
 	// cannot attest to one.
+	// BIND THE VERDICT TO THE SNAPSHOT'S OWN GENERATION.
+	//
+	// The publication now reports the world it was read from. If that differs
+	// from the world the freshness verdict describes, the two halves of this
+	// response describe different graphs and the composite must refuse --
+	// including the A -> B -> A case, which no amount of endpoint comparison
+	// can detect.
+	if got := pub.GetSnapshotGeneration(); got != "" && got != snap.verification.Live.Digest {
+		pub = &awarenesspb.DomainPublication{
+			Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+			RequestedDomain:    publicationDomain,
+			Domain:             publicationDomain,
+			SnapshotGeneration: got,
+			Detail: fmt.Sprintf(
+				"the publication was read from generation %s while this authority describes %s, "+
+					"so the two halves of this response describe different graphs",
+				shortDigest(got), shortDigest(snap.verification.Live.Digest)),
+		}
+		a.CurrentPublication = pub
+		return a
+	}
+
 	after := snapshotGraphFreshness(ctx, s)
 	if before, now := snap.verification.Live.Digest, after.verification.Live.Digest; before != now {
 		pub = &awarenesspb.DomainPublication{

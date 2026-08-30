@@ -4235,6 +4235,14 @@ type DomainPublication struct {
 	// Repository-relative knowledge path, e.g. "docs/awareness". v2 and later.
 	SourcePath         string `protobuf:"bytes,9,opt,name=source_path,json=sourcePath,proto3" json:"source_path,omitempty"`
 	SourceDigestSha256 string `protobuf:"bytes,10,opt,name=source_digest_sha256,json=sourceDigestSha256,proto3" json:"source_digest_sha256,omitempty"`
+	// The generation this publication was READ FROM, taken from the same
+	// single-query snapshot as the pointer and receipt.
+	//
+	// A consumer must compare it with the authority's own live graph digest. Two
+	// separate reads bracketed by a digest comparison accept an A -> B -> A
+	// transition; this carries the world the receipt actually came from, so the
+	// composite can be checked rather than assumed.
+	SnapshotGeneration string `protobuf:"bytes,12,opt,name=snapshot_generation,json=snapshotGeneration,proto3" json:"snapshot_generation,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -4342,6 +4350,13 @@ func (x *DomainPublication) GetSourcePath() string {
 func (x *DomainPublication) GetSourceDigestSha256() string {
 	if x != nil {
 		return x.SourceDigestSha256
+	}
+	return ""
+}
+
+func (x *DomainPublication) GetSnapshotGeneration() string {
+	if x != nil {
+		return x.SnapshotGeneration
 	}
 	return ""
 }
@@ -10375,7 +10390,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
 	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\x12D\n" +
 	"\averdict\x18\x11 \x01(\x0e2*.globular.awareness_graph.AuthorityVerdictR\averdict\x12\\\n" +
-	"\x13current_publication\x18\x12 \x01(\v2+.globular.awareness_graph.DomainPublicationR\x12currentPublication\"\xc9\x03\n" +
+	"\x13current_publication\x18\x12 \x01(\v2+.globular.awareness_graph.DomainPublicationR\x12currentPublication\"\xfa\x03\n" +
 	"\x11DomainPublication\x12)\n" +
 	"\x10requested_domain\x18\v \x01(\tR\x0frequestedDomain\x12O\n" +
 	"\n" +
@@ -10393,7 +10408,8 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\vsource_path\x18\t \x01(\tR\n" +
 	"sourcePath\x120\n" +
 	"\x14source_digest_sha256\x18\n" +
-	" \x01(\tR\x12sourceDigestSha256\"\xe5\x1e\n" +
+	" \x01(\tR\x12sourceDigestSha256\x12/\n" +
+	"\x13snapshot_generation\x18\f \x01(\tR\x12snapshotGeneration\"\xe5\x1e\n" +
 	"\x10MetadataResponse\x12,\n" +
 	"\x12graph_build_commit\x18\x01 \x01(\tR\x10graphBuildCommit\x121\n" +
 	"\x15graph_build_time_unix\x18\x02 \x01(\x03R\x12graphBuildTimeUnix\x12,\n" +

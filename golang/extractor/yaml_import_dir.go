@@ -469,7 +469,7 @@ func awarenessMutationSourceClass(schema string) string {
 // do NOT cause the overall walk to abort — partial coverage is better than no
 // coverage.
 func classifyAndImport(e *rdf.Emitter, path string) FileReport {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		// No bytes were consumed, so there is no digest to state. An absent
 		// digest is the honest record of a file that was never read.
@@ -479,7 +479,9 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 			Reason: "read: " + err.Error(),
 		}
 	}
-	// Digested HERE, from the buffer about to be parsed.
+	// The classifier's own read. It is only a FALLBACK: when a schema importer
+	// runs it reopens the path, and the digest that matters is the one covering
+	// the buffer THAT parse consumed. See consumed_source.go.
 	consumed := sha256.Sum256(data)
 	digest := hex.EncodeToString(consumed[:])
 
@@ -502,6 +504,9 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 			Reason:         "empty document (comments or whitespace only)",
 		}
 	}
+
+	// Anything an importer records from here on replaces the classifier digest.
+	forgetConsumed(path)
 
 	entry, known := detectSchema(raw)
 	if !known {
@@ -653,6 +658,12 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = importCodeReferences(e, path)
 	default:
 		importErr = fmt.Errorf("internal: no importer registered for schema %q (importable=true but switch missing)", entry.name)
+	}
+
+	// The importer's own read replaces the classifier's, because the importer's
+	// buffer is the one the emitted triples came from.
+	if d, read := consumedDigestFor(path); read {
+		digest = d
 	}
 
 	if importErr != nil {

@@ -2590,6 +2590,7 @@ components:
       - golang/extractor/authority_domains_yaml_import.go
       - golang/extractor/authority_policy_yaml_import.go
       - golang/extractor/code_symbols_import.go
+      - golang/extractor/consumed_source.go
       - golang/extractor/contract_realizations_yaml_import.go
       - golang/extractor/contract_set_yaml_import.go
       - golang/extractor/contradiction_validator.go

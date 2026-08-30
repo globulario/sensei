@@ -18,7 +18,6 @@ package extractor
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -262,7 +261,7 @@ func ValidatePromotions(dirs ...string) ([]PromotionViolation, error) {
 // validatePromotionFile classifies a single YAML file and validates it if it is
 // a promotable kind. Non-promotable files yield no violations and no error.
 func validatePromotionFile(path string) ([]PromotionViolation, error) {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}

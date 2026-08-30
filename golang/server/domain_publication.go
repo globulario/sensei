@@ -64,6 +64,7 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	// rather than a comparison.
 	var ptr, receiptBody []store.Statement
 	var haveSnapshot bool
+	var snapshotMarker string
 	if snapper, ok := s.store.(interface {
 		DescribeAuthoritySnapshot(context.Context, string) (store.AuthoritySnapshot, error)
 	}); ok {
@@ -72,6 +73,7 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 			return unreadable("the authority snapshot could not be read: %v", err)
 		}
 		ptr, receiptBody, haveSnapshot = snap.Pointer, snap.Receipt, true
+		snapshotMarker = markerDigestOf(snap.Marker)
 	}
 	if !haveSnapshot {
 		var err error
@@ -123,13 +125,30 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 			"the pointer for %q resolved to a receipt for %q", domain, r.Domain)
 	}
 
+	// THE VERDICT MUST BE BOUND TO THE SNAPSHOT'S OWN GENERATION.
+	//
+	// The single-evaluation read closed the A -> B -> A hole in the publication
+	// itself, then the marker it returned was DISCARDED -- so the composite
+	// could still report AUTHORITATIVE for generation A while carrying a
+	// receipt read from B. Supplying the evidence and not using it is the same
+	// defect as never reading it.
+	out := &awarenesspb.DomainPublication{}
+	out.SnapshotGeneration = snapshotMarker
+
 	version := string(publication.ReceiptV1)
 	if r.Version != "" {
 		version = string(r.Version)
 	}
-	return &awarenesspb.DomainPublication{
-		Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED,
-		RequestedDomain:    domain,
+	out.Resolution = awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED
+	out.RequestedDomain = domain
+	return fillVerified(out, storedTarget, version, r)
+}
+
+func fillVerified(out *awarenesspb.DomainPublication, storedTarget, version string, r publication.Receipt) *awarenesspb.DomainPublication {
+	src := &awarenesspb.DomainPublication{
+		Resolution:         out.Resolution,
+		RequestedDomain:    out.RequestedDomain,
+		SnapshotGeneration: out.SnapshotGeneration,
 		ReceiptIri:         storedTarget,
 		ReceiptVersion:     version,
 		Domain:             r.Domain,
@@ -139,6 +158,18 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 		SourcePath:         r.SourcePath,
 		SourceDigestSha256: r.SourceDigest,
 	}
+	return src
+}
+
+// markerDigestOf extracts the generation digest from the marker statements the
+// snapshot returned.
+func markerDigestOf(marker []store.Statement) string {
+	for _, st := range marker {
+		if strings.HasSuffix(st.Predicate, "seedDigestSha256") {
+			return st.Object.Value
+		}
+	}
+	return ""
 }
 
 func shortIRI(iri string) string {

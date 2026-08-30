@@ -758,3 +758,75 @@ func TestClosureAnswersForTheRequestedDomain(t *testing.T) {
 			a.GetCurrentPublication().GetResolution())
 	}
 }
+
+// F6: the verdict must be bound to the generation the publication was READ
+// FROM.
+//
+// The single-evaluation snapshot closed A -> B -> A inside the publication,
+// then its marker was discarded -- so the composite could still report a
+// verdict for generation A while carrying a receipt read from B. Supplying the
+// evidence and not using it is the same defect as never reading it.
+func TestTheVerdictRefusesAPublicationFromAnotherGeneration(t *testing.T) {
+	healthy := healthyReceipt()
+	st := snapshotStore{
+		receipt: healthy,
+		marker:  strings.Repeat("b", 64), // the publication was read from B
+	}
+	s := serverWith(st)
+	s.closureEval = func(string) (closure.SemanticState, string) {
+		return closure.SemanticClosureProven, "proven"
+	}
+	s.fakeFreshness(strings.Repeat("a", 64)) // ...while freshness describes A
+
+	a := s.graphAuthorityFor(context.Background(), pubTestDomain)
+	pub := a.GetCurrentPublication()
+	if pub.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: a receipt from another generation was attested", pub.GetResolution())
+	}
+	if !strings.Contains(pub.GetDetail(), "different graphs") {
+		t.Fatalf("the refusal does not name the split: %q", pub.GetDetail())
+	}
+
+	// Control: same generation on both halves still verifies.
+	same := snapshotStore{receipt: healthy, marker: strings.Repeat("a", 64)}
+	s2 := serverWith(same)
+	s2.closureEval = func(string) (closure.SemanticState, string) {
+		return closure.SemanticClosureProven, "proven"
+	}
+	s2.fakeFreshness(strings.Repeat("a", 64))
+	if got := s2.graphAuthorityFor(context.Background(), pubTestDomain).GetCurrentPublication().GetResolution(); got != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("one generation on both halves failed: %v", got)
+	}
+}
+
+// snapshotStore answers the single-evaluation read, with a marker the test
+// controls independently of the freshness digest.
+type snapshotStore struct {
+	fakeStore
+	receipt publication.Receipt
+	marker  string
+}
+
+func (p snapshotStore) DescribeAuthoritySnapshot(_ context.Context, _ string) (store.AuthoritySnapshot, error) {
+	return store.AuthoritySnapshot{
+		Pointer: asStatements(pointerTriples(p.receipt, p.receipt.IRI())),
+		Receipt: asStatements(receiptTriples(p.receipt)),
+		Marker: []store.Statement{{
+			Predicate: "https://globular.io/awareness#seedDigestSha256",
+			Object:    store.Term{Kind: store.TermLiteral, Value: p.marker},
+		}},
+	}, nil
+}
+
+func (p snapshotStore) DescribeTerms(ctx context.Context, iri string) ([]store.Statement, error) {
+	return nil, nil
+}
+
+// fakeFreshness pins the live generation this server reports.
+func (s *server) fakeFreshness(digest string) {
+	st, _ := s.store.(snapshotStore)
+	st.fakeStore.graphFreshness = func(context.Context) seedmeta.Verification {
+		return seedmeta.Verification{State: seedmeta.FreshnessCurrent, Live: seedmeta.Marker{Digest: digest}}
+	}
+	s.store = st
+}

@@ -22,7 +22,6 @@ package extractor
 import (
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -103,7 +102,7 @@ func ValidateContradictions(dirs ...string) ([]Contradiction, error) {
 
 // collectCorpusNodes extracts the generic node view(s) from one YAML file.
 func collectCorpusNodes(path string) ([]corpusNode, error) {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return nil, fmt.Errorf("read %s: %w", path, err)
 	}

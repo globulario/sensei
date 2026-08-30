@@ -591,3 +591,21 @@ func TestProvingConsumedBytesCatchesARestoredFile(t *testing.T) {
 		t.Fatal("a file with no consumed digest was accepted")
 	}
 }
+
+// F7: a file that CONTRIBUTED TRIPLES with no digest must fail the proof.
+//
+// Skipping undigested entries silently turned "not digested" into "not
+// consumed", so an importer that never recorded a digest published facts
+// nothing checked.
+func TestAConsumedFileWithNoDigestCannotBeProven(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	rev, _, _, _, _ := InspectSource(filepath.Join(dir, "docs", "awareness"))
+	err := ProveConsumedAgainstRevision(dir, rev,
+		[]ConsumedFile{{Path: filepath.Join(dir, "docs", "awareness", "x.yaml")}})
+	if err == nil {
+		t.Fatal("a consumed file with no digest was accepted")
+	}
+	if !strings.Contains(err.Error(), "without a recorded digest") {
+		t.Fatalf("the refusal does not name the missing digest: %v", err)
+	}
+}

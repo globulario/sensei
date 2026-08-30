@@ -4,7 +4,6 @@ package extractor
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -204,7 +203,7 @@ func importAuthorityGrants(e *rdf.Emitter, path string) error {
 }
 
 func loadYAMLDoc(path string, out any) error {
-	data, err := os.ReadFile(path)
+	data, err := readAndRecord(path)
 	if err != nil {
 		return fmt.Errorf("read: %w", err)
 	}

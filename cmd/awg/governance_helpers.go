@@ -66,7 +66,15 @@ func consumedFrom(rep extractor.ImportReport) []publication.ConsumedFile {
 	var out []publication.ConsumedFile
 	for _, f := range rep.Files {
 		if f.ConsumedDigest == "" {
-			continue // never read; an absent digest is not a claim
+			if f.Status == extractor.StatusImported {
+				// A file that CONTRIBUTED TRIPLES with no recorded digest
+				// cannot be proven, and skipping it would let its bytes escape
+				// the proof entirely. Skipping was the hole: "not digested"
+				// silently became "not consumed", so an importer that never
+				// recorded a digest published facts nothing checked.
+				out = append(out, publication.ConsumedFile{Path: f.Path})
+			}
+			continue
 		}
 		out = append(out, publication.ConsumedFile{Path: f.Path, Digest: f.ConsumedDigest})
 	}
