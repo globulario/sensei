@@ -482,6 +482,61 @@ func Current(nt []byte, domain string) (Receipt, bool) {
 	return r, ok
 }
 
+// definedFields is the CLOSED set of publication predicates each receipt
+// version defines and authenticates.
+//
+// It is a closed vocabulary read by MEMBERSHIP, for the reason this package
+// keeps rediscovering: a field the identity does not cover can otherwise ride
+// inside a receipt that verifies. v1's SourcePath was one instance; ANY
+// unrecognised aw:publication... predicate is the same defect, so the rule is
+// stated over the namespace rather than over the one field that was caught.
+//
+// Scoped to publication fields deliberately. rdf:type and rdfs:label are a
+// different category -- ordinary metadata, not attested content -- and
+// rejecting every unfamiliar triple would refuse receipts over facts the
+// identity never claimed to cover.
+var definedFields = map[ReceiptVersion]map[string]struct{}{
+	ReceiptV1: {
+		pDomain: {}, pRevision: {}, pTree: {}, pState: {}, pRoot: {}, pSourceDig: {},
+	},
+	ReceiptV2: {
+		pVersion: {}, pDomain: {}, pRevision: {}, pTree: {}, pState: {}, pPath: {}, pSourceDig: {},
+	},
+}
+
+// PublicationFieldPrefix is the namespace whose predicates a receipt version
+// must define.
+const PublicationFieldPrefix = seedmeta.NamespaceIRI + "publication"
+
+// UndefinedFields returns the publication predicates present on a receipt that
+// its version does not define.
+func UndefinedFields(v ReceiptVersion, predicates []string) []string {
+	if v == "" {
+		v = ReceiptV1
+	}
+	defined, known := definedFields[v]
+	if !known {
+		return []string{"<the receipt version is not one this reader defines>"}
+	}
+	var bad []string
+	seen := map[string]struct{}{}
+	for _, p := range predicates {
+		if !strings.HasPrefix(p, PublicationFieldPrefix) {
+			continue
+		}
+		if _, ok := defined[p]; ok {
+			continue
+		}
+		if _, dup := seen[p]; dup {
+			continue
+		}
+		seen[p] = struct{}{}
+		bad = append(bad, p)
+	}
+	sort.Strings(bad)
+	return bad
+}
+
 // FieldsMatchVersion refuses a receipt carrying fields its version does not
 // authenticate.
 //

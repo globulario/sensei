@@ -139,6 +139,17 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	if r.Version != "" && !r.Version.Valid() {
 		return unreadable("receipt version %q is not one this server defines", r.Version)
 	}
+	// Every publication field must be one this version DEFINES and
+	// authenticates. A field the identity does not cover would otherwise ride
+	// inside a receipt that verifies -- v1's SourcePath was one instance of
+	// this, and the rule is stated over the namespace so the next one is not a
+	// separate discovery.
+	if undefined := publication.UndefinedFields(r.Version, preds); len(undefined) != 0 {
+		return unreadable(
+			"the receipt carries publication field(s) %v that version %s does not define, "+
+				"so they are present but unauthenticated",
+			undefined, versionOrV1(r.Version))
+	}
 	// The source state is a CLOSED vocabulary and is read by membership. An
 	// unrecognised state that happens to be self-consistent would otherwise be
 	// projected as VERIFIED, presenting semantics this server cannot interpret
@@ -185,4 +196,11 @@ func shortIRI(iri string) string {
 		return iri[:i+13] + "..."
 	}
 	return iri
+}
+
+func versionOrV1(v publication.ReceiptVersion) publication.ReceiptVersion {
+	if v == "" {
+		return publication.ReceiptV1
+	}
+	return v
 }

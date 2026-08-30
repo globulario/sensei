@@ -519,3 +519,62 @@ func TestAnIRIValuedReceiptFieldIsUnreadable(t *testing.T) {
 		t.Fatalf("a correctly stored receipt failed: %v %s", got.GetResolution(), got.GetDetail())
 	}
 }
+
+// FALSIFIER 13. THE FIELD-AUTHENTICATION PROPERTY, generalised from v1's
+// SourcePath.
+//
+// An unrecognised aw:publication... predicate parses past the term-kind and
+// multiplicity checks, is then ignored by the parser, and never participates in
+// the identity -- so the receipt verifies while carrying a field nothing
+// authenticates. That is the v1 SourcePath defect stated over the namespace
+// instead of over the single field that was caught.
+//
+// Reproduced as VERIFIED before this repair.
+func TestAnUndefinedPublicationFieldIsUnreadable(t *testing.T) {
+	healthy := healthyReceipt()
+	body := append(receiptTriples(healthy), store.Triple{
+		Predicate: "https://globular.io/awareness#publicationMystery",
+		Object:    "x",
+	})
+	st := publicationStore{storedTarget: healthy.IRI(), body: body, failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an unauthenticated field rode inside a verified receipt", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "does not define") {
+		t.Fatalf("the refusal does not name the undefined field: %q", got.GetDetail())
+	}
+
+	// Control 1: the clean receipt still verifies.
+	clean := publicationStore{storedTarget: healthy.IRI(), body: receiptTriples(healthy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(clean), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a clean receipt failed: %v %s", got.GetResolution(), got.GetDetail())
+	}
+
+	// Control 2: NON-publication metadata is a different category and must NOT
+	// be rejected. rdf:type and rdfs:label are ordinary metadata, not attested
+	// content, and refusing every unfamiliar triple would refuse receipts over
+	// facts the identity never claimed to cover.
+	withMeta := append(receiptTriples(healthy),
+		store.Triple{Predicate: "http://www.w3.org/2000/01/rdf-schema#comment", Object: "harmless"},
+		store.Triple{Predicate: "https://globular.io/awareness#authoredIn", Object: "generated:somewhere"},
+	)
+	meta := publicationStore{storedTarget: healthy.IRI(), body: withMeta, failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(meta), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("ordinary metadata was rejected as an unauthenticated field: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
+
+// A v1 receipt must not be judged against v2's vocabulary, or the frozen
+// historical shape would stop verifying.
+func TestEachVersionIsJudgedAgainstItsOwnVocabulary(t *testing.T) {
+	legacy := publication.Receipt{
+		Domain: pubTestDomain, Revision: "f6b4755", Tree: "ad916f77",
+		State: publication.CleanExact, SourceDigest: "cff0d611",
+		SourceRoot: "/tmp/build/docs/awareness",
+	}
+	st := publicationStore{storedTarget: legacy.IRI(), body: receiptTriples(legacy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a v1 receipt carrying v1's own SourceRoot was refused: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
