@@ -4206,8 +4206,14 @@ func (x *GraphAuthority) GetCurrentPublication() *DomainPublication {
 // DomainPublication is the authenticated answer to "which governed revision
 // produced the knowledge currently served for this domain".
 type DomainPublication struct {
-	state      protoimpl.MessageState `protogen:"open.v1"`
-	Resolution PublicationResolution  `protobuf:"varint,1,opt,name=resolution,proto3,enum=globular.awareness_graph.PublicationResolution" json:"resolution,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The domain this projection actually answers for.
+	//
+	// A consumer MUST compare this with the domain it asked about. A server that
+	// returns a perfectly valid receipt for a different domain has not answered
+	// the question, and "a receipt came back" is not evidence that it did.
+	RequestedDomain string                `protobuf:"bytes,11,opt,name=requested_domain,json=requestedDomain,proto3" json:"requested_domain,omitempty"`
+	Resolution      PublicationResolution `protobuf:"varint,1,opt,name=resolution,proto3,enum=globular.awareness_graph.PublicationResolution" json:"resolution,omitempty"`
 	// Why, when resolution is not VERIFIED. Never empty in that case.
 	Detail string `protobuf:"bytes,2,opt,name=detail,proto3" json:"detail,omitempty"`
 	// The receipt's own immutable name, recomputed by this server rather than
@@ -4261,6 +4267,13 @@ func (x *DomainPublication) ProtoReflect() protoreflect.Message {
 // Deprecated: Use DomainPublication.ProtoReflect.Descriptor instead.
 func (*DomainPublication) Descriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *DomainPublication) GetRequestedDomain() string {
+	if x != nil {
+		return x.RequestedDomain
+	}
+	return ""
 }
 
 func (x *DomainPublication) GetResolution() PublicationResolution {
@@ -5830,9 +5843,19 @@ type PreflightRequest struct {
 	// so a multi-domain graph scopes correctly (and fails closed when empty).
 	// Same semantics as BriefingRequest.domain. Preflight semantics are
 	// otherwise unchanged — this is scope correctness, not enforcement.
-	Domain        string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Domain string `protobuf:"bytes,4,opt,name=domain,proto3" json:"domain,omitempty"`
+	// The domain whose CURRENT PUBLICATION the caller wants resolved -- a start
+	// gate's KnowledgeContract domain.
+	//
+	// Separate from `domain` because scoping a preflight query and asking "which
+	// governed revision produced the knowledge for this domain" are different
+	// questions, and a multi-domain graph can answer them differently. When
+	// empty the server resolves its own home domain and says so, which a caller
+	// cross-checking requested_domain will correctly refuse rather than mistake
+	// for an answer to the question it asked.
+	PublicationDomain string `protobuf:"bytes,5,opt,name=publication_domain,json=publicationDomain,proto3" json:"publication_domain,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PreflightRequest) Reset() {
@@ -5889,6 +5912,13 @@ func (x *PreflightRequest) GetMode() PreflightMode {
 func (x *PreflightRequest) GetDomain() string {
 	if x != nil {
 		return x.Domain
+	}
+	return ""
+}
+
+func (x *PreflightRequest) GetPublicationDomain() string {
+	if x != nil {
+		return x.PublicationDomain
 	}
 	return ""
 }
@@ -10345,8 +10375,9 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"!embedded_transaction_matches_seed\x18\x0f \x01(\bR\x1eembeddedTransactionMatchesSeed\x12>\n" +
 	"\x1bembedded_transaction_detail\x18\x10 \x01(\tR\x19embeddedTransactionDetail\x12D\n" +
 	"\averdict\x18\x11 \x01(\x0e2*.globular.awareness_graph.AuthorityVerdictR\averdict\x12\\\n" +
-	"\x13current_publication\x18\x12 \x01(\v2+.globular.awareness_graph.DomainPublicationR\x12currentPublication\"\x9e\x03\n" +
-	"\x11DomainPublication\x12O\n" +
+	"\x13current_publication\x18\x12 \x01(\v2+.globular.awareness_graph.DomainPublicationR\x12currentPublication\"\xc9\x03\n" +
+	"\x11DomainPublication\x12)\n" +
+	"\x10requested_domain\x18\v \x01(\tR\x0frequestedDomain\x12O\n" +
 	"\n" +
 	"resolution\x18\x01 \x01(\x0e2/.globular.awareness_graph.PublicationResolutionR\n" +
 	"resolution\x12\x16\n" +
@@ -10503,12 +10534,13 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1cscore_used_for_certification\x18\x06 \x01(\bR\x19scoreUsedForCertification\x12)\n" +
 	"\x10missing_evidence\x18\a \x03(\tR\x0fmissingEvidence\x12@\n" +
 	"\x1dblocked_by_forbidden_move_ids\x18\b \x03(\tR\x19blockedByForbiddenMoveIds\x12\x14\n" +
-	"\x05notes\x18\t \x03(\tR\x05notes\"\x91\x01\n" +
+	"\x05notes\x18\t \x03(\tR\x05notes\"\xc0\x01\n" +
 	"\x10PreflightRequest\x12\x12\n" +
 	"\x04task\x18\x01 \x01(\tR\x04task\x12\x14\n" +
 	"\x05files\x18\x02 \x03(\tR\x05files\x12;\n" +
 	"\x04mode\x18\x03 \x01(\x0e2'.globular.awareness_graph.PreflightModeR\x04mode\x12\x16\n" +
-	"\x06domain\x18\x04 \x01(\tR\x06domain\"\xa1\n" +
+	"\x06domain\x18\x04 \x01(\tR\x06domain\x12-\n" +
+	"\x12publication_domain\x18\x05 \x01(\tR\x11publicationDomain\"\xa1\n" +
 	"\n" +
 	"\x11PreflightResponse\x12A\n" +
 	"\x06status\x18\x01 \x01(\x0e2).globular.awareness_graph.PreflightStatusR\x06status\x12B\n" +

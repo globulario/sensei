@@ -114,7 +114,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	resp := &awarenesspb.PreflightResponse{
 		Status:    awarenesspb.PreflightStatus_PREFLIGHT_STATUS_OK,
 		Coverage:  &awarenesspb.CoverageSummary{},
-		Authority: s.graphAuthority(ctx),
+		Authority: s.graphAuthorityFor(ctx, req.GetPublicationDomain()),
 	}
 	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
 		return s.scopeDegradedPreflightResponse(task, files, start, err), nil

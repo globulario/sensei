@@ -14,12 +14,23 @@ import (
 )
 
 func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority {
+	return s.graphAuthorityFor(ctx, "")
+}
+
+// graphAuthorityFor resolves the publication for an explicitly requested
+// domain. An empty request falls back to the server's home domain and SAYS SO
+// through requested_domain, so a caller that asked about something else refuses
+// rather than reading the answer to a different question.
+func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
 	a := graphAuthorityFromSnapshot(snap, s)
+	if publicationDomain == "" {
+		publicationDomain = s.homeDomain
+	}
 	// Resolved against the SAME served store the freshness verdict describes,
 	// so a consumer cannot be handed a generation digest from one world and a
 	// publication receipt from another.
-	a.CurrentPublication = resolveCurrentPublication(ctx, s, s.homeDomain)
+	a.CurrentPublication = resolveCurrentPublication(ctx, s, publicationDomain)
 	return a
 }
 

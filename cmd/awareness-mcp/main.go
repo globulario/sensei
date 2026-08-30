@@ -1591,7 +1591,8 @@ func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
 	// like "the bridge is old".
 	pub := a.GetCurrentPublication()
 	p := map[string]interface{}{
-		"resolution": pub.GetResolution().String(),
+		"resolution":       pub.GetResolution().String(),
+		"requested_domain": pub.GetRequestedDomain(),
 	}
 	if d := strings.TrimSpace(pub.GetDetail()); d != "" {
 		p["detail"] = d

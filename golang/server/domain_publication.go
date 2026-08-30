@@ -24,9 +24,10 @@ import (
 func resolveCurrentPublication(ctx context.Context, s *server, domain string) *awarenesspb.DomainPublication {
 	unreadable := func(format string, args ...any) *awarenesspb.DomainPublication {
 		return &awarenesspb.DomainPublication{
-			Resolution: awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
-			Domain:     domain,
-			Detail:     fmt.Sprintf(format, args...),
+			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+			RequestedDomain: domain,
+			Domain:          domain,
+			Detail:          fmt.Sprintf(format, args...),
 		}
 	}
 	if domain == "" {
@@ -45,8 +46,9 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	r, found := publication.Current(nt, domain)
 	if !found {
 		return &awarenesspb.DomainPublication{
-			Resolution: awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT,
-			Domain:     domain,
+			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT,
+			RequestedDomain: domain,
+			Domain:          domain,
 			Detail: fmt.Sprintf(
 				"no current publication pointer resolves to a receipt for %q", domain),
 		}
@@ -64,6 +66,7 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	}
 	return &awarenesspb.DomainPublication{
 		Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED,
+		RequestedDomain:    domain,
 		ReceiptIri:         iri,
 		ReceiptVersion:     version,
 		Domain:             r.Domain,

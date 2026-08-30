@@ -770,6 +770,13 @@ enum PublicationResolution {
 // DomainPublication is the authenticated answer to "which governed revision
 // produced the knowledge currently served for this domain".
 message DomainPublication {
+  // The domain this projection actually answers for.
+  //
+  // A consumer MUST compare this with the domain it asked about. A server that
+  // returns a perfectly valid receipt for a different domain has not answered
+  // the question, and "a receipt came back" is not evidence that it did.
+  string requested_domain = 11;
+
   PublicationResolution resolution = 1;
   // Why, when resolution is not VERIFIED. Never empty in that case.
   string detail = 2;
@@ -1190,6 +1197,17 @@ message PreflightRequest {
   // Same semantics as BriefingRequest.domain. Preflight semantics are
   // otherwise unchanged — this is scope correctness, not enforcement.
   string domain = 4;
+
+  // The domain whose CURRENT PUBLICATION the caller wants resolved -- a start
+  // gate's KnowledgeContract domain.
+  //
+  // Separate from `domain` because scoping a preflight query and asking "which
+  // governed revision produced the knowledge for this domain" are different
+  // questions, and a multi-domain graph can answer them differently. When
+  // empty the server resolves its own home domain and says so, which a caller
+  // cross-checking requested_domain will correctly refuse rather than mistake
+  // for an answer to the question it asked.
+  string publication_domain = 5;
 }
 
 message PreflightResponse {
