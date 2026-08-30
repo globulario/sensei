@@ -5850,9 +5850,9 @@ type PreflightRequest struct {
 	// Separate from `domain` because scoping a preflight query and asking "which
 	// governed revision produced the knowledge for this domain" are different
 	// questions, and a multi-domain graph can answer them differently. When
-	// empty the server resolves its own home domain and says so, which a caller
-	// cross-checking requested_domain will correctly refuse rather than mistake
-	// for an answer to the question it asked.
+	// empty NO publication is resolved and the projection says UNSPECIFIED:
+	// answering an unasked question with the server's own domain would hand back
+	// a well-formed receipt for something the caller never asked about.
 	PublicationDomain string `protobuf:"bytes,5,opt,name=publication_domain,json=publicationDomain,proto3" json:"publication_domain,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache

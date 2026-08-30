@@ -327,3 +327,96 @@ func TestInspectSourceReportsTheRepositoryRelativePath(t *testing.T) {
 		t.Fatalf("the operational root should still be absolute, got %q", root)
 	}
 }
+
+// Verification must compare the STORED target with the RECOMPUTED identity.
+//
+// The first implementation recomputed the identity from a parsed receipt and
+// then checked it against an identity recomputed from the same fields, which
+// passes for ANY tampered receipt because both sides move together. Resolve
+// returns the stored target so the comparison has two independently derived
+// sides.
+func TestATamperedReceiptFailsAgainstItsStoredPointerTarget(t *testing.T) {
+	r := Receipt{Version: ReceiptV2, Domain: "d", Revision: "aaa", Tree: "t",
+		State: CleanExact, SourcePath: "docs/awareness", SourceDigest: "sd"}
+	nt := string(r.Triples())
+	stored := r.IRI()
+
+	// Someone edits the published revision without moving the pointer.
+	tampered := strings.Replace(nt, `"aaa"`, `"bbb"`, 1)
+	if tampered == nt {
+		t.Fatal("the specimen did not actually change")
+	}
+	target, back, state := Resolve([]byte(tampered), "d")
+	if state != PointerResolved {
+		t.Fatalf("state = %v, want PointerResolved", state)
+	}
+	if target != stored {
+		t.Fatalf("the stored target moved: %s", target)
+	}
+	if back.Revision != "bbb" {
+		t.Fatalf("the tampered field did not survive parsing: %q", back.Revision)
+	}
+	if VerifyIdentity(target, back) {
+		t.Fatal("a tampered receipt verified against the pointer that names it")
+	}
+	// The tautology, demonstrated: checking it against itself still passes.
+	if !VerifyIdentity(back.IRI(), back) {
+		t.Fatal("self-comparison should trivially pass — that is why it proves nothing")
+	}
+}
+
+// A dangling pointer is its own world, not "nothing was published".
+func TestADanglingPointerIsDistinguishedFromAbsence(t *testing.T) {
+	dangling := []byte("<" + PointerIRI("d") + "> <" + pCurrent + "> <" + receiptPrefix + "deadbeef> .\n")
+	target, _, state := Resolve(dangling, "d")
+	if state != PointerDangling {
+		t.Fatalf("state = %v, want PointerDangling", state)
+	}
+	if target == "" {
+		t.Fatal("the stored target was lost, so the caller cannot say what is missing")
+	}
+	if _, _, s2 := Resolve(nil, "d"); s2 != PointerAbsent {
+		t.Fatalf("an empty graph reported %v, want PointerAbsent", s2)
+	}
+}
+
+// Resolve round-trips a healthy publication.
+func TestResolveReturnsTheStoredTargetAndItsReceipt(t *testing.T) {
+	r := Receipt{Version: ReceiptV2, Domain: "d", Revision: "abc", Tree: "t",
+		State: CleanExact, SourcePath: "docs/awareness", SourceDigest: "sd"}
+	target, back, state := Resolve(r.Triples(), "d")
+	if state != PointerResolved {
+		t.Fatalf("state = %v", state)
+	}
+	if target != r.IRI() {
+		t.Fatalf("stored target %s != %s", target, r.IRI())
+	}
+	if !VerifyIdentity(target, back) {
+		t.Fatal("a healthy receipt failed verification against its stored target")
+	}
+}
+
+// The bounded path must parse what the whole-graph path parses.
+func TestReceiptFromTriplesMatchesTheDumpPath(t *testing.T) {
+	r := Receipt{Version: ReceiptV2, Domain: "d", Revision: "abc", Tree: "t",
+		State: CleanExact, SourcePath: "docs/awareness", SourceDigest: "sd"}
+	var preds, objs []string
+	for _, line := range strings.Split(string(r.Triples()), "\n") {
+		if !strings.HasPrefix(line, "<"+r.IRI()+">") {
+			continue
+		}
+		_, p, o, ok := splitTriple(line)
+		if !ok {
+			continue
+		}
+		preds = append(preds, p)
+		objs = append(objs, o)
+	}
+	back, ok := ReceiptFromTriples(r.IRI(), preds, objs)
+	if !ok {
+		t.Fatal("the bounded path parsed nothing")
+	}
+	if !VerifyIdentity(r.IRI(), back) {
+		t.Fatalf("the bounded path produced a different receipt: %+v", back)
+	}
+}

@@ -329,9 +329,10 @@ func (b *bridge) tools() []tool {
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"file":             map[string]interface{}{"type": "string"},
-					"proposed_content": map[string]interface{}{"type": "string", "description": "the proposed new content (full file or edited region); patterns are matched against this"},
-					"domain":           map[string]interface{}{"type": "string", "description": "repo/domain scope; required when the graph hosts >1 domain"},
+					"file":               map[string]interface{}{"type": "string"},
+					"proposed_content":   map[string]interface{}{"type": "string", "description": "the proposed new content (full file or edited region); patterns are matched against this"},
+					"domain":             map[string]interface{}{"type": "string", "description": "repo/domain scope; required when the graph hosts >1 domain"},
+					"publication_domain": map[string]interface{}{"type": "string", "description": "domain whose CURRENT PUBLICATION receipt to resolve -- a start gate's KnowledgeContract domain. Distinct from `domain`: scoping a query and asking which governed revision produced the served knowledge are different questions. When omitted the server answers for its own home domain and says so in requested_domain, which a caller cross-checking will refuse."},
 				},
 				"required": []string{"file", "proposed_content"},
 			},
@@ -718,7 +719,12 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 			return nil, fmt.Errorf("task is required")
 		}
 		domain, _ := args["domain"].(string)
-		req := &awarenesspb.PreflightRequest{Task: strings.TrimSpace(task), Domain: strings.TrimSpace(domain)}
+		publicationDomain, _ := args["publication_domain"].(string)
+		req := &awarenesspb.PreflightRequest{
+			Task:              strings.TrimSpace(task),
+			Domain:            strings.TrimSpace(domain),
+			PublicationDomain: strings.TrimSpace(publicationDomain),
+		}
 		if raw, ok := args["files"].([]interface{}); ok {
 			for _, f := range raw {
 				if s, ok := f.(string); ok && strings.TrimSpace(s) != "" {

@@ -24,13 +24,52 @@ func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority
 func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
 	a := graphAuthorityFromSnapshot(snap, s)
-	if publicationDomain == "" {
-		publicationDomain = s.homeDomain
+	// RESOLVED ONLY WHEN ASKED.
+	//
+	// This projection exists for start gates. Attaching it to every RPC that
+	// carries authority put two extra store reads on impact, query, briefing
+	// and reference-site lookups -- paths that never consume it -- and made the
+	// composition below run twice per call for nothing.
+	//
+	// There is also no home-domain fallback. Answering an unasked question with
+	// the server's favourite domain produces a well-formed receipt for
+	// something the caller did not ask about, and "a receipt came back" is
+	// exactly the evidence a careless consumer would accept.
+	if strings.TrimSpace(publicationDomain) == "" {
+		a.CurrentPublication = &awarenesspb.DomainPublication{
+			Resolution: awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED,
+			Detail:     "no publication_domain was requested, so no publication was resolved",
+		}
+		return a
 	}
-	// Resolved against the SAME served store the freshness verdict describes,
-	// so a consumer cannot be handed a generation digest from one world and a
-	// publication receipt from another.
-	a.CurrentPublication = resolveCurrentPublication(ctx, s, publicationDomain)
+	pub := resolveCurrentPublication(ctx, s, publicationDomain)
+
+	// ONE GENERATION, OR NEITHER CLAIM.
+	//
+	// Freshness and the publication are two separate reads, and an earlier
+	// version of this function merely ASSERTED in a comment that they described
+	// the same store. A publication landing between them yields a composite
+	// whose graph digest describes generation A while its receipt describes
+	// generation B -- individually accurate in both halves, false as a whole,
+	// and precisely the composition a start gate would rely on.
+	//
+	// So the generation is re-read afterwards and required to be the one the
+	// freshness verdict describes. A change is not resolved in favour of either
+	// read: what this call observed was two worlds, so it reports that it
+	// cannot attest to one.
+	after := snapshotGraphFreshness(ctx, s)
+	if before, now := snap.verification.Live.Digest, after.verification.Live.Digest; before != now {
+		pub = &awarenesspb.DomainPublication{
+			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+			RequestedDomain: publicationDomain,
+			Domain:          publicationDomain,
+			Detail: fmt.Sprintf(
+				"the served generation changed while this authority was being composed (%s -> %s), "+
+					"so its freshness and its publication receipt would describe different worlds",
+				shortDigest(before), shortDigest(now)),
+		}
+	}
+	a.CurrentPublication = pub
 	return a
 }
 

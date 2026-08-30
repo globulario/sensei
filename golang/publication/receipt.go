@@ -244,6 +244,10 @@ func (r Receipt) IRI() string { return receiptPrefix + r.Identity() }
 // publications; only what it points AT changes.
 func PointerIRI(domain string) string { return pointerPrefix + escapeIRISegment(domain) }
 
+// CurrentPublicationPredicate is the pointer edge, exported so a server can
+// resolve it by bounded lookup instead of dumping the graph.
+const CurrentPublicationPredicate = pCurrent
+
 // Triples renders the receipt and the pointer that names it current.
 //
 // The receipt carries NO aw:repo tag, so the scoped per-domain replacement --
@@ -342,12 +346,71 @@ func Parse(nt []byte) map[string]Receipt {
 	return out
 }
 
+// PointerState is how a current-publication lookup ended.
+//
+// ABSENT and DANGLING are DIFFERENT WORLDS and collapsing them fails open on
+// the second: "nothing was ever published here" is a benign steady state, while
+// "a pointer exists and its target cannot be found" means the publication
+// record is corrupt. A start gate told ABSENT for a dangling pointer would
+// report never-published for a broken world.
+type PointerState int
+
+const (
+	// PointerAbsent: no current-publication pointer exists for the domain.
+	PointerAbsent PointerState = iota
+	// PointerDangling: a pointer exists and names a receipt that is not
+	// present, or is present and unparseable.
+	PointerDangling
+	// PointerResolved: the pointer names a receipt that was found.
+	PointerResolved
+)
+
+// Resolve returns the STORED pointer target, the receipt it names, and how the
+// lookup ended.
+//
+// The stored target is returned because verification must compare two
+// INDEPENDENTLY DERIVED values. Recomputing an identity from a receipt's fields
+// and then checking it against an identity recomputed from the same fields is a
+// tautology that passes for any tampered receipt; the honest check is
+// recomputed-vs-stored, and only a caller holding the stored value can make it.
+func Resolve(nt []byte, domain string) (storedTarget string, r Receipt, state PointerState) {
+	want := "<" + PointerIRI(domain) + "> <" + pCurrent + "> <"
+	for _, raw := range strings.Split(string(nt), "\n") {
+		line := strings.TrimSpace(raw)
+		if strings.HasPrefix(line, want) {
+			rest := strings.TrimPrefix(line, want)
+			if i := strings.Index(rest, ">"); i >= 0 {
+				storedTarget = rest[:i]
+			}
+		}
+	}
+	if storedTarget == "" {
+		return "", Receipt{}, PointerAbsent
+	}
+	r, ok := Parse(nt)[storedTarget]
+	if !ok {
+		return storedTarget, Receipt{}, PointerDangling
+	}
+	return storedTarget, r, PointerResolved
+}
+
+// ReceiptFromTriples parses one receipt from the triples describing a single
+// subject, for callers that resolve by bounded lookup rather than a whole-graph
+// dump.
+func ReceiptFromTriples(subject string, predicates, objects []string) (Receipt, bool) {
+	var b strings.Builder
+	for i := range predicates {
+		fmt.Fprintf(&b, "<%s> <%s> %q .\n", subject, predicates[i], objects[i])
+	}
+	r, ok := Parse([]byte(b.String()))[subject]
+	return r, ok
+}
+
 // Current returns the receipt the pointer for domain names, and whether the
 // pointer resolved to a receipt actually present in nt.
 //
-// A dangling pointer reports false rather than the zero Receipt, because
-// "there is no current publication" and "the current publication is empty" are
-// different worlds.
+// Prefer Resolve: this loses the stored target, so a caller cannot verify the
+// receipt against anything but itself.
 func Current(nt []byte, domain string) (Receipt, bool) {
 	want := "<" + PointerIRI(domain) + "> <" + pCurrent + "> <"
 	var target string
