@@ -81,6 +81,23 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 	// --ignored=matching brings those files back into the answer, so the
 	// question being asked is "is everything I compiled in this commit" rather
 	// than "is everything git chose to tell me about in this commit".
+	//
+	// THIS IS A BROADENING, NOT AN EQUIVALENCE PROOF, and it is recorded as
+	// debt for the same reason the transport ceiling was. Two sets are still
+	// derived independently:
+	//
+	//	the extractor decides what it READS
+	//	this git command decides what should COUNT AS DIRTY
+	//
+	// They now agree on the known disagreement. Nothing here proves they agree
+	// in general, and a future extractor rule -- a new include pattern, a
+	// symlinked corpus, a second input root -- could reopen the gap silently.
+	//
+	// The durable answer is a COMPILATION WITNESS: the extractor emits
+	// {path, digest of the bytes it actually read} and that set is proven
+	// against the named revision, so git stops guessing what the compiler
+	// meant. Until then this narrows one oracle disagreement rather than
+	// closing the family, and it must not be read as the latter.
 	dirty, err := git(ctx, abs, "status", "--porcelain", "--untracked-files=all", "--ignored=matching", "--", abs)
 	if err != nil {
 		// The question could not be answered, so the answer is not "clean".
