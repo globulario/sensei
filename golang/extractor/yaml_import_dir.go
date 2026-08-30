@@ -16,6 +16,8 @@
 package extractor
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"io"
@@ -75,6 +77,16 @@ type FileReport struct {
 	Phase  string     // "A", "B", or "C"; empty if unknown/invalid
 	Reason string     // human-readable explanation for non-Imported statuses
 	Count  int        // triples emitted; non-zero only for StatusImported
+
+	// ConsumedDigest is the sha256 of the EXACT bytes this walk parsed.
+	//
+	// It is taken from the buffer the parser consumes, not from a later re-read
+	// of the path: re-reading to hash would create the very race the digest
+	// exists to close. A publication can therefore prove which bytes produced
+	// its output, rather than proving that the working tree looked the same
+	// before and after -- two observations compatible with the file having
+	// changed in between.
+	ConsumedDigest string
 }
 
 // ImportReport summarises a full recursive walk.
@@ -459,28 +471,35 @@ func awarenessMutationSourceClass(schema string) string {
 func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 	data, err := os.ReadFile(path)
 	if err != nil {
+		// No bytes were consumed, so there is no digest to state. An absent
+		// digest is the honest record of a file that was never read.
 		return FileReport{
 			Path:   path,
 			Status: StatusInvalid,
 			Reason: "read: " + err.Error(),
 		}
 	}
+	// Digested HERE, from the buffer about to be parsed.
+	consumed := sha256.Sum256(data)
+	digest := hex.EncodeToString(consumed[:])
 
 	var raw map[string]any
 	if err := yaml.Unmarshal(data, &raw); err != nil {
 		return FileReport{
-			Path:   path,
-			Status: StatusInvalid,
-			Reason: "yaml parse: " + err.Error(),
+			Path:           path,
+			ConsumedDigest: digest,
+			Status:         StatusInvalid,
+			Reason:         "yaml parse: " + err.Error(),
 		}
 	}
 
 	if raw == nil {
 		// File is entirely comments or whitespace — YAML parses to nil map.
 		return FileReport{
-			Path:   path,
-			Status: StatusUnknownSchema,
-			Reason: "empty document (comments or whitespace only)",
+			Path:           path,
+			ConsumedDigest: digest,
+			Status:         StatusUnknownSchema,
+			Reason:         "empty document (comments or whitespace only)",
 		}
 	}
 
@@ -497,10 +516,11 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		}
 		keys := topLevelKeys(raw)
 		return FileReport{
-			Path:   path,
-			Status: StatusUnknownSchema,
-			Schema: strings.Join(keys, ","),
-			Reason: "top-level key(s) [" + strings.Join(keys, ", ") + "] not recognized",
+			Path:           path,
+			ConsumedDigest: digest,
+			Status:         StatusUnknownSchema,
+			Schema:         strings.Join(keys, ","),
+			Reason:         "top-level key(s) [" + strings.Join(keys, ", ") + "] not recognized",
 		}
 	}
 
@@ -515,11 +535,12 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 			}
 		}
 		return FileReport{
-			Path:   path,
-			Status: StatusKnownUnsupported,
-			Schema: entry.name,
-			Phase:  entry.phase,
-			Reason: entry.description + " — importer due Phase " + entry.phase,
+			Path:           path,
+			ConsumedDigest: digest,
+			Status:         StatusKnownUnsupported,
+			Schema:         entry.name,
+			Phase:          entry.phase,
+			Reason:         entry.description + " — importer due Phase " + entry.phase,
 		}
 	}
 
@@ -636,20 +657,22 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 
 	if importErr != nil {
 		return FileReport{
-			Path:   path,
-			Status: StatusInvalid,
-			Schema: entry.name,
-			Phase:  entry.phase,
-			Reason: importErr.Error(),
+			Path:           path,
+			ConsumedDigest: digest,
+			Status:         StatusInvalid,
+			Schema:         entry.name,
+			Phase:          entry.phase,
+			Reason:         importErr.Error(),
 		}
 	}
 
 	return FileReport{
-		Path:   path,
-		Status: StatusImported,
-		Schema: entry.name,
-		Phase:  entry.phase,
-		Count:  e.Triples - before,
+		Path:           path,
+		ConsumedDigest: digest,
+		Status:         StatusImported,
+		Schema:         entry.name,
+		Phase:          entry.phase,
+		Count:          e.Triples - before,
 	}
 }
 

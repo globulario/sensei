@@ -457,3 +457,36 @@ func TestTheReceiptTypeIsPartOfItsSchema(t *testing.T) {
 		})
 	}
 }
+
+// F4: no unauthenticated authority-bearing statement is STORED.
+//
+// The receipt used to emit an rdfs:label repeating domain, revision and state
+// as prose. It sat outside the schema, so an altered label left the receipt
+// VERIFIED while stating contradictory provenance. The repair is deletion, not
+// another validator: a second copy of authenticated facts can only ever
+// disagree with the first.
+func TestNoUnauthenticatedStatementIsStored(t *testing.T) {
+	r := v2Receipt()
+	nt := string(r.Triples())
+	if strings.Contains(nt, "rdf-schema#label") {
+		t.Fatalf("the receipt stores a label it does not authenticate:\n%s", nt)
+	}
+	// Every stored predicate must be one the schema defines, or be the pointer's.
+	schema, _ := SchemaFor(ReceiptV2)
+	for _, line := range strings.Split(nt, "\n") {
+		if !strings.HasPrefix(line, "<"+r.IRI()+">") {
+			continue
+		}
+		_, pred, _, ok := splitTriple(line)
+		if !ok {
+			continue
+		}
+		if _, defined := schema.Fields[pred]; !defined {
+			t.Errorf("the receipt stores %s, which its schema does not define or authenticate", pred)
+		}
+	}
+	// The presentation string still exists, derived from authenticated fields.
+	if got := r.Label(); !strings.Contains(got, r.Domain) || !strings.Contains(got, string(r.State)) {
+		t.Fatalf("the derived label lost its content: %q", got)
+	}
+}

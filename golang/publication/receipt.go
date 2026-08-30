@@ -260,7 +260,18 @@ func (r Receipt) Triples() []byte {
 	var out strings.Builder
 	iri := r.IRI()
 	fmt.Fprintf(&out, "<%s> <%s> <%s> .\n", iri, typeIRI, receiptClassIRI)
-	fmt.Fprintf(&out, "<%s> <%s> %q .\n", iri, labelIRI, r.label())
+	// NO LABEL IS STORED.
+	//
+	// The label repeated the domain, revision and state as prose. It was
+	// authority-bearing -- a reader could act on it -- and it sat outside the
+	// schema, so an altered label left the receipt VERIFIED while stating
+	// contradictory provenance. That is present-and-unhashed again, in a field
+	// this writer emitted.
+	//
+	// The repair is DELETION, not another validator. The label carried no fact
+	// the authenticated fields do not already carry, so storing a second copy
+	// only created something that could disagree with the first. Label() derives
+	// it for presentation, from the fields that are authenticated.
 	// v2 publishes the durable repo-relative path and NOT the operational
 	// SourceRoot. Emitting both would reintroduce exactly what v2 removes: a
 	// field inside an immutable record that its digest does not cover.
@@ -298,6 +309,11 @@ func (r Receipt) Triples() []byte {
 	fmt.Fprintf(&out, "<%s> <%s> <%s> .\n", ptr, pCurrent, iri)
 	return []byte(out.String())
 }
+
+// Label is a DERIVED presentation string, reconstructed from authenticated
+// fields. It is never stored: a stored copy is a fact that can drift from the
+// fact it copies.
+func (r Receipt) Label() string { return r.label() }
 
 func (r Receipt) label() string {
 	rev := r.Revision

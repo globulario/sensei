@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/globulario/sensei/golang/publication"
+	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
@@ -150,4 +151,74 @@ func asTerms(in []store.Statement) []publication.RDFStatement {
 		})
 	}
 	return out
+}
+
+// F3: one query evaluation, one world.
+//
+// Reading the marker, pointer and receipt separately and comparing digests
+// accepts an A -> B -> A transition. This proves the single-evaluation read
+// returns all three together, so they cannot come from different worlds.
+func TestIntegration_AuthoritySnapshotReadsOneWorld_RealOxigraph(t *testing.T) {
+	oxi, err := findOxigraphBinary()
+	if err != nil {
+		t.Skipf("Oxigraph binary unavailable: %v", err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr := listener.Addr().String()
+	_ = listener.Close()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cmd := exec.CommandContext(ctx, oxi, "serve", "--location", t.TempDir(), "--bind", addr)
+	var logs bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &logs, &logs
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start Oxigraph: %v", err)
+	}
+	defer func() { cancel(); _ = cmd.Wait() }()
+	queryURL := "http://" + addr + "/query"
+	if !waitForSPARQLHealthy(queryURL, 10*time.Second) {
+		t.Fatalf("Oxigraph did not become healthy:\n%s", logs.String())
+	}
+
+	good := publication.Receipt{
+		Version: publication.ReceiptV2, Domain: "github.com/test/snapshot",
+		Revision: strings.Repeat("a", 40), Tree: strings.Repeat("b", 40),
+		State: publication.CleanExact, SourcePath: "docs/awareness",
+		SourceDigest: strings.Repeat("c", 64),
+	}
+	nt, marker := seedmeta.AppendMarker(good.Triples())
+	if err := uploadNTriples(http.DefaultClient, "http://"+addr+"/store?default", nt); err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	c, err := oxigraph.New(queryURL)
+	if err != nil {
+		t.Fatalf("client: %v", err)
+	}
+	defer c.Close()
+
+	snap, err := c.DescribeAuthoritySnapshot(ctx, publication.PointerIRI(good.Domain))
+	if err != nil {
+		t.Fatalf("authority snapshot: %v", err)
+	}
+	if len(snap.Pointer) == 0 || len(snap.Receipt) == 0 || len(snap.Marker) == 0 {
+		t.Fatalf("one evaluation did not return all three reads: pointer=%d receipt=%d marker=%d",
+			len(snap.Pointer), len(snap.Receipt), len(snap.Marker))
+	}
+	// The marker in the snapshot is the one the seeded generation produced.
+	var sawDigest bool
+	for _, st := range snap.Marker {
+		if strings.HasSuffix(st.Predicate, "seedDigestSha256") && st.Object.Value == marker.Digest {
+			sawDigest = true
+		}
+	}
+	if !sawDigest {
+		t.Fatal("the snapshot's marker is not the generation that was published")
+	}
+	// The receipt arrived with its terms intact and decodes.
+	if _, err := publication.DecodeStoredReceipt(good.IRI(), asTerms(snap.Receipt)); err != nil {
+		t.Fatalf("the receipt read in the snapshot did not decode: %v", err)
+	}
 }

@@ -55,9 +55,30 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 		return unreadable(
 			"this store cannot return RDF terms losslessly, so no receipt can be verified against what it holds")
 	}
-	ptr, err := terms.DescribeTerms(ctx, publication.PointerIRI(domain))
-	if err != nil {
-		return unreadable("the current-publication pointer could not be read: %v", err)
+	// ONE EVALUATION, ONE WORLD, when the store can give it.
+	//
+	// Reading the pointer and the receipt separately and bracketing them with a
+	// generation comparison accepts an A -> B -> A transition: equal endpoint
+	// digests do not prove no intermediate world existed. A single query
+	// evaluation is answered from one consistent view, which is a snapshot
+	// rather than a comparison.
+	var ptr, receiptBody []store.Statement
+	var haveSnapshot bool
+	if snapper, ok := s.store.(interface {
+		DescribeAuthoritySnapshot(context.Context, string) (store.AuthoritySnapshot, error)
+	}); ok {
+		snap, err := snapper.DescribeAuthoritySnapshot(ctx, publication.PointerIRI(domain))
+		if err != nil {
+			return unreadable("the authority snapshot could not be read: %v", err)
+		}
+		ptr, receiptBody, haveSnapshot = snap.Pointer, snap.Receipt, true
+	}
+	if !haveSnapshot {
+		var err error
+		ptr, err = terms.DescribeTerms(ctx, publication.PointerIRI(domain))
+		if err != nil {
+			return unreadable("the current-publication pointer could not be read: %v", err)
+		}
 	}
 	storedTarget, outcome, perr := publication.DecodePointer(domain, asPublicationTerms(ptr))
 	switch outcome {
@@ -72,9 +93,13 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 		return unreadable("%v", perr)
 	}
 
-	body, err := terms.DescribeTerms(ctx, storedTarget)
-	if err != nil {
-		return unreadable("the receipt %s could not be read: %v", shortIRI(storedTarget), err)
+	body := receiptBody
+	if !haveSnapshot {
+		var err error
+		body, err = terms.DescribeTerms(ctx, storedTarget)
+		if err != nil {
+			return unreadable("the receipt %s could not be read: %v", shortIRI(storedTarget), err)
+		}
 	}
 	stmts := asPublicationTerms(body)
 	// ONE OPERATION: schema selection, cardinality, term kind, datatype,

@@ -2100,7 +2100,7 @@ var (
 // pinned by TestProductionDefaultFailsClosedWithoutAClosureReport.
 func newTestServer(s store.Store) *server {
 	srv := newServer(s)
-	srv.closureEval = func() (closure.SemanticState, string) {
+	srv.closureEval = func(string) (closure.SemanticState, string) {
 		return closure.SemanticClosureProven, "test fixture: synthetic publication declared closed"
 	}
 	return srv

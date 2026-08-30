@@ -3096,6 +3096,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/store/oxigraph/authority_snapshot.go
       - golang/store/oxigraph/describe_terms.go
       - golang/store/oxigraph/oxigraph.go
       - golang/store/oxigraph/sparql_literal.go

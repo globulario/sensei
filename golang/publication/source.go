@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -197,4 +198,78 @@ func (w SourceWitness) Unchanged() (SourceWitness, bool) {
 	now := InspectCompiledSources(w.Roots)
 	return now, now.Revision == w.Revision && now.Tree == w.Tree &&
 		now.State == w.State && now.RelPath == w.RelPath
+}
+
+// ConsumedFile is one file a compilation actually read.
+type ConsumedFile struct {
+	// Path as the compiler saw it.
+	Path string
+	// Digest of the exact bytes the parser consumed.
+	Digest string
+}
+
+// ProveConsumedAgainstRevision is the witness the earlier state comparison was
+// standing in for.
+//
+// ENDPOINT EQUALITY IS NOT CONTINUITY. Comparing the working tree before and
+// after compilation accepts any history that starts and ends the same way: a
+// file changed, compiled, and restored passes, while sliceNT came from bytes
+// no revision contains. Two observations compatible with the event are not
+// evidence of the event.
+//
+// This compares what was READ against what the revision HOLDS, per file, so the
+// claim "these bytes came from this commit" is checked rather than inferred.
+func ProveConsumedAgainstRevision(repoRoot, revision string, consumed []ConsumedFile) error {
+	if strings.TrimSpace(revision) == "" {
+		return fmt.Errorf("no revision to prove the compiled inputs against")
+	}
+	if len(consumed) == 0 {
+		return fmt.Errorf("the compilation reported no consumed files, so nothing can be proven about it")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	top, err := git(ctx, repoRoot, "rev-parse", "--show-toplevel")
+	if err != nil || top == "" {
+		return fmt.Errorf("the compiled inputs are not inside a resolvable git checkout")
+	}
+	for _, f := range consumed {
+		if f.Digest == "" {
+			return fmt.Errorf("%s was compiled without a recorded digest, so what was read cannot be proven", f.Path)
+		}
+		abs, err := filepath.Abs(f.Path)
+		if err != nil {
+			return fmt.Errorf("%s: %w", f.Path, err)
+		}
+		rel, err := filepath.Rel(top, abs)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return fmt.Errorf("%s was compiled from outside the checkout the revision describes", f.Path)
+		}
+		// The blob the REVISION holds, hashed the same way.
+		blob, err := gitBytes(ctx, repoRoot, revision+":"+filepath.ToSlash(rel))
+		if err != nil {
+			return fmt.Errorf("%s was compiled but revision %s does not contain it", rel, shortRev(revision))
+		}
+		sum := sha256.Sum256(blob)
+		if hex.EncodeToString(sum[:]) != f.Digest {
+			return fmt.Errorf(
+				"%s was compiled from bytes that revision %s does not hold", rel, shortRev(revision))
+		}
+	}
+	return nil
+}
+
+func shortRev(r string) string {
+	if len(r) > 12 {
+		return r[:12]
+	}
+	return r
+}
+
+// gitBytes returns raw object bytes without the trimming git() applies.
+func gitBytes(ctx context.Context, dir string, spec string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "git", "cat-file", "blob", spec)
+	cmd.Dir = dir
+	cmd.Env = append(cmd.Environ(), "GIT_OPTIONAL_LOCKS=0")
+	return cmd.Output()
 }

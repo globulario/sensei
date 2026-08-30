@@ -142,7 +142,7 @@ type server struct {
 	// closure report beside graphMarkerFile", which is the production path and
 	// fails closed when no report proves this publication. Only test fixtures
 	// set it, and only to declare their own synthetic publication closed.
-	closureEval func() (closure.SemanticState, string)
+	closureEval func(domain string) (closure.SemanticState, string)
 
 	// awarenessDir is the source docs/awareness directory. When set, the Propose
 	// RPC writes agent-submitted candidates under <awarenessDir>/candidates/.

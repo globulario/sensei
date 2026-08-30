@@ -23,7 +23,7 @@ func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority
 // rather than reading the answer to a different question.
 func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
-	a := graphAuthorityFromSnapshot(snap, s)
+	a := graphAuthorityFromSnapshotFor(snap, s, publicationDomain)
 	// RESOLVED ONLY WHEN ASKED.
 	//
 	// This projection exists for start gates. Attaching it to every RPC that
@@ -74,6 +74,10 @@ func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string
 }
 
 func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarenesspb.GraphAuthority {
+	return graphAuthorityFromSnapshotFor(snap, s, "")
+}
+
+func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closureDomain string) *awarenesspb.GraphAuthority {
 	stamp, txMode, txPath, txReadErr := transactionStampForGraph(s)
 	transactionMatchesSeed, transactionDetail := evaluateTransactionForGraph(
 		snap.verification.Expected,
@@ -98,7 +102,7 @@ func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarene
 	// publication. The evaluator is the shared one in golang/closure that
 	// `sensei domain-closure` uses — one canonical implementation, not two that
 	// can drift apart.
-	semanticState, semanticDetail := graphClosureState(s, snap)
+	semanticState, semanticDetail := graphClosureStateFor(s, snap, closureDomain)
 	freshnessCurrent := snap.verification.State == seedmeta.FreshnessCurrent
 
 	detail := snap.verification.Detail
@@ -146,13 +150,21 @@ func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarene
 // cannot locate a closure report at all, and "I could not check" must never be
 // reported as "it passed" — that is the precise shape of the defect this whole
 // change exists to remove.
+// closureDomain is the domain the closure verdict is ABOUT. Empty means the
+// server's own home domain.
 func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.SemanticState, string) {
+	return graphClosureStateFor(s, snap, "")
+}
+
+func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain string) (closure.SemanticState, string) {
 	// Injectable at the same seam the fake store injects freshness: a fixture
 	// that declares its synthetic publication current must be able to declare it
 	// closed too. The DEFAULT (nil) is the real file-based evaluator, so
 	// production never gains a bypass — omitting the hook fails closed.
 	if s != nil && s.closureEval != nil {
-		return s.closureEval()
+		// The hook carries the SAME referent the verdict is about, so a test
+		// can prove the requested domain reached the closure evaluation.
+		return s.closureEval(closureDomain)
 	}
 	if s == nil {
 		return closure.SemanticClosureUnproven, "no server context, so no closure report can be located"
@@ -161,7 +173,7 @@ func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.Semantic
 	// publication that is actually live. It holds one proof per registered
 	// domain, so a rebuild of some OTHER domain no longer takes authority away
 	// from this one.
-	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest); ok {
+	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest, closureDomain); ok {
 		return state, detail
 	}
 	// Fall back to this repository's own copy. Reached when the proof set has
@@ -185,7 +197,7 @@ func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.Semantic
 // including when the answer is that this domain is unproven: a set that covers
 // the live generation and does not vouch for this domain is a real negative,
 // not a reason to go looking for a more agreeable file elsewhere.
-func storeScopedClosureState(s *server, liveDigest string) (closure.SemanticState, string, bool) {
+func storeScopedClosureState(s *server, liveDigest, closureDomain string) (closure.SemanticState, string, bool) {
 	if s.oxigraphQueryURL == "" || strings.TrimSpace(liveDigest) == "" {
 		return "", "", false
 	}
@@ -201,7 +213,18 @@ func storeScopedClosureState(s *server, liveDigest string) (closure.SemanticStat
 		return "", "", false
 	}
 
-	domain := strings.TrimSpace(s.homeDomain)
+	// THE CLOSURE MUST ANSWER FOR THE DOMAIN BEING ASKED ABOUT.
+	//
+	// This read s.homeDomain unconditionally while the publication receipt was
+	// resolved for the REQUESTED domain, so one response could pair an
+	// AUTHORITATIVE verdict earned by the home domain's proof with a VERIFIED
+	// receipt for a foreign domain that has no proof at all. A compound
+	// attestation whose parts describe different referents is not an
+	// attestation.
+	domain := strings.TrimSpace(closureDomain)
+	if domain == "" {
+		domain = strings.TrimSpace(s.homeDomain)
+	}
 	if domain == "" {
 		return closure.SemanticClosureUnproven,
 			"the store's proof set covers this publication but this server declares no domain, so none of its proofs can be claimed", true

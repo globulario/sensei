@@ -40,7 +40,7 @@ func metadataAuthorityServer(t *testing.T) *server {
 	// Fresh, and NOT closed: the closure report does not vouch for this
 	// publication. This is the exact split the issue reports -- the cheap
 	// surface says CURRENT while the governing surface refuses.
-	s.closureEval = func() (closure.SemanticState, string) {
+	s.closureEval = func(string) (closure.SemanticState, string) {
 		return closure.SemanticClosureUnproven,
 			"closure report describes publication 9ab8ce5af578 but the live marker is c377aab38bb7"
 	}

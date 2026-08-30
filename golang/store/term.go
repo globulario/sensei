@@ -32,3 +32,16 @@ type Statement struct {
 	Predicate string
 	Object    Term
 }
+
+// AuthoritySnapshot is the marker, pointer and receipt as read in ONE query
+// evaluation.
+//
+// It exists so a compound attestation cannot be assembled from pieces observed
+// at different moments. Reading them separately and comparing digests accepts
+// an A -> B -> A transition, because equal endpoints do not prove no
+// intermediate world existed.
+type AuthoritySnapshot struct {
+	Marker  []Statement
+	Pointer []Statement
+	Receipt []Statement
+}

@@ -339,7 +339,7 @@ func TestApplyMustRejectBadState(t *testing.T) {
 	if receipt.FinalGraphDigestSHA256 != report.GraphDigestSHA256 || !receipt.ClaimsBoundToFinalGraph || !receipt.DeterministicSecondPass || receipt.ExternalProofCreatedByImport {
 		t.Fatalf("reconstruction receipt=%+v", receipt)
 	}
-	loadGraph, _, err := compileAwarenessInputs([]string{
+	loadGraph, _, _, err := compileAwarenessInputs([]string{
 		filepath.Join(root, "docs", "awareness"),
 		filepath.Join(root, "docs", "awareness", "generated"),
 		filepath.Join(root, ".sensei", "project"),

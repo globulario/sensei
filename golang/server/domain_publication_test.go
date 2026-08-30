@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/closure"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/publication"
 	"github.com/globulario/sensei/golang/seedmeta"
@@ -721,5 +722,39 @@ func TestCleanExactWithoutATreeIsUnreadable(t *testing.T) {
 	}
 	if !strings.Contains(got.GetDetail(), "source tree") {
 		t.Fatalf("the refusal does not name the missing tree: %q", got.GetDetail())
+	}
+}
+
+// F1: a compound attestation's parts must share a referent.
+//
+// Closure was evaluated for s.homeDomain while current_publication resolved the
+// REQUESTED domain, so one response could pair an AUTHORITATIVE verdict earned
+// by the home domain's proof with a VERIFIED receipt for a foreign domain that
+// has no proof at all.
+func TestClosureAnswersForTheRequestedDomain(t *testing.T) {
+	healthy := healthyReceipt()
+	st := publicationStore{storedTarget: healthy.IRI(), body: receiptTriples(healthy), failDump: true}
+	s := serverWith(st) // homeDomain is github.com/globulario/sensei
+
+	var asked []string
+	s.closureEval = func(domain string) (closure.SemanticState, string) {
+		asked = append(asked, domain)
+		if domain == pubTestDomain {
+			// The requested domain has NO proof.
+			return closure.SemanticClosureUnproven, "no closure proof for the requested domain"
+		}
+		return closure.SemanticClosureProven, "the home domain is proven"
+	}
+
+	a := s.graphAuthorityFor(context.Background(), pubTestDomain)
+	if len(asked) == 0 || asked[0] != pubTestDomain {
+		t.Fatalf("closure was evaluated for %v, not the requested domain %q", asked, pubTestDomain)
+	}
+	if a.GetVerdict() == awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE {
+		t.Fatal("AUTHORITATIVE was reported using another domain's closure proof")
+	}
+	if a.GetCurrentPublication().GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("the specimen is wrong: the receipt itself should still verify, got %v",
+			a.GetCurrentPublication().GetResolution())
 	}
 }

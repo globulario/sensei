@@ -308,7 +308,7 @@ func readPackBuildInput(inputNT string, inputDirs []string, strict bool) ([]byte
 	if len(inputDirs) == 0 {
 		return nil, fmt.Errorf("one of --input-nt or --input is required")
 	}
-	raw, _, err := compileAwarenessInputs(inputDirs, "", "", "", "", strict)
+	raw, _, _, err := compileAwarenessInputs(inputDirs, "", "", "", "", strict)
 	if err != nil {
 		return nil, err
 	}

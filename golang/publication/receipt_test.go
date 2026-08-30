@@ -1,6 +1,8 @@
 package publication
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -530,5 +532,62 @@ func TestAWitnessDetectsAMovingCheckout(t *testing.T) {
 	run(t, dir, "git", "checkout", "-q", commits[0])
 	if _, ok := before.Unchanged(); ok {
 		t.Fatal("a checkout that moved between compilation and publication reported as unchanged")
+	}
+}
+
+// F2: a witness must contain evidence of the EVENT, not two observations
+// compatible with it.
+//
+// Change a file, compile, restore. Both working-tree inspections report the
+// same clean revision and tree, so a before/after comparison passes -- while
+// the compiled bytes came from a state no revision holds. Endpoint equality is
+// not continuity.
+func TestProvingConsumedBytesCatchesARestoredFile(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+	target := filepath.Join(aw, "x.yaml")
+
+	rev, _, state, _, _ := InspectSource(aw)
+	if state != CleanExact {
+		t.Fatalf("the specimen is wrong: %q", state)
+	}
+
+	committed, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	good := sha256.Sum256(committed)
+	if err := ProveConsumedAgainstRevision(dir, rev,
+		[]ConsumedFile{{Path: target, Digest: hex.EncodeToString(good[:])}}); err != nil {
+		t.Fatalf("bytes that ARE in the revision were rejected: %v", err)
+	}
+
+	// The compiler read different bytes; the file was then restored, so every
+	// working-tree observation before and after is identical.
+	tampered := sha256.Sum256([]byte("a: 999\n"))
+	err = ProveConsumedAgainstRevision(dir, rev,
+		[]ConsumedFile{{Path: target, Digest: hex.EncodeToString(tampered[:])}})
+	if err == nil {
+		t.Fatal("bytes the revision does not hold were accepted: the witness proves nothing")
+	}
+	if !strings.Contains(err.Error(), "does not hold") {
+		t.Fatalf("the refusal does not name the mismatch: %v", err)
+	}
+
+	// A file compiled but absent from the revision is also refused.
+	extra := filepath.Join(aw, "untracked.yaml")
+	if err := os.WriteFile(extra, []byte("b: 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sum := sha256.Sum256([]byte("b: 2\n"))
+	if err := ProveConsumedAgainstRevision(dir, rev,
+		[]ConsumedFile{{Path: extra, Digest: hex.EncodeToString(sum[:])}}); err == nil {
+		t.Fatal("a compiled file absent from the revision was accepted")
+	}
+
+	// A file compiled with no recorded digest cannot be proven at all.
+	if err := ProveConsumedAgainstRevision(dir, rev,
+		[]ConsumedFile{{Path: target}}); err == nil {
+		t.Fatal("a file with no consumed digest was accepted")
 	}
 }

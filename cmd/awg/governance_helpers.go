@@ -16,6 +16,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/packcustody"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
+	"github.com/globulario/sensei/golang/publication"
 	"github.com/globulario/sensei/golang/seedmeta"
 )
 
@@ -59,7 +60,20 @@ func defaultBuildInputDirsFromRoot(root string) []string {
 // checkout", which is what `sensei build` does, so a cross-repo input is
 // attributed to the repository it lives in rather than to the domain this
 // build happens to publish under.
-func compileAwarenessInputs(inputDirs []string, repositoryIdentity, repo, domain, sourceSet string, strict bool) ([]byte, int, error) {
+// consumedFrom lifts the per-file records into the witness shape: what the
+// compilation actually read, with the digest taken from the parsed buffer.
+func consumedFrom(rep extractor.ImportReport) []publication.ConsumedFile {
+	var out []publication.ConsumedFile
+	for _, f := range rep.Files {
+		if f.ConsumedDigest == "" {
+			continue // never read; an absent digest is not a claim
+		}
+		out = append(out, publication.ConsumedFile{Path: f.Path, Digest: f.ConsumedDigest})
+	}
+	return out
+}
+
+func compileAwarenessInputs(inputDirs []string, repositoryIdentity, repo, domain, sourceSet string, strict bool) ([]byte, int, []publication.ConsumedFile, error) {
 	scopedRepo := strings.TrimSpace(repo)
 	sources := make([]graphbuild.SourceRoot, 0, len(inputDirs))
 	for _, dir := range inputDirs {
@@ -91,7 +105,7 @@ func compileAwarenessInputs(inputDirs []string, repositoryIdentity, repo, domain
 	}
 	comp, err := graphbuild.Compile(context.Background(), graphbuild.CompileRequest{Sources: sources, Policy: policy})
 	if err != nil {
-		return nil, 0, err
+		return nil, 0, nil, err
 	}
 	// Exclusions are announced, never silent. A document dropped from a
 	// publication without a word looks exactly like knowledge that quietly went
@@ -104,12 +118,12 @@ func compileAwarenessInputs(inputDirs []string, repositoryIdentity, repo, domain
 				"  custody: at least one managed projection has no governed provenance and was published by nobody.")
 		}
 	}
-	return comp.CanonicalNTriples, comp.UniqueTripleCount, nil
+	return comp.CanonicalNTriples, comp.UniqueTripleCount, consumedFrom(comp.ImportReport), nil
 }
 
 func buildProjectArtifact(root string) ([]byte, error) {
 	inputDirs := defaultBuildInputDirsFromRoot(root)
-	raw, _, err := compileAwarenessInputs(inputDirs, "", "", "", "", false)
+	raw, _, _, err := compileAwarenessInputs(inputDirs, "", "", "", "", false)
 	if err != nil {
 		return nil, err
 	}
