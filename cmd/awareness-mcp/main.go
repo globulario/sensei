@@ -312,9 +312,10 @@ func (b *bridge) tools() []tool {
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"task":   map[string]interface{}{"type": "string"},
-					"files":  map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
-					"domain": map[string]interface{}{"type": "string", "description": "repo/domain scope passed through to per-file impact queries"},
+					"task":               map[string]interface{}{"type": "string"},
+					"files":              map[string]interface{}{"type": "array", "items": map[string]interface{}{"type": "string"}},
+					"domain":             map[string]interface{}{"type": "string", "description": "repo/domain scope passed through to per-file impact queries"},
+					"publication_domain": map[string]interface{}{"type": "string", "description": "domain whose CURRENT PUBLICATION receipt to resolve -- a start gate's KnowledgeContract domain. Distinct from `domain`: scoping a query and asking which governed revision produced the served knowledge are different questions. When omitted no publication is resolved and the projection says UNSPECIFIED."},
 					"mode": map[string]interface{}{
 						"type": "string",
 						"enum": []string{"compact", "standard"},
@@ -329,10 +330,9 @@ func (b *bridge) tools() []tool {
 			InputSchema: map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
-					"file":               map[string]interface{}{"type": "string"},
-					"proposed_content":   map[string]interface{}{"type": "string", "description": "the proposed new content (full file or edited region); patterns are matched against this"},
-					"domain":             map[string]interface{}{"type": "string", "description": "repo/domain scope; required when the graph hosts >1 domain"},
-					"publication_domain": map[string]interface{}{"type": "string", "description": "domain whose CURRENT PUBLICATION receipt to resolve -- a start gate's KnowledgeContract domain. Distinct from `domain`: scoping a query and asking which governed revision produced the served knowledge are different questions. When omitted the server answers for its own home domain and says so in requested_domain, which a caller cross-checking will refuse."},
+					"file":             map[string]interface{}{"type": "string"},
+					"proposed_content": map[string]interface{}{"type": "string", "description": "the proposed new content (full file or edited region); patterns are matched against this"},
+					"domain":           map[string]interface{}{"type": "string", "description": "repo/domain scope; required when the graph hosts >1 domain"},
 				},
 				"required": []string{"file", "proposed_content"},
 			},

@@ -117,7 +117,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		Authority: s.graphAuthorityFor(ctx, req.GetPublicationDomain()),
 	}
 	if err := s.requireDomainWhenAmbiguous(ctx, requestedDomain); err != nil {
-		return s.scopeDegradedPreflightResponse(task, files, start, err), nil
+		return s.scopeDegradedPreflightResponse(task, files, start, err, req.GetPublicationDomain()), nil
 	}
 	patternScope := requestedDomain
 	if patternScope == "" {
@@ -396,7 +396,7 @@ func (s *server) degradedPreflightResponse(task string, files []string, start ti
 		Status:     awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED,
 		RiskClass:  awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		Confidence: awarenesspb.Confidence_CONFIDENCE_LOW,
-		Authority:  s.graphAuthority(context.Background()),
+		Authority:  degradedAuthority(s, "", "the store is unavailable, so no publication could be resolved"),
 		Coverage: &awarenesspb.CoverageSummary{
 			FileCount:  int32(len(files)),
 			Sufficient: false,
@@ -414,12 +414,12 @@ func (s *server) degradedPreflightResponse(task string, files []string, start ti
 	}
 }
 
-func (s *server) scopeDegradedPreflightResponse(task string, files []string, start time.Time, scopeErr error) *awarenesspb.PreflightResponse {
+func (s *server) scopeDegradedPreflightResponse(task string, files []string, start time.Time, scopeErr error, publicationDomain string) *awarenesspb.PreflightResponse {
 	return &awarenesspb.PreflightResponse{
 		Status:     awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED,
 		RiskClass:  awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		Confidence: awarenesspb.Confidence_CONFIDENCE_LOW,
-		Authority:  s.graphAuthority(context.Background()),
+		Authority:  degradedAuthority(s, publicationDomain, "the domain scope could not be verified, so no publication could be resolved"),
 		Coverage: &awarenesspb.CoverageSummary{
 			FileCount:  int32(len(files)),
 			Sufficient: false,
@@ -797,4 +797,24 @@ func prependBounded(head, tail []string, cap int) []string {
 		}
 	}
 	return out
+}
+
+// degradedAuthority keeps a degraded response HONEST about the publication.
+//
+// A caller that supplied publication_domain and got back "no publication_domain
+// was requested" would be told its own question was never asked. The two states
+// are different: UNSPECIFIED means nobody asked, UNREADABLE means someone asked
+// and this response cannot answer. A degraded path must say the second.
+func degradedAuthority(s *server, publicationDomain, why string) *awarenesspb.GraphAuthority {
+	a := s.graphAuthority(context.Background())
+	if strings.TrimSpace(publicationDomain) == "" {
+		return a
+	}
+	a.CurrentPublication = &awarenesspb.DomainPublication{
+		Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+		RequestedDomain: publicationDomain,
+		Domain:          publicationDomain,
+		Detail:          why,
+	}
+	return a
 }
