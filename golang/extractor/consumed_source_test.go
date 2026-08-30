@@ -1,11 +1,15 @@
 package extractor
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // F5: the digest must cover the buffer the IMPORTER parsed.
@@ -53,5 +57,54 @@ func TestTheRecordedDigestCoversTheImporterRead(t *testing.T) {
 	sum2 := sha256.Sum256(second)
 	if d, _ := consumedDigestFor(path); d != hex.EncodeToString(sum2[:]) {
 		t.Fatalf("the digest did not follow the importer's read: %q", d)
+	}
+}
+
+// THE CHOKE POINT: an importable schema whose importer records nothing must
+// yield NO digest, not the classifier's.
+//
+// The classifier's read is not evidence about the emitted triples. Falling back
+// to it meant any importer that forgets readAndRecord silently reinstates the
+// original lie -- a digest covering bytes the parser never saw. The policy
+// lives here, once, instead of depending on 47 leaves staying correct.
+func TestAnImporterThatRecordsNothingYieldsNoDigest(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "invariants.yaml")
+	if err := os.WriteFile(path, []byte("invariants:\n  - id: x\n    statement: y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// The real importer reads through readAndRecord, so a digest IS recorded.
+	var buf bytes.Buffer
+	rep := classifyAndImport(rdf.NewEmitter(&buf), path)
+	if rep.ConsumedDigest == "" {
+		t.Fatalf("a wired importer produced no consumed digest: %+v", rep)
+	}
+
+	// Now the 48th importer, forgotten. An entry marked importable with no
+	// case in the switch falls to default: no importer runs, nothing is
+	// recorded, and the classifier's digest is the ONLY digest in hand -- the
+	// exact situation the fallback used to paper over. Reached through the
+	// existing schema table, because the property must hold for importers that
+	// do not exist yet and no production seam should exist to reach it.
+	saved := keySchemas
+	defer func() { keySchemas = saved }()
+	probe := saved[0]
+	probe.key = "unwired_schema_probe"
+	probe.entry = schemaEntry{"unwired_schema_probe", true, false, "A", "importable schema with no registered importer"}
+	keySchemas = append(append(keySchemas[:0:0], probe), saved...)
+
+	unwired := filepath.Join(dir, "unwired.yaml")
+	if err := os.WriteFile(unwired, []byte("unwired_schema_probe:\n  - id: x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	buf.Reset()
+	rep = classifyAndImport(rdf.NewEmitter(&buf), unwired)
+	if rep.Status != StatusInvalid || !strings.Contains(rep.Reason, "no importer registered") {
+		t.Fatalf("the probe did not reach the unwired branch: %+v", rep)
+	}
+	if rep.ConsumedDigest != "" {
+		t.Fatalf("an importer that recorded nothing still reported a digest %q: "+
+			"the classifier's read would be published as evidence about triples it never produced", rep.ConsumedDigest)
 	}
 }

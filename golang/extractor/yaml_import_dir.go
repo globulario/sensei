@@ -479,9 +479,11 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 			Reason: "read: " + err.Error(),
 		}
 	}
-	// The classifier's own read. It is only a FALLBACK: when a schema importer
-	// runs it reopens the path, and the digest that matters is the one covering
-	// the buffer THAT parse consumed. See consumed_source.go.
+	// The classifier's own read. It stands only for outcomes that emit NO
+	// triples -- unknown schema, unsupported schema, unparseable file. When a
+	// schema importer runs it reopens the path, and the only digest that may
+	// be reported is the one covering the buffer THAT parse consumed; there is
+	// no fallback to this one. See consumed_source.go.
 	consumed := sha256.Sum256(data)
 	digest := hex.EncodeToString(consumed[:])
 
@@ -660,8 +662,19 @@ func classifyAndImport(e *rdf.Emitter, path string) FileReport {
 		importErr = fmt.Errorf("internal: no importer registered for schema %q (importable=true but switch missing)", entry.name)
 	}
 
-	// The importer's own read replaces the classifier's, because the importer's
-	// buffer is the one the emitted triples came from.
+	// NO FALLBACK. An importer that did not establish consumed-byte identity
+	// may not contribute to an exact publication.
+	//
+	// Preferring the importer's digest and KEEPING THE CLASSIFIER'S when none
+	// was recorded left the original lie reachable: any importer that forgets
+	// readAndRecord -- including one written years from now -- silently
+	// reinstates a digest covering bytes the parser never saw. Wiring 47
+	// importers correctly is a fact about today; this is a property.
+	//
+	// Clearing the digest makes the file UNPROVABLE rather than
+	// falsely-proven, and ProveConsumedAgainstRevision refuses it. Forgetting
+	// to wire the 48th importer now costs a refusal instead of false evidence.
+	digest = ""
 	if d, read := consumedDigestFor(path); read {
 		digest = d
 	}
