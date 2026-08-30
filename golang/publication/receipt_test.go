@@ -1,0 +1,228 @@
+package publication
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func run(t *testing.T, dir string, args ...string) string {
+	t.Helper()
+	cmd := exec.Command(args[0], args[1:]...)
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(),
+		"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@example.invalid",
+		"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@example.invalid",
+		"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("%v: %v\n%s", args, err, out)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// repoWithCorpus builds a git repo containing docs/awareness/x.yaml with the
+// given contents, one commit per entry, and returns the repo path and commits.
+func repoWithCorpus(t *testing.T, contents ...string) (string, []string) {
+	t.Helper()
+	dir := t.TempDir()
+	run(t, dir, "git", "init", "-q", "-b", "main")
+	aw := filepath.Join(dir, "docs", "awareness")
+	if err := os.MkdirAll(aw, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	var commits []string
+	for i, c := range contents {
+		if err := os.WriteFile(filepath.Join(aw, "x.yaml"), []byte(c), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		// A second file changes between commits so the COMMITS differ even when
+		// the awareness corpus does not.
+		if err := os.WriteFile(filepath.Join(dir, "unrelated.txt"), []byte{byte('a' + i)}, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		run(t, dir, "git", "add", "-A")
+		run(t, dir, "git", "commit", "-q", "-m", "c")
+		commits = append(commits, run(t, dir, "git", "rev-parse", "HEAD"))
+	}
+	return dir, commits
+}
+
+// A clean checkout publishes its exact revision and may claim it.
+func TestACleanCheckoutClaimsItsExactRevision(t *testing.T) {
+	dir, commits := repoWithCorpus(t, "a: 1\n")
+	rev, tree, state, root := InspectSource(filepath.Join(dir, "docs", "awareness"))
+	if state != CleanExact {
+		t.Fatalf("state = %q, want CLEAN_EXACT", state)
+	}
+	if rev != commits[0] {
+		t.Fatalf("revision = %q, want %q", rev, commits[0])
+	}
+	if tree == "" {
+		t.Fatal("no source tree recorded")
+	}
+	if !state.ClaimsExactRevision() {
+		t.Fatal("CLEAN_EXACT must permit the exact-revision claim")
+	}
+	if !strings.HasSuffix(root, filepath.Join("docs", "awareness")) {
+		t.Fatalf("source root = %q", root)
+	}
+}
+
+// A dirty tree whose HEAD is M must NOT claim it was produced from M.
+func TestADirtyCheckoutCannotClaimExactRevision(t *testing.T) {
+	dir, commits := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+	if err := os.WriteFile(filepath.Join(aw, "x.yaml"), []byte("a: 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rev, _, state, _ := InspectSource(aw)
+	if state != Dirty {
+		t.Fatalf("state = %q, want DIRTY", state)
+	}
+	if rev != commits[0] {
+		t.Fatalf("revision = %q: HEAD is still worth recording", rev)
+	}
+	if state.ClaimsExactRevision() {
+		t.Fatal("a DIRTY publication claimed it came from an exact revision")
+	}
+}
+
+// An UNTRACKED file under the source root also breaks the exact claim: it was
+// compiled, and it is in no commit.
+func TestAnUntrackedInputBreaksTheExactClaim(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	aw := filepath.Join(dir, "docs", "awareness")
+	if err := os.WriteFile(filepath.Join(aw, "sneaked.yaml"), []byte("b: 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, state, _ := InspectSource(aw); state.ClaimsExactRevision() {
+		t.Fatalf("state = %q: an untracked compiled input passed as exact", state)
+	}
+}
+
+// THE CENTRAL FALSIFIER.
+//
+// Two different commits with byte-identical awareness content must publish the
+// SAME content digest and DIFFERENT revision provenance, and must not collapse
+// to one receipt identity. Collapsing them is the defect this package exists to
+// prevent: it is how a graph loses which world produced it while still looking
+// perfectly verified.
+func TestIdenticalContentAtTwoCommitsKeepsDistinctProvenance(t *testing.T) {
+	same := "a: 1\n"
+	dir, commits := repoWithCorpus(t, same, same)
+	if len(commits) != 2 || commits[0] == commits[1] {
+		t.Fatalf("need two distinct commits, got %v", commits)
+	}
+	aw := filepath.Join(dir, "docs", "awareness")
+
+	compiled := []byte("<s> <p> <o> .\n") // identical compiled output, by construction
+	mk := func(commit string) Receipt {
+		run(t, dir, "git", "checkout", "-q", commit)
+		rev, tree, state, root := InspectSource(aw)
+		if state != CleanExact {
+			t.Fatalf("state = %q at %s", state, commit)
+		}
+		return Receipt{
+			Domain: "example.com/x", Revision: rev, Tree: tree, State: state,
+			SourceRoot: root, SourceDigest: DigestBytes(compiled),
+		}
+	}
+	first, second := mk(commits[0]), mk(commits[1])
+
+	if first.SourceDigest != second.SourceDigest {
+		t.Fatal("the specimen is wrong: the content digests must be equal for this test to mean anything")
+	}
+	if first.Tree != second.Tree {
+		t.Fatal("the specimen is wrong: identical corpora must share a source tree")
+	}
+	if first.Revision == second.Revision {
+		t.Fatal("two commits reported the same revision")
+	}
+	if first.Identity() == second.Identity() {
+		t.Fatal("identical content collapsed two commits into one receipt identity — the exact defect this prevents")
+	}
+	if first.IRI() == second.IRI() {
+		t.Fatal("two publications from different commits share a receipt IRI")
+	}
+}
+
+// A source root that is not a git checkout publishes UNKNOWN and an EMPTY
+// revision. It must never be inferred, and the absent field must be absent
+// rather than stated empty.
+func TestNonGitSourcePublishesUnknownAndNeverInfers(t *testing.T) {
+	dir := t.TempDir()
+	rev, tree, state, _ := InspectSource(dir)
+	if state != Unknown {
+		t.Fatalf("state = %q, want UNKNOWN", state)
+	}
+	if rev != "" || tree != "" {
+		t.Fatalf("a revision was invented for a non-git source: rev=%q tree=%q", rev, tree)
+	}
+	if state.ClaimsExactRevision() {
+		t.Fatal("UNKNOWN claimed an exact revision")
+	}
+	r := Receipt{Domain: "d", State: Unknown}
+	if strings.Contains(string(r.Triples()), "publicationSourceRevision") {
+		t.Fatal("an absent revision was written as a stated empty value")
+	}
+}
+
+// The receipt must survive a round trip through N-Triples and still verify.
+func TestAReceiptReadsBackAndVerifiesItsIdentity(t *testing.T) {
+	r := Receipt{
+		Domain:   "github.com/globulario/sensei-code",
+		Revision: "f6b4755ff4d12591e9e802b2094b16a938260cc2",
+		Tree:     "abc123", State: CleanExact, SourceRoot: "/tmp/x",
+		SourceDigest: "dig",
+	}
+	nt := r.Triples()
+	back, ok := Current(nt, r.Domain)
+	if !ok {
+		t.Fatal("the pointer did not resolve to a receipt")
+	}
+	if back != r {
+		t.Fatalf("round trip changed the receipt:\n got %+v\nwant %+v", back, r)
+	}
+	if !VerifyIdentity(r.IRI(), back) {
+		t.Fatal("a round-tripped receipt does not hash to its own IRI")
+	}
+}
+
+// A tampered field must break the identity, or the IRI proves nothing.
+func TestTamperingWithAPublishedReceiptBreaksItsIdentity(t *testing.T) {
+	r := Receipt{Domain: "d", Revision: "aaa", State: CleanExact}
+	iri := r.IRI()
+	r.Revision = "bbb"
+	if VerifyIdentity(iri, r) {
+		t.Fatal("a rewritten revision still verified against the original receipt IRI")
+	}
+}
+
+// A pointer naming a receipt that is not present must report "no current
+// publication", not an empty one.
+func TestADanglingPointerIsNotAnEmptyPublication(t *testing.T) {
+	nt := []byte("<" + PointerIRI("d") + "> <" + pCurrent + "> <" + receiptPrefix + "deadbeef> .\n")
+	if _, ok := Current(nt, "d"); ok {
+		t.Fatal("a dangling pointer resolved to a receipt")
+	}
+}
+
+// The closed vocabulary is read by membership.
+func TestSourceStateIsReadByMembership(t *testing.T) {
+	for _, s := range []SourceState{CleanExact, Dirty, Unknown} {
+		if !s.Valid() {
+			t.Fatalf("%q must be valid", s)
+		}
+	}
+	for _, s := range []SourceState{"", "clean", "CLEAN", "EXACT", "unknown"} {
+		if s.Valid() {
+			t.Fatalf("%q must not be a member", s)
+		}
+		if s.ClaimsExactRevision() {
+			t.Fatalf("%q claimed an exact revision", s)
+		}
+	}
+}

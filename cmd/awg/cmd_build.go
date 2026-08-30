@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"github.com/globulario/sensei/golang/closure"
 	"github.com/globulario/sensei/golang/extractor"
 	"github.com/globulario/sensei/golang/governancepack"
+	"github.com/globulario/sensei/golang/publication"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
@@ -549,6 +551,30 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		fmt.Fprintf(os.Stderr, "sensei build: incomplete store dump (%d triples read vs %d live) — refusing publication.\n", got, before)
 		return 1
 	}
+	// REVISION IDENTITY, established before the generation digest is computed.
+	//
+	// The marker proves the served bytes are the published bytes. It never
+	// proved WHICH REPOSITORY REVISION produced them, so that half of the chain
+	// used to rest on the operator's word. The receipt is folded into the
+	// content the marker is computed over, which means the generation digest
+	// commits to the revision: the two cannot be separated afterwards without
+	// breaking the digest.
+	//
+	// Receipts carry no domain tag and therefore survive the scoped replacement,
+	// so history accumulates. The pointer that names the current one IS tagged,
+	// so exactly one publication is current per domain.
+	receiptRoot := domainSourceRoot(inputDirs)
+	rev, tree, srcState, resolvedRoot := publication.InspectSource(receiptRoot)
+	receipt := publication.Receipt{
+		Domain:       domain,
+		Revision:     rev,
+		Tree:         tree,
+		State:        srcState,
+		SourceRoot:   resolvedRoot,
+		SourceDigest: publication.DigestBytes(sliceNT),
+	}
+	sliceNT = append(append([]byte{}, sliceNT...), receipt.Triples()...)
+
 	retainedBase := retainScopedGraph(fullBase, domain)
 	postUpdateBase := append(append([]byte{}, retainedBase...), sliceNT...)
 	postUpdateBase, _, _ = extractor.DedupNTriples(postUpdateBase)
@@ -613,6 +639,15 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
 		return 1
+	}
+	if err := writePublicationReceipt(markerPath, receipt, marker); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: publish domain receipt: %v\n", err)
+		return 1
+	}
+	if receipt.State.ClaimsExactRevision() {
+		fmt.Fprintf(os.Stderr, "  source revision: %s (%s)\n", receipt.Revision, receipt.State)
+	} else {
+		fmt.Fprintf(os.Stderr, "  source revision: NOT EXACT (%s) — this generation must not be read as produced from a specific commit\n", receipt.State)
 	}
 	svcRepo, _ := resolveServicesRepo(svcRepoFlag)
 	agRepo, _ := resolveAGRepo(agRepoFlag, svcRepo)
@@ -885,4 +920,44 @@ func (s *stringSlice) String() string { return strings.Join(*s, ",") }
 func (s *stringSlice) Set(v string) error {
 	*s = append(*s, v)
 	return nil
+}
+
+// domainSourceRoot picks the source root whose revision the receipt records.
+//
+// The first configured input directory is the repository corpus; later ones are
+// supplementary. Recording the FIRST is deliberate: a receipt naming several
+// roots with one revision would be claiming more than it measured.
+func domainSourceRoot(inputDirs []string) string {
+	for _, d := range inputDirs {
+		if strings.TrimSpace(d) != "" {
+			return d
+		}
+	}
+	return "."
+}
+
+// writePublicationReceipt records the domain receipt beside the graph marker.
+//
+// This file is a CONVENIENCE, never the proof. The authoritative copy is in the
+// store, inside the content the generation digest covers; anything reading this
+// JSON to decide what was published is reading a copy that a later hand could
+// have edited without disturbing the graph at all.
+func writePublicationReceipt(markerPath string, r publication.Receipt, m seedmeta.Marker) error {
+	out := publication.Published{
+		Receipt:     r,
+		ReceiptIRI:  r.IRI(),
+		Generation:  m.Digest,
+		TripleCount: m.TripleCount,
+	}
+	b, err := json.MarshalIndent(out, "", "  ")
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(publicationReceiptPath(markerPath), append(b, '\n'))
+}
+
+// publicationReceiptPath places the receipt beside the marker it belongs to.
+func publicationReceiptPath(markerPath string) string {
+	dir := filepath.Dir(markerPath)
+	return filepath.Join(dir, "graph-publication-receipt.json")
 }
