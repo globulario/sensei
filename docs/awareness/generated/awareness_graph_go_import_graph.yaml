@@ -2967,6 +2967,7 @@ components:
       - golang/server/controlstate_mutation_rpcs.go
       - golang/server/controlstate_provider.go
       - golang/server/controlstate_rpcs.go
+      - golang/server/domain_publication.go
       - golang/server/domain_scope.go
       - golang/server/domain_slice.go
       - golang/server/edit_check.go
@@ -3013,6 +3014,7 @@ components:
       - component.golang.graphgeneration
       - component.golang.netcfg
       - component.golang.propose
+      - component.golang.publication
       - component.golang.rdf
       - component.golang.runtimedescriptor
       - component.golang.seedmeta

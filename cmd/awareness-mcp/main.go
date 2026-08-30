@@ -1583,6 +1583,30 @@ func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
 	if d := strings.TrimSpace(a.GetEmbeddedTransactionDetail()); d != "" {
 		obj["embedded_transaction_detail"] = d
 	}
+	// The per-domain publication receipt the served generation selects.
+	//
+	// Always stated, including when it could not be resolved: a consumer
+	// deciding whether to start governed work must be able to tell ABSENT from
+	// UNREADABLE from VERIFIED, and an omitted key would make all three look
+	// like "the bridge is old".
+	pub := a.GetCurrentPublication()
+	p := map[string]interface{}{
+		"resolution": pub.GetResolution().String(),
+	}
+	if d := strings.TrimSpace(pub.GetDetail()); d != "" {
+		p["detail"] = d
+	}
+	if pub.GetResolution() == awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		p["receipt_iri"] = pub.GetReceiptIri()
+		p["receipt_version"] = pub.GetReceiptVersion()
+		p["domain"] = pub.GetDomain()
+		p["source_revision"] = pub.GetSourceRevision()
+		p["source_tree"] = pub.GetSourceTree()
+		p["source_state"] = pub.GetSourceState()
+		p["source_path"] = pub.GetSourcePath()
+		p["source_digest_sha256"] = pub.GetSourceDigestSha256()
+	}
+	obj["current_publication"] = p
 	return obj
 }
 

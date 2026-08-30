@@ -15,7 +15,12 @@ import (
 
 func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
-	return graphAuthorityFromSnapshot(snap, s)
+	a := graphAuthorityFromSnapshot(snap, s)
+	// Resolved against the SAME served store the freshness verdict describes,
+	// so a consumer cannot be handed a generation digest from one world and a
+	// publication receipt from another.
+	a.CurrentPublication = resolveCurrentPublication(ctx, s, s.homeDomain)
+	return a
 }
 
 func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarenesspb.GraphAuthority {

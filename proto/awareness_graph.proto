@@ -740,6 +740,60 @@ message GraphAuthority {
   // distinguish "not authoritative" from "not observed" MUST read this rather
   // than `authoritative`.
   AuthorityVerdict verdict = 17;
+
+  // The current per-domain publication receipt the served generation selects.
+  //
+  // A narrow projection on purpose. A start gate must ask "which governed world
+  // produced the knowledge you are serving me", and answering that by teaching
+  // the generic typed query API to return arbitrary publication classes would
+  // widen a read surface for one experiment's convenience.
+  DomainPublication current_publication = 18;
+}
+
+// PublicationResolution distinguishes the ways a receipt lookup can end.
+//
+// ABSENT and UNREADABLE are different worlds: no publication has been recorded
+// for this domain, versus one exists and this reader cannot vouch for it. A
+// consumer that collapses them fails open on the second.
+enum PublicationResolution {
+  PUBLICATION_RESOLUTION_UNSPECIFIED = 0;
+  // A receipt was found and its recomputed identity matches the IRI it is
+  // stored under.
+  PUBLICATION_RESOLUTION_VERIFIED = 1;
+  // No current-publication pointer exists for this domain.
+  PUBLICATION_RESOLUTION_ABSENT = 2;
+  // A pointer or receipt exists but could not be verified: dangling pointer,
+  // identity mismatch, or a receipt version this server does not define.
+  PUBLICATION_RESOLUTION_UNREADABLE = 3;
+}
+
+// DomainPublication is the authenticated answer to "which governed revision
+// produced the knowledge currently served for this domain".
+message DomainPublication {
+  PublicationResolution resolution = 1;
+  // Why, when resolution is not VERIFIED. Never empty in that case.
+  string detail = 2;
+
+  // The receipt's own immutable name, recomputed by this server rather than
+  // echoed from storage.
+  string receipt_iri = 3;
+  // Receipt shape: "v1", "v2". A consumer must refuse a version it does not
+  // define rather than reading the fields it recognises.
+  string receipt_version = 4;
+
+  string domain = 5;
+  // The revision the published corpus came from. Empty when the publication
+  // recorded UNKNOWN, and never inferred.
+  string source_revision = 6;
+  // The git tree of the published corpus, for comparison against the corpus a
+  // run actually carries.
+  string source_tree = 7;
+  // CLEAN_EXACT, DIRTY or UNKNOWN. Only CLEAN_EXACT may be read as "produced
+  // from exactly source_revision".
+  string source_state = 8;
+  // Repository-relative knowledge path, e.g. "docs/awareness". v2 and later.
+  string source_path = 9;
+  string source_digest_sha256 = 10;
 }
 
 enum CandidateQueueState {
