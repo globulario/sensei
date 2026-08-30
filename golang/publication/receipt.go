@@ -35,6 +35,39 @@ import (
 	"github.com/globulario/sensei/golang/seedmeta"
 )
 
+// ReceiptVersion is the receipt shape a publication speaks.
+//
+// It exists because v1 receipts are IMMUTABLE HISTORICAL EVIDENCE. A1's
+// succession proof rests on one, and changing the identity algorithm in place
+// would make that receipt fail to verify under the very code that improved it --
+// rewriting history in the costume of a repair. So the algorithm is versioned
+// and v1 stays exactly as it was.
+type ReceiptVersion string
+
+const (
+	// ReceiptV1 is the shape A1 published. Its identity covers domain,
+	// revision, tree, state and source_digest. It also carries an operational
+	// SourceRoot -- an absolute filesystem path -- which is NOT identity
+	// bearing, and that is the defect v2 exists to remove.
+	ReceiptV1 ReceiptVersion = "v1"
+	// ReceiptV2 replaces the operational SourceRoot with a durable
+	// repository-relative SourcePath, and every field it carries participates
+	// in identity.
+	ReceiptV2 ReceiptVersion = "v2"
+)
+
+// CurrentReceiptVersion is what new publications emit.
+const CurrentReceiptVersion = ReceiptV2
+
+// Valid reads membership by enumeration.
+func (v ReceiptVersion) Valid() bool {
+	switch v {
+	case ReceiptV1, ReceiptV2:
+		return true
+	}
+	return false
+}
+
 // SourceState says how much the revision is allowed to claim.
 //
 // It is a closed vocabulary read by membership. An unrecognised value is not
@@ -81,10 +114,32 @@ type Receipt struct {
 	// Tree is the git tree object of the compiled source root. It distinguishes
 	// two commits whose awareness corpus is identical, without being the
 	// content digest of the compiled output.
-	Tree         string
-	State        SourceState
-	SourceRoot   string
+	Tree  string
+	State SourceState
+	// SourceRoot is the absolute filesystem path a publication ran from. It is
+	// OPERATIONAL, it is v1-only, and it is deliberately not identity bearing:
+	// /tmp/build-7f2/docs/awareness says nothing durable about which knowledge
+	// was published, and two machines publishing the same corpus would disagree
+	// on it. v2 records SourcePath instead and drops this field entirely.
+	SourceRoot string
+	// SourcePath is the source root RELATIVE TO THE REPOSITORY the domain names
+	// -- "docs/awareness". It is durable across machines and checkouts, it is
+	// what a knowledge contract can be written against, and in v2 it
+	// participates in identity.
+	SourcePath   string
 	SourceDigest string
+	// Version selects the identity algorithm. The zero value resolves to
+	// ReceiptV1, because that is what every receipt published before versioning
+	// existed actually is -- a migration fact, not a guess.
+	Version ReceiptVersion
+}
+
+// version resolves the zero value to v1 without pretending it was stated.
+func (r Receipt) version() ReceiptVersion {
+	if r.Version == "" {
+		return ReceiptV1
+	}
+	return r.Version
 }
 
 // CLOSURE IS DELIBERATELY NOT A RECEIPT FIELD. It is proven after promotion, so
@@ -131,25 +186,50 @@ const (
 	pTree      = seedmeta.NamespaceIRI + "publicationSourceTree"
 	pState     = seedmeta.NamespaceIRI + "publicationSourceState"
 	pRoot      = seedmeta.NamespaceIRI + "publicationSourceRoot"
+	pPath      = seedmeta.NamespaceIRI + "publicationSourcePath"
+	pVersion   = seedmeta.NamespaceIRI + "publicationReceiptVersion"
 	pSourceDig = seedmeta.NamespaceIRI + "publicationSourceDigest"
 	pClosure   = seedmeta.NamespaceIRI + "publicationClosure"
 	pCurrent   = seedmeta.NamespaceIRI + "currentPublication"
 	pRepo      = seedmeta.NamespaceIRI + "repo"
 )
 
-// Identity is the receipt's immutable name: a digest over every field.
+// Identity is the receipt's immutable name: a digest over every field its
+// version carries.
 //
 // Revision participates directly, so two commits with identical sources get
 // DIFFERENT receipt identities. That is the point -- see the package comment.
+//
+// THE ALGORITHM IS VERSIONED AND v1 IS FROZEN. A1's succession proof rests on a
+// v1 receipt; recomputing it under a changed algorithm would report that
+// historical evidence as invalid, which is rewriting the past rather than
+// improving the present. v2 is a different algorithm over a different field
+// set, not a correction applied retroactively to v1.
 func (r Receipt) Identity() string {
-	var b strings.Builder
-	for _, kv := range [][2]string{
+	fields := [][2]string{
 		{"domain", r.Domain},
 		{"revision", r.Revision},
 		{"tree", r.Tree},
 		{"state", string(r.State)},
 		{"source_digest", r.SourceDigest},
-	} {
+	}
+	if r.version() == ReceiptV2 {
+		// Every field a v2 receipt carries participates. SourceRoot is absent
+		// from v2 entirely rather than present-and-unhashed, which is the shape
+		// that let an operational path ride inside an immutable record without
+		// being covered by its digest.
+		fields = [][2]string{
+			{"version", string(ReceiptV2)},
+			{"domain", r.Domain},
+			{"revision", r.Revision},
+			{"tree", r.Tree},
+			{"state", string(r.State)},
+			{"source_path", r.SourcePath},
+			{"source_digest", r.SourceDigest},
+		}
+	}
+	var b strings.Builder
+	for _, kv := range fields {
 		// Length-prefixed so no field's value can impersonate a field boundary.
 		fmt.Fprintf(&b, "%s:%d:%s\n", kv[0], len(kv[1]), kv[1])
 	}
@@ -177,14 +257,29 @@ func (r Receipt) Triples() []byte {
 	iri := r.IRI()
 	fmt.Fprintf(&out, "<%s> <%s> <%s> .\n", iri, typeIRI, receiptClassIRI)
 	fmt.Fprintf(&out, "<%s> <%s> %q .\n", iri, labelIRI, r.label())
-	for _, kv := range [][2]string{
+	// v2 publishes the durable repo-relative path and NOT the operational
+	// SourceRoot. Emitting both would reintroduce exactly what v2 removes: a
+	// field inside an immutable record that its digest does not cover.
+	stated := [][2]string{
 		{pDomain, r.Domain},
 		{pRevision, r.Revision},
 		{pTree, r.Tree},
 		{pState, string(r.State)},
 		{pRoot, r.SourceRoot},
 		{pSourceDig, r.SourceDigest},
-	} {
+	}
+	if r.version() == ReceiptV2 {
+		stated = [][2]string{
+			{pVersion, string(ReceiptV2)},
+			{pDomain, r.Domain},
+			{pRevision, r.Revision},
+			{pTree, r.Tree},
+			{pState, string(r.State)},
+			{pPath, r.SourcePath},
+			{pSourceDig, r.SourceDigest},
+		}
+	}
+	for _, kv := range stated {
 		if kv[1] == "" {
 			// An absent revision is left ABSENT. Writing "" would be a stated
 			// value, and Unknown means the field was never established.
@@ -235,6 +330,10 @@ func Parse(nt []byte) map[string]Receipt {
 			r.State = SourceState(obj)
 		case pRoot:
 			r.SourceRoot = obj
+		case pPath:
+			r.SourcePath = obj
+		case pVersion:
+			r.Version = ReceiptVersion(obj)
 		case pSourceDig:
 			r.SourceDigest = obj
 		}

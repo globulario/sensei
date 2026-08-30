@@ -53,7 +53,7 @@ func repoWithCorpus(t *testing.T, contents ...string) (string, []string) {
 // A clean checkout publishes its exact revision and may claim it.
 func TestACleanCheckoutClaimsItsExactRevision(t *testing.T) {
 	dir, commits := repoWithCorpus(t, "a: 1\n")
-	rev, tree, state, root := InspectSource(filepath.Join(dir, "docs", "awareness"))
+	rev, tree, state, root, _ := InspectSource(filepath.Join(dir, "docs", "awareness"))
 	if state != CleanExact {
 		t.Fatalf("state = %q, want CLEAN_EXACT", state)
 	}
@@ -78,7 +78,7 @@ func TestADirtyCheckoutCannotClaimExactRevision(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(aw, "x.yaml"), []byte("a: 2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	rev, _, state, _ := InspectSource(aw)
+	rev, _, state, _, _ := InspectSource(aw)
 	if state != Dirty {
 		t.Fatalf("state = %q, want DIRTY", state)
 	}
@@ -98,7 +98,7 @@ func TestAnUntrackedInputBreaksTheExactClaim(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(aw, "sneaked.yaml"), []byte("b: 2\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, state, _ := InspectSource(aw); state.ClaimsExactRevision() {
+	if _, _, state, _, _ := InspectSource(aw); state.ClaimsExactRevision() {
 		t.Fatalf("state = %q: an untracked compiled input passed as exact", state)
 	}
 }
@@ -121,7 +121,7 @@ func TestIdenticalContentAtTwoCommitsKeepsDistinctProvenance(t *testing.T) {
 	compiled := []byte("<s> <p> <o> .\n") // identical compiled output, by construction
 	mk := func(commit string) Receipt {
 		run(t, dir, "git", "checkout", "-q", commit)
-		rev, tree, state, root := InspectSource(aw)
+		rev, tree, state, root, _ := InspectSource(aw)
 		if state != CleanExact {
 			t.Fatalf("state = %q at %s", state, commit)
 		}
@@ -154,7 +154,7 @@ func TestIdenticalContentAtTwoCommitsKeepsDistinctProvenance(t *testing.T) {
 // rather than stated empty.
 func TestNonGitSourcePublishesUnknownAndNeverInfers(t *testing.T) {
 	dir := t.TempDir()
-	rev, tree, state, _ := InspectSource(dir)
+	rev, tree, state, _, _ := InspectSource(dir)
 	if state != Unknown {
 		t.Fatalf("state = %q, want UNKNOWN", state)
 	}
@@ -224,5 +224,106 @@ func TestSourceStateIsReadByMembership(t *testing.T) {
 		if s.ClaimsExactRevision() {
 			t.Fatalf("%q claimed an exact revision", s)
 		}
+	}
+}
+
+// THE MIGRATION GUARD.
+//
+// A1's succession proof rests on this exact receipt identity, published by the
+// v1 algorithm and recorded in the experiment's frozen evidence. If a later
+// change to Identity() ever alters it, the historical record stops verifying
+// under the code that superseded it -- which is rewriting the past in the
+// costume of a repair. This test pins the real value.
+func TestTheHistoricalA1ReceiptStillVerifies(t *testing.T) {
+	const a1 = "2223c940bcf84f767593f58ad798f64055edb4e766673bf87c46f89692c978f7"
+	r := Receipt{ // exactly as A1 published it: no Version field, so v1
+		Domain:       "github.com/globulario/sensei-code",
+		Revision:     "f6b4755ff4d12591e9e802b2094b16a938260cc2",
+		Tree:         "ad916f771bbc07523c92ff299c27af53c852aacd",
+		State:        CleanExact,
+		SourceRoot:   "/tmp/claude-1000/-home-dave-Documents-github-com-globulario-sensei-code/0c05292b-ad66-420a-9985-54db3e81471f/scratchpad/M/docs/awareness",
+		SourceDigest: "cff0d6113939b6f986b873dffad22847491669d903d1254386ef57c18cdf9c23",
+	}
+	if r.version() != ReceiptV1 {
+		t.Fatalf("an unversioned receipt resolved to %q, not v1", r.version())
+	}
+	if got := r.Identity(); got != a1 {
+		t.Fatalf("the A1 receipt identity moved:\n got %s\nwant %s", got, a1)
+	}
+	if !VerifyIdentity(receiptPrefix+a1, r) {
+		t.Fatal("A1's historical receipt no longer verifies against its own IRI")
+	}
+}
+
+// v2 is a DIFFERENT algorithm, not a correction applied to v1. The same facts
+// must not produce the same identity, or the version would be decorative.
+func TestV2IsADistinctAlgorithmRatherThanAPatchedV1(t *testing.T) {
+	base := Receipt{
+		Domain: "d", Revision: "abc", Tree: "t", State: CleanExact, SourceDigest: "sd",
+	}
+	v2 := base
+	v2.Version = ReceiptV2
+	v2.SourcePath = "docs/awareness"
+	if base.Identity() == v2.Identity() {
+		t.Fatal("v1 and v2 produced the same identity, so the version participates in nothing")
+	}
+}
+
+// In v2 the source path is DURABLE and identity bearing: publishing the same
+// corpus from a different absolute directory must not change the receipt, and
+// changing the repo-relative path must.
+func TestV2IdentityFollowsThePathThatMeansSomething(t *testing.T) {
+	a := Receipt{Version: ReceiptV2, Domain: "d", Revision: "abc", Tree: "t",
+		State: CleanExact, SourcePath: "docs/awareness", SourceDigest: "sd",
+		SourceRoot: "/tmp/build-7f2/docs/awareness"}
+	b := a
+	b.SourceRoot = "/home/ci/checkout/docs/awareness" // different machine, same corpus
+	if a.Identity() != b.Identity() {
+		t.Fatal("an operational filesystem path changed a v2 receipt identity")
+	}
+	c := a
+	c.SourcePath = "docs/other-awareness"
+	if a.Identity() == c.Identity() {
+		t.Fatal("the repo-relative knowledge path does not participate in v2 identity")
+	}
+}
+
+// A v2 receipt must not publish the operational root at all. Present-and-
+// unhashed is the exact shape v2 exists to remove.
+func TestV2PublishesNoUnhashedOperationalPath(t *testing.T) {
+	r := Receipt{Version: ReceiptV2, Domain: "d", Revision: "abc", Tree: "t",
+		State: CleanExact, SourcePath: "docs/awareness", SourceDigest: "sd",
+		SourceRoot: "/tmp/build-7f2/docs/awareness"}
+	nt := string(r.Triples())
+	if strings.Contains(nt, "publicationSourceRoot") {
+		t.Fatal("a v2 receipt published SourceRoot, a field its digest does not cover")
+	}
+	if !strings.Contains(nt, "publicationSourcePath") || !strings.Contains(nt, "publicationReceiptVersion") {
+		t.Fatalf("a v2 receipt did not state its path and version:\n%s", nt)
+	}
+	back, ok := Current(r.Triples(), "d")
+	if !ok {
+		t.Fatal("the v2 pointer did not resolve")
+	}
+	if back.Version != ReceiptV2 || back.SourcePath != "docs/awareness" {
+		t.Fatalf("v2 fields did not survive the round trip: %+v", back)
+	}
+	if !VerifyIdentity(r.IRI(), back) {
+		t.Fatal("a round-tripped v2 receipt does not hash to its own IRI")
+	}
+}
+
+// InspectSource must report the repo-relative path, which is the whole point.
+func TestInspectSourceReportsTheRepositoryRelativePath(t *testing.T) {
+	dir, _ := repoWithCorpus(t, "a: 1\n")
+	_, _, state, root, rel := InspectSource(filepath.Join(dir, "docs", "awareness"))
+	if state != CleanExact {
+		t.Fatalf("state = %q", state)
+	}
+	if rel != "docs/awareness" {
+		t.Fatalf("relative path = %q, want docs/awareness", rel)
+	}
+	if !filepath.IsAbs(root) {
+		t.Fatalf("the operational root should still be absolute, got %q", root)
 	}
 }

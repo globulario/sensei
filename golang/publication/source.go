@@ -22,23 +22,26 @@ import (
 // compiled an untracked YAML file did not come from the commit it names, and
 // the difference is invisible in the compiled output, which is precisely why it
 // has to be checked here.
-func InspectSource(root string) (revision, tree string, state SourceState, resolvedRoot string) {
+// It also returns the source root RELATIVE TO THE REPOSITORY, which is the
+// durable identity a knowledge contract is written against. The absolute path
+// is operational and differs between machines publishing the same corpus.
+func InspectSource(root string) (revision, tree string, state SourceState, resolvedRoot, relPath string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
 	abs, err := filepath.Abs(root)
 	if err != nil {
-		return "", "", Unknown, root
+		return "", "", Unknown, root, ""
 	}
 	resolvedRoot = abs
 
 	top, err := git(ctx, abs, "rev-parse", "--show-toplevel")
 	if err != nil || top == "" {
-		return "", "", Unknown, resolvedRoot
+		return "", "", Unknown, resolvedRoot, ""
 	}
 	head, err := git(ctx, abs, "rev-parse", "HEAD")
 	if err != nil || head == "" {
-		return "", "", Unknown, resolvedRoot
+		return "", "", Unknown, resolvedRoot, ""
 	}
 
 	// The tree of the source root AS COMMITTED. Distinguishes two commits whose
@@ -46,6 +49,9 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 	// which is why it is recorded alongside the revision and never instead of it.
 	rel, relErr := filepath.Rel(top, abs)
 	treeRef := "HEAD^{tree}"
+	if relErr == nil {
+		relPath = filepath.ToSlash(rel)
+	}
 	if relErr == nil && rel != "." && !strings.HasPrefix(rel, "..") {
 		// For a directory, HEAD:<path> already names a tree object; appending
 		// ^{tree} to it does not resolve.
@@ -59,12 +65,12 @@ func InspectSource(root string) (revision, tree string, state SourceState, resol
 	dirty, err := git(ctx, abs, "status", "--porcelain", "--untracked-files=all", "--", abs)
 	if err != nil {
 		// The question could not be answered, so the answer is not "clean".
-		return head, tree, Unknown, resolvedRoot
+		return head, tree, Unknown, resolvedRoot, relPath
 	}
 	if strings.TrimSpace(dirty) != "" {
-		return head, tree, Dirty, resolvedRoot
+		return head, tree, Dirty, resolvedRoot, relPath
 	}
-	return head, tree, CleanExact, resolvedRoot
+	return head, tree, CleanExact, resolvedRoot, relPath
 }
 
 // DigestBytes is the content identity of the compiled inputs.

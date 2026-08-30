@@ -564,13 +564,14 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// so history accumulates. The pointer that names the current one IS tagged,
 	// so exactly one publication is current per domain.
 	receiptRoot := domainSourceRoot(inputDirs)
-	rev, tree, srcState, resolvedRoot := publication.InspectSource(receiptRoot)
+	rev, tree, srcState, _, relPath := publication.InspectSource(receiptRoot)
 	receipt := publication.Receipt{
+		Version:      publication.CurrentReceiptVersion,
 		Domain:       domain,
 		Revision:     rev,
 		Tree:         tree,
 		State:        srcState,
-		SourceRoot:   resolvedRoot,
+		SourcePath:   relPath,
 		SourceDigest: publication.DigestBytes(sliceNT),
 	}
 	sliceNT = append(append([]byte{}, sliceNT...), receipt.Triples()...)
