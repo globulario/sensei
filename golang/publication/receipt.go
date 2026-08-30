@@ -405,7 +405,22 @@ func Resolve(nt []byte, domain string) (storedTarget string, r Receipt, state Po
 // under another -- a receipt whose meaning depends on row order is not an
 // identity. This is the pointer-ambiguity rule applied to the receipt body,
 // which is where it was missing.
-func ReceiptFromTriples(subject string, predicates, objects []string) (Receipt, error) {
+func ReceiptFromTriples(subject string, predicates, objects []string, objectIsIRI []bool) (Receipt, error) {
+	// TERM KIND IS PART OF THE VALUE. Every publication field is published as a
+	// LITERAL. Discarding whether a stored object was an IRI and re-rendering it
+	// as a quoted literal normalises a malformed term into a well-formed one --
+	// the receipt then verifies, because the digest is computed over the
+	// normalised text rather than over what the store actually holds.
+	for i := range predicates {
+		if !strings.HasPrefix(predicates[i], seedmeta.NamespaceIRI+"publication") {
+			continue
+		}
+		if i < len(objectIsIRI) && objectIsIRI[i] {
+			return Receipt{}, fmt.Errorf(
+				"receipt field %s is stored as an IRI term; publication fields are literals, "+
+					"and reinterpreting the term would verify a value the store does not hold", predicates[i])
+		}
+	}
 	seen := map[string]map[string]struct{}{}
 	for i := range predicates {
 		if !strings.HasPrefix(predicates[i], seedmeta.NamespaceIRI+"publication") {

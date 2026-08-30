@@ -85,10 +85,18 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 			targets[t.Object] = struct{}{}
 		}
 	}
-	if edges > 0 && len(targets) != 1 {
+	// THE PROPERTY, not the instances: exactly one well-formed edge.
+	//
+	// Requiring only "one distinct IRI target" accepted a pointer carrying a
+	// valid IRI edge ALONGSIDE a malformed one, because the malformed edge
+	// contributed no target and the count still read 1. A pointer that contains
+	// anything the server cannot interpret is not a pointer with a usable
+	// target and some noise -- it is stored state whose meaning is unknown, and
+	// attesting the readable half is choosing which half to believe.
+	if edges > 0 && (edges != 1 || len(targets) != 1) {
 		return unreadable(
 			"the pointer for %q has %d currentPublication edge(s) naming %d distinct IRI target(s); "+
-				"exactly one is required for there to be a current publication",
+				"exactly one well-formed edge is required for there to be a current publication",
 			domain, edges, len(targets))
 	}
 	var storedTarget string
@@ -111,11 +119,13 @@ func resolveCurrentPublication(ctx context.Context, s *server, domain string) *a
 	}
 	preds := make([]string, 0, len(body))
 	objs := make([]string, 0, len(body))
+	iris := make([]bool, 0, len(body))
 	for _, t := range body {
 		preds = append(preds, t.Predicate)
 		objs = append(objs, t.Object)
+		iris = append(iris, t.ObjectIsIRI)
 	}
-	r, err := publication.ReceiptFromTriples(storedTarget, preds, objs)
+	r, err := publication.ReceiptFromTriples(storedTarget, preds, objs, iris)
 	if err != nil {
 		return unreadable(
 			"the current-publication pointer for %q names %s: %v",

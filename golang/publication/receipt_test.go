@@ -412,7 +412,7 @@ func TestReceiptFromTriplesMatchesTheDumpPath(t *testing.T) {
 		preds = append(preds, p)
 		objs = append(objs, o)
 	}
-	back, err := ReceiptFromTriples(r.IRI(), preds, objs)
+	back, err := ReceiptFromTriples(r.IRI(), preds, objs, make([]bool, len(preds)))
 	if err != nil {
 		t.Fatalf("the bounded path parsed nothing: %v", err)
 	}

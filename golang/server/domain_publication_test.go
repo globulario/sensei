@@ -438,3 +438,84 @@ func TestAReceiptWithAnUnknownSourceStateIsUnreadable(t *testing.T) {
 		}
 	}
 }
+
+// FALSIFIER 11. THE POINTER PROPERTY, not the two instances that exposed it.
+//
+// Falsifier 8 proved a literal-ONLY pointer is unreadable, and falsifier 7
+// proved two IRI targets are unreadable. Neither reached the mixed case: a
+// valid IRI edge alongside a malformed one, where the malformed edge
+// contributes no target and the distinct-target count still reads 1.
+//
+// The invariant is that a publication pointer consists of EXACTLY ONE
+// well-formed currentPublication edge. Attesting the readable half of an
+// ambiguous pointer is choosing which half to believe.
+func TestAPointerMixingValidAndMalformedEdgesIsUnreadable(t *testing.T) {
+	healthy := healthyReceipt()
+	st := mixedPointerStore{
+		valid:  healthy.IRI(),
+		bodies: map[string][]store.Triple{healthy.IRI(): receiptTriples(healthy)},
+	}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: a pointer with a malformed edge attested its readable half", got.GetResolution())
+	}
+
+	// Control: the same pointer with ONLY the well-formed edge verifies, so the
+	// test cannot pass by refusing everything.
+	single := publicationStore{storedTarget: healthy.IRI(), body: receiptTriples(healthy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(single), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a single well-formed edge failed: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
+
+type mixedPointerStore struct {
+	fakeStore
+	valid  string
+	bodies map[string][]store.Triple
+}
+
+func (p mixedPointerStore) Describe(ctx context.Context, iri string) ([]store.Triple, error) {
+	if iri == publication.PointerIRI(pubTestDomain) {
+		return []store.Triple{
+			{Predicate: publication.CurrentPublicationPredicate, Object: p.valid, ObjectIsIRI: true},
+			{Predicate: publication.CurrentPublicationPredicate, Object: "garbage", ObjectIsIRI: false},
+		}, nil
+	}
+	if body, ok := p.bodies[iri]; ok {
+		return body, nil
+	}
+	return p.fakeStore.Describe(ctx, iri)
+}
+
+// FALSIFIER 12. Term kind is part of the value.
+//
+// Every publication field is published as a LITERAL. The resolver discarded
+// Triple.ObjectIsIRI and re-rendered each object as a quoted literal, so an
+// IRI-valued field was normalised into a well-formed literal and verified --
+// the digest was computed over the normalisation rather than over what the
+// store actually holds. Reproduced before it was repaired.
+func TestAnIRIValuedReceiptFieldIsUnreadable(t *testing.T) {
+	healthy := healthyReceipt()
+	var body []store.Triple
+	for _, tr := range receiptTriples(healthy) {
+		if tr.Predicate == "https://globular.io/awareness#publicationSourceRevision" {
+			tr.ObjectIsIRI = true // same text, stored as a different kind of term
+		}
+		body = append(body, tr)
+	}
+	st := publicationStore{storedTarget: healthy.IRI(), body: body, failDump: true}
+	got := resolveCurrentPublication(context.Background(), serverWith(st), pubTestDomain)
+	if got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("resolution = %v, want UNREADABLE: an IRI term was normalised into a literal and verified", got.GetResolution())
+	}
+	if !strings.Contains(got.GetDetail(), "IRI term") {
+		t.Fatalf("the refusal does not name the term kind: %q", got.GetDetail())
+	}
+
+	// Control: literal-valued fields still verify, and rdf:type stays an IRI
+	// without tripping the rule -- it is not a publication field.
+	clean := publicationStore{storedTarget: healthy.IRI(), body: receiptTriples(healthy), failDump: true}
+	if got := resolveCurrentPublication(context.Background(), serverWith(clean), pubTestDomain); got.GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("a correctly stored receipt failed: %v %s", got.GetResolution(), got.GetDetail())
+	}
+}
