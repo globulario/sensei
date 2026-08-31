@@ -131,13 +131,13 @@ func classFactsToRepairPlans(facts []store.ImpactFact) []loadedRepairPlan {
 		case rdf.PropProducesOutcomeFeedback:
 			p.OutcomeFeedback = f.Object
 		case rdf.PropGovernedByContract:
-			p.GovernedContracts = append(p.GovernedContracts, bareIDFromIRI(f.Object))
+			p.GovernedContracts = append(p.GovernedContracts, governedID(f.Object))
 		case rdf.PropMustNotViolateInvariant:
-			p.PreservedInvariants = append(p.PreservedInvariants, bareIDFromIRI(f.Object))
+			p.PreservedInvariants = append(p.PreservedInvariants, governedID(f.Object))
 		case rdf.PropRepairsFailureMode:
-			p.FailureModes = append(p.FailureModes, bareIDFromIRI(f.Object))
+			p.FailureModes = append(p.FailureModes, governedID(f.Object))
 		case rdf.PropForbids:
-			p.ForbiddenFixes = append(p.ForbiddenFixes, bareIDFromIRI(f.Object))
+			p.ForbiddenFixes = append(p.ForbiddenFixes, governedID(f.Object))
 		case rdf.PropRequiresTest:
 			p.RequiredTests = append(p.RequiredTests, bareIDFromIRI(f.Object))
 		case rdf.PropExpressedBy:
@@ -193,6 +193,17 @@ func matchRepairPlans(task string, files []string, matchedDomains []loadedAuthor
 		out = out[:maxRepairPlansSurfaced]
 	}
 	return out
+}
+
+// governedID is the human identity of a governed relationship target.
+//
+// bareIDFromIRI returns the minted segment, which is EncodeIRIPath-encoded.
+// Knowledge nodes carry the DECODED id (awarenessIDFromIRI decodes on the way
+// out), so a relationship left encoded here would never compare equal to the
+// anchor it names. Decoding at load puts both in one spelling; doing it later,
+// to both sides at once, double-decodes this one.
+func governedID(iri string) string {
+	return rdf.DecodeIRIPath(bareIDFromIRI(iri))
 }
 
 // planCoversFile reports whether any touched file is under the plan's

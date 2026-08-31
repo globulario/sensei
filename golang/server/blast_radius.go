@@ -17,7 +17,6 @@ import (
 
 	"github.com/globulario/sensei/golang/coverage"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
-	"github.com/globulario/sensei/golang/rdf"
 )
 
 // Blast radius labels, ordered least → most severe.
@@ -134,38 +133,23 @@ func planAppliesToSubject(p loadedRepairPlan, anchors subjectAnchors, coverageSu
 	return false
 }
 
-// bareAnchorID reduces an anchor identity to the form both sides can be
-// compared in.
+// bareAnchorID is deliberately almost nothing.
 //
-// Two spellings meet here. Repair plans store the minted IRI's last segment
-// (bareIDFromIRI), which is EncodeIRIPath-encoded, so an id containing a slash
-// arrives as "scope%2Fa". Knowledge nodes carry the decoded human id plus a
-// class prefix, because collectImpact reads them through awarenessIDFromIRI.
-// Comparing those unnormalised makes the intersection empty -- which looks
-// exactly like a working fix while quietly disabling repair-plan authority --
-// and comparing them without DECODING does the same thing for any id that
-// contains an encoded character.
+// Both sides of this comparison are already the same kind of value: a bare,
+// decoded, class-free identity. Knowledge nodes carry that because
+// awarenessIDFromIRI decodes and drops the class into its own field, and repair
+// plan relationships carry it because governedID decodes them at load. The
+// classes are kept apart by subjectAnchors rather than by a prefix.
+//
+// Earlier versions of this function stripped a "class:" prefix by guessing at
+// the shape of the head and decoded whatever it was given. Both were wrong in
+// the same way: they applied one transformation to two sides that were in
+// DIFFERENT normalisation states, so a governed id legitimately containing a
+// colon collapsed onto an unrelated one, and an id containing a percent escape
+// was decoded twice on one side and once on the other. Normalising at the
+// producer removed the need to reconcile anything here.
 func bareAnchorID(id string) string {
-	s := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(id, "<"), ">"))
-	// Reduce a full IRI to its minted segment -- but ONLY when this is an IRI.
-	// A decoded id may itself contain a slash ("scope/a"), and taking the last
-	// segment of that would compare "a" against the plan's "scope/a".
-	if strings.Contains(s, "://") || strings.HasPrefix(s, rdf.AwNS) {
-		if slash := strings.LastIndexByte(s, '/'); slash >= 0 && slash < len(s)-1 {
-			s = s[slash+1:]
-		}
-	}
-	if colon := strings.IndexByte(s, ':'); colon >= 0 && colon < len(s)-1 {
-		// A class prefix, not a separator inside a decoded id: "invariant:x".
-		// Decoded ids can contain ':' too (a test id is "path:TestName"), so
-		// this only strips a leading segment that names a class.
-		if head := s[:colon]; !strings.ContainsAny(head, "%/. ") {
-			s = s[colon+1:]
-		}
-	}
-	// The canonical decoder, so a minted "scope%2Fa" compares equal to the
-	// decoded "scope/a" an impact query returns.
-	return rdf.DecodeIRIPath(s)
+	return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(id), "<"), ">"))
 }
 
 type changeAssessment struct {

@@ -119,7 +119,7 @@ func TestUnrelatedRepairPlanDoesNotDecideAuthority(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("globular.cluster_doctor.leader_elects_before_remediation")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
+		inv("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.BlastRadius != "local" || got.ApprovalGate != "none" {
 		t.Fatalf("an unrelated repair plan set this change's authority: blast=%s approval=%s reasons=%v",
@@ -136,7 +136,7 @@ func TestApplicableRepairPlanStillEscalates(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
+		inv("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.BlastRadius != "cluster" || got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("an applicable repair plan lost its vote: blast=%s approval=%s", got.BlastRadius, got.ApprovalGate)
@@ -147,7 +147,7 @@ func TestApplicableRepairPlanStillEscalates(t *testing.T) {
 // calls is whether the relationship exists. Everything else -- files, plan,
 // labels, coverage -- is identical.
 func TestAuthorityFollowsTheRelationshipNotTheMatch(t *testing.T) {
-	subject := inv("invariant:sensei_code.candidate.disposition_is_decided_and_evidence_outlives_removal")
+	subject := inv("sensei_code.candidate.disposition_is_decided_and_evidence_outlives_removal")
 	files := []string{"internal/workflow/engine.go"}
 
 	related := assessChangeRisk(files, nil,
@@ -176,7 +176,7 @@ func TestInsufficientCoverageGivesNoRepairPlanVote(t *testing.T) {
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		false, // coverage NOT sufficient
 		true,
-		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
+		inv("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.ApprovalGate == "human_approval_required" || got.BlastRadius == "cluster" {
 		t.Fatalf("a coincidental anchor bootstrapped authority on thin coverage: %+v", got)
@@ -208,31 +208,57 @@ func TestOneApplicableFileEscalatesTheCandidate(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		inv("invariant:sensei_code.report.states_what_it_does_not_establish",
-			"invariant:sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it"),
+		inv("sensei_code.report.states_what_it_does_not_establish",
+			"sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it"),
 	)
 	if got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("one genuinely governed file did not escalate the candidate: %+v", got)
 	}
 }
 
-// The two sides store identities differently -- plans keep bare ids, knowledge
-// nodes carry a class prefix. Comparing them unnormalised would make every
-// intersection empty, which looks exactly like a working fix while silently
-// disabling repair-plan authority altogether.
-func TestApplicabilitySurvivesTheTwoIdentityForms(t *testing.T) {
-	for _, subject := range []string{
-		"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary",
-		"sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary",
-		"<https://globular.io/awareness#invariant/sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary>",
-	} {
-		got := assessChangeRisk(
-			[]string{"internal/workflow/engine.go"}, nil,
-			[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
-			awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv(subject))
-		if got.ApprovalGate != "human_approval_required" {
-			t.Fatalf("subject form %q did not match the plan's bare id: %+v", subject, got)
-		}
+// Identity normalisation happens at the PRODUCER, once, so this comparison has
+// nothing to reconcile. These pin the two ways the old downstream normaliser
+// was wrong.
+
+// A governed id may legitimately contain a colon after a simple head. The old
+// heuristic read that head as a class and stripped it, so a plan naming
+// "alpha:x" was authorised by a subject anchored at the distinct "beta:x".
+func TestGovernedIDsContainingAColonStayDistinct(t *testing.T) {
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+		PreservedInvariants: []string{"alpha:x"}}
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv("beta:x"))
+	if got.ApprovalGate == "human_approval_required" {
+		t.Fatalf("\"beta:x\" authorised a plan naming \"alpha:x\": %+v", got)
+	}
+	if got = assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
+		inv("alpha:x")); got.ApprovalGate != "human_approval_required" {
+		t.Fatalf("the identical id did not authorise the plan: %+v", got)
+	}
+}
+
+// The subject side arrives already decoded. Decoding again here turned a real
+// "%2F" in an id into "/", collapsing two different identities.
+func TestAnchorIDsAreNotDecodedTwice(t *testing.T) {
+	if got := bareAnchorID("scope%2Fa"); got != "scope%2Fa" {
+		t.Fatalf("bareAnchorID decoded an already-normalised id: %q", got)
+	}
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+		PreservedInvariants: []string{"scope%2Fa"}}
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv("scope/a"))
+	if got.ApprovalGate == "human_approval_required" {
+		t.Fatalf("an id whose real value is %%2F was matched against one whose real value is /: %+v", got)
+	}
+}
+
+// governedID is where the plan side becomes the human spelling, so that the
+// comparison above needs no decoding of its own.
+func TestGovernedIDDecodesTheMintedSegment(t *testing.T) {
+	got := governedID("<https://globular.io/awareness#invariant/scope%2Fa>")
+	if got != "scope/a" {
+		t.Fatalf("governedID = %q, want the decoded human id", got)
 	}
 }
 
@@ -244,7 +270,7 @@ func TestProseAndStructuredComeFromTheSameVerdict(t *testing.T) {
 		[]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{clusterPlan("globular.something.else_entirely")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
-		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"))
+		inv("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"))
 
 	line := changeAssessmentAction(got)
 	if !strings.Contains(line, "blast="+got.BlastRadius) || !strings.Contains(line, "approval="+got.ApprovalGate) {
@@ -270,15 +296,15 @@ func TestApplicabilityHoldsThroughEveryGovernedClass(t *testing.T) {
 		{"forbidden fix", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			ForbiddenFixes: []string{"sensei_code.adapter.reconstructs_upstream_classification"}},
-			newSubjectAnchors(nil, nil, []string{"forbidden_fix:sensei_code.adapter.reconstructs_upstream_classification"}, nil)},
+			newSubjectAnchors(nil, nil, []string{"sensei_code.adapter.reconstructs_upstream_classification"}, nil)},
 		{"governed contract", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			GovernedContracts: []string{"sensei_code.contract.admission_chain"}},
-			newSubjectAnchors(nil, nil, nil, []string{"contract:sensei_code.contract.admission_chain"})},
+			newSubjectAnchors(nil, nil, nil, []string{"sensei_code.contract.admission_chain"})},
 		{"failure mode", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			FailureModes: []string{"sensei_code.stale_lane_failure_reported_as_current_outcome"}},
-			newSubjectAnchors(nil, []string{"failure:sensei_code.stale_lane_failure_reported_as_current_outcome"}, nil, nil)},
+			newSubjectAnchors(nil, []string{"sensei_code.stale_lane_failure_reported_as_current_outcome"}, nil, nil)},
 	} {
 		got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 			[]loadedRepairPlan{c.plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, c.subject)
@@ -297,14 +323,14 @@ func TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother(t *testing.T) {
 	// The subject holds "shared.identity" -- but as a FAILURE MODE.
 	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
-		newSubjectAnchors(nil, []string{"failure:shared.identity"}, nil, nil))
+		newSubjectAnchors(nil, []string{"shared.identity"}, nil, nil))
 	if got.ApprovalGate == "human_approval_required" {
 		t.Fatalf("a failure mode authorised a plan that preserves an invariant of the same name: %+v", got)
 	}
 	// Same id, right class: the vote applies.
 	got = assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
-		inv("invariant:shared.identity"))
+		inv("shared.identity"))
 	if got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("the correctly-classed anchor did not authorise the plan: %+v", got)
 	}
@@ -358,12 +384,12 @@ func TestSubjectAnchorIDsCollectsEveryList(t *testing.T) {
 // decide how far a change reaches -- otherwise retired knowledge re-enables an
 // authority the same response is calling out as superseded.
 func TestRetiredAnchorsDoNotEstablishApplicability(t *testing.T) {
-	live := &awarenesspb.KnowledgeNode{Id: "invariant:live.one", Iri: "iri:live", Status: "active"}
-	retired := &awarenesspb.KnowledgeNode{Id: "invariant:retired.one", Iri: "iri:retired", Status: "retired"}
+	live := &awarenesspb.KnowledgeNode{Id: "live.one", Iri: "iri:live", Status: "active"}
+	retired := &awarenesspb.KnowledgeNode{Id: "retired.one", Iri: "iri:retired", Status: "retired"}
 	isPrimary := func(n *awarenesspb.KnowledgeNode) bool { return n.GetStatus() != "retired" }
 
 	kept := subjectAnchorIDs(primaryOnly([]*awarenesspb.KnowledgeNode{live, retired}, isPrimary))
-	if len(kept) != 1 || kept[0] != "invariant:live.one" {
+	if len(kept) != 1 || kept[0] != "live.one" {
 		t.Fatalf("lifecycle filtering did not drop the retired anchor: %v", kept)
 	}
 
@@ -420,36 +446,5 @@ func TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored(t *testing.T) {
 	}
 	if byID["prose"].SubjectMatched {
 		t.Error("a task-text-only match was recorded as authored")
-	}
-}
-
-// Two spellings of the same identity meet in this comparison. A repair plan
-// keeps the minted IRI's last segment, which is EncodeIRIPath-encoded, so an id
-// containing a slash arrives as "scope%2Fa"; a knowledge node carries the
-// decoded id because collectImpact reads it through awarenessIDFromIRI.
-// Comparing them without decoding drops the plan's vote for an anchor it names
-// exactly.
-func TestApplicabilityDecodesMintedAnchorIdentities(t *testing.T) {
-	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "manual_only",
-		PreservedInvariants: []string{"scope%2Fa"}}
-	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
-		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
-		inv("invariant:scope/a"))
-	if got.ApprovalGate != "manual_only" {
-		t.Fatalf("an encoded plan id did not match the decoded subject anchor: %+v", got)
-	}
-}
-
-// A test identity is "path:TestName", and the colon there separates a file from
-// a test rather than naming a class. Stripping it as though it were a class
-// prefix would turn two different tests in different files into the same id.
-func TestClassPrefixStrippingDoesNotEatPathIdentities(t *testing.T) {
-	if got := bareAnchorID("forbidden_fix:sensei_code.x"); got != "sensei_code.x" {
-		t.Fatalf("class prefix not stripped: %q", got)
-	}
-	a := bareAnchorID("internal/report/report_test.go:TestOne")
-	b := bareAnchorID("internal/workflow/gate_test.go:TestOne")
-	if a == b {
-		t.Fatalf("two tests in different files collapsed to the same identity: %q", a)
 	}
 }
