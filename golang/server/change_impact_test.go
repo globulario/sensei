@@ -8,6 +8,9 @@ package main
 import (
 	"context"
 	"testing"
+
+	"github.com/globulario/sensei/golang/rdf"
+	"github.com/globulario/sensei/golang/store"
 )
 
 func planFor(t *testing.T, task string, files ...string) *ChangeImpactPlan {
@@ -106,5 +109,39 @@ func TestImpactPlanningReportsUnknowns(t *testing.T) {
 	}
 	if len(plan.Unknowns) == 0 {
 		t.Errorf("expected unknowns for a high-risk file with no authority/anchors")
+	}
+}
+
+// A file whose only primary anchor is a contract is still an anchored file.
+//
+// Coverage here counted invariants and failure modes only, so such a file read
+// as uncovered and this surface rejected an applicability preflight would have
+// granted for the same change -- the two surfaces disagreeing about one
+// candidate's authority.
+func TestChangeImpactCountsContractAnchorsAsCoverage(t *testing.T) {
+	invalidateRepairPlanCacheForTest()
+	globalRepairPlanCache.mu.Lock()
+	globalRepairPlanCache.loaded = true
+	globalRepairPlanCache.plans = []loadedRepairPlan{{
+		ID: "plan.contract_governed", BlastRadius: "cluster", ApprovalGate: "manual_only",
+		FindingClasses:    []string{"doctor.finding_requires_mutation"},
+		GovernedContracts: []string{"some.governed.contract"},
+	}}
+	globalRepairPlanCache.mu.Unlock()
+	t.Cleanup(invalidateRepairPlanCacheForTest)
+
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			return anchorFacts(rdf.ClassContract, "some.governed.contract", "A governed contract", "high"), nil
+		},
+	})
+	plan, err := s.planChangeImpact(context.Background(),
+		"remediate a doctor.finding_requires_mutation", []string{"golang/workflow/engine.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.ApprovalGate != "manual_only" {
+		t.Fatalf("a contract-anchored file did not establish applicability: approval=%q blast=%q",
+			plan.ApprovalGate, plan.BlastRadius)
 	}
 }

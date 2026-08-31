@@ -448,3 +448,20 @@ func TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored(t *testing.T) {
 		t.Error("a task-text-only match was recorded as authored")
 	}
 }
+
+// MintIRI percent-encodes angle brackets, and both decoders decode them, so a
+// decoded bare identity may legally contain "<" or ">". Treating them as IRI
+// wrappers reduced the id "<x>" to "x" and let a plan naming the distinct "x"
+// claim an anchor that was never its own.
+func TestAngleBracketsAreNotStrippedFromAnIdentity(t *testing.T) {
+	if got := bareAnchorID("<x>"); got != "<x>" {
+		t.Fatalf("bareAnchorID stripped brackets that are part of the id: %q", got)
+	}
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+		PreservedInvariants: []string{"x"}}
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv("<x>"))
+	if got.ApprovalGate == "human_approval_required" {
+		t.Fatalf("the identity \"<x>\" authorised a plan naming \"x\": %+v", got)
+	}
+}

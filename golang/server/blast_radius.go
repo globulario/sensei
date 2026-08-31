@@ -149,7 +149,11 @@ func planAppliesToSubject(p loadedRepairPlan, anchors subjectAnchors, coverageSu
 // was decoded twice on one side and once on the other. Normalising at the
 // producer removed the need to reconcile anything here.
 func bareAnchorID(id string) string {
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(strings.TrimSpace(id), "<"), ">"))
+	// Angle brackets are NOT stripped. MintIRI percent-encodes them, and both
+	// governedID and awarenessIDFromIRI decode, so a decoded bare identity may
+	// legally contain them -- treating them as IRI wrappers reduced the id "<x>"
+	// to "x" and let a plan naming the distinct "x" claim it.
+	return strings.TrimSpace(id)
 }
 
 type changeAssessment struct {

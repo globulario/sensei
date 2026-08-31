@@ -97,7 +97,16 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
 		}
-		if len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0 {
+		// The same examination rule preflight applies. Counting only
+		// invariant/failure-mode/intent anchors left a file whose only primary
+		// anchor is a contract or a forbidden fix reading as unexamined, so
+		// this surface rejected an applicability the other surface granted for
+		// the same change.
+		examined := len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0
+		if !examined {
+			examined, _ = s.sourceFileExamined(ctx, f, "")
+		}
+		if examined {
 			indexed++
 		}
 	}
@@ -127,7 +136,11 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	}
 
 	// Risk → blast radius + approval gate.
-	coverageSufficient := len(invariants.items)+len(failureModes.items) > 0 || indexed > 0
+	// Every governed class a plan can name counts towards coverage, for the
+	// same reason: a subject anchored only by a contract or a forbidden fix is
+	// still anchored.
+	coverageSufficient := len(invariants.items)+len(failureModes.items)+
+		len(forbidden.items)+len(contracts.items) > 0 || indexed > 0
 	risk := awarenesspb.RiskClass_UNKNOWN_IMPACT
 	// The same applicability rule as preflight, from this surface's own anchors.
 	// Leaving this call on the old shape would let one surface decide authority
