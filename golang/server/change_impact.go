@@ -88,7 +88,9 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// surface must see them too or it would deny applicability that
 		// preflight grants for the same change.
 		for _, n := range impact.GetDirectArchitecture() {
-			if primary(n) {
+			// Contracts only: this list also carries components, boundaries,
+			// decisions, evidence and patterns.
+			if primary(n) && strings.EqualFold(strings.TrimSpace(n.GetClass()), "contract") {
 				contracts.add(n.GetId())
 			}
 		}
@@ -131,10 +133,10 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	// Leaving this call on the old shape would let one surface decide authority
 	// with applicability and the other without it, and the two would disagree
 	// about the same change while both claiming to be the verdict.
-	subjectAnchors := append(append(append(invariants.sorted(), failureModes.sorted()...),
-		forbidden.sorted()...), contracts.sorted()...)
+	anchors := newSubjectAnchors(invariants.sorted(), failureModes.sorted(),
+		forbidden.sorted(), contracts.sorted())
 	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient,
-		hasAnchors, subjectAnchors)
+		hasAnchors, anchors)
 	plan.BlastRadius = assessment.BlastRadius
 	plan.ApprovalGate = assessment.ApprovalGate
 

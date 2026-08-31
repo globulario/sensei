@@ -320,11 +320,14 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		}
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
 			resp.Coverage.GetSufficient(), len(directAll) > 0,
-			subjectAnchorIDs(
-				primaryOnly(allInvariants, isPrimary),
-				primaryOnly(allFailureModes, isPrimary),
-				primaryOnly(allForbiddenFixes, isPrimary),
-				primaryOnly(allArchitecture, isPrimary)))
+			newSubjectAnchors(
+				subjectAnchorIDs(primaryOnly(allInvariants, isPrimary)),
+				subjectAnchorIDs(primaryOnly(allFailureModes, isPrimary)),
+				subjectAnchorIDs(primaryOnly(allForbiddenFixes, isPrimary)),
+				// Only contracts: DirectArchitecture also carries components,
+				// boundaries, decisions, evidence and patterns, and a component
+				// named like a contract must not stand in for one.
+				subjectAnchorIDs(ofClass(primaryOnly(allArchitecture, isPrimary), "contract"))))
 		// The SAME verdict, published twice: as the prose line existing consumers
 		// already read, and as structured fields. Both are derived from one
 		// assessment rather than computed twice, so the sentence and the fields
@@ -635,6 +638,18 @@ func primaryOnly(nodes []*awarenesspb.KnowledgeNode, isPrimary func(*awarenesspb
 	out := make([]*awarenesspb.KnowledgeNode, 0, len(nodes))
 	for _, n := range nodes {
 		if isPrimary(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// ofClass keeps only the nodes of one governed class. DirectArchitecture is a
+// mixed list, and applicability is class-scoped.
+func ofClass(nodes []*awarenesspb.KnowledgeNode, class string) []*awarenesspb.KnowledgeNode {
+	out := make([]*awarenesspb.KnowledgeNode, 0, len(nodes))
+	for _, n := range nodes {
+		if strings.EqualFold(strings.TrimSpace(n.GetClass()), class) {
 			out = append(out, n)
 		}
 	}

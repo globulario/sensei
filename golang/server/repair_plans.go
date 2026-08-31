@@ -51,6 +51,15 @@ type loadedRepairPlan struct {
 	CoversPaths []string
 	// AuthorityDomainIDs are the bare authority-domain ids the plan applies to.
 	AuthorityDomainIDs []string
+	// SubjectMatched records that this plan reached the request through an
+	// AUTHORED relationship to the subject -- covers_paths, expressed_by, or
+	// authority-domain membership -- rather than through the task text.
+	//
+	// The distinction was computed here and then discarded by flattening
+	// byPath and byTask into one slice, which left every consumer unable to
+	// tell "this plan is about these files" from "these words resemble this
+	// plan". Consumers that decide authority need that difference.
+	SubjectMatched bool
 }
 
 type repairPlanCache struct {
@@ -170,10 +179,12 @@ func matchRepairPlans(task string, files []string, matchedDomains []loadedAuthor
 	var byPath, byTask []loadedRepairPlan
 	for _, p := range plans {
 		if planCoversFile(p, files) || planAppliesToDomain(p, domainIDs) {
+			p.SubjectMatched = true
 			byPath = append(byPath, p)
 			continue
 		}
 		if task != "" && planMatchesTask(p, taskLower) {
+			p.SubjectMatched = false
 			byTask = append(byTask, p)
 		}
 	}

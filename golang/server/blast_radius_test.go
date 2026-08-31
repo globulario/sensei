@@ -94,6 +94,10 @@ func TestUnknownAuthorityEscalatesApproval(t *testing.T) {
 // that votes has the last word on an authority it knows nothing about.
 // ---------------------------------------------------------------------------
 
+// inv builds a class-scoped anchor set holding only invariants, which is what
+// most of these cases need.
+func inv(ids ...string) subjectAnchors { return newSubjectAnchors(ids, nil, nil, nil) }
+
 // clusterPlan is the shape that caused the defect: authored labels that are
 // perfectly correct about a subject somewhere else.
 func clusterPlan(preserves ...string) loadedRepairPlan {
@@ -115,7 +119,7 @@ func TestUnrelatedRepairPlanDoesNotDecideAuthority(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("globular.cluster_doctor.leader_elects_before_remediation")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
+		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.BlastRadius != "local" || got.ApprovalGate != "none" {
 		t.Fatalf("an unrelated repair plan set this change's authority: blast=%s approval=%s reasons=%v",
@@ -132,7 +136,7 @@ func TestApplicableRepairPlanStillEscalates(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
+		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.BlastRadius != "cluster" || got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("an applicable repair plan lost its vote: blast=%s approval=%s", got.BlastRadius, got.ApprovalGate)
@@ -143,7 +147,7 @@ func TestApplicableRepairPlanStillEscalates(t *testing.T) {
 // calls is whether the relationship exists. Everything else -- files, plan,
 // labels, coverage -- is identical.
 func TestAuthorityFollowsTheRelationshipNotTheMatch(t *testing.T) {
-	subject := []string{"invariant:sensei_code.candidate.disposition_is_decided_and_evidence_outlives_removal"}
+	subject := inv("invariant:sensei_code.candidate.disposition_is_decided_and_evidence_outlives_removal")
 	files := []string{"internal/workflow/engine.go"}
 
 	related := assessChangeRisk(files, nil,
@@ -172,7 +176,7 @@ func TestInsufficientCoverageGivesNoRepairPlanVote(t *testing.T) {
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		false, // coverage NOT sufficient
 		true,
-		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
+		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"),
 	)
 	if got.ApprovalGate == "human_approval_required" || got.BlastRadius == "cluster" {
 		t.Fatalf("a coincidental anchor bootstrapped authority on thin coverage: %+v", got)
@@ -188,7 +192,7 @@ func TestNoSubjectAnchorsGivesNoRepairPlanVote(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, false,
-		nil,
+		subjectAnchors{},
 	)
 	if got.ApprovalGate == "human_approval_required" {
 		t.Fatalf("a plan applied itself to a subject with no anchors: %+v", got)
@@ -204,10 +208,8 @@ func TestOneApplicableFileEscalatesTheCandidate(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		true, true,
-		[]string{
-			"invariant:sensei_code.report.states_what_it_does_not_establish",
-			"invariant:sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it",
-		},
+		inv("invariant:sensei_code.report.states_what_it_does_not_establish",
+			"invariant:sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it"),
 	)
 	if got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("one genuinely governed file did not escalate the candidate: %+v", got)
@@ -227,7 +229,7 @@ func TestApplicabilitySurvivesTheTwoIdentityForms(t *testing.T) {
 		got := assessChangeRisk(
 			[]string{"internal/workflow/engine.go"}, nil,
 			[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
-			awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, []string{subject})
+			awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv(subject))
 		if got.ApprovalGate != "human_approval_required" {
 			t.Fatalf("subject form %q did not match the plan's bare id: %+v", subject, got)
 		}
@@ -242,7 +244,7 @@ func TestProseAndStructuredComeFromTheSameVerdict(t *testing.T) {
 		[]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{clusterPlan("globular.something.else_entirely")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
-		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"})
+		inv("invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"))
 
 	line := changeAssessmentAction(got)
 	if !strings.Contains(line, "blast="+got.BlastRadius) || !strings.Contains(line, "approval="+got.ApprovalGate) {
@@ -263,26 +265,71 @@ func TestApplicabilityHoldsThroughEveryGovernedClass(t *testing.T) {
 	for _, c := range []struct {
 		name    string
 		plan    loadedRepairPlan
-		subject []string
+		subject subjectAnchors
 	}{
 		{"forbidden fix", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			ForbiddenFixes: []string{"sensei_code.adapter.reconstructs_upstream_classification"}},
-			[]string{"forbidden_fix:sensei_code.adapter.reconstructs_upstream_classification"}},
+			newSubjectAnchors(nil, nil, []string{"forbidden_fix:sensei_code.adapter.reconstructs_upstream_classification"}, nil)},
 		{"governed contract", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			GovernedContracts: []string{"sensei_code.contract.admission_chain"}},
-			[]string{"contract:sensei_code.contract.admission_chain"}},
+			newSubjectAnchors(nil, nil, nil, []string{"contract:sensei_code.contract.admission_chain"})},
 		{"failure mode", loadedRepairPlan{
 			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			FailureModes: []string{"sensei_code.stale_lane_failure_reported_as_current_outcome"}},
-			[]string{"failure:sensei_code.stale_lane_failure_reported_as_current_outcome"}},
+			newSubjectAnchors(nil, []string{"failure:sensei_code.stale_lane_failure_reported_as_current_outcome"}, nil, nil)},
 	} {
 		got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 			[]loadedRepairPlan{c.plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, c.subject)
 		if got.ApprovalGate != "human_approval_required" {
 			t.Fatalf("%s: a plan related through this class lost its vote: %+v", c.name, got)
 		}
+	}
+}
+
+// An identity in the WRONG class must not authorise a plan. The graph's ids are
+// class-scoped, so failure mode "x" is not invariant "x", and a component named
+// like a contract is not that contract.
+func TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother(t *testing.T) {
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+		PreservedInvariants: []string{"shared.identity"}}
+	// The subject holds "shared.identity" -- but as a FAILURE MODE.
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
+		newSubjectAnchors(nil, []string{"failure:shared.identity"}, nil, nil))
+	if got.ApprovalGate == "human_approval_required" {
+		t.Fatalf("a failure mode authorised a plan that preserves an invariant of the same name: %+v", got)
+	}
+	// Same id, right class: the vote applies.
+	got = assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
+		inv("invariant:shared.identity"))
+	if got.ApprovalGate != "human_approval_required" {
+		t.Fatalf("the correctly-classed anchor did not authorise the plan: %+v", got)
+	}
+}
+
+// A plan matched through its OWN authored scope -- covers_paths, expressed_by,
+// or authority-domain membership -- has already established that it is about
+// these files. Requiring an anchor intersection on top of that discards the
+// plan's declared scope, and can downgrade a manual_only path to the generic
+// fallback because the file happens to hold none of its anchor classes.
+func TestAuthoredSubjectMatchDoesNotNeedAnAnchorIntersection(t *testing.T) {
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "manual_only",
+		SubjectMatched: true, PreservedInvariants: []string{"names.nothing.this.file.holds"}}
+	got := assessChangeRisk([]string{"golang/cluster_doctor/server.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, subjectAnchors{})
+	if got.ApprovalGate != "manual_only" {
+		t.Fatalf("an authored covers_paths match lost its authority: %+v", got)
+	}
+
+	// The same plan reaching the request through task text only does need one.
+	plan.SubjectMatched = false
+	got = assessChangeRisk([]string{"golang/cluster_doctor/server.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, subjectAnchors{})
+	if got.ApprovalGate == "manual_only" {
+		t.Fatalf("a task-text-only match set authority with no anchor intersection: %+v", got)
 	}
 }
 
@@ -324,7 +371,7 @@ func TestRetiredAnchorsDoNotEstablishApplicability(t *testing.T) {
 	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			PreservedInvariants: []string{"retired.one"}}},
-		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, kept)
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv(kept...))
 	if got.ApprovalGate == "human_approval_required" {
 		t.Fatalf("a retired anchor re-enabled a repair plan's authority: %+v", got)
 	}
@@ -333,7 +380,7 @@ func TestRetiredAnchorsDoNotEstablishApplicability(t *testing.T) {
 	got = assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
 			PreservedInvariants: []string{"live.one"}}},
-		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, kept)
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv(kept...))
 	if got.ApprovalGate != "human_approval_required" {
 		t.Fatalf("filtering removed a live anchor as well: %+v", got)
 	}
@@ -345,5 +392,33 @@ func TestPrimaryOnlyWithoutAPredicateKeepsEverything(t *testing.T) {
 	nodes := []*awarenesspb.KnowledgeNode{{Id: "a"}, {Id: "b"}}
 	if got := primaryOnly(nodes, nil); len(got) != 2 {
 		t.Fatalf("a nil predicate dropped nodes: %v", got)
+	}
+}
+
+// The origin must actually be recorded where it is known. matchRepairPlans is
+// the only place that can tell an authored relationship from a prose
+// resemblance, and it used to flatten both into one slice -- which is how the
+// distinction was lost in the first place.
+func TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored(t *testing.T) {
+	covering := loadedRepairPlan{ID: "covering", CoversPaths: []string{"golang/cluster_doctor/"},
+		FindingClasses: []string{"doctor.finding_requires_mutation"}}
+	prose := loadedRepairPlan{ID: "prose", FindingClasses: []string{"doctor.finding_requires_mutation"}}
+
+	got := matchRepairPlans("remediate a doctor.finding_requires_mutation",
+		[]string{"golang/cluster_doctor/server.go"}, nil,
+		[]loadedRepairPlan{covering, prose})
+
+	byID := map[string]loadedRepairPlan{}
+	for _, p := range got {
+		byID[p.ID] = p
+	}
+	if len(byID) != 2 {
+		t.Fatalf("expected both plans matched, got %d: %+v", len(byID), got)
+	}
+	if !byID["covering"].SubjectMatched {
+		t.Error("a covers_paths match was not recorded as authored")
+	}
+	if byID["prose"].SubjectMatched {
+		t.Error("a task-text-only match was recorded as authored")
 	}
 }
