@@ -5449,6 +5449,12 @@ test_symbols:
     symbol: TestConsistencyCheckIndexShape_SingleShapeNotFlagged
     package: main
     language: go
+  - id: cmd/awg/consumed_manifest_test.go:TestConsumedManifestCarriesUnprovableImports
+    file: cmd/awg/consumed_manifest_test.go
+    symbol: TestConsumedManifestCarriesUnprovableImports
+    package: main
+    language: go
+    doc: "A file that CONTRIBUTED TRIPLES with no consumed digest must enter the proof\nas unprovable, never be omitted from it.\n\nSkipping it turned \"not digested\" into \"not consumed\", so the JSONL importer\n-- which records no digest -- published facts nothing checked. Lack of\nfunctionality is acceptable; false attestation is not."
   - id: cmd/awg/contract_verification_wiring_test.go:TestVerificationWiring_HomeBackedPasses
     file: cmd/awg/contract_verification_wiring_test.go
     symbol: TestVerificationWiring_HomeBackedPasses
@@ -23944,6 +23950,12 @@ test_symbols:
     package: coldsource
     language: go
     doc: "Triangulation over a broad directory must produce one bundle PER file-concept,\nnot one mega-bundle for the whole directory. This is the Caddy-benchmark\nregression guard in synthetic form: modules/caddyhttp had a 47-citation\nmega-bucket before file-concept keying; afterward it splits."
+  - id: golang/extractor/consumed_source_test.go:TestAnImporterThatRecordsNothingYieldsNoDigest
+    file: golang/extractor/consumed_source_test.go
+    symbol: TestAnImporterThatRecordsNothingYieldsNoDigest
+    package: extractor
+    language: go
+    doc: "THE CHOKE POINT: an importable schema whose importer records nothing must\nyield NO digest, not the classifier's.\n\nThe classifier's read is not evidence about the emitted triples. Falling back\nto it meant any importer that forgets readAndRecord silently reinstates the\noriginal lie -- a digest covering bytes the parser never saw. The policy\nlives here, once, instead of depending on 47 leaves staying correct."
   - id: golang/extractor/consumed_source_test.go:TestTheRecordedDigestCoversTheImporterRead
     file: golang/extractor/consumed_source_test.go
     symbol: TestTheRecordedDigestCoversTheImporterRead
