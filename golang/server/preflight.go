@@ -279,8 +279,9 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if plans, err := s.loadRepairPlans(ctx); err == nil {
 		matchedRepairPlans = matchRepairPlans(task, files, authorityDomains, plans)
 		if len(matchedRepairPlans) > 0 {
+			// Surfaced actions are capped; the assessment below sees them all.
 			resp.RequiredActions = prependBounded(
-				repairPlanActions(matchedRepairPlans), resp.RequiredActions, caps.actionEntries)
+				repairPlanActions(surfacedRepairPlans(matchedRepairPlans)), resp.RequiredActions, caps.actionEntries)
 		}
 	}
 

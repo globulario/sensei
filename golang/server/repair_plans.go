@@ -188,11 +188,21 @@ func matchRepairPlans(task string, files []string, matchedDomains []loadedAuthor
 			byTask = append(byTask, p)
 		}
 	}
-	out := append(byPath, byTask...)
-	if len(out) > maxRepairPlansSurfaced {
-		out = out[:maxRepairPlansSurfaced]
+	// The complete matched set, uncapped. maxRepairPlansSurfaced is a DISPLAY
+	// limit: applying it here decided which plans were allowed to influence
+	// change risk, so a third plan naming a live subject anchor and requiring
+	// manual_only was discarded before anything could score it. Callers cap
+	// where they SURFACE, with surfacedRepairPlans.
+	return append(byPath, byTask...)
+}
+
+// surfacedRepairPlans is the presentation slice: the plans a reader is shown.
+// Path/domain matches come first, so the cap keeps the authored ones.
+func surfacedRepairPlans(plans []loadedRepairPlan) []loadedRepairPlan {
+	if len(plans) > maxRepairPlansSurfaced {
+		return plans[:maxRepairPlansSurfaced]
 	}
-	return out
+	return plans
 }
 
 // governedID is the human identity of a governed relationship target.

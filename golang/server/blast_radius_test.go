@@ -465,3 +465,32 @@ func TestAngleBracketsAreNotStrippedFromAnIdentity(t *testing.T) {
 		t.Fatalf("the identity \"<x>\" authorised a plan naming \"x\": %+v", got)
 	}
 }
+
+// maxRepairPlansSurfaced is a DISPLAY limit. Applying it before scoring decided
+// which plans were allowed to influence authority: with three task matches, the
+// two shown could fail the intersection while the third -- naming a live anchor
+// and requiring manual_only -- was discarded before anything could score it.
+func TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps(t *testing.T) {
+	plans := []loadedRepairPlan{
+		{ID: "first", FindingClasses: []string{"doctor.finding_requires_mutation"}},
+		{ID: "second", FindingClasses: []string{"doctor.finding_requires_mutation"}},
+		{ID: "third", FindingClasses: []string{"doctor.finding_requires_mutation"},
+			BlastRadius: "cluster", ApprovalGate: "manual_only",
+			PreservedInvariants: []string{"live.anchor"}},
+	}
+	matched := matchRepairPlans("remediate a doctor.finding_requires_mutation",
+		[]string{"internal/workflow/engine.go"}, nil, plans)
+	if len(matched) != 3 {
+		t.Fatalf("matching capped its own result: %d plans", len(matched))
+	}
+	if got := len(surfacedRepairPlans(matched)); got != maxRepairPlansSurfaced {
+		t.Fatalf("surfacing did not cap: %d", got)
+	}
+
+	// The third plan is the one that decides, and it is past the display cap.
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil, matched,
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, inv("live.anchor"))
+	if got.ApprovalGate != "manual_only" {
+		t.Fatalf("a plan beyond the display cap lost its vote: %+v", got)
+	}
+}

@@ -146,7 +146,10 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	var matchedPlans []loadedRepairPlan
 	if plans, err := s.loadRepairPlans(ctx); err == nil {
 		matchedPlans = matchRepairPlans(task, files, authorityDomains, plans)
-		for _, p := range matchedPlans {
+		// Reported plans are capped for the reader; assessChangeRisk below is
+		// given the complete matched set, so a plan that is not shown can still
+		// be the one that decides authority.
+		for _, p := range surfacedRepairPlans(matchedPlans) {
 			plan.AffectedRepairPlans = append(plan.AffectedRepairPlans, p.ID)
 		}
 	}

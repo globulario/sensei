@@ -217,7 +217,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	if domains, derr := s.loadAuthorityDomains(ctx); derr == nil {
 		matchedDomains := matchAuthorityDomains([]string{file}, domains)
 		if plans, perr := s.loadRepairPlans(ctx); perr == nil {
-			repairPlans = matchRepairPlans(task, []string{file}, matchedDomains, plans)
+			repairPlans = surfacedRepairPlans(matchRepairPlans(task, []string{file}, matchedDomains, plans))
 		}
 	}
 	for _, rp := range repairPlans {
