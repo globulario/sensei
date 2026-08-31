@@ -17,6 +17,7 @@ import (
 
 	"github.com/globulario/sensei/golang/coverage"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/rdf"
 )
 
 // Blast radius labels, ordered least → most severe.
@@ -134,20 +135,37 @@ func planAppliesToSubject(p loadedRepairPlan, anchors subjectAnchors, coverageSu
 }
 
 // bareAnchorID reduces an anchor identity to the form both sides can be
-// compared in. Repair plans store bare ids (bareIDFromIRI strips the IRI), while
-// knowledge nodes carry a class prefix such as "invariant:". Comparing the two
-// unnormalised forms would make every intersection empty, which would look
-// exactly like a working fix while actually disabling repair-plan authority
-// altogether.
+// compared in.
+//
+// Two spellings meet here. Repair plans store the minted IRI's last segment
+// (bareIDFromIRI), which is EncodeIRIPath-encoded, so an id containing a slash
+// arrives as "scope%2Fa". Knowledge nodes carry the decoded human id plus a
+// class prefix, because collectImpact reads them through awarenessIDFromIRI.
+// Comparing those unnormalised makes the intersection empty -- which looks
+// exactly like a working fix while quietly disabling repair-plan authority --
+// and comparing them without DECODING does the same thing for any id that
+// contains an encoded character.
 func bareAnchorID(id string) string {
 	s := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(id, "<"), ">"))
-	if slash := strings.LastIndexByte(s, '/'); slash >= 0 && slash < len(s)-1 {
-		s = s[slash+1:]
+	// Reduce a full IRI to its minted segment -- but ONLY when this is an IRI.
+	// A decoded id may itself contain a slash ("scope/a"), and taking the last
+	// segment of that would compare "a" against the plan's "scope/a".
+	if strings.Contains(s, "://") || strings.HasPrefix(s, rdf.AwNS) {
+		if slash := strings.LastIndexByte(s, '/'); slash >= 0 && slash < len(s)-1 {
+			s = s[slash+1:]
+		}
 	}
 	if colon := strings.IndexByte(s, ':'); colon >= 0 && colon < len(s)-1 {
-		s = s[colon+1:]
+		// A class prefix, not a separator inside a decoded id: "invariant:x".
+		// Decoded ids can contain ':' too (a test id is "path:TestName"), so
+		// this only strips a leading segment that names a class.
+		if head := s[:colon]; !strings.ContainsAny(head, "%/. ") {
+			s = s[colon+1:]
+		}
 	}
-	return s
+	// The canonical decoder, so a minted "scope%2Fa" compares equal to the
+	// decoded "scope/a" an impact query returns.
+	return rdf.DecodeIRIPath(s)
 }
 
 type changeAssessment struct {

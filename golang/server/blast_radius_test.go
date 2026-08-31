@@ -422,3 +422,34 @@ func TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored(t *testing.T) {
 		t.Error("a task-text-only match was recorded as authored")
 	}
 }
+
+// Two spellings of the same identity meet in this comparison. A repair plan
+// keeps the minted IRI's last segment, which is EncodeIRIPath-encoded, so an id
+// containing a slash arrives as "scope%2Fa"; a knowledge node carries the
+// decoded id because collectImpact reads it through awarenessIDFromIRI.
+// Comparing them without decoding drops the plan's vote for an anchor it names
+// exactly.
+func TestApplicabilityDecodesMintedAnchorIdentities(t *testing.T) {
+	plan := loadedRepairPlan{ID: "p", BlastRadius: "cluster", ApprovalGate: "manual_only",
+		PreservedInvariants: []string{"scope%2Fa"}}
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
+		inv("invariant:scope/a"))
+	if got.ApprovalGate != "manual_only" {
+		t.Fatalf("an encoded plan id did not match the decoded subject anchor: %+v", got)
+	}
+}
+
+// A test identity is "path:TestName", and the colon there separates a file from
+// a test rather than naming a class. Stripping it as though it were a class
+// prefix would turn two different tests in different files into the same id.
+func TestClassPrefixStrippingDoesNotEatPathIdentities(t *testing.T) {
+	if got := bareAnchorID("forbidden_fix:sensei_code.x"); got != "sensei_code.x" {
+		t.Fatalf("class prefix not stripped: %q", got)
+	}
+	a := bareAnchorID("internal/report/report_test.go:TestOne")
+	b := bareAnchorID("internal/workflow/gate_test.go:TestOne")
+	if a == b {
+		t.Fatalf("two tests in different files collapsed to the same identity: %q", a)
+	}
+}
