@@ -111,11 +111,19 @@ func assessChangeRisk(
 	repairPlans []loadedRepairPlan,
 	risk awarenesspb.RiskClass,
 	coverageSufficient bool,
+	hasDirectAnchors bool,
 	subjectAnchors []string,
 ) changeAssessment {
-	// Derived here rather than passed alongside, so the two cannot disagree
-	// about whether this subject has anchors.
-	hasDirectAnchors := len(subjectAnchors) > 0
+	// hasDirectAnchors and subjectAnchors answer DIFFERENT questions and are
+	// deliberately not derived from one another.
+	//
+	// hasDirectAnchors asks whether this subject is anchored at all, and drives
+	// the "we cannot name the owner" escalation below. subjectAnchors asks WHICH
+	// governed identities the subject holds, and decides whether a matched
+	// repair plan is talking about this subject. Deriving the first from the
+	// second was tidier and wrong: widening the applicability set to the classes
+	// a plan can name would then have silently stopped the owner-unknown rule
+	// from firing.
 	blast := "local"
 	gate := "none"
 	var reasons []string

@@ -46,6 +46,7 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	invariants := newStringSet()
 	failureModes := newStringSet()
 	forbidden := newStringSet()
+	contracts := newStringSet()
 	tests := newStringSet()
 
 	// Per-file impact (invariants, failure modes, forbidden fixes, tests).
@@ -70,6 +71,12 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		}
 		for _, n := range impact.GetForbiddenFixes() {
 			forbidden.add(n.GetId())
+		}
+		// Architecture contracts are a class a repair plan can name, so this
+		// surface must see them too or it would deny applicability that
+		// preflight grants for the same change.
+		for _, n := range impact.GetDirectArchitecture() {
+			contracts.add(n.GetId())
 		}
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
@@ -110,8 +117,10 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	// Leaving this call on the old shape would let one surface decide authority
 	// with applicability and the other without it, and the two would disagree
 	// about the same change while both claiming to be the verdict.
-	subjectAnchors := append(append(invariants.sorted(), failureModes.sorted()...), forbidden.sorted()...)
-	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient, subjectAnchors)
+	subjectAnchors := append(append(append(invariants.sorted(), failureModes.sorted()...),
+		forbidden.sorted()...), contracts.sorted()...)
+	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient,
+		hasAnchors, subjectAnchors)
 	plan.BlastRadius = assessment.BlastRadius
 	plan.ApprovalGate = assessment.ApprovalGate
 

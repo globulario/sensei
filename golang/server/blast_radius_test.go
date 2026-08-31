@@ -114,7 +114,7 @@ func TestUnrelatedRepairPlanDoesNotDecideAuthority(t *testing.T) {
 		nil,
 		[]loadedRepairPlan{clusterPlan("globular.cluster_doctor.leader_elects_before_remediation")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
-		true,
+		true, true,
 		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
 	)
 	if got.BlastRadius != "local" || got.ApprovalGate != "none" {
@@ -131,7 +131,7 @@ func TestApplicableRepairPlanStillEscalates(t *testing.T) {
 		nil,
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
-		true,
+		true, true,
 		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
 	)
 	if got.BlastRadius != "cluster" || got.ApprovalGate != "human_approval_required" {
@@ -148,10 +148,10 @@ func TestAuthorityFollowsTheRelationshipNotTheMatch(t *testing.T) {
 
 	related := assessChangeRisk(files, nil,
 		[]loadedRepairPlan{clusterPlan("sensei_code.candidate.disposition_is_decided_and_evidence_outlives_removal")},
-		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, subject)
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, subject)
 	unrelated := assessChangeRisk(files, nil,
 		[]loadedRepairPlan{clusterPlan("globular.something.else_entirely")},
-		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, subject)
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, subject)
 
 	if related.ApprovalGate != "human_approval_required" {
 		t.Fatalf("adding the relationship did not restore the vote: %+v", related)
@@ -171,6 +171,7 @@ func TestInsufficientCoverageGivesNoRepairPlanVote(t *testing.T) {
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
 		false, // coverage NOT sufficient
+		true,
 		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"},
 	)
 	if got.ApprovalGate == "human_approval_required" || got.BlastRadius == "cluster" {
@@ -186,7 +187,7 @@ func TestNoSubjectAnchorsGivesNoRepairPlanVote(t *testing.T) {
 		nil,
 		[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
-		true,
+		true, false,
 		nil,
 	)
 	if got.ApprovalGate == "human_approval_required" {
@@ -202,7 +203,7 @@ func TestOneApplicableFileEscalatesTheCandidate(t *testing.T) {
 		nil,
 		[]loadedRepairPlan{clusterPlan("sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it")},
 		awarenesspb.RiskClass_UNKNOWN_IMPACT,
-		true,
+		true, true,
 		[]string{
 			"invariant:sensei_code.report.states_what_it_does_not_establish",
 			"invariant:sensei_code.derived.future_only_a_question_cannot_authorize_the_run_that_wrote_it",
@@ -226,7 +227,7 @@ func TestApplicabilitySurvivesTheTwoIdentityForms(t *testing.T) {
 		got := assessChangeRisk(
 			[]string{"internal/workflow/engine.go"}, nil,
 			[]loadedRepairPlan{clusterPlan("sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary")},
-			awarenesspb.RiskClass_UNKNOWN_IMPACT, true, []string{subject})
+			awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, []string{subject})
 		if got.ApprovalGate != "human_approval_required" {
 			t.Fatalf("subject form %q did not match the plan's bare id: %+v", subject, got)
 		}
@@ -240,7 +241,7 @@ func TestProseAndStructuredComeFromTheSameVerdict(t *testing.T) {
 	got := assessChangeRisk(
 		[]string{"internal/workflow/engine.go"}, nil,
 		[]loadedRepairPlan{clusterPlan("globular.something.else_entirely")},
-		awarenesspb.RiskClass_UNKNOWN_IMPACT, true,
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true,
 		[]string{"invariant:sensei_code.authority.only_an_explicit_answer_satisfies_a_boundary"})
 
 	line := changeAssessmentAction(got)
@@ -250,5 +251,57 @@ func TestProseAndStructuredComeFromTheSameVerdict(t *testing.T) {
 	proto := changeRiskProto(got)
 	if proto == nil {
 		t.Fatal("structured change_risk was not published")
+	}
+}
+
+// A plan may be related to the subject through any governed class it can name,
+// not only through invariants. The scorer must not discriminate by class, and
+// the caller must not hand it a view that has dropped one: response caps are a
+// presentation limit, and an anchor capped out of the response is still an
+// anchor this subject has.
+func TestApplicabilityHoldsThroughEveryGovernedClass(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		plan    loadedRepairPlan
+		subject []string
+	}{
+		{"forbidden fix", loadedRepairPlan{
+			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+			ForbiddenFixes: []string{"sensei_code.adapter.reconstructs_upstream_classification"}},
+			[]string{"forbidden_fix:sensei_code.adapter.reconstructs_upstream_classification"}},
+		{"governed contract", loadedRepairPlan{
+			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+			GovernedContracts: []string{"sensei_code.contract.admission_chain"}},
+			[]string{"contract:sensei_code.contract.admission_chain"}},
+		{"failure mode", loadedRepairPlan{
+			ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+			FailureModes: []string{"sensei_code.stale_lane_failure_reported_as_current_outcome"}},
+			[]string{"failure:sensei_code.stale_lane_failure_reported_as_current_outcome"}},
+	} {
+		got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+			[]loadedRepairPlan{c.plan}, awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, c.subject)
+		if got.ApprovalGate != "human_approval_required" {
+			t.Fatalf("%s: a plan related through this class lost its vote: %+v", c.name, got)
+		}
+	}
+}
+
+// subjectAnchorIDs must collect across every list it is given and drop none of
+// them: the applicability decision is only as complete as its input.
+func TestSubjectAnchorIDsCollectsEveryList(t *testing.T) {
+	node := func(id string) *awarenesspb.KnowledgeNode { return &awarenesspb.KnowledgeNode{Id: id} }
+	got := subjectAnchorIDs(
+		[]*awarenesspb.KnowledgeNode{node("invariant:a")},
+		[]*awarenesspb.KnowledgeNode{node("failure:b")},
+		[]*awarenesspb.KnowledgeNode{node("forbidden_fix:c"), node("")},
+		[]*awarenesspb.KnowledgeNode{node("contract:d")},
+	)
+	if len(got) != 4 {
+		t.Fatalf("collected %d ids, want 4 (empties dropped, nothing else): %v", len(got), got)
+	}
+	for _, want := range []string{"invariant:a", "failure:b", "forbidden_fix:c", "contract:d"} {
+		if !strings.Contains(strings.Join(got, " "), want) {
+			t.Fatalf("%q missing from %v", want, got)
+		}
 	}
 }

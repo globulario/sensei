@@ -297,8 +297,19 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Change-risk assessment (Phase 2F): the leading "safe to patch / needs
 	// review / manual only" signal. Prepended last so it heads required_actions.
 	if len(files) > 0 {
+		// Applicability is decided from the COMPLETE governed anchor set, not
+		// from the response. resp.Direct* are capped for presentation -- as few
+		// as three invariants and two failure modes -- and directAll carries
+		// neither forbidden fixes nor architecture contracts at all. Deciding
+		// applicability from that view would deny a legitimately applicable plan
+		// its vote whenever the relationship ran through an anchor that had been
+		// capped out or was never presented, which is the false negative that
+		// makes a gate look repaired while it is quietly disabled.
+		//
+		// Caps are a presentation limit. They must not become an epistemic one.
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
-			resp.Coverage.GetSufficient(), subjectAnchorIDs(directAll))
+			resp.Coverage.GetSufficient(), len(directAll) > 0,
+			subjectAnchorIDs(allInvariants, allFailureModes, allForbiddenFixes, allArchitecture))
 		// The SAME verdict, published twice: as the prose line existing consumers
 		// already read, and as structured fields. Both are derived from one
 		// assessment rather than computed twice, so the sentence and the fields
@@ -592,14 +603,20 @@ func dedupNodesByID(nodes []*awarenesspb.KnowledgeNode) []*awarenesspb.Knowledge
 	return out
 }
 
-// subjectAnchorIDs names the anchors a subject's own files produced. The change-risk
-// scorer needs the identities, not merely whether there were any: a repair plan
-// may only decide how far this change reaches when it names one of these.
-func subjectAnchorIDs(nodes []*awarenesspb.KnowledgeNode) []string {
-	out := make([]string, 0, len(nodes))
-	for _, n := range nodes {
-		if id := strings.TrimSpace(n.GetId()); id != "" {
-			out = append(out, id)
+// subjectAnchorIDs names every governed anchor a subject's own files produced,
+// across the classes a repair plan is able to name: invariants, failure modes,
+// forbidden fixes and architecture contracts.
+//
+// It is fed the UNCAPPED collections deliberately. The scorer needs the
+// identities rather than a count, and it needs all of them: an anchor that was
+// capped out of the response is still an anchor this subject has.
+func subjectAnchorIDs(lists ...[]*awarenesspb.KnowledgeNode) []string {
+	var out []string
+	for _, nodes := range lists {
+		for _, n := range nodes {
+			if id := strings.TrimSpace(n.GetId()); id != "" {
+				out = append(out, id)
+			}
 		}
 	}
 	return out
