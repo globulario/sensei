@@ -187,3 +187,48 @@ func TestPreflightUnrelatedPlanDoesNotSetAuthority(t *testing.T) {
 		t.Fatalf("an unrelated plan set the blast radius: %v", got)
 	}
 }
+
+// Risk classification must see the complete live anchor set.
+//
+// classifyRisk builds a keyword haystack over the anchors it is given and
+// returns DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns
+// those into human_approval_required. Classifying from the capped response view
+// therefore let a presentation limit drop a security classification: severity
+// sorting keeps the most severe anchors, but the keyword rules are not
+// severity-driven, so a lower-severity security anchor behind more severe ones
+// was never examined.
+func TestRiskClassificationSeesAnchorsThatCapsHide(t *testing.T) {
+	var facts []store.ImpactFact
+	// Three critical anchors with no risk keywords, which will fill the cap.
+	for _, id := range []string{"aaa.plain", "bbb.plain", "ccc.plain"} {
+		facts = append(facts, statusAnchorFacts(rdf.ClassInvariant, id, "plain "+id, "critical", "active")...)
+	}
+	// One lower-severity anchor that IS a security concern.
+	facts = append(facts, statusAnchorFacts(rdf.ClassInvariant,
+		"zzz.rbac.enforcement", "rbac enforcement rule", "high", "active")...)
+
+	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
+		"golang/workflow/engine.go": facts,
+	}, false)
+	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+		Task:  "adjust the workflow engine",
+		Files: []string{"golang/workflow/engine.go"},
+		Mode:  awarenesspb.PreflightMode_PREFLIGHT_COMPACT,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var shown bool
+	for _, n := range resp.GetDirectInvariants() {
+		if n.GetId() == "zzz.rbac.enforcement" {
+			shown = true
+		}
+	}
+	if shown {
+		t.Skip("the response showed the security anchor; this fixture no longer exercises the cap")
+	}
+	if resp.GetRiskClass() != awarenesspb.RiskClass_SECURITY_RISK {
+		t.Fatalf("a security anchor hidden by the display cap did not classify the risk: %v", resp.GetRiskClass())
+	}
+}

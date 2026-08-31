@@ -239,8 +239,24 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// touches the filesystem (contract §10).
 	directAll := mergeAnchors(resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents)
 	protAssessment := s.assessCanonicalProtection(files)
+	// Risk is classified from the COMPLETE live anchor set, not the response
+	// view. classifyRisk builds a keyword haystack over in.Direct and returns
+	// DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns those
+	// into human_approval_required -- so classifying from the capped list let a
+	// presentation limit drop a data-loss or security classification. Severity
+	// sorting mitigates that and does not remove it: only hasCriticalAnchor is
+	// severity-driven, while the keyword rules are not, so a high-severity
+	// data-loss anchor behind three critical ones was simply not seen.
+	//
+	// Lifecycle filtering still applies: retired knowledge does not classify.
+	riskPrimary := func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+	}
 	risk, reasons := classifyRisk(ClassifyInputs{
-		Direct:     directAll,
+		Direct: mergeAnchors(
+			primaryOnly(allInvariants, riskPrimary),
+			primaryOnly(allFailureModes, riskPrimary),
+			primaryOnly(allIntents, riskPrimary)),
 		Patterns:   patterns,
 		Coverage:   resp.Coverage,
 		Files:      files,
