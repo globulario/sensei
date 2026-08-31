@@ -145,3 +145,66 @@ func TestChangeImpactCountsContractAnchorsAsCoverage(t *testing.T) {
 			plan.ApprovalGate, plan.BlastRadius)
 	}
 }
+
+// Authority-domain guidance is not coverage.
+//
+// `forbidden` carries synthetic "authority_bypass:" entries appended for
+// presentation alongside real forbidden-fix anchors, and counting the merged set
+// as coverage let a domain match manufacture coverage for a file that holds no
+// governed anchor at all.
+//
+// WHAT THIS PROVES, AND WHAT IT DOES NOT. It proves the plan gets no vote here.
+// It does NOT prove the other half of the finding -- that inflated coverage
+// suppresses the thin-coverage escalation -- because reaching that needs a file
+// AnyFileHighRiskWeighted treats as high risk that ALSO matches none of the
+// path-class rules in assessChangeRisk; with a path match the escalation fires
+// anyway and the test passes regardless. Reverting coverage to the merged set
+// still passes this test for that reason. The fixture is owed.
+func TestAuthorityBypassGuidanceIsNotCoverage(t *testing.T) {
+	invalidateRepairPlanCacheForTest()
+	invalidateAuthorityDomainCacheForTest()
+	globalRepairPlanCache.mu.Lock()
+	globalRepairPlanCache.loaded = true
+	globalRepairPlanCache.plans = []loadedRepairPlan{{
+		ID: "plan.bypass", BlastRadius: "cluster", ApprovalGate: "manual_only",
+		FindingClasses:      []string{"doctor.finding_requires_mutation"},
+		PreservedInvariants: []string{"nothing.this.file.holds"},
+	}}
+	globalRepairPlanCache.mu.Unlock()
+	globalAuthorityDomainCache.mu.Lock()
+	globalAuthorityDomainCache.loaded = true
+	globalAuthorityDomainCache.domains = []loadedAuthorityDomain{{
+		ID:            "authority.some_domain",
+		CoversPaths:   []string{"golang/workflow/"},
+		ForbidsBypass: []string{"direct_etcd_write"},
+	}}
+	globalAuthorityDomainCache.mu.Unlock()
+	t.Cleanup(func() {
+		invalidateRepairPlanCacheForTest()
+		invalidateAuthorityDomainCacheForTest()
+	})
+
+	// The file holds no governed anchor. The only thing in `forbidden` will be
+	// the domain's bypass guidance, which is not evidence about this file.
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) { return nil, nil },
+	})
+	plan, err := s.planChangeImpact(context.Background(),
+		"remediate a doctor.finding_requires_mutation", []string{"golang/workflow/engine.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sliceHas(plan.AffectedAuthorityDomains, "authority.some_domain") {
+		t.Fatalf("fixture did not match the authority domain, so this test proves nothing: %+v", plan.AffectedAuthorityDomains)
+	}
+	if plan.ApprovalGate == "manual_only" {
+		t.Fatalf("bypass guidance was counted as coverage and let a task-matched plan vote: approval=%q", plan.ApprovalGate)
+	}
+}
+
+// NOT COVERED, STATED. A retired-only anchor must not suppress the unknown-owner
+// and thin-coverage fallbacks. Proving it needs a file that AnyFileHighRiskWeighted
+// treats as high risk WITHOUT matching one of the path-class rules in
+// assessChangeRisk -- otherwise the path rule escalates and the test passes
+// regardless of the safety signals. A first attempt used golang/rbac/, which is
+// exactly such a path, so it proved nothing and was removed rather than kept.
