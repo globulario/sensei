@@ -106,7 +106,12 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	// Risk → blast radius + approval gate.
 	coverageSufficient := len(invariants.items)+len(failureModes.items) > 0 || indexed > 0
 	risk := awarenesspb.RiskClass_UNKNOWN_IMPACT
-	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient, hasAnchors)
+	// The same applicability rule as preflight, from this surface's own anchors.
+	// Leaving this call on the old shape would let one surface decide authority
+	// with applicability and the other without it, and the two would disagree
+	// about the same change while both claiming to be the verdict.
+	subjectAnchors := append(append(invariants.sorted(), failureModes.sorted()...), forbidden.sorted()...)
+	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient, subjectAnchors)
 	plan.BlastRadius = assessment.BlastRadius
 	plan.ApprovalGate = assessment.ApprovalGate
 

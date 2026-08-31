@@ -46,6 +46,57 @@ func maxLabel(order []string, a, b string) string {
 	return a
 }
 
+// planAppliesToSubject reports whether a matched repair plan may contribute to
+// this change's blast radius and approval gate.
+//
+// Applicability is established by IDENTITY, not by resemblance: the plan must
+// name an invariant, failure mode, forbidden fix or governed contract that is
+// among the anchors this subject's own files produced. Identities survive
+// renames, moved implementations and new call sites, so a plan cannot become
+// applicable because someone described the work in similar words, and cannot
+// stop being applicable because a function moved.
+//
+// It also requires the subject to have sufficient coverage. Without it, an
+// anchor coincidence is not evidence of anything: thin coverage is already
+// represented conservatively further down, on its own terms, and must not be
+// upgraded into a borrowed cluster label here.
+func planAppliesToSubject(p loadedRepairPlan, subjectAnchors []string, coverageSufficient bool) bool {
+	if !coverageSufficient || len(subjectAnchors) == 0 {
+		return false
+	}
+	subject := make(map[string]bool, len(subjectAnchors))
+	for _, a := range subjectAnchors {
+		if id := bareAnchorID(a); id != "" {
+			subject[id] = true
+		}
+	}
+	for _, group := range [][]string{p.PreservedInvariants, p.FailureModes, p.ForbiddenFixes, p.GovernedContracts} {
+		for _, id := range group {
+			if subject[bareAnchorID(id)] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// bareAnchorID reduces an anchor identity to the form both sides can be
+// compared in. Repair plans store bare ids (bareIDFromIRI strips the IRI), while
+// knowledge nodes carry a class prefix such as "invariant:". Comparing the two
+// unnormalised forms would make every intersection empty, which would look
+// exactly like a working fix while actually disabling repair-plan authority
+// altogether.
+func bareAnchorID(id string) string {
+	s := strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(id, "<"), ">"))
+	if slash := strings.LastIndexByte(s, '/'); slash >= 0 && slash < len(s)-1 {
+		s = s[slash+1:]
+	}
+	if colon := strings.IndexByte(s, ':'); colon >= 0 && colon < len(s)-1 {
+		s = s[colon+1:]
+	}
+	return s
+}
+
 type changeAssessment struct {
 	BlastRadius  string
 	ApprovalGate string
@@ -60,8 +111,11 @@ func assessChangeRisk(
 	repairPlans []loadedRepairPlan,
 	risk awarenesspb.RiskClass,
 	coverageSufficient bool,
-	hasDirectAnchors bool,
+	subjectAnchors []string,
 ) changeAssessment {
+	// Derived here rather than passed alongside, so the two cannot disagree
+	// about whether this subject has anchors.
+	hasDirectAnchors := len(subjectAnchors) > 0
 	blast := "local"
 	gate := "none"
 	var reasons []string
@@ -94,8 +148,23 @@ func assessChangeRisk(
 		}
 	}
 
-	// Repair-plan labels are an authored, high-confidence signal.
+	// Repair-plan labels are authored and trustworthy ABOUT THE PLAN. Whether a
+	// matched plan applies to THIS subject is a different question, and a match
+	// does not answer it: plans are matched partly from task prose, which is
+	// guidance rather than coverage. A plan that names nothing this change
+	// touches may therefore be perfectly correct and still be about something
+	// else, and because bump only ever escalates, letting it vote gave an
+	// unrelated subject the last word on this one's authority.
+	//
+	// So a plan votes only where applicability is ESTABLISHED: the subject has
+	// scoped evidence of its own, and the plan names one of the very anchors
+	// that evidence produced. An inapplicable plan is not discarded -- it stays
+	// in the briefing and the required actions as guidance -- it simply stops
+	// deciding how far this change reaches.
 	for _, p := range repairPlans {
+		if !planAppliesToSubject(p, subjectAnchors, coverageSufficient) {
+			continue
+		}
 		bump(p.BlastRadius, p.ApprovalGate, "matched repair plan "+p.ID)
 	}
 

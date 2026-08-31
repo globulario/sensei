@@ -298,7 +298,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// review / manual only" signal. Prepended last so it heads required_actions.
 	if len(files) > 0 {
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
-			resp.Coverage.GetSufficient(), len(directAll) > 0)
+			resp.Coverage.GetSufficient(), subjectAnchorIDs(directAll))
 		// The SAME verdict, published twice: as the prose line existing consumers
 		// already read, and as structured fields. Both are derived from one
 		// assessment rather than computed twice, so the sentence and the fields
@@ -588,6 +588,19 @@ func dedupNodesByID(nodes []*awarenesspb.KnowledgeNode) []*awarenesspb.Knowledge
 		}
 		seen[id] = true
 		out = append(out, n)
+	}
+	return out
+}
+
+// subjectAnchorIDs names the anchors a subject's own files produced. The change-risk
+// scorer needs the identities, not merely whether there were any: a repair plan
+// may only decide how far this change reaches when it names one of these.
+func subjectAnchorIDs(nodes []*awarenesspb.KnowledgeNode) []string {
+	out := make([]string, 0, len(nodes))
+	for _, n := range nodes {
+		if id := strings.TrimSpace(n.GetId()); id != "" {
+			out = append(out, id)
+		}
 	}
 	return out
 }
