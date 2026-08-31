@@ -307,9 +307,24 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		// makes a gate look repaired while it is quietly disabled.
 		//
 		// Caps are a presentation limit. They must not become an epistemic one.
+		// The complete set, minus what lifecycle scoring already removed from
+		// primary guidance. The capped response view had two properties: it was
+		// shortened for a reader AND it had deprecated, superseded and retired
+		// nodes filtered out. Taking the uncapped collections restored the
+		// second problem while fixing the first -- a retired anchor could
+		// re-enable a plan's blast radius while the same response was saying
+		// that knowledge is not primary guidance. Caps are presentation;
+		// lifecycle is not.
+		isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
+			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+		}
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
 			resp.Coverage.GetSufficient(), len(directAll) > 0,
-			subjectAnchorIDs(allInvariants, allFailureModes, allForbiddenFixes, allArchitecture))
+			subjectAnchorIDs(
+				primaryOnly(allInvariants, isPrimary),
+				primaryOnly(allFailureModes, isPrimary),
+				primaryOnly(allForbiddenFixes, isPrimary),
+				primaryOnly(allArchitecture, isPrimary)))
 		// The SAME verdict, published twice: as the prose line existing consumers
 		// already read, and as structured fields. Both are derived from one
 		// assessment rather than computed twice, so the sentence and the fields
@@ -610,6 +625,22 @@ func dedupNodesByID(nodes []*awarenesspb.KnowledgeNode) []*awarenesspb.Knowledge
 // It is fed the UNCAPPED collections deliberately. The scorer needs the
 // identities rather than a count, and it needs all of them: an anchor that was
 // capped out of the response is still an anchor this subject has.
+// primaryOnly drops the nodes lifecycle scoring does not treat as primary
+// guidance. It takes the predicate rather than calling the scorer, so the
+// collection logic stays testable without a live store.
+func primaryOnly(nodes []*awarenesspb.KnowledgeNode, isPrimary func(*awarenesspb.KnowledgeNode) bool) []*awarenesspb.KnowledgeNode {
+	if isPrimary == nil {
+		return nodes
+	}
+	out := make([]*awarenesspb.KnowledgeNode, 0, len(nodes))
+	for _, n := range nodes {
+		if isPrimary(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
 func subjectAnchorIDs(lists ...[]*awarenesspb.KnowledgeNode) []string {
 	var out []string
 	for _, nodes := range lists {

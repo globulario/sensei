@@ -61,22 +61,36 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 			plan.Unknowns = append(plan.Unknowns, "impact_query_failed_for_"+f)
 			continue
 		}
+		// Lifecycle filtering, matching what preflight applies: a deprecated,
+		// superseded or retired anchor is not primary guidance and must not
+		// establish that a repair plan applies to this subject.
+		primary := func(n *awarenesspb.KnowledgeNode) bool {
+			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+		}
 		for _, n := range impact.GetDirectInvariants() {
-			invariants.add(n.GetId())
 			hasAnchors = true
+			if primary(n) {
+				invariants.add(n.GetId())
+			}
 		}
 		for _, n := range impact.GetDirectFailureModes() {
-			failureModes.add(n.GetId())
 			hasAnchors = true
+			if primary(n) {
+				failureModes.add(n.GetId())
+			}
 		}
 		for _, n := range impact.GetForbiddenFixes() {
-			forbidden.add(n.GetId())
+			if primary(n) {
+				forbidden.add(n.GetId())
+			}
 		}
 		// Architecture contracts are a class a repair plan can name, so this
 		// surface must see them too or it would deny applicability that
 		// preflight grants for the same change.
 		for _, n := range impact.GetDirectArchitecture() {
-			contracts.add(n.GetId())
+			if primary(n) {
+				contracts.add(n.GetId())
+			}
 		}
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())

@@ -305,3 +305,45 @@ func TestSubjectAnchorIDsCollectsEveryList(t *testing.T) {
 		}
 	}
 }
+
+// Lifecycle is not presentation. A deprecated, superseded or retired anchor is
+// not primary guidance, and must not be the thing that lets a repair plan
+// decide how far a change reaches -- otherwise retired knowledge re-enables an
+// authority the same response is calling out as superseded.
+func TestRetiredAnchorsDoNotEstablishApplicability(t *testing.T) {
+	live := &awarenesspb.KnowledgeNode{Id: "invariant:live.one", Iri: "iri:live", Status: "active"}
+	retired := &awarenesspb.KnowledgeNode{Id: "invariant:retired.one", Iri: "iri:retired", Status: "retired"}
+	isPrimary := func(n *awarenesspb.KnowledgeNode) bool { return n.GetStatus() != "retired" }
+
+	kept := subjectAnchorIDs(primaryOnly([]*awarenesspb.KnowledgeNode{live, retired}, isPrimary))
+	if len(kept) != 1 || kept[0] != "invariant:live.one" {
+		t.Fatalf("lifecycle filtering did not drop the retired anchor: %v", kept)
+	}
+
+	// The plan is related ONLY through the retired anchor, so it must not vote.
+	got := assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+			PreservedInvariants: []string{"retired.one"}}},
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, kept)
+	if got.ApprovalGate == "human_approval_required" {
+		t.Fatalf("a retired anchor re-enabled a repair plan's authority: %+v", got)
+	}
+
+	// And a plan related through the live anchor still does.
+	got = assessChangeRisk([]string{"internal/workflow/engine.go"}, nil,
+		[]loadedRepairPlan{{ID: "p", BlastRadius: "cluster", ApprovalGate: "human_approval_required",
+			PreservedInvariants: []string{"live.one"}}},
+		awarenesspb.RiskClass_UNKNOWN_IMPACT, true, true, kept)
+	if got.ApprovalGate != "human_approval_required" {
+		t.Fatalf("filtering removed a live anchor as well: %+v", got)
+	}
+}
+
+// primaryOnly with no predicate must not silently drop everything: an absent
+// filter means "unfiltered", never "empty".
+func TestPrimaryOnlyWithoutAPredicateKeepsEverything(t *testing.T) {
+	nodes := []*awarenesspb.KnowledgeNode{{Id: "a"}, {Id: "b"}}
+	if got := primaryOnly(nodes, nil); len(got) != 2 {
+		t.Fatalf("a nil predicate dropped nodes: %v", got)
+	}
+}
