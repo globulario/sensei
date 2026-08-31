@@ -2207,3 +2207,36 @@ invariants:
     required_tests:
       - cmd/eval-arms/protocol_test.go:TestCompiledProtocolIdentitiesMatchTheirDocuments
     contract: 'A registered protocol''s compiled digest and pinned revisions are enforcement of the document, not an independent authority: the document states, the binary enforces, and the two may not move apart'
+  - id: invariant.sensei.governance_decides_from_complete_state_and_projects_afterwards
+    title: Governance decides from the complete semantic state; presentation is projected afterwards
+    status: active
+    description: 'The inverted pipeline explains an unusually large share of the defects found in golang/server: a set was bounded for readability and the bounded set was then consulted as if it were the truth. Lifecycle filtering (retired/superseded anchors) is semantic and belongs BEFORE the decision; caps are presentational and belong AFTER it. Both were interleaved wrongly at the preflight and change-impact boundaries.'
+    protects:
+      files:
+        - golang/server/preflight.go
+        - golang/server/change_impact.go
+        - golang/server/blast_radius.go
+        - golang/server/repair_plans.go
+    required_tests:
+      - golang/server/preflight_applicability_test.go:TestPreflightApplicabilitySeesAnchorsThatCapsHide
+      - golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
+      - golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+      - golang/server/preflight_applicability_test.go:TestPreflightApplicabilityIgnoresRetiredAnchors
+    evidence:
+      - 'globulario/sensei#318: three live instances -- caps.invariants/failureModes into classifyRisk and applicability, maxRepairPlansSurfaced into the authority vote, lifecycle unfiltered before applicability'
+    contract: 'A governance decision (risk class, blast radius, approval gate, applicability, coverage sufficiency, confidence) is computed from the COMPLETE lifecycle-filtered semantic set. Display caps, ordering, and truncation are applied only when building the response a human or agent reads, strictly after the decision is made. The pipeline is: complete knowledge -> semantic filtering -> governance decision -> presentation projection. It is never: knowledge -> presentation projection -> governance decision.'
+  - id: invariant.sensei.decisions_do_not_rest_on_presentation_ordering_guarantees
+    title: A governance decision may not rest on an ordering or truncation guarantee established for presentation
+    status: active
+    description: 'This is the PREVENTATIVE half of the cap rule and its evidence class is deliberately different. classifyRisk received the display-capped pattern list and asked anyStrongOrMediumPattern of it, which looks live but is not: sortPatternsByTier orders strong > medium > narrow and the cap takes a prefix, so a strong match survives whenever one exists. The defect is therefore not a wrong verdict but a HIDDEN COUPLING -- classification silently depending on a presentation sort in another file, with nothing at the point of use saying so, one reordering away from becoming real and invisible when it does. Recorded as a latent coupling, NOT as a proven defect: reverting the wiring still passes the suite, because a call-site fixture would need the matcher to return a strong pattern in second place, which the sort prevents.'
+    protects:
+      files:
+        - golang/server/preflight.go
+        - golang/server/implementation_patterns.go
+    related_failure_modes:
+      - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+    required_tests:
+      - golang/server/preflight_applicability_test.go:TestPatternDrivenSignalsSeeEveryMatchedPattern
+    evidence:
+      - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
+    contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
