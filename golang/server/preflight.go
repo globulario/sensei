@@ -217,6 +217,11 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Architecture nodes repeat across files (a component anchors many files), so
 	// dedup by id before capping.
 	resp.DirectArchitecture = capNodes(sortBySeverityID(dedupNodesByID(allArchitecture)), caps.architecture)
+	// The matcher's full result is kept for the decisions below; caps.patterns
+	// bounds only what is SHOWN. Classifying from the shown subset let a display
+	// limit -- one pattern in compact mode -- decide whether a strong pattern
+	// existed, which feeds risk classification and coverage.
+	matchedPatterns := patterns
 	if len(patterns) > caps.patterns {
 		patterns = patterns[:caps.patterns]
 	}
@@ -232,7 +237,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Coverage — strict: anchors > 0 OR file indexed OR strong pattern match.
 	resp.Coverage = computePreflightCoverage(files, indexed,
 		resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents,
-		patterns)
+		matchedPatterns)
 
 	// Risk classify (pure function). The canonical protection signal is
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
@@ -257,7 +262,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 			primaryOnly(allInvariants, riskPrimary),
 			primaryOnly(allFailureModes, riskPrimary),
 			primaryOnly(allIntents, riskPrimary)),
-		Patterns:   patterns,
+		Patterns:   matchedPatterns,
 		Coverage:   resp.Coverage,
 		Files:      files,
 		Protection: protAssessment,
@@ -266,7 +271,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	resp.BlindSpots = append(resp.BlindSpots, reasons...)
 
 	// Confidence.
-	resp.Confidence = computeConfidence(directAll, patterns, resp.Coverage)
+	resp.Confidence = computeConfidence(directAll, matchedPatterns, resp.Coverage)
 
 	// Action assembly (bounded by caps.actionEntries).
 	resp.RequiredActions = assembleRequiredActions(resp, risk, caps.actionEntries)

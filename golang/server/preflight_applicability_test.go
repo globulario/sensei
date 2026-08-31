@@ -232,3 +232,42 @@ func TestRiskClassificationSeesAnchorsThatCapsHide(t *testing.T) {
 		t.Fatalf("a security anchor hidden by the display cap did not classify the risk: %v", resp.GetRiskClass())
 	}
 }
+
+// Coverage and risk classification must see every matched pattern, not the one
+// the compact response shows.
+//
+// caps.patterns is 1 in compact mode, and both computePreflightCoverage and
+// classifyRisk read the pattern list: coverage counts a "strong" match as
+// sufficient, and classifyRisk's anyStrongOrMediumPattern feeds the verdict. A
+// strong pattern ranked second was therefore invisible to both.
+func TestPatternDrivenSignalsSeeEveryMatchedPattern(t *testing.T) {
+	weak := &awarenesspb.MatchedImplementationPattern{Id: "weak.one", MatchStrength: "weak"}
+	strong := &awarenesspb.MatchedImplementationPattern{Id: "strong.two", MatchStrength: "strong"}
+	all := []*awarenesspb.MatchedImplementationPattern{weak, strong}
+
+	// The display cap keeps only the first.
+	shown := all
+	if len(shown) > 1 {
+		shown = shown[:1]
+	}
+	if len(shown) != 1 || shown[0].GetId() != "weak.one" {
+		t.Fatalf("fixture no longer models the cap: %+v", shown)
+	}
+
+	if anyStrongOrMediumPattern(shown) {
+		t.Fatal("fixture is wrong: the shown subset already contains a strong match")
+	}
+	if !anyStrongOrMediumPattern(all) {
+		t.Fatal("the complete set does not contain a strong match")
+	}
+
+	// Coverage reports a strong match as guidance rather than as coverage --
+	// which is this same law, already correctly applied there -- so what changes
+	// is the note, not sufficiency. The note must still be able to see it.
+	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, nil, nil, all).GetNote(); !strings.Contains(note, "strong-tier") {
+		t.Fatalf("a strong pattern beyond the display cap was invisible to coverage: %q", note)
+	}
+	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, nil, nil, shown).GetNote(); strings.Contains(note, "strong-tier") {
+		t.Fatalf("fixture is wrong: the shown subset already reports a strong tier: %q", note)
+	}
+}
