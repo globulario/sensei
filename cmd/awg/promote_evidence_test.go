@@ -22,11 +22,27 @@ import (
 // equal HEAD, and callers that care must say so.
 func baseCommit(t *testing.T) string {
 	t.Helper()
-	out, err := exec.Command("git", "-C", "../..", "merge-base", "HEAD", "origin/main").Output()
-	if err != nil {
-		t.Skip("no origin/main to measure independence against")
+	// The same defect olderCommit was repaired for, one helper over: resolving
+	// against a hardcoded origin/main means this returns nothing on a CI
+	// pull-request merge ref, where no admitted ref is fetched -- so the test
+	// that depends on it has never run in CI. Both helpers now answer from the
+	// environment rather than from an assumed ref name.
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
 	}
-	return strings.TrimSpace(string(out))
+	if base := selectAdmittedBase(git); base != "" {
+		return base
+	}
+	if _, ok := git("rev-parse", "HEAD"); !ok {
+		t.Skip("not a git checkout: no promotion base to measure independence against")
+	}
+	t.Fatal("no promotion base could be resolved in a git checkout; independence " +
+		"cannot be measured and the test would otherwise pass having checked nothing")
+	return ""
 }
 
 // olderCommit returns a commit that is genuinely older than HEAD AND not part
@@ -87,7 +103,11 @@ func olderCommit(t *testing.T) string {
 	// Verify rather than assume: a candidate that is not an ancestor of HEAD is
 	// not "material the claimant did not introduce".
 	if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", candidate, headRev).Run(); err != nil {
-		t.Skipf("candidate %s is not an ancestor of HEAD", candidate[:8])
+		// Selection produced a commit that is NOT material the claimant built
+		// on. That is the selector being wrong, not the environment being
+		// limited, and skipping would retire the check silently.
+		t.Fatalf("selected promotion base %s is not an ancestor of HEAD: it is not "+
+			"material the claimant did not introduce", candidate[:8])
 	}
 	return candidate
 }
@@ -354,19 +374,13 @@ func selectAdmittedBase(git func(...string) (string, bool)) string {
 // so this fixture gives the working repository one.
 func TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip(t *testing.T) {
 	admitted, work := t.TempDir(), t.TempDir()
-	run := func(dir string, args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
-			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git fixture unavailable (%v): %s", err, out)
-		}
-	}
+	requireGit(t)
+	runIn := func(dir string, args ...string) { fixtureRunner(t, dir)(args...) }
+	run := runIn
 	write := func(dir, name, body string) {
 		t.Helper()
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
-			t.Skip("cannot write fixture")
+			t.Fatalf("cannot write fixture file %s: %v", name, err)
 		}
 	}
 
@@ -382,7 +396,7 @@ func TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip(t *testing.T) {
 	run(work, "commit", "-q", "-m", "claimant work")
 	preMergeTip, err := exec.Command("git", "-C", work, "rev-parse", "HEAD").Output()
 	if err != nil {
-		t.Skip("no feature tip")
+		t.Fatalf("fixture has no feature tip: %v", err)
 	}
 
 	// The admitted branch moves, and the developer merges it in — an ordinary
@@ -395,7 +409,7 @@ func TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip(t *testing.T) {
 
 	parents, err := exec.Command("git", "-C", work, "rev-list", "--parents", "-n", "1", "HEAD").Output()
 	if err != nil || len(strings.Fields(string(parents))) < 3 {
-		t.Skip("fixture HEAD is not a merge commit")
+		t.Fatalf("fixture HEAD is not a merge commit (%v); the case under test was never constructed", err)
 	}
 
 	git := func(args ...string) (string, bool) {
@@ -425,24 +439,17 @@ func TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip(t *testing.T) {
 // the specific failure this whole helper was rewritten to end.
 func TestAnAdmittedRefUnderADifferentNameStillYieldsABase(t *testing.T) {
 	work := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", work}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
-			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git fixture unavailable (%v): %s", err, out)
-		}
-	}
+	requireGit(t)
+	run := fixtureRunner(t, work)
 	run("init", "-q", "-b", "main")
 	if err := os.WriteFile(filepath.Join(work, "base.txt"), []byte("admitted\n"), 0o644); err != nil {
-		t.Skip("cannot write fixture")
+		t.Fatalf("cannot write fixture: %v", err)
 	}
 	run("add", "-A")
 	run("commit", "-q", "-m", "admitted root")
 	run("checkout", "-q", "-b", "feature")
 	if err := os.WriteFile(filepath.Join(work, "claim.txt"), []byte("claim\n"), 0o644); err != nil {
-		t.Skip("cannot write fixture")
+		t.Fatalf("cannot write fixture: %v", err)
 	}
 	run("add", "-A")
 	run("commit", "-q", "-m", "claimant work")
@@ -455,7 +462,8 @@ func TestAnAdmittedRefUnderADifferentNameStillYieldsABase(t *testing.T) {
 		return strings.TrimSpace(string(out)), true
 	}
 	if _, ok := git("rev-parse", "--verify", "-q", "origin/main^{commit}"); ok {
-		t.Skip("fixture unexpectedly has origin/main")
+		t.Fatal("fixture has origin/main, so it is not the case under test " +
+			"(an admitted ref under a different name); the assertion below would prove nothing")
 	}
 	got := selectAdmittedBase(git)
 	if got == "" {
@@ -478,26 +486,19 @@ func TestAnAdmittedRefUnderADifferentNameStillYieldsABase(t *testing.T) {
 // because none of them reach this branch.
 func TestOnACIMergeRefTheAdmittedSideIsTheFirstParent(t *testing.T) {
 	work := t.TempDir()
-	run := func(args ...string) {
-		t.Helper()
-		cmd := exec.Command("git", append([]string{"-C", work}, args...)...)
-		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
-			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git fixture unavailable (%v): %s", err, out)
-		}
-	}
+	requireGit(t)
+	run := fixtureRunner(t, work)
 	write := func(name, body string) {
 		t.Helper()
 		if err := os.WriteFile(filepath.Join(work, name), []byte(body), 0o644); err != nil {
-			t.Skip("cannot write fixture")
+			t.Fatalf("cannot write fixture file %s: %v", name, err)
 		}
 	}
 	rev := func(ref string) string {
 		t.Helper()
 		out, err := exec.Command("git", "-C", work, "rev-parse", ref).Output()
 		if err != nil {
-			t.Skipf("cannot resolve %s", ref)
+			t.Fatalf("fixture cannot resolve %s: %v", ref, err)
 		}
 		return strings.TrimSpace(string(out))
 	}
@@ -534,7 +535,8 @@ func TestOnACIMergeRefTheAdmittedSideIsTheFirstParent(t *testing.T) {
 		return strings.TrimSpace(string(out)), true
 	}
 	if _, ok := admittedRef(git); ok {
-		t.Skip("fixture unexpectedly retains an admitted ref")
+		t.Fatal("fixture retains an admitted ref, so it is not a CI merge ref; " +
+			"the assertion below would prove nothing")
 	}
 	got := selectAdmittedBase(git)
 	if got == claimantTip {
@@ -543,5 +545,34 @@ func TestOnACIMergeRefTheAdmittedSideIsTheFirstParent(t *testing.T) {
 	}
 	if got != admittedTip {
 		t.Errorf("promotion base = %q, want the admitted side %q", got, admittedTip)
+	}
+}
+
+// requireGit detects the ONE genuine environment limitation these fixtures
+// have -- git not being installed -- and skips for it by name, once, up front.
+//
+// Everything after it is a defect, not an environment: t.TempDir() is writable
+// by definition, and a git command that fails after `git --version` succeeded
+// is a broken fixture. Skipping there would hide a test that never ran behind
+// a passing package, which is the exact failure repaired in
+// TestTheGateTestCanActuallyRunHere.
+func requireGit(t *testing.T) {
+	t.Helper()
+	if err := exec.Command("git", "--version").Run(); err != nil {
+		t.Skipf("git is not installed: %v", err)
+	}
+}
+
+// fixtureRunner returns a runner that FAILS on any git error, and a reader.
+func fixtureRunner(t *testing.T, dir string) func(...string) {
+	t.Helper()
+	return func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("fixture step `git %s` failed: %v\n%s", strings.Join(args, " "), err, out)
+		}
 	}
 }

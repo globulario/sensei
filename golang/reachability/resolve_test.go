@@ -117,6 +117,9 @@ func TestARootWithoutTheCorpusAnswersUnknown(t *testing.T) {
 // level out. This builds the environment rather than arguing about it: the
 // origin-only mutation cannot be falsified in a repository that has an origin.
 func TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin(t *testing.T) {
+	if err := exec.Command("git", "--version").Run(); err != nil {
+		t.Skipf("git is not installed: %v", err)
+	}
 	admitted := t.TempDir()
 	work := t.TempDir()
 	run := func(dir string, args ...string) {
@@ -125,17 +128,20 @@ func TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin(t *testing.T) {
 		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
 			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
 		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Skipf("git fixture unavailable (%v): %s", err, out)
+			// A fixture step that fails once `git --version` has succeeded is a
+			// broken fixture, not a missing environment. Skipping here would
+			// hide a test that never ran behind a passing package.
+			t.Fatalf("fixture step `git %s` failed: %v\n%s", strings.Join(args, " "), err, out)
 		}
 	}
 
 	// An admitted repository with one corpus commit.
 	run(admitted, "init", "-q", "-b", "main")
 	if err := os.MkdirAll(filepath.Join(admitted, "docs", "awareness"), 0o755); err != nil {
-		t.Skip("cannot build fixture")
+		t.Fatalf("cannot build fixture: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(admitted, "docs/awareness/invariants.yaml"), []byte("invariants: []\n"), 0o644); err != nil {
-		t.Skip("cannot build fixture")
+		t.Fatalf("cannot build fixture: %v", err)
 	}
 	run(admitted, "add", "-A")
 	run(admitted, "commit", "-q", "-m", "admitted corpus")
@@ -150,18 +156,18 @@ func TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin(t *testing.T) {
 	// An UNMERGED corpus edit on the feature branch: resolving from local HEAD
 	// would count it as admitted, which is the defect.
 	if err := os.WriteFile(filepath.Join(work, "docs/awareness/invariants.yaml"), []byte("invariants: [ {id: local} ]\n"), 0o644); err != nil {
-		t.Skip("cannot write fixture edit")
+		t.Fatalf("cannot write fixture edit: %v", err)
 	}
 	run(work, "add", "-A")
 	run(work, "commit", "-q", "-m", "unmerged local corpus edit")
 
 	upstreamTip, err := exec.Command("git", "-C", work, "rev-parse", "upstream/main").Output()
 	if err != nil {
-		t.Skip("no upstream ref")
+		t.Fatalf("fixture has no upstream ref: %v", err)
 	}
 	head, err := exec.Command("git", "-C", work, "rev-parse", "HEAD").Output()
 	if err != nil {
-		t.Skip("no head")
+		t.Fatalf("fixture has no head: %v", err)
 	}
 
 	a := ResolveFromGit(context.Background(), work, strings.TrimSpace(string(head)))
