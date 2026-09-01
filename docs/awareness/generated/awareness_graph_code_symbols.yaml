@@ -27011,6 +27011,12 @@ test_symbols:
     symbol: TestInScopePatterns_NoForeignLeak
     package: main
     language: go
+  - id: golang/server/change_impact_test.go:TestALiveContractIsExaminedButDoesNotNameAnOwner
+    file: golang/server/change_impact_test.go
+    symbol: TestALiveContractIsExaminedButDoesNotNameAnOwner
+    package: main
+    language: go
+    doc: "The asymmetry the canonical owner removed by construction — and the one it\nmust NOT remove.\n\nEXAMINATION compared a LIVE count over three classes against a RAW count over\nfive, so a file anchored only by a live forbidden fix or contract fell into\nthe gap between the two halves of one comparison. Both halves come from one\nset now.\n\nhasAnchors is a DIFFERENT question and stays narrow. A first version of this\ntest asserted the opposite, because I had widened hasAnchors to every\ngoverned class while blast_radius.go documents exactly why that is wrong: a\ncontract is governance but does not name an OWNER, and counting it suppresses\nthe owner-unknown escalation the fallback exists to produce."
   - id: golang/server/change_impact_test.go:TestAuthorityBypassGuidanceIsNotCoverage
     file: golang/server/change_impact_test.go
     symbol: TestAuthorityBypassGuidanceIsNotCoverage
@@ -27023,6 +27029,12 @@ test_symbols:
     package: main
     language: go
     doc: "A file whose only primary anchor is a contract is still an anchored file.\n\nCoverage here counted invariants and failure modes only, so such a file read\nas uncovered and this surface rejected an applicability preflight would have\ngranted for the same change -- the two surfaces disagreeing about one\ncandidate's authority."
+  - id: golang/server/change_impact_test.go:TestChangeImpactEvaluatesLifecycleExactlyOnce
+    file: golang/server/change_impact_test.go
+    symbol: TestChangeImpactEvaluatesLifecycleExactlyOnce
+    package: main
+    language: go
+    doc: "One lifecycle answer per node, structurally.\n\nThe owner was introduced and forbidden fixes and contracts were still\nclassified a SECOND time by a standalone predicate. That is not redundancy:\nscoreNode does I/O, so a graph that moves between calls -- or a transient\nfailure falling back to the protobuf status -- could classify one anchor\nretired for HasLiveAnchors and live for applicability. Two lifecycle answers\nabout one node, inside the change that introduced the single owner.\n\nStructural, because the property is \"this function evaluates lifecycle in one\nplace\" and no fixture can observe a race that requires the graph to move."
   - id: golang/server/change_impact_test.go:TestImpactPlanningForDoctorRuleChange
     file: golang/server/change_impact_test.go
     symbol: TestImpactPlanningForDoctorRuleChange
@@ -29321,3 +29333,50 @@ test_symbols:
     symbol: TestNew_RejectsEmptyHost
     package: oxigraph_test
     language: go
+  - id: golang/subjectstate/subjectstate_test.go:TestACallerCannotMutateNodesOutOfTheirPartition
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestACallerCannotMutateNodesOutOfTheirPartition
+    package: subjectstate
+    language: go
+  - id: golang/subjectstate/subjectstate_test.go:TestAConsumerCannotMutateTheCanonicalState
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestAConsumerCannotMutateTheCanonicalState
+    package: subjectstate
+    language: go
+    doc: "Accessors must not hand out the internal slice: a consumer that appends to a\nreturned set would mutate the canonical state for every later reader."
+  - id: golang/subjectstate/subjectstate_test.go:TestANarrowerDecisionMustNameItsClasses
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestANarrowerDecisionMustNameItsClasses
+    package: subjectstate
+    language: go
+    doc: "A narrower decision must NAME its classes. The keyword risk classifier is\ndeliberately narrow, and that narrowing has to be visible at the call rather\nthan implied by which fields someone remembered to merge."
+  - id: golang/subjectstate/subjectstate_test.go:TestANilPredicateDoesNotMeanEverythingIsLive
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestANilPredicateDoesNotMeanEverythingIsLive
+    package: subjectstate
+    language: go
+    doc: "A nil predicate must not silently mean \"everything is live\". It is the\nfail-open shape: no lifecycle information read as all-clear."
+  - id: golang/subjectstate/subjectstate_test.go:TestAWithdrawnSubjectIsDeterminedNotUnknown
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestAWithdrawnSubjectIsDeterminedNotUnknown
+    package: subjectstate
+    language: go
+    doc: "The three states, and the one that was collapsed.\n\n\"Anchors existed and every one has been retired\" is a DETERMINED NEGATIVE. It\nwas folded into \"no anchors at all\", and the index fallback then resurrected\nthe subject -- so a file whose governance was deliberately withdrawn came back\nas examined and covered."
+  - id: golang/subjectstate/subjectstate_test.go:TestEveryGovernedClassCounts
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestEveryGovernedClassCounts
+    package: subjectstate
+    language: go
+    doc: "Class-completeness. A subject anchored only by a live forbidden fix or\ncontract IS anchored -- the exact case where coverage said \"no governing rule\napplies\" while the same anchor decided authority."
+  - id: golang/subjectstate/subjectstate_test.go:TestExaminationCannotContradictTheAnchors
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestExaminationCannotContradictTheAnchors
+    package: subjectstate
+    language: go
+    doc: "The state is derived from the anchors and cannot be asserted against them.\nThree surfaces each computed this and disagreed; there is now nowhere to\ndisagree."
+  - id: golang/subjectstate/subjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex
+    file: golang/subjectstate/subjectstate_test.go
+    symbol: TestOnlyTheUnknownStateMayConsultTheIndex
+    package: subjectstate
+    language: go
+    doc: "Only the genuinely unknown state may ask a secondary source. That is the\nentire rule the index fallback kept breaking."
