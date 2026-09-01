@@ -1999,7 +1999,6 @@ required_tests:
         - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
       files:
         - cmd/awareness-mcp/transport_outcome.go
-<<<<<<< HEAD
   - id: cmd/awg/dangling_baseline_classification_test.go:TestNoHomeDomainProofEdgeHidesBehindTheBaseline
     title: TestNoHomeDomainProofEdgeHidesBehindTheBaseline
     protects:
@@ -2014,7 +2013,6 @@ required_tests:
         - invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
       files:
         - docs/awareness/dangling_refs_baseline.tsv
-=======
   - id: golang/subjectstate/subjectstate_test.go:TestAWithdrawnSubjectIsDeterminedNotUnknown
     title: TestAWithdrawnSubjectIsDeterminedNotUnknown
     protects:
@@ -2064,7 +2062,6 @@ required_tests:
         - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
       files:
         - golang/server/change_impact.go
->>>>>>> origin/main
   - id: golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
     title: Admitted-but-unpublished knowledge is stale, never current
     protects:
