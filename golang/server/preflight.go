@@ -485,7 +485,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// proof of safety"), while EMPTY can be misread as "graph is happy
 	// and has nothing to say".
 	if resp.Status != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED &&
-		len(directLive) == 0 && len(patterns) == 0 {
+		len(directLive) == 0 && len(matchedPatterns) == 0 {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY
 	}
 

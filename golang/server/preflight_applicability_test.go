@@ -420,3 +420,39 @@ func TestCoverageCountsEveryGovernedClassNotJustThree(t *testing.T) {
 		})
 	}
 }
+
+// The briefing surface applied NO lifecycle filtering at all.
+//
+// Found by the #318 sweep rather than by a review round: preflight and
+// change_impact were both repaired to treat a retired-only subject as governed
+// by nothing, while briefing still counted retired anchors and answered OK --
+// "an anchor binds this file" -- for the same file. And because the
+// principle-guidance fallback is gated on `directAnchors == 0`, the retired
+// anchor ALSO suppressed the meta-principle advice that exists precisely for
+// files nothing governs. One missing filter both overstated the status and
+// withheld the remedy.
+func TestBriefingStatusDoesNotCountRetiredAnchors(t *testing.T) {
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+			if iri != "golang/workflow/engine.go" {
+				return nil, nil
+			}
+			return statusAnchorFacts(rdf.ClassInvariant, "retired.rule",
+				"Retired rule", "critical", "retired"), nil
+		},
+	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
+		File: "golang/workflow/engine.go",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.GetStatus() == awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
+		t.Fatalf("a retired anchor was counted as binding this file: status=%s", resp.GetStatus())
+	}
+	// The retired anchor is guidance, not a binding: it must still be visible.
+	if !strings.Contains(resp.GetProse(), "Retired rule") {
+		t.Errorf("the retired anchor was removed from guidance as well as from the status")
+	}
+}
