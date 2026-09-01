@@ -254,9 +254,15 @@ func homeDomainPath(file string) bool {
 func TestOwnershipIsProvenanceNotCurrentExistence(t *testing.T) {
 	// A path this repository TRACKED AND DELETED is still ours. That is the
 	// case the check exists for, and the one an existence gate silently drops.
-	deleted := "golang/publication/oxigraph_roundtrip_test.go"
+	//
+	// The path is FOUND IN HISTORY rather than hardcoded. A fixed name made
+	// this test retirable by a single file reappearing: it would skip, and the
+	// regression it exists to catch would be uncaught with nothing failing --
+	// which is precisely what its own comment says must not happen.
+	deleted := aTrackedAndDeletedTestPath(t)
 	if _, err := os.Stat(filepath.Join("../..", deleted)); err == nil {
-		t.Skipf("%s exists again; this test needs a path deleted from history", deleted)
+		t.Fatalf("selected path %s still exists; the selector is meant to return a "+
+			"path deleted from history", deleted)
 	}
 	if !homeDomainPath(deleted) {
 		t.Errorf("%s was tracked and deleted in this repository and is read as foreign; "+
@@ -271,4 +277,37 @@ func TestOwnershipIsProvenanceNotCurrentExistence(t *testing.T) {
 		t.Errorf("%s was never tracked here and is claimed as ours merely because we have a cmd/ "+
 			"directory; that accuses another corpus of our defect", foreign)
 	}
+}
+
+// aTrackedAndDeletedTestPath returns a path this repository tracked and later
+// deleted, chosen from git history rather than named in advance.
+//
+// Naming one made the test that depends on it retirable by re-adding a single
+// file, and a check that can be silently retired is not a check. Git absence is
+// the only environment limit; a repository whose history contains no deletion
+// at all is a real signal, not a reason to pass quietly.
+func aTrackedAndDeletedTestPath(t *testing.T) string {
+	t.Helper()
+	if err := exec.Command("git", "--version").Run(); err != nil {
+		t.Skipf("git is not installed: %v", err)
+	}
+	out, err := exec.Command("git", "-C", "../..", "log", "--diff-filter=D", "--name-only",
+		"--format=", "--", "*_test.go").Output()
+	if err != nil {
+		t.Fatalf("cannot read deletion history: %v", err)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		p := strings.TrimSpace(line)
+		if p == "" {
+			continue
+		}
+		// Deleted THEN, and still absent NOW: a resurrected path is not the case.
+		if _, err := os.Stat(filepath.Join("../..", p)); err == nil {
+			continue
+		}
+		return p
+	}
+	t.Fatal("no tracked-and-deleted test path exists in this history; the provenance " +
+		"case cannot be exercised, and passing here would assert coverage that is absent")
+	return ""
 }
