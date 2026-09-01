@@ -126,4 +126,22 @@ func TestRuleguardRulesHavePositiveControl(t *testing.T) {
 
 	t.Logf("positive-control coverage: %d rule files, %d with fixtures attested, %d named-uncovered",
 		len(ruleFiles), len(ruleFiles)-len(knownUncovered), len(knownUncovered))
+
+	// PROVING NOTHING IS NOT PASSING.
+	//
+	// `proven` was counted and never asserted, so this test reported ok when
+	// every single rule skipped -- which is what it did everywhere. In CI no
+	// ruleguard was installed (no workflow mentions it, despite the comment
+	// above saying CI MUST), and locally ruleguard could not resolve its DSL,
+	// so the attestation that each rule fires on known-bad code had NEVER RUN
+	// while reporting success.
+	//
+	// A zero-finding result from a rule that cannot load is indistinguishable
+	// from a clean tree, which is the exact confusion the ruleguard gate exists
+	// to prevent -- so the gate was reproducing the defect it guards against.
+	if proven == 0 {
+		t.Fatal("no rule proved its positive control: the attestation did not run at all. " +
+			"A rule that cannot load reports zero findings exactly like a clean tree, so a " +
+			"silent pass here is the failure this gate exists to prevent.")
+	}
 }
