@@ -22,6 +22,7 @@ components:
     source_files:
       - cmd/awareness-mcp/main.go
       - cmd/awareness-mcp/phase10_tools.go
+      - cmd/awareness-mcp/transport_outcome.go
       - cmd/awareness-mcp/workspace_tools.go
     depends_on:
       - component.golang.architecture

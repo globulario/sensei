@@ -856,6 +856,66 @@ test_symbols:
     symbol: TestToolsList_IncludesPropose
     package: main
     language: go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestARefusalThatIsNotRetriedStillArrivesAsTypedData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestARefusalThatIsNotRetriedStillArrivesAsTypedData
+    package: main
+    language: go
+    doc: "Every classified outcome must reach the caller as typed data, including the\nones failover does not retry. Gating the classification on the retry\npredicate silently dropped the structured surface for those (#319 review)."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestASoleTerminalFailureIsUnchanged
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestASoleTerminalFailureIsUnchanged
+    package: main
+    language: go
+    doc: "A single non-retryable failure returns the RAW error, exactly as before, so\ncallers that inspect its status code keep working."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestATerminalFailureKeepsTheAttemptsBeforeIt
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestATerminalFailureKeepsTheAttemptsBeforeIt
+    package: main
+    language: go
+    doc: "A mixed result must not be reported as a unanimous one.\n\ncallWithFailover returned a non-retryable error the moment it saw one,\nBEFORE recording it — so Unavailable at the first address followed by\nPermissionDenied at the second discarded the first entirely and surfaced a\nblank-address server_refusal. Two addresses that failed differently support\nno single sentence, and the aggregate is `unclassified` (#319 review)."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestAllAddressesTimingOutIsDeadlineNotUnavailable
+    package: main
+    language: go
+    doc: "A deadline is not unreachability, and the wire code must say so too."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+    package: main
+    language: go
+    doc: "The closed set is read by MEMBERSHIP. An unrecognised code is its own member,\nnever folded into unreachable: \"we could not tell\" and \"the backend is down\"\nare the two answers this repair exists to separate."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestClassificationAndRetryAreDifferentQuestions
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestClassificationAndRetryAreDifferentQuestions
+    package: main
+    language: go
+    doc: "The two questions are separate, and each is pinned.\n\nAn earlier revision of this branch derived the failover predicate FROM the\nclassification, on the theory that a second code list was a duplicated\nvocabulary. Review showed they are different questions and cannot be one set:\nserver_refusal covers Unauthenticated (which retries) and PermissionDenied\n(which must not). Collapsing them made server_refusal unreachable for a\npermission failure."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+    package: main
+    language: go
+    doc: "\"We could not classify this\" is an ANSWER, and the caller is entitled to it\nin the same shape as every other answer.\n\nTwo gates were tried in toolRPCError and each dropped a member of the closed\nset: isTransportFailure made server_refusal unreachable for a permission\nfailure, then classifiable() made `unclassified` itself unreachable, so an\nInternal or NotFound produced a bare error with no structured data (#319\nreview)."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestMixedOutcomesDoNotBecomeAConfidentClaim
+    package: main
+    language: go
+    doc: "Disagreement must not become certainty. A set of addresses that failed in\nDIFFERENT ways supports no single sentence about the backend, so the\naggregate is `unclassified` rather than the worst or the first member."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    package: main
+    language: go
+    doc: "The classification must reach the caller as DATA. Parsing the prose in a\nreplaceable downstream adapter is the repair that must not be applied."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheReportedFailureIsNotAnUnreachableBackend
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheReportedFailureIsNotAnUnreachableBackend
+    package: main
+    language: go
+    doc: "The reproducer from #319, verbatim: this is what the three configured\naddresses actually returned when a six-file scoped preflight exceeded the\nbudget while the evaluator was healthy the whole time."
   - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsBehaviorUnchanged
     file: cmd/awareness-mcp/workspace_tools_test.go
     symbol: TestMCPExistingAdmissionToolsBehaviorUnchanged
