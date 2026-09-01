@@ -38,6 +38,7 @@ components:
       - component.golang.architecture.workspacecontract
       - component.golang.client
       - component.golang.netcfg
+      - component.golang.reachability
     external_imports:
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
@@ -291,6 +292,7 @@ components:
       - component.golang.propose
       - component.golang.publication
       - component.golang.rdf
+      - component.golang.reachability
       - component.golang.repoeval
       - component.golang.runtimedescriptor
       - component.golang.scanner
@@ -2869,6 +2871,18 @@ components:
       - golang/rdf/builder.go
       - golang/rdf/source_file_identity.go
       - golang/rdf/vocab.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.reachability
+    name: reachability
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/reachability/reachability.go
+      - golang/reachability/resolve.go
     uml:
       kind: Component
       stereotype: module

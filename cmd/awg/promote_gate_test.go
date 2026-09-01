@@ -12,7 +12,7 @@ import (
 // The gate, end to end, on the three specimen shapes -- through the same
 // function runPromote now calls, with the same inputs it derives.
 func TestThePromotionGateAdmitsOnlyIndependentlyVerifiedEvidence(t *testing.T) {
-	head, older := headCommit(t), baseCommit(t)
+	head, older := headCommit(t), olderCommit(t)
 
 	// A: real citation, material the claimant did not introduce.
 	a := map[string]interface{}{"evidence_refs": []interface{}{map[string]interface{}{

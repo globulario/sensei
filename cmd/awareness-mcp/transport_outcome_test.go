@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"strings"
 	"testing"
 
@@ -315,5 +316,112 @@ func TestASoleTerminalFailureIsUnchanged(t *testing.T) {
 	}
 	if st, ok := status.FromError(err); !ok || st.Code() != codes.NotFound {
 		t.Fatalf("the raw status did not survive: %v", err)
+	}
+}
+
+// The MCP payload must carry reachability, because agents never see the CLI's
+// human authority block.
+//
+// The CLI computed it while RENDERING, and the MCP tools build their own
+// payloads — so every agent using awareness_briefing/preflight/query/impact/
+// resolve saw "authoritative" with no indication the corpus had moved past the
+// serving graph. The false-green path, left open for the callers most likely to
+// act on it unsupervised.
+func TestTheMCPAuthorityPayloadCarriesReachability(t *testing.T) {
+	obj := authorityStruct(context.Background(), &awarenesspb.GraphAuthority{GraphBuildCommit: "96f19456f5fb"})
+	r, ok := obj["reachability"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("an agent sees no reachability at all: %+v", obj)
+	}
+	for _, k := range []string{"state", "reachable", "detail", "asserts_absence"} {
+		if _, present := r[k]; !present {
+			t.Errorf("the agent-facing assessment omits %q", k)
+		}
+	}
+	if r["asserts_absence"] != false {
+		t.Error("a reachability state claimed absence of law to an agent")
+	}
+	// The authority fields themselves must be untouched: this is additive.
+	if obj["graph_build_commit"] != "96f19456f5fb" {
+		t.Error("adding reachability displaced the authority payload")
+	}
+}
+
+// A response whose authority states no build commit carries no assessment.
+// Absent, not a fabricated unknown: the question was never askable.
+func TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment(t *testing.T) {
+	obj := authorityStruct(context.Background(), &awarenesspb.GraphAuthority{})
+	if _, present := obj["reachability"]; present {
+		t.Fatalf("an unaskable question was answered anyway: %+v", obj)
+	}
+}
+
+// awareness_metadata is the tool an agent reaches for FIRST, and it was the one
+// surface repairing the other five did not touch.
+//
+// structMetadata builds its own authority map instead of calling
+// authorityStruct, so the primary graph-health tool kept reporting
+// current/authoritative with no reachability warning while five read tools were
+// fixed. The sixth surface, missed precisely because it did not share the
+// helper.
+func TestMetadataCarriesReachability(t *testing.T) {
+	obj := structMetadata(context.Background(), &awarenesspb.MetadataResponse{GraphBuildCommit: "96f19456f5fb"})
+	auth, ok := obj["authority"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("no authority block: %+v", obj)
+	}
+	if _, present := auth["reachability"]; !present {
+		t.Fatalf("the primary graph-health tool reports no reachability: %+v", auth)
+	}
+}
+
+// Clients that read only content[].text must see it too.
+//
+// Reachability was added to the structured map alone, so a client ignoring
+// structuredContent — which the response assembly explicitly still supports —
+// kept seeing "authority: authoritative (current)". The false-green closed for
+// structured readers and left open for the older ones the text block exists for.
+func TestTheTextBlockCarriesReachability(t *testing.T) {
+	out := formatGraphAuthority(context.Background(),
+		&awarenesspb.GraphAuthority{GraphBuildCommit: "96f19456f5fb"})
+	if !strings.Contains(out, "reachability:") {
+		t.Fatalf("a text-only client sees no reachability:\n%s", out)
+	}
+}
+
+// The git work must honour the TOOL'S deadline.
+//
+// It was launched with context.Background(), so on a slow or stalled checkout it
+// ignored the whole-call budget: the gRPC request could finish in time while
+// response construction blocked the single stdio request loop indefinitely.
+func TestReachabilityHonoursTheCallDeadline(t *testing.T) {
+	// A timeout assertion does NOT test this. The git work completes in
+	// milliseconds on a healthy checkout, so a background context returns a
+	// confident answer well inside any deadline and the test passes either way
+	// -- the first version of this did exactly that and the mutation survived.
+	//
+	// The property is that a CANCELLED context yields NO CONFIDENT ANSWER.
+	// exec.CommandContext kills the subprocess, the corpus cannot be resolved,
+	// and the honest result is `unknown` -- which is a member of the state set
+	// precisely so this case has somewhere to go.
+	// The test runs in cmd/awareness-mcp, which holds no corpus, so the live
+	// answer would be `unknown` and there would be nothing to contrast against.
+	// Point the resolver at the repository root.
+	t.Setenv("AWG_REPO_ROOT", "../..")
+
+	live := reachabilityMap(context.Background(), "96f19456f5fb")
+	if live == nil || live["state"] == "unknown" {
+		t.Skipf("no confident live answer to contrast against: %+v", live)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	dead := reachabilityMap(ctx, "96f19456f5fb")
+	if dead == nil {
+		t.Fatal("a cancelled call produced no assessment at all")
+	}
+	if dead["state"] != "unknown" {
+		t.Fatalf("a cancelled call reported %q; the git work ignored the deadline and answered anyway "+
+			"(live answer for contrast: %q)", dead["state"], live["state"])
 	}
 }
