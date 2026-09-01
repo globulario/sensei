@@ -2253,6 +2253,22 @@ invariants:
       - cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
       - golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
     contract: A proof mechanism reports success only when the path that could have falsified the claim actually ran. Absence of a finding is interpretable ONLY after setup, execution, and the falsifier's ability to fire have each been shown.
+  - id: invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
+    title: A tolerated dangling reference states why it is tolerated
+    status: active
+    description: 'The baseline held 233 entries and recorded only that each was allowed, so a genuinely dead proof edge in this repository was indistinguishable from a foreign-domain citation that cannot be built here. Classified 2026-09-01: of the 72 tolerated Test entries, 38 are path-form and every one resolves on disk; of the 34 bare-name entries, 25 are real test functions in globulario/services -- cited 86 times in that corpus -- and 9 resolve nowhere. None is a sensei proof edge, so the tolerated set was honest, and NOTHING WAS ENFORCING THAT. Two critical invariants in globulario/sensei-code had already turned out to be exactly the class this hides.'
+    protects:
+      files:
+        - docs/awareness/dangling_refs_baseline.tsv
+    forbidden_fixes:
+      - 'delete the baseline to make the check green: that turns tolerated debt into a red wall and the signal is lost either way'
+      - 'claim a resolvable test proves the claim that cites it: existence is mechanical, semantic support is not, and the classification stops where structure stops'
+    required_tests:
+      - cmd/awg/dangling_baseline_classification_test.go:TestNoHomeDomainProofEdgeHidesBehindTheBaseline
+      - cmd/awg/dangling_baseline_classification_test.go:TestEveryToleratedProofEdgeIsClassified
+    evidence:
+      - adding a dead home-domain edge, baselining a resolvable one, and raising the count each fail the classification; the checker was mutation-tested against all three
+    contract: 'A dangling-reference baseline may tolerate a citation only in a NAMED class. A proof edge naming a file this repository holds, whose test function is absent, may NEVER be tolerated -- that is a dead binding and it is the exact defect the checker exists to detect. A citation this repository CAN resolve may not be baselined as unresolvable. The tolerated count ratchets downward: a rise must be repaired or re-baselined by a human who states why.'
   - id: invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
     title: One canonical owner answers what the graph knows about a subject
     status: active
