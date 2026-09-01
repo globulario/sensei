@@ -2048,3 +2048,31 @@ required_tests:
         - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
       files:
         - golang/server/change_impact.go
+  - id: golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+    title: Admitted-but-unpublished knowledge is stale, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    title: Every unanswerable reachability question is unknown, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAnUnorderableGraphIsNotCalledStale
+    title: An unorderable graph is not called stale
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    title: An abbreviated revision is the same revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go

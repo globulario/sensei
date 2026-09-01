@@ -65,8 +65,20 @@ jobs:
       - name: Checkout awareness-graph
         uses: actions/checkout@v4
         with:
-          # depth 2 so the commit-scope guard can diff HEAD against its parent
-          fetch-depth: 2
+          # Full history, for two reasons.
+          #
+          # The commit-scope guard needs HEAD against its parent, which depth 2
+          # gave. But the promotion-gate tests need the ADMITTED BRANCH, and
+          # depth 2 never fetched it: on a push event HEAD is the branch tip,
+          # not a merge commit, and `origin/main` is absent, so no promotion
+          # base could be resolved and FOUR independence tests silently skipped
+          # in every CI run. They were not weak; they never executed.
+          #
+          # That was invisible until the helper was changed to fail rather than
+          # skip when it cannot resolve a base. The fix is to remove the cause,
+          # not to label the silence: the pack is ~60 MB, so full history costs
+          # seconds and buys back the coverage.
+          fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
