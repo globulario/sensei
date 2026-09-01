@@ -89,15 +89,38 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 	// Unknown. An explicit holdsCorpus() check was written and then removed: no
 	// mutation could distinguish it from this, which makes it duplication
 	// rather than defence.
-	corpus := ""
+	// PREFER A BASE THAT IS ACTUALLY ORDERED AGAINST THE PUBLISHED REVISION.
+	//
+	// Taking the first base that returns ANY commit is wrong whenever a
+	// checkout has more than one candidate. On a fork, `git remote` lists
+	// `origin` (the fork) before `upstream` (the canonical repository), so the
+	// fork's default head won and the corpus came from a line the published
+	// revision need not share -- reported as "neither contains the other",
+	// which is an honest Unknown about a question that was asked wrongly.
+	//
+	// So: collect every base that resolves, and take the first one the
+	// published revision can actually be ordered against. Only if none can be
+	// ordered do we fall back to the first that resolved, which preserves the
+	// previous answer for the genuinely unorderable case.
+	resolved := []string{}
 	for _, base := range bases {
 		if v, ok := git(base...); ok && v != "" {
-			corpus = v
-			break
+			resolved = append(resolved, v)
 		}
 	}
-	if corpus == "" {
+	if len(resolved) == 0 {
 		return Assess(in)
+	}
+	corpus := resolved[0]
+	for _, c := range resolved {
+		if _, ok := git("merge-base", "--is-ancestor", c, in.PublishedCommit); ok {
+			corpus = c
+			break
+		}
+		if _, ok := git("merge-base", "--is-ancestor", in.PublishedCommit, c); ok {
+			corpus = c
+			break
+		}
 	}
 	in.CorpusCommit = corpus
 
