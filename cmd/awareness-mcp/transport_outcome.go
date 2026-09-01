@@ -49,34 +49,18 @@ const (
 	outcomeTransportReset   transportOutcome = "transport_reset"
 	outcomeDeadlineExceeded transportOutcome = "client_deadline_exceeded"
 	outcomeServerRefusal    transportOutcome = "server_refusal"
-	outcomeUnclassified     transportOutcome = "unclassified"
+	// Cancellation is its OWN member. Folding it into client_deadline_exceeded
+	// was the very collapse this file exists to prevent: a call the caller
+	// aborted, or one the server reported Canceled, did not run out of budget,
+	// and saying it did asserts a fact about time that nothing established
+	// (#319 review).
+	outcomeCanceled     transportOutcome = "canceled"
+	outcomeUnclassified transportOutcome = "unclassified"
 )
 
 // assertsUnreachable reports whether an outcome may be described to a caller as
 // the backend being unreachable. Only one member may.
 func (o transportOutcome) assertsUnreachable() bool { return o == outcomeUnreachable }
-
-// classifiable reports whether this function could name what happened. It is
-// NOT the failover predicate, and an earlier revision of this branch wrongly
-// made it so.
-//
-// I derived isTransportFailure from the classification to remove what looked
-// like a duplicated vocabulary. Review showed the two are DIFFERENT QUESTIONS:
-//
-//	"what happened?"           -> every caller deserves an answer, always
-//	"should we try the next
-//	 address for this?"        -> a narrow retry policy
-//
-// They are not the same set and cannot be. server_refusal covers both
-// Unauthenticated (which does trigger failover) and PermissionDenied (which
-// must not), so no predicate over OUTCOMES can express the retry membership.
-// Collapsing them made server_refusal unreachable for permission failures and
-// broke this file's own contract that every classified outcome reaches the
-// caller as typed data.
-//
-// So there are two predicates again, deliberately, each answering its own
-// question, and each said out loud at its definition.
-func (o transportOutcome) classifiable() bool { return o != outcomeUnclassified }
 
 // sentence renders the outcome as a claim narrow enough to be true.
 func (o transportOutcome) sentence() string {
@@ -89,6 +73,8 @@ func (o transportOutcome) sentence() string {
 		return "the call did not finish inside the client deadline; the backend may be healthy and merely slower than the budget"
 	case outcomeServerRefusal:
 		return "the awareness-graph backend refused the call"
+	case outcomeCanceled:
+		return "the call was cancelled before it completed; no deadline evidence either way"
 	default:
 		return "the call failed for a reason this bridge could not classify"
 	}
@@ -122,7 +108,7 @@ func classifyTransportError(err error) transportOutcome {
 	case codes.Unauthenticated, codes.PermissionDenied:
 		return outcomeServerRefusal
 	case codes.Canceled:
-		return outcomeDeadlineExceeded
+		return outcomeCanceled
 	case codes.Unavailable:
 		switch {
 		case strings.Contains(msg, "context deadline exceeded"):
@@ -237,6 +223,8 @@ func codeFor(o transportOutcome) codes.Code {
 		return codes.DeadlineExceeded
 	case outcomeServerRefusal:
 		return codes.PermissionDenied
+	case outcomeCanceled:
+		return codes.Canceled
 	case outcomeUnreachable, outcomeTransportReset:
 		return codes.Unavailable
 	default:

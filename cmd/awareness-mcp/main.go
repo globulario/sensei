@@ -1049,12 +1049,16 @@ func toolRPCError(surface string, err error) error {
 		out.Surface = surface
 		return &out
 	}
-	// Classification is NOT gated on isTransportFailure. That gate is a retry
-	// policy; using it here made server_refusal unreachable for a permission
-	// failure and returned a bare error with no structured data, breaking the
-	// contract that every classified outcome survives to the caller as typed
-	// data (#319 review).
-	if st, ok := status.FromError(err); ok && classifyTransportError(err).classifiable() {
+	// EVERY gRPC status becomes typed data, including `unclassified`.
+	//
+	// Two gates were tried here and both dropped members of the closed set.
+	// isTransportFailure is a retry policy and made server_refusal unreachable
+	// for a permission failure; classifiable() then made `unclassified` itself
+	// unreachable, so an Internal or NotFound returned a bare error with no
+	// structured data at all. "We could not classify this" is an ANSWER and the
+	// caller is entitled to receive it in the same shape as every other
+	// answer -- that is the whole point of having it as a member (#319 review).
+	if st, ok := status.FromError(err); ok {
 		outcome := classifyTransportError(err)
 		return &transportError{
 			Surface:   surface,

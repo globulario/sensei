@@ -166,8 +166,13 @@ func TestClassificationAndRetryAreDifferentQuestions(t *testing.T) {
 	if got := classifyTransportError(status.Error(codes.PermissionDenied, "nope")); got != outcomeServerRefusal {
 		t.Errorf("PermissionDenied classified %q; a refusal that is not retried is still a refusal", got)
 	}
-	if got := classifyTransportError(status.Error(codes.Canceled, "gone")); got != outcomeDeadlineExceeded {
-		t.Errorf("Canceled classified %q", got)
+	// Cancellation is its own member. Reporting it as a deadline would assert
+	// the call ran out of budget, which nothing established.
+	if got := classifyTransportError(status.Error(codes.Canceled, "gone")); got != outcomeCanceled {
+		t.Errorf("Canceled classified %q, want canceled", got)
+	}
+	if classifyTransportError(status.Error(codes.Canceled, "gone")) == outcomeDeadlineExceeded {
+		t.Error("a cancellation was relabelled as a deadline")
 	}
 	if got := classifyTransportError(status.Error(codes.Internal, "boom")); got != outcomeUnclassified {
 		t.Errorf("Internal classified %q, want unclassified", got)
@@ -203,5 +208,57 @@ func TestARefusalThatIsNotRetriedStillArrivesAsTypedData(t *testing.T) {
 	}
 	if out.Error == nil || out.Error.Data == nil || out.Error.Data["outcome"] != string(outcomeServerRefusal) {
 		t.Fatalf("the refusal did not survive to the structured surface: %s", raw)
+	}
+}
+
+// "We could not classify this" is an ANSWER, and the caller is entitled to it
+// in the same shape as every other answer.
+//
+// Two gates were tried in toolRPCError and each dropped a member of the closed
+// set: isTransportFailure made server_refusal unreachable for a permission
+// failure, then classifiable() made `unclassified` itself unreachable, so an
+// Internal or NotFound produced a bare error with no structured data (#319
+// review).
+func TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData(t *testing.T) {
+	for _, c := range []struct {
+		code codes.Code
+		want transportOutcome
+	}{
+		{codes.Unavailable, outcomeUnreachable},
+		{codes.DeadlineExceeded, outcomeDeadlineExceeded},
+		{codes.Unauthenticated, outcomeServerRefusal},
+		{codes.PermissionDenied, outcomeServerRefusal},
+		{codes.Canceled, outcomeCanceled},
+		{codes.Internal, outcomeUnclassified},
+		{codes.NotFound, outcomeUnclassified},
+	} {
+		msg := "connection refused"
+		if c.code != codes.Unavailable {
+			msg = "x"
+		}
+		err := toolRPCError("preflight", status.Error(c.code, msg))
+		var te *transportError
+		if !errors.As(err, &te) {
+			t.Errorf("%v produced an untyped error — no structured data reaches the caller", c.code)
+			continue
+		}
+		if te.Aggregate != c.want {
+			t.Errorf("%v classified %q, want %q", c.code, te.Aggregate, c.want)
+		}
+		raw, perr := responsePayload(1, nil, err)
+		if perr != nil {
+			t.Fatalf("responsePayload: %v", perr)
+		}
+		var out struct {
+			Error *struct {
+				Data map[string]interface{} `json:"data"`
+			} `json:"error"`
+		}
+		if jerr := json.Unmarshal(raw, &out); jerr != nil {
+			t.Fatalf("unmarshal: %v", jerr)
+		}
+		if out.Error == nil || out.Error.Data == nil || out.Error.Data["outcome"] != string(c.want) {
+			t.Errorf("%v did not survive to the structured surface: %s", c.code, raw)
+		}
 	}
 }
