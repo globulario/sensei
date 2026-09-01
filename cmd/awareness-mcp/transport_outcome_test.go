@@ -137,34 +137,71 @@ func TestTheClassificationReachesTheJSONRPCSurfaceAsData(t *testing.T) {
 	}
 }
 
-// The failover membership must not drift from the classification.
+// The two questions are separate, and each is pinned.
 //
-// These were two closed vocabularies -- a three-code list inside
-// isTransportFailure and the transportOutcome set -- that had to agree with
-// nothing making them agree, and they already disagreed. The predicate is now
-// derived; this pins the membership so a future edit to either cannot silently
-// change which failures trigger failover.
-func TestFailoverMembershipIsExactlyTheClassifiedCodes(t *testing.T) {
-	transport := []codes.Code{codes.Unavailable, codes.DeadlineExceeded, codes.Unauthenticated}
-	for _, c := range transport {
-		err := status.Error(c, "x")
-		if !isTransportFailure(err) {
-			t.Errorf("%v is no longer a transport failure — failover membership changed", c)
-		}
-		if classifyTransportError(err) == outcomeUnclassified {
-			t.Errorf("%v is admitted by the gate but the classifier cannot name it", c)
+// An earlier revision of this branch derived the failover predicate FROM the
+// classification, on the theory that a second code list was a duplicated
+// vocabulary. Review showed they are different questions and cannot be one set:
+// server_refusal covers Unauthenticated (which retries) and PermissionDenied
+// (which must not). Collapsing them made server_refusal unreachable for a
+// permission failure.
+func TestClassificationAndRetryAreDifferentQuestions(t *testing.T) {
+	// RETRY POLICY: unchanged, and narrow.
+	for _, c := range []codes.Code{codes.Unavailable, codes.DeadlineExceeded, codes.Unauthenticated} {
+		if !isTransportFailure(status.Error(c, "x")) {
+			t.Errorf("%v no longer triggers failover — retry membership changed", c)
 		}
 	}
-	for _, c := range []codes.Code{
-		codes.Internal, codes.NotFound, codes.PermissionDenied, codes.Canceled, codes.InvalidArgument,
-	} {
+	for _, c := range []codes.Code{codes.PermissionDenied, codes.Canceled, codes.Internal, codes.NotFound} {
 		if isTransportFailure(status.Error(c, "x")) {
-			t.Errorf("%v became a transport failure — failover now retries a call it used to return", c)
+			t.Errorf("%v became a failover retry — a permission failure would just ask a second server to refuse", c)
 		}
 	}
-	// A bare non-gRPC error is not a transport failure, including a raw
-	// context deadline: retrying another address on a dead context is waste.
 	if isTransportFailure(errors.New("plain")) || isTransportFailure(context.DeadlineExceeded) {
 		t.Error("a non-gRPC error became a transport failure")
+	}
+
+	// CLASSIFICATION: wider than retry, on purpose. A caller always deserves to
+	// be told what happened, whether or not another address is worth trying.
+	if got := classifyTransportError(status.Error(codes.PermissionDenied, "nope")); got != outcomeServerRefusal {
+		t.Errorf("PermissionDenied classified %q; a refusal that is not retried is still a refusal", got)
+	}
+	if got := classifyTransportError(status.Error(codes.Canceled, "gone")); got != outcomeDeadlineExceeded {
+		t.Errorf("Canceled classified %q", got)
+	}
+	if got := classifyTransportError(status.Error(codes.Internal, "boom")); got != outcomeUnclassified {
+		t.Errorf("Internal classified %q, want unclassified", got)
+	}
+}
+
+// Every classified outcome must reach the caller as typed data, including the
+// ones failover does not retry. Gating the classification on the retry
+// predicate silently dropped the structured surface for those (#319 review).
+func TestARefusalThatIsNotRetriedStillArrivesAsTypedData(t *testing.T) {
+	err := toolRPCError("preflight", status.Error(codes.PermissionDenied, "propose is disabled"))
+	var te *transportError
+	if !errors.As(err, &te) {
+		t.Fatalf("a permission failure produced an untyped error, so no structured data reaches the caller: %v", err)
+	}
+	if te.Aggregate != outcomeServerRefusal {
+		t.Errorf("outcome=%q, want server_refusal", te.Aggregate)
+	}
+	if te.Aggregate.assertsUnreachable() {
+		t.Error("a refusal claimed the backend is unreachable")
+	}
+	raw, perr := responsePayload(1, nil, err)
+	if perr != nil {
+		t.Fatalf("responsePayload: %v", perr)
+	}
+	var out struct {
+		Error *struct {
+			Data map[string]interface{} `json:"data"`
+		} `json:"error"`
+	}
+	if jerr := json.Unmarshal(raw, &out); jerr != nil {
+		t.Fatalf("unmarshal: %v", jerr)
+	}
+	if out.Error == nil || out.Error.Data == nil || out.Error.Data["outcome"] != string(outcomeServerRefusal) {
+		t.Fatalf("the refusal did not survive to the structured surface: %s", raw)
 	}
 }

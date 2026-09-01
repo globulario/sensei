@@ -1049,7 +1049,12 @@ func toolRPCError(surface string, err error) error {
 		out.Surface = surface
 		return &out
 	}
-	if st, ok := status.FromError(err); ok && isTransportFailure(err) {
+	// Classification is NOT gated on isTransportFailure. That gate is a retry
+	// policy; using it here made server_refusal unreachable for a permission
+	// failure and returned a bare error with no structured data, breaking the
+	// contract that every classified outcome survives to the caller as typed
+	// data (#319 review).
+	if st, ok := status.FromError(err); ok && classifyTransportError(err).classifiable() {
 		outcome := classifyTransportError(err)
 		return &transportError{
 			Surface:   surface,
@@ -1162,13 +1167,25 @@ func argStrings(args map[string]interface{}, key string) []string {
 	return out
 }
 
-// isTransportFailure is DERIVED from the classification rather than restating
-// it. Keeping a second code list here is what let the two disagree (#319).
+// isTransportFailure is the FAILOVER RETRY POLICY: for which failures is trying
+// the next configured address worth doing.
+//
+// It is deliberately NOT derived from classifyTransportError, and the attempt
+// to derive it was wrong. The two answer different questions, and no predicate
+// over outcomes can express this one: server_refusal covers Unauthenticated,
+// which retries, and PermissionDenied, which must not. Retrying a permission
+// failure against another address just asks a second server to refuse.
 func isTransportFailure(err error) bool {
 	if err == nil {
 		return false
 	}
-	return classifyTransportError(err).isTransportFailure()
+	if st, ok := status.FromError(err); ok {
+		switch st.Code() {
+		case codes.Unavailable, codes.DeadlineExceeded, codes.Unauthenticated:
+			return true
+		}
+	}
+	return false
 }
 
 func callWithFailover[T any](entries []clientEntry, invoke func(awarenessClient) (T, error)) (T, error) {

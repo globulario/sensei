@@ -56,21 +56,27 @@ const (
 // the backend being unreachable. Only one member may.
 func (o transportOutcome) assertsUnreachable() bool { return o == outcomeUnreachable }
 
-// isTransportFailure reports whether this outcome is one the failover loop
-// should try the next address for.
+// classifiable reports whether this function could name what happened. It is
+// NOT the failover predicate, and an earlier revision of this branch wrongly
+// made it so.
 //
-// THIS IS THE ONE PLACE THAT DECIDES IT. There were two closed vocabularies
-// here -- a three-code list in isTransportFailure and this five-member set --
-// which had to agree and had nothing making them agree. They already disagreed:
-// classifyTransportError answered for Canceled and PermissionDenied, codes the
-// gate never admits, so those branches could not execute and a test covering
-// them proved a path production never takes.
+// I derived isTransportFailure from the classification to remove what looked
+// like a duplicated vocabulary. Review showed the two are DIFFERENT QUESTIONS:
 //
-// Deriving the predicate from the classification makes every member reachable
-// and leaves one vocabulary. The membership is unchanged: Unavailable,
-// DeadlineExceeded and Unauthenticated are exactly the codes that map to a
-// non-unclassified outcome.
-func (o transportOutcome) isTransportFailure() bool { return o != outcomeUnclassified }
+//	"what happened?"           -> every caller deserves an answer, always
+//	"should we try the next
+//	 address for this?"        -> a narrow retry policy
+//
+// They are not the same set and cannot be. server_refusal covers both
+// Unauthenticated (which does trigger failover) and PermissionDenied (which
+// must not), so no predicate over OUTCOMES can express the retry membership.
+// Collapsing them made server_refusal unreachable for permission failures and
+// broke this file's own contract that every classified outcome reaches the
+// caller as typed data.
+//
+// So there are two predicates again, deliberately, each answering its own
+// question, and each said out loud at its definition.
+func (o transportOutcome) classifiable() bool { return o != outcomeUnclassified }
 
 // sentence renders the outcome as a claim narrow enough to be true.
 func (o transportOutcome) sentence() string {
@@ -113,8 +119,10 @@ func classifyTransportError(err error) transportOutcome {
 	switch st.Code() {
 	case codes.DeadlineExceeded:
 		return outcomeDeadlineExceeded
-	case codes.Unauthenticated:
+	case codes.Unauthenticated, codes.PermissionDenied:
 		return outcomeServerRefusal
+	case codes.Canceled:
+		return outcomeDeadlineExceeded
 	case codes.Unavailable:
 		switch {
 		case strings.Contains(msg, "context deadline exceeded"):
