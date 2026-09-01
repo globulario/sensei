@@ -7,6 +7,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -345,3 +348,105 @@ func TestNonContractArchitectureDoesNotAnchorAPlan(t *testing.T) {
 // assessChangeRisk -- otherwise the path rule escalates and the test passes
 // regardless of the safety signals. A first attempt used golang/rbac/, which is
 // exactly such a path, so it proved nothing and was removed rather than kept.
+
+// The asymmetry the canonical owner removed by construction — and the one it
+// must NOT remove.
+//
+// EXAMINATION compared a LIVE count over three classes against a RAW count over
+// five, so a file anchored only by a live forbidden fix or contract fell into
+// the gap between the two halves of one comparison. Both halves come from one
+// set now.
+//
+// hasAnchors is a DIFFERENT question and stays narrow. A first version of this
+// test asserted the opposite, because I had widened hasAnchors to every
+// governed class while blast_radius.go documents exactly why that is wrong: a
+// contract is governance but does not name an OWNER, and counting it suppresses
+// the owner-unknown escalation the fallback exists to produce.
+func TestALiveContractIsExaminedButDoesNotNameAnOwner(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			invalidateRepairPlanCacheForTest()
+			t.Cleanup(invalidateRepairPlanCacheForTest)
+			seedAuthorityDomains(t)
+			indexConsulted := false
+			s := newTestServer(fakeStore{
+				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+					if iri != "golang/mcp/server.go" {
+						return nil, nil
+					}
+					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
+				},
+				// RECORDS the call rather than merely answering it. The first
+				// version returned nil and only LOGGED the examination result,
+				// so a regression to consulting the index for a live anchor
+				// passed silently -- a fixture that could not fail the thing it
+				// was written to protect.
+				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+					indexConsulted = true
+					return nil, nil
+				},
+			})
+			plan, err := s.planChangeImpact(context.Background(),
+				"adjust the mcp surface", []string{"golang/mcp/server.go"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// EXAMINED: a live anchor settles the question, so the index must
+			// NOT be consulted at all. Asserted, not logged.
+			if indexConsulted {
+				t.Errorf("a file governed by a live %s consulted the source-file index; "+
+					"a live anchor is a determined answer and no fallback may be asked", class.name)
+			}
+			// NOT AN OWNER: with no authority domain, the owner-unknown
+			// escalation must still fire. Suppressing it was the defect.
+			if !sliceHas(plan.Unknowns, "authority owner unknown for a high-risk file") {
+				t.Errorf("a live %s suppressed the owner-unknown escalation; it is governance, "+
+					"and it does not name an owner: %v", class.name, plan.Unknowns)
+			}
+		})
+	}
+}
+
+// One lifecycle answer per node, structurally.
+//
+// The owner was introduced and forbidden fixes and contracts were still
+// classified a SECOND time by a standalone predicate. That is not redundancy:
+// scoreNode does I/O, so a graph that moves between calls -- or a transient
+// failure falling back to the protobuf status -- could classify one anchor
+// retired for HasLiveAnchors and live for applicability. Two lifecycle answers
+// about one node, inside the change that introduced the single owner.
+//
+// Structural, because the property is "this function evaluates lifecycle in one
+// place" and no fixture can observe a race that requires the graph to move.
+func TestChangeImpactEvaluatesLifecycleExactlyOnce(t *testing.T) {
+	src := rawSourceFile(t, "golang/server/change_impact.go")
+	at := strings.Index(src, "func (s *server) planChangeImpact(")
+	if at < 0 {
+		t.Fatal("planChangeImpact is gone")
+	}
+	body := src[at:]
+	if end := strings.Index(body, "\n}\n"); end > 0 {
+		body = body[:end]
+	}
+	if n := strings.Count(body, "isPrimaryStatus("); n != 1 {
+		t.Fatalf("planChangeImpact evaluates lifecycle %d times; the canonical state must be the only one", n)
+	}
+	// And every governed class must read that state rather than the raw lists.
+	for _, raw := range []string{"impact.GetForbiddenFixes()", "impact.GetDirectArchitecture()"} {
+		if strings.Contains(body, "range "+raw) {
+			t.Errorf("a governed class is still iterated from %s instead of the canonical state", raw)
+		}
+	}
+}
+
+func rawSourceFile(t *testing.T, rel string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("../..", rel))
+	if err != nil {
+		t.Fatalf("read %s: %v", rel, err)
+	}
+	return string(b)
+}
