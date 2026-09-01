@@ -25586,6 +25586,35 @@ test_symbols:
     symbol: TestValidate_ContractFirst
     package: propose
     language: go
+  - id: golang/prospective/prospective_eval_test.go:TestRecallAndNuisanceAreMeasuredTogether
+    file: golang/prospective/prospective_eval_test.go
+    symbol: TestRecallAndNuisanceAreMeasuredTogether
+    package: prospective
+    language: go
+  - id: golang/prospective/prospective_test.go:TestADirectAnchorIsNotAProspectiveCandidate
+    file: golang/prospective/prospective_test.go
+    symbol: TestADirectAnchorIsNotAProspectiveCandidate
+    package: prospective
+    language: go
+    doc: "Prospective retrieval must not return what the caller already had. Counting\ndirect anchors would inflate recall with answers the direct lookup supplied."
+  - id: golang/prospective/prospective_test.go:TestEveryCandidateStatesItsRelationship
+    file: golang/prospective/prospective_test.go
+    symbol: TestEveryCandidateStatesItsRelationship
+    package: prospective
+    language: go
+    doc: "Every candidate must say why it surfaced, so a reader can judge the reach\ninstead of trusting a number. There is deliberately no score to trust."
+  - id: golang/prospective/prospective_test.go:TestResemblanceNeverBecomesAuthority
+    file: golang/prospective/prospective_test.go
+    symbol: TestResemblanceNeverBecomesAuthority
+    package: prospective
+    language: go
+    doc: "The constitutional line: resemblance may not become authority, and no\naccumulation of it does."
+  - id: golang/prospective/prospective_test.go:TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity
+    file: golang/prospective/prospective_test.go
+    symbol: TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity
+    package: prospective
+    language: go
+    doc: "A shared authority domain is a relationship the graph already holds. A\nsibling in the same directory is not."
   - id: golang/publication/decode_test.go:TestAValidV2ReceiptDecodes
     file: golang/publication/decode_test.go
     symbol: TestAValidV2ReceiptDecodes
