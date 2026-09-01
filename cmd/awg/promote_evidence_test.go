@@ -47,7 +47,18 @@ func olderCommit(t *testing.T) string {
 		t.Skip("not a git checkout")
 	}
 	headRev := strings.TrimSpace(string(head))
-	for _, args := range [][]string{{"merge-base", "HEAD", "origin/main"}, {"rev-parse", "HEAD~1"}} {
+	// ONLY the merge base with the admitted branch.
+	//
+	// HEAD~1 was a fallback and it is the wrong one in CI: on a pull-request
+	// merge ref, HEAD~1 IS THE CLAIMANT'S OWN BRANCH HEAD, so the fixture cited
+	// the very commit it was supposed to be independent of and the gate
+	// correctly answered CLAIMANT_CONTROLLED. A fixture that manufactures the
+	// condition it is testing against is worse than one that cannot run.
+	//
+	// If the merge base is unavailable or equals HEAD, this test SKIPS. Not
+	// being able to establish independence is a reason to say so, not a reason
+	// to pick a commit and hope.
+	for _, args := range [][]string{{"merge-base", "HEAD", "origin/main"}} {
 		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
 		if err != nil {
 			continue
