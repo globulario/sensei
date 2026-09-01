@@ -880,6 +880,12 @@ test_symbols:
     package: main
     language: go
     doc: "A deadline is not unreachability, and the wire code must say so too."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+    package: main
+    language: go
+    doc: "A response whose authority states no build commit carries no assessment.\nAbsent, not a fabricated unknown: the question was never askable."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
@@ -898,24 +904,48 @@ test_symbols:
     package: main
     language: go
     doc: "\"We could not classify this\" is an ANSWER, and the caller is entitled to it\nin the same shape as every other answer.\n\nTwo gates were tried in toolRPCError and each dropped a member of the closed\nset: isTransportFailure made server_refusal unreachable for a permission\nfailure, then classifiable() made `unclassified` itself unreachable, so an\nInternal or NotFound produced a bare error with no structured data (#319\nreview)."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestMetadataCarriesReachability
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestMetadataCarriesReachability
+    package: main
+    language: go
+    doc: "awareness_metadata is the tool an agent reaches for FIRST, and it was the one\nsurface repairing the other five did not touch.\n\nstructMetadata builds its own authority map instead of calling\nauthorityStruct, so the primary graph-health tool kept reporting\ncurrent/authoritative with no reachability warning while five read tools were\nfixed. The sixth surface, missed precisely because it did not share the\nhelper."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestMixedOutcomesDoNotBecomeAConfidentClaim
     package: main
     language: go
     doc: "Disagreement must not become certainty. A set of addresses that failed in\nDIFFERENT ways supports no single sentence about the backend, so the\naggregate is `unclassified` rather than the worst or the first member."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestReachabilityHonoursTheCallDeadline
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestReachabilityHonoursTheCallDeadline
+    package: main
+    language: go
+    doc: "The git work must honour the TOOL'S deadline.\n\nIt was launched with context.Background(), so on a slow or stalled checkout it\nignored the whole-call budget: the gRPC request could finish in time while\nresponse construction blocked the single stdio request loop indefinitely."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestTheClassificationReachesTheJSONRPCSurfaceAsData
     package: main
     language: go
     doc: "The classification must reach the caller as DATA. Parsing the prose in a\nreplaceable downstream adapter is the repair that must not be applied."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheMCPAuthorityPayloadCarriesReachability
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheMCPAuthorityPayloadCarriesReachability
+    package: main
+    language: go
+    doc: "The MCP payload must carry reachability, because agents never see the CLI's\nhuman authority block.\n\nThe CLI computed it while RENDERING, and the MCP tools build their own\npayloads — so every agent using awareness_briefing/preflight/query/impact/\nresolve saw \"authoritative\" with no indication the corpus had moved past the\nserving graph. The false-green path, left open for the callers most likely to\nact on it unsupervised."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheReportedFailureIsNotAnUnreachableBackend
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestTheReportedFailureIsNotAnUnreachableBackend
     package: main
     language: go
     doc: "The reproducer from #319, verbatim: this is what the three configured\naddresses actually returned when a six-file scoped preflight exceeded the\nbudget while the evaluator was healthy the whole time."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheTextBlockCarriesReachability
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheTextBlockCarriesReachability
+    package: main
+    language: go
+    doc: "Clients that read only content[].text must see it too.\n\nReachability was added to the structured map alone, so a client ignoring\nstructuredContent — which the response assembly explicitly still supports —\nkept seeing \"authority: authoritative (current)\". The false-green closed for\nstructured readers and left open for the older ones the text block exists for."
   - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsBehaviorUnchanged
     file: cmd/awareness-mcp/workspace_tools_test.go
     symbol: TestMCPExistingAdmissionToolsBehaviorUnchanged
@@ -5855,6 +5885,23 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
+  - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitCarriesNoAssessment
+    file: cmd/awg/json_reachability_test.go
+    symbol: TestAResponseWithNoBuildCommitCarriesNoAssessment
+    package: main
+    language: go
+    doc: "A response whose authority states no build commit gets NO reachability key.\n\nAbsent, not a fabricated \"unknown\": the question was never askable for that\nresponse, and answering it anyway would be an assessment of nothing."
+  - id: cmd/awg/json_reachability_test.go:TestEmitProtoJSONActuallyPrintsReachability
+    file: cmd/awg/json_reachability_test.go
+    symbol: TestEmitProtoJSONActuallyPrintsReachability
+    package: main
+    language: go
+    doc: "Captures what emitProtoJSON ACTUALLY PRINTS.\n\nA first version of this called withReachability directly, so removing the\ncall from emitProtoJSON left the test green -- it proved the helper worked\nand not that anything used it, which is the whole finding it was written for."
+  - id: cmd/awg/json_reachability_test.go:TestJSONOutputCarriesReachability
+    file: cmd/awg/json_reachability_test.go
+    symbol: TestJSONOutputCarriesReachability
+    package: main
+    language: go
   - id: cmd/awg/main_phase10_dispatch_test.go:TestDispatchExposesPhase10CandidateReview
     file: cmd/awg/main_phase10_dispatch_test.go
     symbol: TestDispatchExposesPhase10CandidateReview
@@ -5931,6 +5978,12 @@ test_symbols:
     package: main
     language: go
     doc: "A real citation verifies. The proposer chose where to look; git supplied\nwhat is there."
+  - id: cmd/awg/promote_evidence_test.go:TestAnAdmittedRefUnderADifferentNameStillYieldsABase
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestAnAdmittedRefUnderADifferentNameStillYieldsABase
+    package: main
+    language: go
+    doc: "A checkout holding a local `main` but no `origin/main` — an unfetched clone,\nor a CI job that created the branch locally. Asking whether SOME admitted ref\nexists and then resolving against a hardcoded `origin/main` made this return\nno base at all, so the gate test SKIPPED: green CI proving nothing, which is\nthe specific failure this whole helper was rewritten to end."
   - id: cmd/awg/promote_evidence_test.go:TestEvidenceTheClaimantIntroducedCannotEstablishItsOwnAuthority
     file: cmd/awg/promote_evidence_test.go
     symbol: TestEvidenceTheClaimantIntroducedCannotEstablishItsOwnAuthority
@@ -5943,6 +5996,24 @@ test_symbols:
     package: main
     language: go
     doc: "Free text is not evidence. This is the specimens' actual lesson."
+  - id: cmd/awg/promote_evidence_test.go:TestOnACIMergeRefTheAdmittedSideIsTheFirstParent
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestOnACIMergeRefTheAdmittedSideIsTheFirstParent
+    package: main
+    language: go
+    doc: "The CI pull-request merge ref itself: a detached merge commit with NO\nadmitted ref present, because the workflow runs tests before fetching the\nbase branch.\n\nProving that this test RUNS in CI is not the same as proving it picks the\nright parent there. Swapping HEAD^1 for HEAD^2 hands the CLAIMANT'S OWN TIP\nto the verifier as the promotion base — specimen A accepted on the\nclaimant's material — and every other fixture here survives that mutation,\nbecause none of them reach this branch."
+  - id: cmd/awg/promote_evidence_test.go:TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip
+    package: main
+    language: go
+    doc: "A developer's feature branch that ends in an ordinary merge of the admitted\nbranch. HEAD is a merge commit here, exactly as on a CI pull-request merge\nref — but HEAD^1 is the PRE-MERGE FEATURE TIP, a commit the claimant wrote.\nHanding that to the verifier as the promotion base would accept specimen A as\nindependently verified on the claimant's own material.\n\nThe two environments are told apart by whether an admitted ref exists at all,\nso this fixture gives the working repository one."
+  - id: cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestTheGateTestCanActuallyRunHere
+    package: main
+    language: go
+    doc: "The gate test must actually RUN, not skip its way to green.\n\nA merge-base-only selection skipped in both environments -- it fails on a\npull-request merge ref and equals HEAD on the admitted branch -- so the\nend-to-end gate test executed nowhere while CI reported success. A test that\ncannot run is not stricter than a test that runs wrongly; it is the\nfalse-green this whole program is about, produced by a repair for it.\nSTATED LIMIT: this test cannot prove the CI path from here.\n\nThe merge-base-only selection skips on the ADMITTED BRANCH and on a\nPULL-REQUEST MERGE REF. A feature-branch checkout is neither, so that\nmutation SURVIVES locally -- verified, not assumed. The environment this test\nprotects is one it cannot reach.\n\nCI is the falsifier: on the merge ref the gate test must report PASS rather\nthan SKIP. If it reports SKIP there, this selection is wrong again and the\ngreen is meaningless."
   - id: cmd/awg/promote_evidence_test.go:TestVerifiedEvidenceIsAVerdictAboutCitationsOnly
     file: cmd/awg/promote_evidence_test.go
     symbol: TestVerifiedEvidenceIsAVerdictAboutCitationsOnly
@@ -25928,6 +25999,12 @@ test_symbols:
     package: rdf
     language: go
     doc: "A v1 identity is reported as v1 and never guessed into a repository:\nsourceFile/README.md can mean any of N repositories, so inventing one\nwould manufacture exactly the false continuity the migration decision\nforbids."
+  - id: golang/reachability/reachability_test.go:TestABuildNewerThanTheLastCorpusChangeIsCurrent
+    file: golang/reachability/reachability_test.go
+    symbol: TestABuildNewerThanTheLastCorpusChangeIsCurrent
+    package: reachability
+    language: go
+    doc: "A graph built AFTER the last corpus change contains every authored change.\n\nThe resolver tested only one direction of ancestry, so an ordinary build from\na code-only or merge commit -- the common case -- could never report current\nand answered Unknown instead. A check that cannot say yes is not a check."
   - id: golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
     file: golang/reachability/reachability_test.go
     symbol: TestAbbreviatedAndFullRevisionsAreTheSameRevision
@@ -25958,6 +26035,30 @@ test_symbols:
     package: reachability
     language: go
     doc: "Code movement is not knowledge movement. Counting every commit would cry wolf\nuntil the signal was ignored, which is how a real staleness signal dies."
+  - id: golang/reachability/resolve_test.go:TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository
+    file: golang/reachability/resolve_test.go
+    symbol: TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository
+    package: reachability
+    language: go
+    doc: "The resolver, against this repository, for the case that could never say yes.\n\nA build from a code-only or merge commit -- the common case -- has the corpus\nrevision as an ANCESTOR, and the resolver tested only the reverse relation.\nSo an ordinary up-to-date build reported Unknown, and a check that cannot say\nyes is not a check.\n\nAn Assess-level fixture cannot catch this: it hits the measured-zero branch\nand passes either way. The seam is the ancestry test, so this exercises it."
+  - id: golang/reachability/resolve_test.go:TestARootWithoutTheCorpusAnswersUnknown
+    file: golang/reachability/resolve_test.go
+    symbol: TestARootWithoutTheCorpusAnswersUnknown
+    package: reachability
+    language: go
+    doc: "A root that does not hold the corpus cannot answer the question.\n\nGraphBuildCommit is the AWARENESS-GRAPH repository's SHA; measuring it\nagainst a governed checkout that merely happens to be a git repository would\ncompare unrelated histories.\n\nHONEST NOTE ON WHAT PROVES THIS. The behaviour is enforced by every lookup\nbeing scoped to CorpusPaths, so a root without them resolves nothing. An\nexplicit ownership guard was added and removed again: no mutation could\ndistinguish it from the scoping that was already there, which made it\nduplication rather than defence. This test pins the BEHAVIOUR, and no\nmutation isolates it to one line -- that is stated rather than implied by a\ntidy mutation table."
+  - id: golang/reachability/resolve_test.go:TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin
+    file: golang/reachability/resolve_test.go
+    symbol: TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin
+    package: reachability
+    language: go
+    doc: "A checkout whose canonical remote is not named `origin`.\n\nThe lookup hardcoded refs/remotes/origin/HEAD and then origin/main, so a\nrepository with an `upstream` remote and no `origin` failed both and resolved\nthe corpus from LOCAL HEAD — counting the feature branch's unmerged awareness\nedits as admitted, which is the exact false staleness the admitted-base\npreference exists to prevent.\n\nHardcoding a remote name is the same mistake as hardcoding a branch name, one\nlevel out. This builds the environment rather than arguing about it: the\norigin-only mutation cannot be falsified in a repository that has an origin."
+  - id: golang/reachability/resolve_test.go:TestTheCorpusRevisionComesFromTheAdmittedBase
+    file: golang/reachability/resolve_test.go
+    symbol: TestTheCorpusRevisionComesFromTheAdmittedBase
+    package: reachability
+    language: go
+    doc: "The corpus revision must come from the ADMITTED base, not local HEAD.\n\nResolving from HEAD counts a reviewer's own unmerged docs/awareness edit as\n\"admitted\", so the published graph is reported stale during the exact\npre-merge review where Sensei is being used -- a false staleness warning\nmanufactured by the branch under review.\n\nThis branch carries unmerged corpus edits, which is what makes the assertion\nable to fail: resolving from HEAD would return a commit origin/main does not\ncontain."
   - id: golang/repoeval/repoeval_test.go:TestDeriveConfidence_HonestBasis
     file: golang/repoeval/repoeval_test.go
     symbol: TestDeriveConfidence_HonestBasis
