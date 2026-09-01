@@ -92,7 +92,16 @@ func TestPreflightApplicabilitySeesAnchorsThatCapsHide(t *testing.T) {
 		shown[n.GetId()] = true
 	}
 	if shown[hidden] {
-		t.Skip("the response showed every anchor; this fixture no longer exercises the cap")
+		// THE FIXTURE NO LONGER EXERCISES THE CAP, WHICH IS A FINDING.
+		//
+		// This skipped. The cap engaging is the PREMISE of the assertion below,
+		// so losing it silently retires the only check that a capped-out anchor
+		// still reaches risk classification -- and the corpus shrinking or the
+		// cap being raised are both repository changes somebody should see.
+		t.Fatalf("anchor %q was displayed, so the display cap did not engage and this test "+
+			"no longer exercises it. The cap law is unprotected until the fixture is "+
+			"restored (more anchors, or a tighter cap); passing here would assert "+
+			"coverage that is absent.", hidden)
 	}
 	if got := resp.GetChangeRisk().GetApprovalGate(); got != awarenesspb.ApprovalGate_APPROVAL_GATE_HUMAN_APPROVAL_REQUIRED {
 		t.Fatalf("a plan related through a capped-out anchor lost its vote: approval=%v blast=%v",
@@ -226,7 +235,12 @@ func TestRiskClassificationSeesAnchorsThatCapsHide(t *testing.T) {
 		}
 	}
 	if shown {
-		t.Skip("the response showed the security anchor; this fixture no longer exercises the cap")
+		// Same premise, same finding: if the security anchor is displayed, the
+		// cap did not hide it, and the assertion below would pass without ever
+		// testing what it exists to test.
+		t.Fatal("the security anchor was displayed, so the display cap did not engage " +
+			"and this test no longer exercises it. The cap law is unprotected until the " +
+			"fixture is restored; passing here would assert coverage that is absent.")
 	}
 	if resp.GetRiskClass() != awarenesspb.RiskClass_SECURITY_RISK {
 		t.Fatalf("a security anchor hidden by the display cap did not classify the risk: %v", resp.GetRiskClass())
