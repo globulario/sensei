@@ -2240,7 +2240,6 @@ invariants:
     evidence:
       - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
     contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
-<<<<<<< HEAD
   - id: invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
     title: A verification mechanism must prove its falsifying path executed, not merely observe no failure
     severity: critical
@@ -2254,7 +2253,6 @@ invariants:
       - cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
       - golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
     contract: A proof mechanism reports success only when the path that could have falsified the claim actually ran. Absence of a finding is interpretable ONLY after setup, execution, and the falsifier's ability to fire have each been shown.
-=======
   - id: invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
     title: One canonical owner answers what the graph knows about a subject
     status: active
@@ -2276,4 +2274,3 @@ invariants:
     evidence:
       - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
     contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.
->>>>>>> origin/main
