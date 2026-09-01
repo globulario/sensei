@@ -456,3 +456,96 @@ func TestBriefingStatusDoesNotCountRetiredAnchors(t *testing.T) {
 		t.Errorf("the retired anchor was removed from guidance as well as from the status")
 	}
 }
+
+// "The graph has no facts about this file" is an EXISTENCE claim, and it was
+// still reading three of the five governed classes.
+//
+// After coverage and applicability began accepting live forbidden fixes and
+// contracts, a high-risk file governed only by one of those was declared
+// DEGRADED with "no facts about this file" while the same response listed the
+// governing anchor and could let it authorise a repair plan (#318 review).
+func TestExistenceStatusSeesEveryGovernedClass(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			invalidateImplementationPatternCacheForTest()
+			seedRepairPlans(t)
+			// golang/mcp/ is high-risk by directory, so the DEGRADED guard is
+			// reachable; it matches no path-class rule, so nothing else fires.
+			s := newTestServer(fakeStore{
+				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+					if iri != "golang/mcp/server.go" {
+						return nil, nil
+					}
+					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
+				},
+			})
+			resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+				Task:  "adjust the mcp surface",
+				Files: []string{"golang/mcp/server.go"},
+				Mode:  awarenesspb.PreflightMode_PREFLIGHT_COMPACT,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Guard: the three projected classes must be empty or this proves nothing.
+			if n := len(resp.GetDirectInvariants()) + len(resp.GetDirectFailureModes()) +
+				len(resp.GetDirectIntents()); n != 0 {
+				t.Fatalf("fixture leaked into the three projected classes (%d)", n)
+			}
+			if got := resp.GetStatus(); got == awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED ||
+				got == awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY {
+				t.Fatalf("status=%v for a file a live %s governs", got, class.name)
+			}
+			for _, b := range resp.GetBlindSpots() {
+				if strings.Contains(b, "no facts about this file") {
+					t.Fatalf("the response claims the graph has no facts about a file its live %s governs", class.name)
+				}
+			}
+		})
+	}
+}
+
+// The briefing status is a DECISION, and it was reading the display-capped set.
+//
+// agent_compact bounds each impact class to four nodes. Four retired critical
+// invariants sort ahead of a fifth live one, so the capped set the status read
+// contained no live anchor at all: the file was reported context/inference-only
+// AND handed the unanchored principle guidance that exists for files nothing
+// governs — while a live rule bound it the whole time (#318 review).
+func TestBriefingStatusReadsTheUncappedImpact(t *testing.T) {
+	var facts []store.ImpactFact
+	for _, id := range []string{"retired.one", "retired.two", "retired.three", "retired.four"} {
+		facts = append(facts, statusAnchorFacts(rdf.ClassInvariant, id, "Retired rule", "critical", "retired")...)
+	}
+	// Lower severity so it sorts BEHIND the four retired criticals and is the
+	// one the cap drops. That ordering is the whole reproducer.
+	facts = append(facts, anchorFacts(rdf.ClassInvariant, "live.rule", "A live rule", "medium")...)
+
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+			if iri != "golang/workflow/engine.go" {
+				return nil, nil
+			}
+			return facts, nil
+		},
+	})
+	s.briefingRepo = &briefingRepositoryContext{Root: t.TempDir(), Domain: defaultHomeDomain}
+	resp, err := s.Briefing(context.Background(), &awarenesspb.BriefingRequest{
+		File:  "golang/workflow/engine.go",
+		Depth: "agent_compact",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Guard: the cap must actually bite, or this proves nothing.
+	if n := len(resp.GetReferencedIds()); n == 0 {
+		t.Fatal("no referenced ids at all — the fixture did not reach the briefing")
+	}
+	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_OK {
+		t.Fatalf("status=%v for a file a LIVE invariant binds; the display cap decided it",
+			resp.GetStatus())
+	}
+}

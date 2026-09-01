@@ -317,6 +317,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Lifecycle filtering still applies: retired knowledge does not classify.
 	risk, reasons := classifyRisk(ClassifyInputs{
 		Direct:     directLive,
+		Governed:   governedLive,
 		Patterns:   matchedPatterns,
 		Coverage:   resp.Coverage,
 		Files:      files,
@@ -438,7 +439,17 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// a bare directory check means a file an authority domain owns degrades
 	// even outside the static high-risk list, while helper/test files in a
 	// high-risk directory no longer falsely degrade.
-	if len(files) > 0 && len(directLive) == 0 &&
+	// "The graph has no facts about this file" is an EXISTENCE claim, so it
+	// reads governedLive -- every governed class -- and not the three-class
+	// directLive the keyword classifier uses. With directLive, a high-risk file
+	// governed only by a live forbidden fix or contract was declared DEGRADED
+	// with "no facts about this file" while the same response listed the
+	// governing anchor and let it authorise a repair plan (#318 review).
+	//
+	// The keyword classifier keeps directLive deliberately: widening its
+	// haystack changes which changes are called DATA_LOSS or SECURITY, which is
+	// a verdict change rather than a projection fix.
+	if len(files) > 0 && len(governedLive) == 0 &&
 		(coverage.AnyFileHighRiskWeighted(files, authorityCoversPaths(authorityDomains)) || protAssessment.Protected) {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 		resp.Confidence = awarenesspb.Confidence_CONFIDENCE_LOW
@@ -484,8 +495,10 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// the agent's decision-making (it explicitly says "do not trust as
 	// proof of safety"), while EMPTY can be misread as "graph is happy
 	// and has nothing to say".
+	// Same existence question, same set: EMPTY means the graph holds nothing
+	// about this subject, and a live contract or forbidden fix IS something.
 	if resp.Status != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED &&
-		len(directLive) == 0 && len(matchedPatterns) == 0 {
+		len(governedLive) == 0 && len(matchedPatterns) == 0 {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY
 	}
 

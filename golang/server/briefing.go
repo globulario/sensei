@@ -132,6 +132,21 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "code symbol query failed: %v", err)
 	}
+	// COUNTED BEFORE THE CAP, and it has to be counted rather than kept.
+	//
+	// The briefing status is a decision, and with a capped set four retired
+	// critical invariants sorting ahead of a fifth live one make directAnchors
+	// == 0 in a compact profile -- so a file a live rule binds is reported
+	// context/inference-only AND handed the unanchored principle guidance that
+	// exists for files nothing governs (#318 review).
+	//
+	// Holding a second reference does NOT work: limitImpactResponseWithProfile
+	// mutates the response in place and returns the same pointer, so
+	// `uncapped := impact` aliases the capped object. That version of this
+	// repair compiled, read correctly, and changed nothing.
+	directAnchors := primaryAnchorCount(impact, func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), nodeScore{})
+	})
 	impact = limitImpactResponseWithProfile(impact, profile)
 	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
 	codeSyms = focusCodeSymbolsForTask(task, codeSyms)
@@ -184,9 +199,6 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// this status, and a node whose PROMOTION status alone demotes it still
 	// does. That residue is real and is raised on the PR rather than closed by
 	// quietly paying the I/O or quietly ignoring it.
-	directAnchors := primaryAnchorCount(impact, func(n *awarenesspb.KnowledgeNode) bool {
-		return isPrimaryStatus(n.GetStatus(), nodeScore{})
-	})
 
 	existingIRIs := buildExistingIRISet(impact)
 	referenced = append(referenced, codeRefIDsFromSymbols(codeSyms, existingIRIs)...)

@@ -28204,12 +28204,36 @@ test_symbols:
     symbol: TestSeedIfEmpty_SkipsWhenStoreNonEmpty
     package: main
     language: go
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusDoesNotCountRetiredAnchors
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestBriefingStatusDoesNotCountRetiredAnchors
+    package: main
+    language: go
+    doc: "The briefing surface applied NO lifecycle filtering at all.\n\nFound by the #318 sweep rather than by a review round: preflight and\nchange_impact were both repaired to treat a retired-only subject as governed\nby nothing, while briefing still counted retired anchors and answered OK --\n\"an anchor binds this file\" -- for the same file. And because the\nprinciple-guidance fallback is gated on `directAnchors == 0`, the retired\nanchor ALSO suppressed the meta-principle advice that exists precisely for\nfiles nothing governs. One missing filter both overstated the status and\nwithheld the remedy."
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusReadsTheUncappedImpact
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestBriefingStatusReadsTheUncappedImpact
+    package: main
+    language: go
+    doc: "The briefing status is a DECISION, and it was reading the display-capped set.\n\nagent_compact bounds each impact class to four nodes. Four retired critical\ninvariants sort ahead of a fifth live one, so the capped set the status read\ncontained no live anchor at all: the file was reported context/inference-only\nAND handed the unanchored principle guidance that exists for files nothing\ngoverns — while a live rule bound it the whole time (#318 review)."
   - id: golang/server/preflight_applicability_test.go:TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
     file: golang/server/preflight_applicability_test.go
     symbol: TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
     package: main
     language: go
     doc: "Confidence is a decision, and it was reading the projection.\n\ncomputeConfidence returns HIGH at three or more direct anchors. Compact mode\ncaps failure modes at TWO. So a subject holding three live failure-mode\nanchors was HIGH by the truth and MEDIUM by the response view -- a governance\nsignal degraded by a display constant, found by review while the branch that\nrecords that very law was in flight (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestCoverageCountsEveryGovernedClassNotJustThree
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestCoverageCountsEveryGovernedClassNotJustThree
+    package: main
+    language: go
+    doc: "Coverage was the last decision on this surface still reading the projection,\nand it read only three of the five governed classes.\n\nAfter the examination repair, a file whose only LIVE governance is a\nforbidden fix or a contract is examined, so it is indexed. Coverage then took\nthe \"indexed == len(files)\" branch and announced \"no governing rule applies\"\n— while that same forbidden fix or contract went on to establish\napplicability and let a repair plan decide authority. One response saying\nnothing governs this AND this governed thing decides authority.\n\nThe earlier self-contradiction was across lifecycle state; this one is across\nCLASS VOCABULARY. Reading a closed set of five by naming three is the same\nerror in a different register (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestExistenceStatusSeesEveryGovernedClass
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestExistenceStatusSeesEveryGovernedClass
+    package: main
+    language: go
+    doc: "\"The graph has no facts about this file\" is an EXISTENCE claim, and it was\nstill reading three of the five governed classes.\n\nAfter coverage and applicability began accepting live forbidden fixes and\ncontracts, a high-risk file governed only by one of those was declared\nDEGRADED with \"no facts about this file\" while the same response listed the\ngoverning anchor and could let it authorise a repair plan (#318 review)."
   - id: golang/server/preflight_applicability_test.go:TestPatternDrivenSignalsSeeEveryMatchedPattern
     file: golang/server/preflight_applicability_test.go
     symbol: TestPatternDrivenSignalsSeeEveryMatchedPattern
@@ -28234,6 +28258,12 @@ test_symbols:
     package: main
     language: go
     doc: "A plan that names nothing this subject holds is guidance only, whatever the\ntask text says. This is the original #317 reproducer at the preflight\nboundary rather than in the scorer."
+  - id: golang/server/preflight_applicability_test.go:TestRetiredOnlySubjectIsNotReportedAsCovered
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestRetiredOnlySubjectIsNotReportedAsCovered
+    package: main
+    language: go
+    doc: "Preflight had the sibling of the change_impact resurrection, and it produced\na response that contradicted itself.\n\n`indexed` was decided from the RAW anchor lists, before lifecycle filtering.\ncomputePreflightCoverage calls coverage sufficient once every requested file\nis indexed. So a retired-only subject reported:\n\n\tcoverage.sufficient = true   (\"these files were examined, nothing governs them\")\n\tdirectLive           = empty (\"that governance was withdrawn\")\n\nin the SAME response. Table-driven over every governed class, because\nnarrowing the set to invariants/failure-modes/intents rebuilds the asymmetry\nfor forbidden-fix-only and contract-only subjects (#318 review)."
   - id: golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
     file: golang/server/preflight_applicability_test.go
     symbol: TestRiskClassificationSeesAnchorsThatCapsHide

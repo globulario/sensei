@@ -1922,3 +1922,17 @@ required_tests:
         - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
       files:
         - golang/server/change_impact.go
+  - id: golang/server/preflight_applicability_test.go:TestExistenceStatusSeesEveryGovernedClass
+    title: An existence claim reads every governed class, not the keyword set
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusReadsTheUncappedImpact
+    title: The briefing status is counted before the display cap
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
