@@ -86,6 +86,24 @@ func (e Examination) Determined() bool { return e != ExaminedUnknown }
 // state permits it, and that is the whole rule.
 func (e Examination) MayConsultIndex() bool { return e == ExaminedUnknown }
 
+// snapshot is a node's VALUES at the moment Build read them.
+//
+// Build receives pointer-backed nodes -- planChangeImpact passes
+// *awarenesspb.KnowledgeNode -- and copying the []Node backing array only
+// copies the pointers. A caller retaining the raw protobuf could then change an
+// ID or a status afterwards, and LiveIDs would report the new ID while the node
+// sat in the live partition computed from the old status: the canonical state
+// contradicting itself, which is the one thing it exists to prevent.
+//
+// Values are copied once, at the boundary. Nothing a caller does later can move
+// a node between partitions or rename it.
+type snapshot struct{ id, iri, status, severity string }
+
+func (s snapshot) GetId() string       { return s.id }
+func (s snapshot) GetIri() string      { return s.iri }
+func (s snapshot) GetStatus() string   { return s.status }
+func (s snapshot) GetSeverity() string { return s.severity }
+
 // Raw is everything the graph returned about a subject, before any filtering.
 // The caller supplies it per class so no class can be forgotten silently: a
 // missing key is visible here, whereas a forgotten append was not.
@@ -115,11 +133,14 @@ func Build(raw Raw, isPrimary func(Node) bool) State {
 			if n == nil {
 				continue
 			}
-			s.raw[c] = append(s.raw[c], n)
+			// Snapshot BEFORE classifying, so the partition and the values it
+			// was computed from can never disagree.
+			v := snapshot{id: n.GetId(), iri: n.GetIri(), status: n.GetStatus(), severity: n.GetSeverity()}
+			s.raw[c] = append(s.raw[c], v)
 			if isPrimary != nil && isPrimary(n) {
-				s.live[c] = append(s.live[c], n)
+				s.live[c] = append(s.live[c], v)
 			} else {
-				s.retired[c] = append(s.retired[c], n)
+				s.retired[c] = append(s.retired[c], v)
 			}
 		}
 	}

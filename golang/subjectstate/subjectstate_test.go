@@ -159,3 +159,44 @@ func TestANilPredicateDoesNotMeanEverythingIsLive(t *testing.T) {
 		t.Fatalf("examination=%q; with no predicate nothing is established as live", s.Examination())
 	}
 }
+
+// A mutable node handed to Build must not be able to change the state later.
+//
+// Copying the []Node backing array copies POINTERS. planChangeImpact passes
+// *awarenesspb.KnowledgeNode, so a caller retaining the raw protobuf could
+// rename a node or flip its status after Build, and LiveIDs would report the new
+// ID while the node sat in a partition computed from the old status — the
+// canonical state contradicting itself, which is the single thing it exists to
+// prevent.
+type mutableNode struct{ id, iri, status, severity string }
+
+func (m *mutableNode) GetId() string       { return m.id }
+func (m *mutableNode) GetIri() string      { return m.iri }
+func (m *mutableNode) GetStatus() string   { return m.status }
+func (m *mutableNode) GetSeverity() string { return m.severity }
+
+func TestACallerCannotMutateNodesOutOfTheirPartition(t *testing.T) {
+	n := &mutableNode{id: "inv.one", iri: "urn:inv.one", status: "active", severity: "high"}
+	s := Build(Raw{ClassInvariant: {n}}, primary)
+
+	if got := s.LiveIDs(ClassInvariant); len(got) != 1 || got[0] != "inv.one" {
+		t.Fatalf("fixture did not land live: %v", got)
+	}
+
+	// The caller still holds the node and changes it underneath the state.
+	n.id = "inv.renamed"
+	n.status = "retired"
+
+	if got := s.LiveIDs(ClassInvariant); len(got) != 1 || got[0] != "inv.one" {
+		t.Errorf("a caller renamed a node after Build and the canonical state followed: %v", got)
+	}
+	if s.CountLive() != 1 {
+		t.Errorf("a caller retired a node after Build and it left the live partition: live=%d", s.CountLive())
+	}
+	// And the partition must still agree with the values it reports.
+	for _, live := range s.Live(ClassInvariant) {
+		if live.GetStatus() == "retired" {
+			t.Error("a node reporting status=retired is sitting in the live partition")
+		}
+	}
+}
