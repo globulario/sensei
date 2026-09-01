@@ -2240,7 +2240,6 @@ invariants:
     evidence:
       - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
     contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
-<<<<<<< HEAD
   - id: invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
     title: Resemblance may guide a change but never govern it
     status: active
@@ -2259,7 +2258,6 @@ invariants:
     evidence:
       - a hundred resemblance candidates yield zero authority-eligible ones; the evaluation fails if recall is bought by volume
     contract: Prospective retrieval proposes knowledge that COULD govern a subject. A candidate reached by an ESTABLISHED governed relationship may be considered for authority; a candidate reached by RESEMBLANCE may produce guidance or a question and never authority, and no accumulation of resemblance becomes a relationship. Retrieval quality is reported as recall AND nuisance together; recall obtained by surfacing more knowledge is not an improvement.
-=======
   - id: invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
     title: One canonical owner answers what the graph knows about a subject
     status: active
@@ -2281,4 +2279,3 @@ invariants:
     evidence:
       - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
     contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.
->>>>>>> origin/main
