@@ -7,6 +7,9 @@ package main
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/rdf"
@@ -389,4 +392,45 @@ func TestALiveContractOrForbiddenFixCountsAsExamined(t *testing.T) {
 			}
 		})
 	}
+}
+
+// One lifecycle answer per node, structurally.
+//
+// The owner was introduced and forbidden fixes and contracts were still
+// classified a SECOND time by a standalone predicate. That is not redundancy:
+// scoreNode does I/O, so a graph that moves between calls -- or a transient
+// failure falling back to the protobuf status -- could classify one anchor
+// retired for HasLiveAnchors and live for applicability. Two lifecycle answers
+// about one node, inside the change that introduced the single owner.
+//
+// Structural, because the property is "this function evaluates lifecycle in one
+// place" and no fixture can observe a race that requires the graph to move.
+func TestChangeImpactEvaluatesLifecycleExactlyOnce(t *testing.T) {
+	src := rawSourceFile(t, "golang/server/change_impact.go")
+	at := strings.Index(src, "func (s *server) planChangeImpact(")
+	if at < 0 {
+		t.Fatal("planChangeImpact is gone")
+	}
+	body := src[at:]
+	if end := strings.Index(body, "\n}\n"); end > 0 {
+		body = body[:end]
+	}
+	if n := strings.Count(body, "isPrimaryStatus("); n != 1 {
+		t.Fatalf("planChangeImpact evaluates lifecycle %d times; the canonical state must be the only one", n)
+	}
+	// And every governed class must read that state rather than the raw lists.
+	for _, raw := range []string{"impact.GetForbiddenFixes()", "impact.GetDirectArchitecture()"} {
+		if strings.Contains(body, "range "+raw) {
+			t.Errorf("a governed class is still iterated from %s instead of the canonical state", raw)
+		}
+	}
+}
+
+func rawSourceFile(t *testing.T, rel string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("../..", rel))
+	if err != nil {
+		t.Fatalf("read %s: %v", rel, err)
+	}
+	return string(b)
 }

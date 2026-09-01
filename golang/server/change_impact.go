@@ -70,9 +70,13 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// Lifecycle filtering, matching what preflight applies: a deprecated,
 		// superseded or retired anchor is not primary guidance and must not
 		// establish that a repair plan applies to this subject.
-		primary := func(n *awarenesspb.KnowledgeNode) bool {
-			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
-		}
+		//
+		// THE PREDICATE IS NOT NAMED HERE ANY MORE, and that is the point. A
+		// standalone `primary` closure existed alongside the canonical state
+		// and the compiler reported it unused once every class read the state
+		// instead -- which is the proof the owner is genuinely sole rather
+		// than merely first.
+		//
 		// ONE canonical answer to "what does the graph know about this file",
 		// built once from the complete raw material and filtered once. The
 		// counts below read it instead of re-deriving it, which is how the
@@ -107,21 +111,27 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		for _, id := range state.LiveIDs(subjectstate.ClassFailureMode) {
 			failureModes.add(id)
 		}
-		for _, n := range impact.GetForbiddenFixes() {
-			if primary(n) {
-				forbidden.add(n.GetId())
-				forbiddenAnchors.add(n.GetId())
-			}
-		}
+		// Forbidden fixes and contracts read the SAME canonical result as the
+		// classes above, rather than being classified a second time.
+		//
+		// Calling the predicate again was not merely redundant: scoreNode does
+		// I/O, so a graph that moves between calls, or a transient failure that
+		// falls back to the protobuf status, could classify one anchor retired
+		// for HasLiveAnchors and live for applicability -- two lifecycle
+		// answers about one node, which is the defect the owner exists to
+		// remove, reappearing inside the change that introduced the owner.
+		//
 		// Architecture contracts are a class a repair plan can name, so this
-		// surface must see them too or it would deny applicability that
-		// preflight grants for the same change.
-		for _, n := range impact.GetDirectArchitecture() {
-			// Contracts only: this list also carries components, boundaries,
-			// decisions, evidence and patterns.
-			if primary(n) && strings.EqualFold(strings.TrimSpace(n.GetClass()), "contract") {
-				contracts.add(n.GetId())
-			}
+		// surface must see them or it would deny applicability that preflight
+		// grants for the same change. The contract filter lives in the Raw map
+		// above; DirectArchitecture also carries components, boundaries,
+		// decisions, evidence and patterns.
+		for _, id := range state.LiveIDs(subjectstate.ClassForbiddenFix) {
+			forbidden.add(id)
+			forbiddenAnchors.add(id)
+		}
+		for _, id := range state.LiveIDs(subjectstate.ClassContract) {
+			contracts.add(id)
 		}
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
