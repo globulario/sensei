@@ -1162,17 +1162,13 @@ func argStrings(args map[string]interface{}, key string) []string {
 	return out
 }
 
+// isTransportFailure is DERIVED from the classification rather than restating
+// it. Keeping a second code list here is what let the two disagree (#319).
 func isTransportFailure(err error) bool {
 	if err == nil {
 		return false
 	}
-	if st, ok := status.FromError(err); ok {
-		switch st.Code() {
-		case codes.Unavailable, codes.DeadlineExceeded, codes.Unauthenticated:
-			return true
-		}
-	}
-	return false
+	return classifyTransportError(err).isTransportFailure()
 }
 
 func callWithFailover[T any](entries []clientEntry, invoke func(awarenessClient) (T, error)) (T, error) {

@@ -31,8 +31,6 @@ package main
 // changes a deadline.
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -57,6 +55,22 @@ const (
 // assertsUnreachable reports whether an outcome may be described to a caller as
 // the backend being unreachable. Only one member may.
 func (o transportOutcome) assertsUnreachable() bool { return o == outcomeUnreachable }
+
+// isTransportFailure reports whether this outcome is one the failover loop
+// should try the next address for.
+//
+// THIS IS THE ONE PLACE THAT DECIDES IT. There were two closed vocabularies
+// here -- a three-code list in isTransportFailure and this five-member set --
+// which had to agree and had nothing making them agree. They already disagreed:
+// classifyTransportError answered for Canceled and PermissionDenied, codes the
+// gate never admits, so those branches could not execute and a test covering
+// them proved a path production never takes.
+//
+// Deriving the predicate from the classification makes every member reachable
+// and leaves one vocabulary. The membership is unchanged: Unavailable,
+// DeadlineExceeded and Unauthenticated are exactly the codes that map to a
+// non-unclassified outcome.
+func (o transportOutcome) isTransportFailure() bool { return o != outcomeUnclassified }
 
 // sentence renders the outcome as a claim narrow enough to be true.
 func (o transportOutcome) sentence() string {
@@ -87,19 +101,20 @@ func classifyTransportError(err error) transportOutcome {
 	}
 	st, ok := status.FromError(err)
 	if !ok {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return outcomeDeadlineExceeded
-		}
+		// A NON-gRPC error stays unclassified, deliberately. Now that the
+		// failover predicate is derived from this function, classifying a bare
+		// context.DeadlineExceeded as a transport failure would make the loop
+		// try the next address on a context that is already dead -- a
+		// behaviour change smuggled in by a tidier classifier. The failover
+		// membership is exactly what it was.
 		return outcomeUnclassified
 	}
 	msg := strings.ToLower(st.Message())
 	switch st.Code() {
 	case codes.DeadlineExceeded:
 		return outcomeDeadlineExceeded
-	case codes.Unauthenticated, codes.PermissionDenied:
+	case codes.Unauthenticated:
 		return outcomeServerRefusal
-	case codes.Canceled:
-		return outcomeDeadlineExceeded
 	case codes.Unavailable:
 		switch {
 		case strings.Contains(msg, "context deadline exceeded"):

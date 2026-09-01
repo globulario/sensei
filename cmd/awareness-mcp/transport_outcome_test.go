@@ -3,7 +3,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
@@ -132,5 +134,37 @@ func TestTheClassificationReachesTheJSONRPCSurfaceAsData(t *testing.T) {
 	}
 	if _, ok := out.Error.Data["addresses"].([]interface{}); !ok {
 		t.Errorf("per-address outcomes did not survive to the surface: %s", raw)
+	}
+}
+
+// The failover membership must not drift from the classification.
+//
+// These were two closed vocabularies -- a three-code list inside
+// isTransportFailure and the transportOutcome set -- that had to agree with
+// nothing making them agree, and they already disagreed. The predicate is now
+// derived; this pins the membership so a future edit to either cannot silently
+// change which failures trigger failover.
+func TestFailoverMembershipIsExactlyTheClassifiedCodes(t *testing.T) {
+	transport := []codes.Code{codes.Unavailable, codes.DeadlineExceeded, codes.Unauthenticated}
+	for _, c := range transport {
+		err := status.Error(c, "x")
+		if !isTransportFailure(err) {
+			t.Errorf("%v is no longer a transport failure — failover membership changed", c)
+		}
+		if classifyTransportError(err) == outcomeUnclassified {
+			t.Errorf("%v is admitted by the gate but the classifier cannot name it", c)
+		}
+	}
+	for _, c := range []codes.Code{
+		codes.Internal, codes.NotFound, codes.PermissionDenied, codes.Canceled, codes.InvalidArgument,
+	} {
+		if isTransportFailure(status.Error(c, "x")) {
+			t.Errorf("%v became a transport failure — failover now retries a call it used to return", c)
+		}
+	}
+	// A bare non-gRPC error is not a transport failure, including a raw
+	// context deadline: retrying another address on a dead context is waste.
+	if isTransportFailure(errors.New("plain")) || isTransportFailure(context.DeadlineExceeded) {
+		t.Error("a non-gRPC error became a transport failure")
 	}
 }
