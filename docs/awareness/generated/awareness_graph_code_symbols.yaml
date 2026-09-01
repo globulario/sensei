@@ -5590,6 +5590,24 @@ test_symbols:
     symbol: TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer
     package: main
     language: go
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestEveryToleratedProofEdgeIsClassified
+    file: cmd/awg/dangling_baseline_classification_test.go
+    symbol: TestEveryToleratedProofEdgeIsClassified
+    package: main
+    language: go
+    doc: "Every tolerated Test entry must fall into a named class. An entry that fits\nnone of them is unclassified debt, and unclassified is not a licence."
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestNoHomeDomainProofEdgeHidesBehindTheBaseline
+    file: cmd/awg/dangling_baseline_classification_test.go
+    symbol: TestNoHomeDomainProofEdgeHidesBehindTheBaseline
+    package: main
+    language: go
+    doc: "The class that must never be tolerated: a path-form proof edge naming a file\nin THIS repository whose function is missing. That is a dead binding, and it\nis exactly what two critical invariants in globulario/sensei-code turned out\nto be."
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestOwnershipIsProvenanceNotCurrentExistence
+    file: cmd/awg/dangling_baseline_classification_test.go
+    symbol: TestOwnershipIsProvenanceNotCurrentExistence
+    package: main
+    language: go
+    doc: "Ownership is provenance, not current existence — pinned permanently.\n\nTwo earlier answers used the filesystem AS IT IS NOW to decide ORIGIN, and\nboth had a bypass: `os.Stat(file)` let a DELETED cited test look foreign, and\n`os.Stat(topLevelDir)` let a foreign path look home because we share a `cmd/`\ndirectory, while deleting a home-only directory restored the first bypass.\n\nThe manual experiment that found this — delete a file, run, restore — is not\na test. Without this, re-adding an existence gate breaks nothing that fails."
   - id: cmd/awg/domain_admission_ci_test.go:TestAttestationCannotSpeakForAnotherDomain
     file: cmd/awg/domain_admission_ci_test.go
     symbol: TestAttestationCannotSpeakForAnotherDomain

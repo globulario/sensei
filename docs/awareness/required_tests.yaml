@@ -2027,6 +2027,20 @@ required_tests:
         - invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
       files:
         - golang/prospective/prospective.go
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestNoHomeDomainProofEdgeHidesBehindTheBaseline
+    title: TestNoHomeDomainProofEdgeHidesBehindTheBaseline
+    protects:
+      invariants:
+        - invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
+      files:
+        - docs/awareness/dangling_refs_baseline.tsv
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestEveryToleratedProofEdgeIsClassified
+    title: TestEveryToleratedProofEdgeIsClassified
+    protects:
+      invariants:
+        - invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
+      files:
+        - docs/awareness/dangling_refs_baseline.tsv
   - id: golang/subjectstate/subjectstate_test.go:TestAWithdrawnSubjectIsDeterminedNotUnknown
     title: TestAWithdrawnSubjectIsDeterminedNotUnknown
     protects:
