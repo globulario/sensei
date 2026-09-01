@@ -78,6 +78,18 @@ func olderCommit(t *testing.T) string {
 	if candidate == "" || candidate == headRev {
 		t.Skip("no commit older than HEAD and outside the claimant's line is available")
 	}
+	// TELL THE VERIFIER WHAT IS ADMITTED HERE, not just the selector.
+	//
+	// Selecting the right commit is half the job. isAncestorOfBase resolves the
+	// promotion base from origin/main or main, and on a CI pull-request merge
+	// ref NEITHER EXISTS -- tests run before the workflow's base-branch fetch.
+	// So the verifier answered "not on the base" for a commit that IS the base,
+	// and specimen A was classified claimant-controlled however well the helper
+	// chose.
+	//
+	// One source of truth: the commit this helper identifies as admitted is the
+	// commit the verifier treats as the promotion base.
+	t.Setenv("SENSEI_PROMOTION_BASE", candidate)
 	// Verify rather than assume: a candidate that is not an ancestor of HEAD is
 	// not "material the claimant did not introduce".
 	if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", candidate, headRev).Run(); err != nil {
