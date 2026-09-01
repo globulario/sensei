@@ -1999,3 +1999,31 @@ required_tests:
         - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
       files:
         - cmd/awareness-mcp/transport_outcome.go
+  - id: golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+    title: Admitted-but-unpublished knowledge is stale, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    title: Every unanswerable reachability question is unknown, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAnUnorderableGraphIsNotCalledStale
+    title: An unorderable graph is not called stale
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    title: An abbreviated revision is the same revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go

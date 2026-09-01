@@ -16,6 +16,8 @@ import (
 // baseCommit is a commit already on the promotion base -- independent of any
 // claimant by construction. Tests that expect EVIDENCE_VERIFIED cite this;
 // HEAD of a feature worktree is the claimant's own line and is not.
+// baseCommit is the PROMOTION BASE: the merge-base with origin/main. It may
+// equal HEAD, and callers that care must say so.
 func baseCommit(t *testing.T) string {
 	t.Helper()
 	out, err := exec.Command("git", "-C", "../..", "merge-base", "HEAD", "origin/main").Output()
@@ -23,6 +25,39 @@ func baseCommit(t *testing.T) string {
 		t.Skip("no origin/main to measure independence against")
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// olderCommit is a DIFFERENT QUESTION: a commit genuinely older than HEAD, for
+// fixtures that need material the claimant did not introduce.
+//
+// These were one helper, and that is why the suite was red on main. baseCommit
+// returns HEAD ITSELF when the checkout sits on main, so a fixture citing "a
+// commit the claimant did not introduce" cited the claimant's own commit and
+// the gate correctly refused it -- a fixture failing to establish its own
+// precondition and reporting the failure as a verdict about the gate.
+//
+// Collapsing them the other way is just as wrong: the branch-only test needs
+// the promotion base specifically, and giving it any older commit made a
+// citation on main look branch-only. One name, two questions, two ways to be
+// wrong.
+func olderCommit(t *testing.T) string {
+	t.Helper()
+	head, err := exec.Command("git", "-C", "../..", "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skip("not a git checkout")
+	}
+	headRev := strings.TrimSpace(string(head))
+	for _, args := range [][]string{{"merge-base", "HEAD", "origin/main"}, {"rev-parse", "HEAD~1"}} {
+		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
+		if err != nil {
+			continue
+		}
+		if rev := strings.TrimSpace(string(out)); rev != "" && rev != headRev {
+			return rev
+		}
+	}
+	t.Skip("no commit older than HEAD is available to measure independence against")
+	return ""
 }
 
 func headCommit(t *testing.T) string {

@@ -2120,3 +2120,21 @@ failure_modes:
       - golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
     evidence:
       - each of the three was proven by reverting the wiring and watching the falsifier fail; ten further caps in the package were inspected BY READING ONLY, which is a weaker evidence class and is recorded as such
+  - id: failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+    title: A decision surface reported current while the admitted knowledge was unreachable
+    description: 'The authority block reported ''authoritative (current)'' because current was measured against the published artifact''s own marker -- and an artifact always matches itself. Nothing compared the serving generation to the authored corpus. Measured 2026-09-01: the live store was built from 96f19456f5fb on 2026-08-20 while the corpus had moved 159 corpus-touching commits ahead, so every law admitted in that window was authored, reviewed, merged and invisible to every decision, with no surface saying so. Absence of publication was not reported as stale -- it was not represented at all.'
+    protects:
+      files:
+        - golang/reachability/reachability.go
+        - cmd/awg/authority_output.go
+    required_tests:
+      - golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+      - golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+      - golang/reachability/reachability_test.go:TestAnUnorderableGraphIsNotCalledStale
+      - golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    forbidden_fix:
+      - 'publish automatically to make the line green: publication stays deliberate, and hidden mutation of a shared decision surface is a worse failure than a visible stale one'
+      - 'report an unmeasurable distance as current: an unmeasured zero is indistinguishable from a measured zero, which is a fail-open in the very check written to stop one'
+    evidence:
+      - 'briefing printed ''authoritative (current)'' beside ''Build time: 2026-08-20'' for eleven days; the reachability line now prints STALE with the distance on the same block'
+    contract: 'A caller must be able to establish whether newly admitted knowledge is reachable by the graph making a decision. Reachability is REPORTED, never repaired by rebuilding. A stale or unestablished generation is reported as unpublished or unestablished knowledge and NEVER as absence of law: ''the graph has no rule about this'' and ''the graph that would hold the rule is eleven days old'' are different answers.'

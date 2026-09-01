@@ -3,7 +3,11 @@
 package main
 
 import (
+	"context"
+	"os"
+
 	"fmt"
+	"github.com/globulario/sensei/golang/reachability"
 	"strings"
 	"time"
 
@@ -48,6 +52,23 @@ func printGraphAuthority(authority *awarenesspb.GraphAuthority) {
 	if ts := authority.GetGraphBuildTimeUnix(); ts != 0 {
 		fmt.Printf("  Build time:   %s\n", time.Unix(ts, 0).UTC().Format(time.RFC3339))
 	}
+	// REACHABILITY: is the knowledge this graph serves the knowledge that has
+	// been admitted?
+	//
+	// Everything above describes the artifact's agreement WITH ITSELF -- the
+	// live store matches its own expected marker, so the block said
+	// "authoritative (current)" while the serving graph was eleven days and 159
+	// corpus changes behind. An artifact always matches itself. This line is
+	// the only one that compares it to the corpus.
+	//
+	// It is a REPORT and never a rebuild, and a stale or unknown result is
+	// reported as unpublished or unestablished knowledge -- never as absence of
+	// law.
+	if commit := authority.GetGraphBuildCommit(); commit != "" {
+		root := reachabilityRepoRoot()
+		a := reachability.ResolveFromGit(context.Background(), root, commit)
+		fmt.Printf("  %s\n", a.Line())
+	}
 	if commit := authority.GetCertifiedAwarenessGraphCommit(); commit != "" {
 		fmt.Printf("  Tx awg:       %s\n", commit)
 	}
@@ -60,4 +81,16 @@ func printGraphAuthority(authority *awarenesspb.GraphAuthority) {
 	if detail := strings.TrimSpace(authority.GetGraphFreshnessDetail()); detail != "" {
 		fmt.Printf("  Detail:       %s\n", detail)
 	}
+}
+
+// reachabilityRepoRoot resolves the checkout whose corpus is compared against
+// the serving graph. AWG_REPO_ROOT wins when set, because a caller may run the
+// CLI from anywhere; otherwise the working directory is used and git decides
+// whether it is a repository at all. A wrong or absent root yields UNKNOWN,
+// which is a member of the state set rather than a silent pass.
+func reachabilityRepoRoot() string {
+	if r := strings.TrimSpace(os.Getenv("AWG_REPO_ROOT")); r != "" {
+		return r
+	}
+	return "."
 }
