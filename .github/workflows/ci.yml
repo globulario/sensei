@@ -86,6 +86,16 @@ jobs:
           go-version: '1.25'
           cache-dependency-path: go.sum
 
+      # ruleguard must be installed for the positive-control attestation to run.
+      #
+      # No workflow installed it, so TestRuleguardRulesHavePositiveControl
+      # skipped in EVERY CI run -- while its own comment said "CI MUST install
+      # it so this attestation actually runs". The rules proving each principle
+      # fires on known-bad code were never exercised here, and a rule that
+      # cannot load reports zero findings exactly like a clean tree.
+      - name: Install ruleguard (positive-control attestation)
+        run: GOTOOLCHAIN=go1.25.0 go install github.com/quasilyte/go-ruleguard/cmd/ruleguard@latest
+
       - name: gofmt is clean
         run: |
           unformatted=$(gofmt -l $(git ls-files '*.go' | grep -vE '\.pb\.go$|/pb/|/testdata/'))
