@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"github.com/globulario/sensei/golang/subjectstate"
 	"sort"
 	"strings"
 
@@ -69,41 +70,79 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// Lifecycle filtering, matching what preflight applies: a deprecated,
 		// superseded or retired anchor is not primary guidance and must not
 		// establish that a repair plan applies to this subject.
-		primary := func(n *awarenesspb.KnowledgeNode) bool {
+		//
+		// THE PREDICATE IS NOT NAMED HERE ANY MORE, and that is the point. A
+		// standalone `primary` closure existed alongside the canonical state
+		// and the compiler reported it unused once every class read the state
+		// instead -- which is the proof the owner is genuinely sole rather
+		// than merely first.
+		//
+		// ONE canonical answer to "what does the graph know about this file",
+		// built once from the complete raw material and filtered once. The
+		// counts below read it instead of re-deriving it, which is how the
+		// three surfaces came to disagree (self-improvement program, step B).
+		state := subjectstate.Build(subjectstate.Raw{
+			subjectstate.ClassInvariant:    asStateNodes(impact.GetDirectInvariants()),
+			subjectstate.ClassFailureMode:  asStateNodes(impact.GetDirectFailureModes()),
+			subjectstate.ClassIntent:       asStateNodes(impact.GetDirectIntents()),
+			subjectstate.ClassForbiddenFix: asStateNodes(impact.GetForbiddenFixes()),
+			subjectstate.ClassContract:     asStateNodes(ofClass(impact.GetDirectArchitecture(), "contract")),
+		}, func(n subjectstate.Node) bool {
 			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
-		}
+		})
 		// hasAnchors is a SAFETY signal: it suppresses the unknown-owner
 		// escalation, so it must mean "this file has live governance", not
 		// "this file has a record of some kind". Setting it from raw nodes let a
 		// file whose only anchor is retired suppress that fallback while the
 		// retired anchor was correctly refused everywhere else.
-		for _, n := range impact.GetDirectInvariants() {
-			if primary(n) {
-				invariants.add(n.GetId())
-				hasAnchors = true
-			}
+		// hasAnchors is DELIBERATELY NARROWER THAN GOVERNANCE, and reading it
+		// from the canonical state does not make it class-complete.
+		//
+		// I widened this to every governed class and blast_radius.go says, in
+		// its own words, why that is wrong: "hasDirectAnchors asks whether this
+		// subject is anchored at all, and drives the 'we cannot name the owner'
+		// escalation... Deriving the first from the second was tidier and
+		// wrong: widening the applicability set to the classes a plan can name
+		// would then have silently stopped the owner-unknown rule from firing."
+		//
+		// A live contract or forbidden fix is governance; it does not name an
+		// OWNER. Counting it here suppressed the owner-unknown warning and the
+		// review escalation for a high-risk file with no matched authority
+		// domain -- which is the fallback's entire purpose.
+		//
+		// The canonical state is still the source. One owner for the anchors,
+		// two questions asked of them, and the narrower one NAMES its classes
+		// so the narrowing is visible here rather than implied.
+		if len(state.LiveIn(subjectstate.ClassInvariant, subjectstate.ClassFailureMode)) > 0 {
+			hasAnchors = true
 		}
-		for _, n := range impact.GetDirectFailureModes() {
-			if primary(n) {
-				failureModes.add(n.GetId())
-				hasAnchors = true
-			}
+		for _, id := range state.LiveIDs(subjectstate.ClassInvariant) {
+			invariants.add(id)
 		}
-		for _, n := range impact.GetForbiddenFixes() {
-			if primary(n) {
-				forbidden.add(n.GetId())
-				forbiddenAnchors.add(n.GetId())
-			}
+		for _, id := range state.LiveIDs(subjectstate.ClassFailureMode) {
+			failureModes.add(id)
 		}
+		// Forbidden fixes and contracts read the SAME canonical result as the
+		// classes above, rather than being classified a second time.
+		//
+		// Calling the predicate again was not merely redundant: scoreNode does
+		// I/O, so a graph that moves between calls, or a transient failure that
+		// falls back to the protobuf status, could classify one anchor retired
+		// for HasLiveAnchors and live for applicability -- two lifecycle
+		// answers about one node, which is the defect the owner exists to
+		// remove, reappearing inside the change that introduced the owner.
+		//
 		// Architecture contracts are a class a repair plan can name, so this
-		// surface must see them too or it would deny applicability that
-		// preflight grants for the same change.
-		for _, n := range impact.GetDirectArchitecture() {
-			// Contracts only: this list also carries components, boundaries,
-			// decisions, evidence and patterns.
-			if primary(n) && strings.EqualFold(strings.TrimSpace(n.GetClass()), "contract") {
-				contracts.add(n.GetId())
-			}
+		// surface must see them or it would deny applicability that preflight
+		// grants for the same change. The contract filter lives in the Raw map
+		// above; DirectArchitecture also carries components, boundaries,
+		// decisions, evidence and patterns.
+		for _, id := range state.LiveIDs(subjectstate.ClassForbiddenFix) {
+			forbidden.add(id)
+			forbiddenAnchors.add(id)
+		}
+		for _, id := range state.LiveIDs(subjectstate.ClassContract) {
+			contracts.add(id)
 		}
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
@@ -124,24 +163,17 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// thin-coverage escalation, and returning local/none for a file that
 		// is high-risk by authority membership and matches no path-class rule.
 		//
-		// A failed lifecycle filter is a DETERMINED result, not a missing one.
+		// Examination is now DERIVED from the canonical state rather than
+		// recomputed here, and that removes a residual asymmetry: the live
+		// count read three classes while the raw count read five, so a file
+		// anchored only by a LIVE contract or forbidden fix scored zero on the
+		// left of the comparison and non-zero on the right. Both halves are
+		// class-complete by construction now, because there is only one set.
 		//
-		// rawAnchors must span EVERY class that can be a governed anchor here,
-		// not just the three the examination test uses. coverageSufficient
-		// below counts live forbidden fixes and contracts, so a file whose only
-		// historical governance was a forbidden fix or a contract is a file the
-		// graph looked at -- and counting only invariants, failure modes and
-		// intents would score it zero, hand it to the index, and resurrect
-		// exactly the coverage this three-state split exists to withhold.
-		// Narrowing the second state is the same defect wearing a smaller
-		// vocabulary (#318 review).
-		rawAnchors := len(impact.GetDirectInvariants()) +
-			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents()) +
-			len(impact.GetForbiddenFixes()) + len(ofClass(impact.GetDirectArchitecture(), "contract"))
-		examined := len(primaryOnly(impact.GetDirectInvariants(), primary))+
-			len(primaryOnly(impact.GetDirectFailureModes(), primary))+
-			len(primaryOnly(impact.GetDirectIntents(), primary)) > 0
-		if !examined && rawAnchors == 0 {
+		// The index may be consulted in exactly one state. A determined
+		// withdrawal is an answer, and no fallback may overturn it.
+		examined := state.Examination() == subjectstate.ExaminedGoverned
+		if state.Examination().MayConsultIndex() {
 			examined, _ = s.sourceFileExamined(ctx, f, "")
 		}
 		if examined {
@@ -249,5 +281,19 @@ func (s *stringSet) sorted() []string {
 		out = append(out, k)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// asStateNodes adapts the protobuf slice to the canonical owner's interface.
+// KnowledgeNode already satisfies it; this only changes the slice's element
+// type, and exists so a forgotten class is a missing map key rather than a
+// forgotten append.
+func asStateNodes(in []*awarenesspb.KnowledgeNode) []subjectstate.Node {
+	out := make([]subjectstate.Node, 0, len(in))
+	for _, n := range in {
+		if n != nil {
+			out = append(out, n)
+		}
+	}
 	return out
 }
