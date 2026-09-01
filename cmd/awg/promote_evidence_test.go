@@ -27,61 +27,63 @@ func baseCommit(t *testing.T) string {
 	return strings.TrimSpace(string(out))
 }
 
-// olderCommit is a DIFFERENT QUESTION: a commit genuinely older than HEAD, for
-// fixtures that need material the claimant did not introduce.
+// olderCommit returns a commit that is genuinely older than HEAD AND not part
+// of the claimant's own line. Both halves matter, and each earlier version
+// satisfied only one.
 //
-// These were one helper, and that is why the suite was red on main. baseCommit
-// returns HEAD ITSELF when the checkout sits on main, so a fixture citing "a
-// commit the claimant did not introduce" cited the claimant's own commit and
-// the gate correctly refused it -- a fixture failing to establish its own
-// precondition and reporting the failure as a verdict about the gate.
+//	baseCommit           returned HEAD itself on main
+//	an ancestor check    accepted a commit unrelated to HEAD
+//	a HEAD~1 fallback    returned the claimant's own branch head on a merge ref
+//	merge-base alone     SKIPPED everywhere: it fails on a PR merge ref and
+//	                     equals HEAD on main, so the test ran nowhere and CI was
+//	                     green because nothing executed
 //
-// Collapsing them the other way is just as wrong: the branch-only test needs
-// the promotion base specifically, and giving it any older commit made a
-// citation on main look branch-only. One name, two questions, two ways to be
-// wrong.
+// The last one is the worst, because it looked like a fix. A test that cannot
+// run is not stricter than a test that runs wrongly.
+//
+// The qualifying commit differs by environment, so it is selected by asking
+// what the environment IS rather than by trying candidates until one parses:
+//
+//	HEAD is a merge commit   -> HEAD^1, the BASE branch tip. This is the CI
+//	                            pull-request merge ref, and the first parent is
+//	                            the admitted side; HEAD^2 is the claimant's.
+//	HEAD is on the admitted  -> HEAD~1. There is no claimant in flight, so an
+//	  branch                    earlier commit is not the claimant's material.
+//	otherwise (a feature     -> merge-base with origin/main, which is the last
+//	  branch checkout)          admitted commit the branch builds on.
 func olderCommit(t *testing.T) string {
 	t.Helper()
-	head, err := exec.Command("git", "-C", "../..", "rev-parse", "HEAD").Output()
-	if err != nil {
-		t.Skip("not a git checkout")
-	}
-	headRev := strings.TrimSpace(string(head))
-	// ONLY the merge base with the admitted branch.
-	//
-	// HEAD~1 was a fallback and it is the wrong one in CI: on a pull-request
-	// merge ref, HEAD~1 IS THE CLAIMANT'S OWN BRANCH HEAD, so the fixture cited
-	// the very commit it was supposed to be independent of and the gate
-	// correctly answered CLAIMANT_CONTROLLED. A fixture that manufactures the
-	// condition it is testing against is worse than one that cannot run.
-	//
-	// If the merge base is unavailable or equals HEAD, this test SKIPS. Not
-	// being able to establish independence is a reason to say so, not a reason
-	// to pick a commit and hope.
-	for _, args := range [][]string{{"merge-base", "HEAD", "origin/main"}} {
+	git := func(args ...string) (string, bool) {
 		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
 		if err != nil {
-			continue
+			return "", false
 		}
-		rev := strings.TrimSpace(string(out))
-		if rev == "" || rev == headRev {
-			continue
-		}
-		// VERIFY THE PRECONDITION, do not assume it.
-		//
-		// A candidate that is not an ancestor of HEAD is not "material the
-		// claimant did not introduce", and citing it makes the gate answer
-		// CLAIMANT_CONTROLLED -- a fixture failing its own setup and reporting
-		// that failure as a verdict about the gate. CI checks out a PR merge
-		// ref with a shallow history, where these assumptions do not hold, and
-		// this test was red there while passing locally.
-		if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", rev, headRev).Run(); err != nil {
-			continue
-		}
-		return rev
+		return strings.TrimSpace(string(out)), true
 	}
-	t.Skip("no commit older than HEAD is available to measure independence against")
-	return ""
+	headRev, ok := git("rev-parse", "HEAD")
+	if !ok {
+		t.Skip("not a git checkout")
+	}
+
+	var candidate string
+	if parents, ok := git("rev-list", "--parents", "-n", "1", "HEAD"); ok && len(strings.Fields(parents)) >= 3 {
+		// A merge commit: first parent is the base branch tip.
+		candidate, _ = git("rev-parse", "HEAD^1")
+	} else if _, onAdmitted := git("merge-base", "--is-ancestor", "HEAD", "origin/main"); onAdmitted {
+		candidate, _ = git("rev-parse", "HEAD~1")
+	} else if base, ok := git("merge-base", "HEAD", "origin/main"); ok {
+		candidate = base
+	}
+
+	if candidate == "" || candidate == headRev {
+		t.Skip("no commit older than HEAD and outside the claimant's line is available")
+	}
+	// Verify rather than assume: a candidate that is not an ancestor of HEAD is
+	// not "material the claimant did not introduce".
+	if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", candidate, headRev).Run(); err != nil {
+		t.Skipf("candidate %s is not an ancestor of HEAD", candidate[:8])
+	}
+	return candidate
 }
 
 func headCommit(t *testing.T) string {
@@ -201,5 +203,38 @@ func TestACitationOnTheClaimantsOwnLineIsNotIndependent(t *testing.T) {
 		Kind: "source_fact", Commit: head, File: "go.mod", Contains: "module github.com/globulario/sensei"}}, "")
 	if got.Verdict != evidenceClaimantControlled {
 		t.Fatalf("a branch-only citation with no introducing commit was accepted as independent: %+v", got)
+	}
+}
+
+// The gate test must actually RUN, not skip its way to green.
+//
+// A merge-base-only selection skipped in both environments -- it fails on a
+// pull-request merge ref and equals HEAD on the admitted branch -- so the
+// end-to-end gate test executed nowhere while CI reported success. A test that
+// cannot run is not stricter than a test that runs wrongly; it is the
+// false-green this whole program is about, produced by a repair for it.
+// STATED LIMIT: this test cannot prove the CI path from here.
+//
+// The merge-base-only selection skips on the ADMITTED BRANCH and on a
+// PULL-REQUEST MERGE REF. A feature-branch checkout is neither, so that
+// mutation SURVIVES locally -- verified, not assumed. The environment this test
+// protects is one it cannot reach.
+//
+// CI is the falsifier: on the merge ref the gate test must report PASS rather
+// than SKIP. If it reports SKIP there, this selection is wrong again and the
+// green is meaningless.
+func TestTheGateTestCanActuallyRunHere(t *testing.T) {
+	// olderCommit skips the calling test when it cannot qualify a commit, so
+	// reaching the assertion at all means selection succeeded.
+	got := olderCommit(t)
+	if got == "" {
+		t.Fatal("olderCommit returned empty without skipping")
+	}
+	head := headCommit(t)
+	if got == head {
+		t.Fatal("the selected commit IS head; it is not independent of the claimant")
+	}
+	if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", got, head).Run(); err != nil {
+		t.Fatalf("the selected commit %s is not an ancestor of HEAD", got[:8])
 	}
 }
