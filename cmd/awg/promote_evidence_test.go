@@ -22,11 +22,20 @@ import (
 // equal HEAD, and callers that care must say so.
 func baseCommit(t *testing.T) string {
 	t.Helper()
-	// The same defect olderCommit was repaired for, one helper over: resolving
-	// against a hardcoded origin/main means this returns nothing on a CI
-	// pull-request merge ref, where no admitted ref is fetched -- so the test
-	// that depends on it has never run in CI. Both helpers now answer from the
-	// environment rather than from an assumed ref name.
+	// THE PROMOTION BASE IS NOT "A COMMIT OLDER THAN HEAD".
+	//
+	// This delegated to selectAdmittedBase, and the two answer DIFFERENT
+	// questions. selectAdmittedBase finds a commit older than HEAD and outside
+	// the claimant's line, so when HEAD is ON the admitted branch it returns
+	// HEAD~1. The promotion base in that situation is HEAD ITSELF -- there is
+	// no claimant in flight, and callers depend on `head == baseCommit(t)`
+	// being true to skip a case whose premise requires a branch.
+	//
+	// The two coincide on a feature branch and diverge exactly on the admitted
+	// branch, so every pull-request CI run passed while `main` went red: a
+	// branch is never on the admitted branch, and main always is. That is why
+	// no PR could have caught it and why it had to be found by running the
+	// suite with HEAD on main.
 	git := func(args ...string) (string, bool) {
 		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
 		if err != nil {
@@ -34,7 +43,7 @@ func baseCommit(t *testing.T) string {
 		}
 		return strings.TrimSpace(string(out)), true
 	}
-	if base := selectAdmittedBase(git); base != "" {
+	if base := resolvePromotionBaseForTest(git); base != "" {
 		return base
 	}
 	if _, ok := git("rev-parse", "HEAD"); !ok {
@@ -574,5 +583,121 @@ func fixtureRunner(t *testing.T, dir string) func(...string) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("fixture step `git %s` failed: %v\n%s", strings.Join(args, " "), err, out)
 		}
+	}
+}
+
+// resolvePromotionBaseForTest resolves the commit a citation must already exist in to count
+// as independent of the claimant.
+//
+// Separated from baseCommit and taking its git accessor as a parameter because
+// the case that broke CANNOT BE REPRODUCED FROM THE AMBIENT CHECKOUT ON A
+// BRANCH: it only appears when HEAD is on the admitted branch, and a pull
+// request is never in that state. The environment has to be built.
+func resolvePromotionBaseForTest(git func(...string) (string, bool)) string {
+	// Resolve against the admitted ref that EXISTS rather than an assumed name.
+	if ref, ok := admittedRef(git); ok {
+		if base, ok := git("merge-base", "HEAD", ref); ok && base != "" {
+			return base
+		}
+	}
+	// No admitted ref: a CI pull-request merge ref, whose first parent is the
+	// admitted side.
+	if parents, ok := git("rev-list", "--parents", "-n", "1", "HEAD"); ok && len(strings.Fields(parents)) >= 3 {
+		if base, ok := git("rev-parse", "HEAD^1"); ok && base != "" {
+			return base
+		}
+	}
+	return ""
+}
+
+// On the admitted branch the promotion base is HEAD ITSELF.
+//
+// baseCommit briefly delegated to selectAdmittedBase, which answers a
+// different question -- "a commit older than HEAD and outside the claimant's
+// line" -- and therefore returns HEAD~1 here. Callers depend on
+// `head == baseCommit(t)` to skip a case whose premise requires a branch, so
+// that case ran with a false premise and main went red while every pull
+// request stayed green.
+//
+// A branch is never on the admitted branch and main always is, so this shape
+// is CONSTRUCTED rather than taken from wherever the suite happens to run.
+func TestOnTheAdmittedBranchThePromotionBaseIsHeadItself(t *testing.T) {
+	requireGit(t)
+	work := t.TempDir()
+	run := fixtureRunner(t, work)
+	run("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(work, "a.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatalf("cannot write fixture: %v", err)
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "first")
+	if err := os.WriteFile(filepath.Join(work, "a.txt"), []byte("two\n"), 0o644); err != nil {
+		t.Fatalf("cannot write fixture: %v", err)
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "second")
+
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", work}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
+	}
+	head, ok := git("rev-parse", "HEAD")
+	if !ok {
+		t.Fatal("fixture has no HEAD")
+	}
+	if _, isAdmitted := git("merge-base", "--is-ancestor", "HEAD", "main"); !isAdmitted {
+		t.Fatal("fixture HEAD is not on the admitted branch; the case under test was not constructed")
+	}
+
+	got := resolvePromotionBaseForTest(git)
+	if got != head {
+		prev, _ := git("rev-parse", "HEAD~1")
+		if got == prev {
+			t.Fatal("the promotion base resolved to HEAD~1 on the admitted branch: that is " +
+				"'a commit older than HEAD', not the promotion base, and it makes callers " +
+				"run a branch-only case with no branch")
+		}
+		t.Fatalf("promotion base = %q on the admitted branch, want HEAD %q", got, head)
+	}
+}
+
+// And on a branch it is the merge-base, not HEAD -- the half that must not
+// regress while fixing the above.
+func TestOnABranchThePromotionBaseIsTheMergeBase(t *testing.T) {
+	requireGit(t)
+	work := t.TempDir()
+	run := fixtureRunner(t, work)
+	run("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(work, "a.txt"), []byte("one\n"), 0o644); err != nil {
+		t.Fatalf("cannot write fixture: %v", err)
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "admitted")
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", work}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
+	}
+	admittedTip, _ := git("rev-parse", "HEAD")
+	run("checkout", "-q", "-b", "feature")
+	if err := os.WriteFile(filepath.Join(work, "claim.txt"), []byte("claimant\n"), 0o644); err != nil {
+		t.Fatalf("cannot write fixture: %v", err)
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "claimant work")
+	head, _ := git("rev-parse", "HEAD")
+
+	got := resolvePromotionBaseForTest(git)
+	if got == head {
+		t.Fatal("the promotion base is HEAD on a feature branch: the claimant's own tip " +
+			"would count as material they did not introduce")
+	}
+	if got != admittedTip {
+		t.Fatalf("promotion base = %q on a branch, want the admitted tip %q", got, admittedTip)
 	}
 }
