@@ -2240,6 +2240,24 @@ invariants:
     evidence:
       - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
     contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
+  - id: invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
+    title: Resemblance may guide a change but never govern it
+    status: active
+    description: 'Sensei often holds the law and does not bring it to the change that needs it: every defect repaired in #317, #318, #319 and #320 was found by a person reading code while the graph held laws describing those very shapes. golang/prospective answers ''what established knowledge could govern this change'' for a subject with no direct anchor. The constitutional line is structural rather than documented: Basis is a closed set, AuthorityEligible is a method on it so a candidate cannot lie about its own basis, and there is no numeric score a caller could threshold. Measured by leave-one-out on the authored corpus 2026-09-01: 196 subjects, 367 hidden anchors, recall 0.34 at 11.5 candidates per subject -- from the same-directory signal ALONE, since that evaluation supplies no domains and the authority-eligible path is therefore unmeasured rather than measured-as-zero.'
+    protects:
+      files:
+        - golang/prospective/prospective.go
+    forbidden_fixes:
+      - 'raise recall by surfacing more knowledge: a retrieval returning the whole graph scores 1.0 and relocates the reading problem instead of solving it'
+      - 'give Basis a numeric score: a threshold is precisely how enough resemblance would become a relationship'
+    required_tests:
+      - golang/prospective/prospective_test.go:TestResemblanceNeverBecomesAuthority
+      - golang/prospective/prospective_test.go:TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity
+      - golang/prospective/prospective_test.go:TestADirectAnchorIsNotAProspectiveCandidate
+      - golang/prospective/prospective_eval_test.go:TestRecallAndNuisanceAreMeasuredTogether
+    evidence:
+      - a hundred resemblance candidates yield zero authority-eligible ones; the evaluation fails if recall is bought by volume
+    contract: Prospective retrieval proposes knowledge that COULD govern a subject. A candidate reached by an ESTABLISHED governed relationship may be considered for authority; a candidate reached by RESEMBLANCE may produce guidance or a question and never authority, and no accumulation of resemblance becomes a relationship. Retrieval quality is reported as recall AND nuisance together; recall obtained by surfacing more knowledge is not an improvement.
   - id: invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
     title: A tolerated dangling reference states why it is tolerated
     status: active
