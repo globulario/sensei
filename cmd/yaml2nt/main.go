@@ -355,13 +355,35 @@ func run(args []string, stdout, stderr io.Writer) int {
 			var known []extractor.ReferenceError
 			newErrs, known = extractor.FilterAllowed(refErrs, allowed)
 			fmt.Fprintf(stderr, "yaml2nt: %d dangling reference(s) accepted via baseline; %d need attention\n", len(known), len(newErrs))
-			// Warn (don't fail) if the baseline contains stale entries —
-			// references that were dangling at baseline-creation time
-			// but are no longer present (definition was added, or the
-			// cite was removed). Stale entries should be pruned so the
-			// baseline tracks reality.
+			// A STALE BASELINE ENTRY IS A STANDING PERMISSION TO RE-BREAK
+			// SOMETHING THAT IS CURRENTLY FINE.
+			//
+			// This warned. A warning nobody must act on is not a ratchet: an
+			// entry whose definition was added stays in the file forever, and
+			// the day that reference breaks again it is tolerated silently --
+			// pre-authorised by a line describing a debt that had already been
+			// paid.
+			//
+			// Failing here is what makes the tolerated set ratchet DOWNWARD.
+			// It cannot grow (a new dangling reference already fails) and it
+			// can no longer linger (a fixed one must be pruned), so the count
+			// is monotonically non-increasing and every repair is recorded in
+			// the same commit that makes it.
+			//
+			// The baseline is EXACT when this was introduced -- 233 entries, 0
+			// stale -- so this converts a clean state into an enforced one
+			// rather than declaring an aspiration nobody can meet today.
 			if extra := staleBaselineEntries(refErrs, allowed); len(extra) > 0 {
-				fmt.Fprintf(stderr, "yaml2nt: warning: %d baseline entries are no longer dangling (definition was added or cite removed) — prune them from %s\n", len(extra), *allowedRefs)
+				const maxNamed = 20
+				fmt.Fprintf(stderr, "yaml2nt: %d baseline entries are NO LONGER DANGLING (the definition was added, or the cite was removed). Prune them from %s: a tolerated entry that no longer describes a real debt silently pre-authorises breaking that reference again.\n", len(extra), *allowedRefs)
+				for i, key := range extra {
+					if i >= maxNamed {
+						fmt.Fprintf(stderr, "yaml2nt:   ... %d more\n", len(extra)-i)
+						break
+					}
+					fmt.Fprintf(stderr, "yaml2nt:   %s\n", key)
+				}
+				return exitRuntime
 			}
 		} else {
 			newErrs = refErrs
