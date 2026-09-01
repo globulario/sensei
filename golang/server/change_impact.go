@@ -108,18 +108,29 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
 		}
-		// The same examination rule preflight applies. Counting only
-		// invariant/failure-mode/intent anchors left a file whose only primary
-		// anchor is a contract or a forbidden fix reading as unexamined, so
-		// this surface rejected an applicability the other surface granted for
-		// the same change.
-		// Examination counts PRIMARY anchors for the same reason, and otherwise
-		// asks the graph directly. A retired anchor is not evidence that this
-		// file was examined in any sense that should suppress a fallback.
+		// Examination has THREE states here, and collapsing them into one
+		// boolean is what let a withdrawal read as coverage (#318 review).
+		//
+		//   primary anchors > 0        -> examined, and something governs it
+		//   raw anchors, none primary  -> the graph looked, and every rule it
+		//                                 learned has since been RETIRED
+		//   no anchors at all          -> unknown; ask the index (#220)
+		//
+		// The index lookup answers the third state. It must not be allowed to
+		// answer the second: it queries the same SourceFile subject that just
+		// returned those retired anchors, so it always says yes, and a file
+		// whose governance was deliberately withdrawn is re-admitted as
+		// examined -- making coverageSufficient true, suppressing the
+		// thin-coverage escalation, and returning local/none for a file that
+		// is high-risk by authority membership and matches no path-class rule.
+		//
+		// A failed lifecycle filter is a DETERMINED result, not a missing one.
+		rawAnchors := len(impact.GetDirectInvariants()) +
+			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents())
 		examined := len(primaryOnly(impact.GetDirectInvariants(), primary))+
 			len(primaryOnly(impact.GetDirectFailureModes(), primary))+
 			len(primaryOnly(impact.GetDirectIntents(), primary)) > 0
-		if !examined {
+		if !examined && rawAnchors == 0 {
 			examined, _ = s.sourceFileExamined(ctx, f, "")
 		}
 		if examined {

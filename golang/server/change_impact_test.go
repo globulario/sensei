@@ -153,13 +153,15 @@ func TestChangeImpactCountsContractAnchorsAsCoverage(t *testing.T) {
 // as coverage let a domain match manufacture coverage for a file that holds no
 // governed anchor at all.
 //
-// WHAT THIS PROVES, AND WHAT IT DOES NOT. It proves the plan gets no vote here.
-// It does NOT prove the other half of the finding -- that inflated coverage
-// suppresses the thin-coverage escalation -- because reaching that needs a file
-// AnyFileHighRiskWeighted treats as high risk that ALSO matches none of the
-// path-class rules in assessChangeRisk; with a path match the escalation fires
-// anyway and the test passes regardless. Reverting coverage to the merged set
-// still passes this test for that reason. The fixture is owed.
+// THE OWED FIXTURE, NOW BUILT. The earlier version of this test used
+// golang/workflow/engine.go, which matches a path-class rule in
+// assessChangeRisk, so the escalation fired anyway and reverting the repair
+// still passed. The fixture it needed is a file AnyFileHighRiskWeighted treats
+// as high risk that matches NONE of those rules: FileRiskTier returns RiskHigh
+// for authority-domain membership alone, and golang/server/ is in no
+// path-class prefix. So the domain makes the file high-risk and contributes
+// nothing else. Counting the merged `forbidden` set as coverage now measurably
+// suppresses the thin-coverage escalation.
 func TestAuthorityBypassGuidanceIsNotCoverage(t *testing.T) {
 	invalidateRepairPlanCacheForTest()
 	invalidateAuthorityDomainCacheForTest()
@@ -175,7 +177,7 @@ func TestAuthorityBypassGuidanceIsNotCoverage(t *testing.T) {
 	globalAuthorityDomainCache.loaded = true
 	globalAuthorityDomainCache.domains = []loadedAuthorityDomain{{
 		ID:            "authority.some_domain",
-		CoversPaths:   []string{"golang/workflow/"},
+		CoversPaths:   []string{"golang/server/"},
 		ForbidsBypass: []string{"direct_etcd_write"},
 	}}
 	globalAuthorityDomainCache.mu.Unlock()
@@ -190,7 +192,7 @@ func TestAuthorityBypassGuidanceIsNotCoverage(t *testing.T) {
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) { return nil, nil },
 	})
 	plan, err := s.planChangeImpact(context.Background(),
-		"remediate a doctor.finding_requires_mutation", []string{"golang/workflow/engine.go"})
+		"remediate a doctor.finding_requires_mutation", []string{"golang/server/change_impact.go"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,6 +201,121 @@ func TestAuthorityBypassGuidanceIsNotCoverage(t *testing.T) {
 	}
 	if plan.ApprovalGate == "manual_only" {
 		t.Fatalf("bypass guidance was counted as coverage and let a task-matched plan vote: approval=%q", plan.ApprovalGate)
+	}
+	// The half that was previously unprovable: with no real anchor, coverage is
+	// thin and a high-risk file must escalate. Counting the synthetic
+	// authority_bypass entry as an anchor makes coverage sufficient and this
+	// escalation silently disappears.
+	if plan.ApprovalGate != "review_required" {
+		t.Fatalf("thin coverage did not escalate a high-risk file: approval=%q blast=%q",
+			plan.ApprovalGate, plan.BlastRadius)
+	}
+}
+
+// seedAuthorityDomains installs authority domains for one test. Same reason as
+// seedRepairPlans: the loader reads a package-level cache, not the store.
+func seedAuthorityDomains(t *testing.T, domains ...loadedAuthorityDomain) {
+	t.Helper()
+	invalidateAuthorityDomainCacheForTest()
+	globalAuthorityDomainCache.mu.Lock()
+	globalAuthorityDomainCache.loaded = true
+	globalAuthorityDomainCache.domains = domains
+	globalAuthorityDomainCache.mu.Unlock()
+	t.Cleanup(invalidateAuthorityDomainCacheForTest)
+}
+
+// A retired anchor set is a DETERMINED result, not a missing one.
+//
+// The index fallback exists (#220) to answer "did the graph ever look at this
+// file" for a file with no anchors at all. It queries the same SourceFile
+// subject that produced the anchors, so for a retired-only file it always says
+// yes -- re-admitting as examined a file whose governance was deliberately
+// withdrawn, making coverage sufficient, and suppressing the thin-coverage
+// escalation on a file that is high-risk by authority membership and matches
+// no path-class rule. Found by review at 2f38ae57, not by the audit.
+func TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex(t *testing.T) {
+	invalidateRepairPlanCacheForTest()
+	t.Cleanup(invalidateRepairPlanCacheForTest)
+	seedAuthorityDomains(t, loadedAuthorityDomain{
+		ID:          "authority.some_domain",
+		CoversPaths: []string{"golang/server/"},
+	})
+
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			return statusAnchorFacts(rdf.ClassInvariant, "retired.rule", "Retired rule", "critical", "retired"), nil
+		},
+		// The graph does hold a SourceFile node for this path -- that is
+		// exactly the condition that made the fallback re-admit it.
+		sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+			return []string{"urn:test:sourcefile:1"}, nil
+		},
+	})
+	plan, err := s.planChangeImpact(context.Background(),
+		"adjust change impact planning", []string{"golang/server/change_impact.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sliceHas(plan.AffectedAuthorityDomains, "authority.some_domain") {
+		t.Fatalf("fixture did not match the domain, so the file is not high-risk and this proves nothing: %+v",
+			plan.AffectedAuthorityDomains)
+	}
+	if plan.ApprovalGate != "review_required" {
+		t.Fatalf("a retired-only file was re-admitted as examined and its escalation vanished: approval=%q blast=%q",
+			plan.ApprovalGate, plan.BlastRadius)
+	}
+}
+
+// The safety signals read PRIMARY anchors, so a retired anchor cannot answer
+// "who owns this file". golang/mcp/ is high-risk by directory and matches none
+// of the path-class rules, so the owner-unknown escalation is isolated here:
+// deriving hasAnchors from the raw lists makes it disappear.
+func TestSafetySignalsDoNotAcceptARetiredOwner(t *testing.T) {
+	invalidateRepairPlanCacheForTest()
+	t.Cleanup(invalidateRepairPlanCacheForTest)
+	seedAuthorityDomains(t) // no domains: the owner is genuinely unknown
+
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			return statusAnchorFacts(rdf.ClassInvariant, "retired.rule", "Retired rule", "critical", "retired"), nil
+		},
+	})
+	plan, err := s.planChangeImpact(context.Background(),
+		"adjust the mcp surface", []string{"golang/mcp/server.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !sliceHas(plan.Unknowns, "authority owner unknown for a high-risk file") {
+		t.Fatalf("a retired anchor answered the ownership question: unknowns=%v", plan.Unknowns)
+	}
+}
+
+// DirectArchitecture carries components, boundaries, decisions, evidence and
+// patterns as well as contracts. Only a contract is a class a repair plan can
+// name, so admitting the rest lets a plan that names a COMPONENT id claim
+// applicability it was never granted.
+func TestNonContractArchitectureDoesNotAnchorAPlan(t *testing.T) {
+	seedRepairPlans(t, loadedRepairPlan{
+		ID: "plan.contract_governed", BlastRadius: "cluster", ApprovalGate: "manual_only",
+		FindingClasses:    []string{"doctor.finding_requires_mutation"},
+		GovernedContracts: []string{"some.architecture.node"},
+	})
+	seedAuthorityDomains(t)
+
+	s := newTestServer(fakeStore{
+		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
+			// A Component, not a Contract, carrying the id the plan names.
+			return anchorFacts(rdf.ClassComponent, "some.architecture.node", "A component", "high"), nil
+		},
+	})
+	plan, err := s.planChangeImpact(context.Background(),
+		"remediate a doctor.finding_requires_mutation", []string{"golang/server/change_impact.go"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.ApprovalGate == "manual_only" {
+		t.Fatalf("a component id anchored a plan that only names contracts: approval=%q blast=%q",
+			plan.ApprovalGate, plan.BlastRadius)
 	}
 }
 
