@@ -46,6 +46,116 @@ func maxLabel(order []string, a, b string) string {
 	return a
 }
 
+// subjectAnchors is a subject's governed identities, KEPT IN THEIR CLASSES.
+//
+// Comparing bare ids across classes would let failure mode "x" authorise a plan
+// that preserves invariant "x", or a component named like a contract stand in
+// for the contract. The graph's identities are class-scoped, so applicability
+// must be too: each of a plan's groups is compared only against anchors of the
+// class that group names.
+type subjectAnchors struct {
+	invariants     map[string]bool
+	failureModes   map[string]bool
+	forbiddenFixes map[string]bool
+	contracts      map[string]bool
+}
+
+func (a subjectAnchors) empty() bool {
+	return len(a.invariants) == 0 && len(a.failureModes) == 0 &&
+		len(a.forbiddenFixes) == 0 && len(a.contracts) == 0
+}
+
+// newSubjectAnchors builds the class-scoped set from already-classified lists.
+func newSubjectAnchors(invariants, failureModes, forbiddenFixes, contracts []string) subjectAnchors {
+	set := func(ids []string) map[string]bool {
+		out := make(map[string]bool, len(ids))
+		for _, id := range ids {
+			if bare := bareAnchorID(id); bare != "" {
+				out[bare] = true
+			}
+		}
+		return out
+	}
+	return subjectAnchors{
+		invariants:     set(invariants),
+		failureModes:   set(failureModes),
+		forbiddenFixes: set(forbiddenFixes),
+		contracts:      set(contracts),
+	}
+}
+
+// planAppliesToSubject reports whether a matched repair plan may contribute to
+// this change's blast radius and approval gate.
+//
+// Applicability is established by IDENTITY, not by resemblance: the plan must
+// name an invariant, failure mode, forbidden fix or governed contract that is
+// among the anchors this subject's own files produced. Identities survive
+// renames, moved implementations and new call sites, so a plan cannot become
+// applicable because someone described the work in similar words, and cannot
+// stop being applicable because a function moved.
+//
+// It also requires the subject to have sufficient coverage. Without it, an
+// anchor coincidence is not evidence of anything: thin coverage is already
+// represented conservatively further down, on its own terms, and must not be
+// upgraded into a borrowed cluster label here.
+func planAppliesToSubject(p loadedRepairPlan, anchors subjectAnchors, coverageSufficient bool) bool {
+	// An AUTHORED relationship to the subject settles the question. covers_paths,
+	// expressed_by and authority-domain membership already scope the plan to
+	// these files, and they do so more directly than any anchor intersection
+	// could. Requiring an intersection on top of that discarded a plan's own
+	// declared scope -- a plan covering a custom high-risk path could be
+	// downgraded from manual_only to the generic fallback because the file
+	// happened to hold none of its four anchor classes.
+	if p.SubjectMatched {
+		return true
+	}
+	// Everything else reached this request through the task text, which is
+	// guidance. It votes only where the subject holds an identity the plan
+	// names, in the SAME class.
+	if !coverageSufficient || anchors.empty() {
+		return false
+	}
+	for _, group := range []struct {
+		ids   []string
+		known map[string]bool
+	}{
+		{p.PreservedInvariants, anchors.invariants},
+		{p.FailureModes, anchors.failureModes},
+		{p.ForbiddenFixes, anchors.forbiddenFixes},
+		{p.GovernedContracts, anchors.contracts},
+	} {
+		for _, id := range group.ids {
+			if group.known[bareAnchorID(id)] {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// bareAnchorID is deliberately almost nothing.
+//
+// Both sides of this comparison are already the same kind of value: a bare,
+// decoded, class-free identity. Knowledge nodes carry that because
+// awarenessIDFromIRI decodes and drops the class into its own field, and repair
+// plan relationships carry it because governedID decodes them at load. The
+// classes are kept apart by subjectAnchors rather than by a prefix.
+//
+// Earlier versions of this function stripped a "class:" prefix by guessing at
+// the shape of the head and decoded whatever it was given. Both were wrong in
+// the same way: they applied one transformation to two sides that were in
+// DIFFERENT normalisation states, so a governed id legitimately containing a
+// colon collapsed onto an unrelated one, and an id containing a percent escape
+// was decoded twice on one side and once on the other. Normalising at the
+// producer removed the need to reconcile anything here.
+func bareAnchorID(id string) string {
+	// Angle brackets are NOT stripped. MintIRI percent-encodes them, and both
+	// governedID and awarenessIDFromIRI decode, so a decoded bare identity may
+	// legally contain them -- treating them as IRI wrappers reduced the id "<x>"
+	// to "x" and let a plan naming the distinct "x" claim it.
+	return strings.TrimSpace(id)
+}
+
 type changeAssessment struct {
 	BlastRadius  string
 	ApprovalGate string
@@ -61,7 +171,18 @@ func assessChangeRisk(
 	risk awarenesspb.RiskClass,
 	coverageSufficient bool,
 	hasDirectAnchors bool,
+	anchors subjectAnchors,
 ) changeAssessment {
+	// hasDirectAnchors and subjectAnchors answer DIFFERENT questions and are
+	// deliberately not derived from one another.
+	//
+	// hasDirectAnchors asks whether this subject is anchored at all, and drives
+	// the "we cannot name the owner" escalation below. subjectAnchors asks WHICH
+	// governed identities the subject holds, and decides whether a matched
+	// repair plan is talking about this subject. Deriving the first from the
+	// second was tidier and wrong: widening the applicability set to the classes
+	// a plan can name would then have silently stopped the owner-unknown rule
+	// from firing.
 	blast := "local"
 	gate := "none"
 	var reasons []string
@@ -94,8 +215,23 @@ func assessChangeRisk(
 		}
 	}
 
-	// Repair-plan labels are an authored, high-confidence signal.
+	// Repair-plan labels are authored and trustworthy ABOUT THE PLAN. Whether a
+	// matched plan applies to THIS subject is a different question, and a match
+	// does not answer it: plans are matched partly from task prose, which is
+	// guidance rather than coverage. A plan that names nothing this change
+	// touches may therefore be perfectly correct and still be about something
+	// else, and because bump only ever escalates, letting it vote gave an
+	// unrelated subject the last word on this one's authority.
+	//
+	// So a plan votes only where applicability is ESTABLISHED: the subject has
+	// scoped evidence of its own, and the plan names one of the very anchors
+	// that evidence produced. An inapplicable plan is not discarded -- it stays
+	// in the briefing and the required actions as guidance -- it simply stops
+	// deciding how far this change reaches.
 	for _, p := range repairPlans {
+		if !planAppliesToSubject(p, anchors, coverageSufficient) {
+			continue
+		}
 		bump(p.BlastRadius, p.ApprovalGate, "matched repair plan "+p.ID)
 	}
 

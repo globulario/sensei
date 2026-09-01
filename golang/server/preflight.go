@@ -138,6 +138,13 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Per-file impact queries. Single-file failures degrade just that
 	// branch; other files keep going.
 	indexed := 0
+	// isPrimary is the ONE lifecycle predicate this handler uses. It was
+	// duplicated as two identical closures, which is how the risk path and the
+	// applicability path came to disagree about the same node.
+	isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+	}
+
 	for _, file := range files {
 		impact, _, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 		if err != nil {
@@ -151,13 +158,35 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		allForbiddenFixes = append(allForbiddenFixes, impact.GetForbiddenFixes()...)
 		allRequiredTests = append(allRequiredTests, impact.GetRequiredTests()...)
 		allArchitecture = append(allArchitecture, impact.GetDirectArchitecture()...)
-		// Anchors prove examination on their own; the index lookup establishes
-		// it WITHOUT them, and only that second direction was missing (#220).
-		// Before it, a file the graph holds and governs by nothing read
-		// identically to a file nobody had ever analysed. The lookup is skipped
-		// when an anchor already settled the question.
-		examined := len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0
-		if !examined {
+		// The SAME three-state examination model change_impact.go uses, for the
+		// same reason and over the same closed set of governed classes.
+		//
+		//   live governed anchor      -> examined
+		//   raw anchors, none primary -> a DETERMINED withdrawal, not coverage
+		//   no governed anchors       -> unknown; only now consult the index (#220)
+		//
+		// Anchors prove examination on their own, and the index lookup
+		// establishes it WITHOUT them -- before #220 a file the graph holds and
+		// governs by nothing read identically to a file nobody had analysed.
+		// But counting RAW anchors here let a retired-only subject increment
+		// `indexed`, and computePreflightCoverage calls coverage sufficient
+		// once every requested file is indexed. The same response then reported
+		// directLive empty, because that governance was withdrawn -- one
+		// request asserting both "fully covered" and "nothing governs this".
+		//
+		// Every governed class counts, not the first three: a subject whose
+		// only anchor is a forbidden fix or a contract is anchored, and
+		// narrowing the set here would rebuild the asymmetry on this surface
+		// after change_impact.go removed it (#318 review).
+		governedRaw := len(impact.GetDirectInvariants()) + len(impact.GetDirectFailureModes()) +
+			len(impact.GetDirectIntents()) + len(impact.GetForbiddenFixes()) +
+			len(ofClass(impact.GetDirectArchitecture(), "contract"))
+		examined := len(primaryOnly(impact.GetDirectInvariants(), isPrimary))+
+			len(primaryOnly(impact.GetDirectFailureModes(), isPrimary))+
+			len(primaryOnly(impact.GetDirectIntents(), isPrimary))+
+			len(primaryOnly(impact.GetForbiddenFixes(), isPrimary))+
+			len(primaryOnly(ofClass(impact.GetDirectArchitecture(), "contract"), isPrimary)) > 0
+		if !examined && governedRaw == 0 {
 			var blindSpot string
 			examined, blindSpot = s.sourceFileExamined(ctx, file, requestedDomain)
 			if blindSpot != "" {
@@ -217,6 +246,11 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Architecture nodes repeat across files (a component anchors many files), so
 	// dedup by id before capping.
 	resp.DirectArchitecture = capNodes(sortBySeverityID(dedupNodesByID(allArchitecture)), caps.architecture)
+	// The matcher's full result is kept for the decisions below; caps.patterns
+	// bounds only what is SHOWN. Classifying from the shown subset let a display
+	// limit -- one pattern in compact mode -- decide whether a strong pattern
+	// existed, which feeds risk classification and coverage.
+	matchedPatterns := patterns
 	if len(patterns) > caps.patterns {
 		patterns = patterns[:caps.patterns]
 	}
@@ -229,19 +263,62 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	trustCautions := s.applyTrustScoring(ctx, resp)
 	resp.BlindSpots = append(resp.BlindSpots, trustCautions...)
 
+	// directLive is the COMPLETE lifecycle-filtered anchor set: every governed
+	// anchor these files hold, minus what lifecycle scoring retired, and NOT
+	// bounded by any display cap.
+	directLive := mergeAnchors(
+		primaryOnly(allInvariants, isPrimary),
+		primaryOnly(allFailureModes, isPrimary),
+		primaryOnly(allIntents, isPrimary))
+	// governedLive is directLive widened to EVERY class the examination test
+	// above accepts. Coverage must read this one.
+	//
+	// Coverage was the last decision still reading resp.Direct*, and after the
+	// examination repair that produced a second self-contradicting response:
+	// examination now counts a live forbidden fix or contract, so such a file
+	// is indexed and coverage reported "file(s) examined in the graph — NO
+	// GOVERNING RULE APPLIES", while the very same forbidden fix or contract
+	// went on to establish applicability and let a repair plan decide
+	// authority. One response saying nothing governs this and this governed
+	// thing decides authority.
+	//
+	// The earlier instance was a contradiction across lifecycle state; this one
+	// is across CLASS VOCABULARY. Reading a closed set of governed classes by
+	// naming three of its five members is the same error either way.
+	governedLive := mergeAnchors(
+		directLive,
+		primaryOnly(allForbiddenFixes, isPrimary),
+		primaryOnly(ofClass(allArchitecture, "contract"), isPrimary))
+
 	// Coverage — strict: anchors > 0 OR file indexed OR strong pattern match.
-	resp.Coverage = computePreflightCoverage(files, indexed,
-		resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents,
-		patterns)
+	resp.Coverage = computePreflightCoverage(files, indexed, governedLive, matchedPatterns)
 
 	// Risk classify (pure function). The canonical protection signal is
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
 	// touches the filesystem (contract §10).
-	directAll := mergeAnchors(resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents)
 	protAssessment := s.assessCanonicalProtection(files)
+	// NOTE ON THE REMAINING ASYMMETRY, stated rather than silently resolved:
+	// coverage now reads governedLive (five classes) while classification and
+	// confidence still read directLive (three). Widening those two is not
+	// obviously right -- classifyRisk builds a KEYWORD HAYSTACK over its Direct
+	// set, so adding contract and forbidden-fix prose would change which
+	// changes are called DATA_LOSS or SECURITY, and that is a semantic change
+	// to the verdict rather than a projection fix. It is raised on the PR
+	// instead of decided here.
+	// Risk is classified from the COMPLETE live anchor set, not the response
+	// view. classifyRisk builds a keyword haystack over in.Direct and returns
+	// DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns those
+	// into human_approval_required -- so classifying from the capped list let a
+	// presentation limit drop a data-loss or security classification. Severity
+	// sorting mitigates that and does not remove it: only hasCriticalAnchor is
+	// severity-driven, while the keyword rules are not, so a high-severity
+	// data-loss anchor behind three critical ones was simply not seen.
+	//
+	// Lifecycle filtering still applies: retired knowledge does not classify.
 	risk, reasons := classifyRisk(ClassifyInputs{
-		Direct:     directAll,
-		Patterns:   patterns,
+		Direct:     directLive,
+		Governed:   governedLive,
+		Patterns:   matchedPatterns,
 		Coverage:   resp.Coverage,
 		Files:      files,
 		Protection: protAssessment,
@@ -250,7 +327,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	resp.BlindSpots = append(resp.BlindSpots, reasons...)
 
 	// Confidence.
-	resp.Confidence = computeConfidence(directAll, patterns, resp.Coverage)
+	resp.Confidence = computeConfidence(directLive, matchedPatterns, resp.Coverage)
 
 	// Action assembly (bounded by caps.actionEntries).
 	resp.RequiredActions = assembleRequiredActions(resp, risk, caps.actionEntries)
@@ -279,8 +356,9 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if plans, err := s.loadRepairPlans(ctx); err == nil {
 		matchedRepairPlans = matchRepairPlans(task, files, authorityDomains, plans)
 		if len(matchedRepairPlans) > 0 {
+			// Surfaced actions are capped; the assessment below sees them all.
 			resp.RequiredActions = prependBounded(
-				repairPlanActions(matchedRepairPlans), resp.RequiredActions, caps.actionEntries)
+				repairPlanActions(surfacedRepairPlans(matchedRepairPlans)), resp.RequiredActions, caps.actionEntries)
 		}
 	}
 
@@ -297,8 +375,35 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Change-risk assessment (Phase 2F): the leading "safe to patch / needs
 	// review / manual only" signal. Prepended last so it heads required_actions.
 	if len(files) > 0 {
+		// Applicability is decided from the COMPLETE governed anchor set, not
+		// from the response. resp.Direct* are capped for presentation -- as few
+		// as three invariants and two failure modes -- and the merged anchor
+		// set carries neither forbidden fixes nor architecture contracts at
+		// all. Deciding
+		// applicability from that view would deny a legitimately applicable plan
+		// its vote whenever the relationship ran through an anchor that had been
+		// capped out or was never presented, which is the false negative that
+		// makes a gate look repaired while it is quietly disabled.
+		//
+		// Caps are a presentation limit. They must not become an epistemic one.
+		// The complete set, minus what lifecycle scoring already removed from
+		// primary guidance. The capped response view had two properties: it was
+		// shortened for a reader AND it had deprecated, superseded and retired
+		// nodes filtered out. Taking the uncapped collections restored the
+		// second problem while fixing the first -- a retired anchor could
+		// re-enable a plan's blast radius while the same response was saying
+		// that knowledge is not primary guidance. Caps are presentation;
+		// lifecycle is not.
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
-			resp.Coverage.GetSufficient(), len(directAll) > 0)
+			resp.Coverage.GetSufficient(), len(directLive) > 0,
+			newSubjectAnchors(
+				subjectAnchorIDs(primaryOnly(allInvariants, isPrimary)),
+				subjectAnchorIDs(primaryOnly(allFailureModes, isPrimary)),
+				subjectAnchorIDs(primaryOnly(allForbiddenFixes, isPrimary)),
+				// Only contracts: DirectArchitecture also carries components,
+				// boundaries, decisions, evidence and patterns, and a component
+				// named like a contract must not stand in for one.
+				subjectAnchorIDs(ofClass(primaryOnly(allArchitecture, isPrimary), "contract"))))
 		// The SAME verdict, published twice: as the prose line existing consumers
 		// already read, and as structured fields. Both are derived from one
 		// assessment rather than computed twice, so the sentence and the fields
@@ -334,7 +439,17 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// a bare directory check means a file an authority domain owns degrades
 	// even outside the static high-risk list, while helper/test files in a
 	// high-risk directory no longer falsely degrade.
-	if len(files) > 0 && len(directAll) == 0 &&
+	// "The graph has no facts about this file" is an EXISTENCE claim, so it
+	// reads governedLive -- every governed class -- and not the three-class
+	// directLive the keyword classifier uses. With directLive, a high-risk file
+	// governed only by a live forbidden fix or contract was declared DEGRADED
+	// with "no facts about this file" while the same response listed the
+	// governing anchor and let it authorise a repair plan (#318 review).
+	//
+	// The keyword classifier keeps directLive deliberately: widening its
+	// haystack changes which changes are called DATA_LOSS or SECURITY, which is
+	// a verdict change rather than a projection fix.
+	if len(files) > 0 && len(governedLive) == 0 &&
 		(coverage.AnyFileHighRiskWeighted(files, authorityCoversPaths(authorityDomains)) || protAssessment.Protected) {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 		resp.Confidence = awarenesspb.Confidence_CONFIDENCE_LOW
@@ -380,8 +495,10 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// the agent's decision-making (it explicitly says "do not trust as
 	// proof of safety"), while EMPTY can be misread as "graph is happy
 	// and has nothing to say".
+	// Same existence question, same set: EMPTY means the graph holds nothing
+	// about this subject, and a live contract or forbidden fix IS something.
 	if resp.Status != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED &&
-		len(directAll) == 0 && len(patterns) == 0 {
+		len(governedLive) == 0 && len(matchedPatterns) == 0 {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY
 	}
 
@@ -452,11 +569,14 @@ func (s *server) scopeDegradedPreflightResponse(task string, files []string, sta
 // were examined and nothing governs them", and sufficient is the field whose
 // whole purpose is to separate those two answers. A strong match still reports
 // itself in the note, and still travels in the response as guidance.
+// governed is the COMPLETE lifecycle-filtered set of governed anchors across
+// every class, uncapped. It was three capped response slices, which made this
+// the last decision on the surface still reading a projection.
 func computePreflightCoverage(files []string, indexed int,
-	invariants, failureModes, intents []*awarenesspb.KnowledgeNode,
+	governed []*awarenesspb.KnowledgeNode,
 	patterns []*awarenesspb.MatchedImplementationPattern) *awarenesspb.CoverageSummary {
 
-	directCount := len(invariants) + len(failureModes) + len(intents)
+	directCount := len(governed)
 	hasStrongPattern := false
 	for _, p := range patterns {
 		if p.GetMatchStrength() == "strong" {
@@ -588,6 +708,53 @@ func dedupNodesByID(nodes []*awarenesspb.KnowledgeNode) []*awarenesspb.Knowledge
 		}
 		seen[id] = true
 		out = append(out, n)
+	}
+	return out
+}
+
+// subjectAnchorIDs names every governed anchor a subject's own files produced,
+// across the classes a repair plan is able to name: invariants, failure modes,
+// forbidden fixes and architecture contracts.
+//
+// It is fed the UNCAPPED collections deliberately. The scorer needs the
+// identities rather than a count, and it needs all of them: an anchor that was
+// capped out of the response is still an anchor this subject has.
+// primaryOnly drops the nodes lifecycle scoring does not treat as primary
+// guidance. It takes the predicate rather than calling the scorer, so the
+// collection logic stays testable without a live store.
+func primaryOnly(nodes []*awarenesspb.KnowledgeNode, isPrimary func(*awarenesspb.KnowledgeNode) bool) []*awarenesspb.KnowledgeNode {
+	if isPrimary == nil {
+		return nodes
+	}
+	out := make([]*awarenesspb.KnowledgeNode, 0, len(nodes))
+	for _, n := range nodes {
+		if isPrimary(n) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// ofClass keeps only the nodes of one governed class. DirectArchitecture is a
+// mixed list, and applicability is class-scoped.
+func ofClass(nodes []*awarenesspb.KnowledgeNode, class string) []*awarenesspb.KnowledgeNode {
+	out := make([]*awarenesspb.KnowledgeNode, 0, len(nodes))
+	for _, n := range nodes {
+		if strings.EqualFold(strings.TrimSpace(n.GetClass()), class) {
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+func subjectAnchorIDs(lists ...[]*awarenesspb.KnowledgeNode) []string {
+	var out []string
+	for _, nodes := range lists {
+		for _, n := range nodes {
+			if id := strings.TrimSpace(n.GetId()); id != "" {
+				out = append(out, id)
+			}
+		}
 	}
 	return out
 }

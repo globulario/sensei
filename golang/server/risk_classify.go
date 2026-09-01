@@ -91,6 +91,29 @@ type ClassifyInputs struct {
 	// or DEGRADED protection is surfaced as its own typed blind-spot reason
 	// rather than silently collapsing to "not protected" (contract §5).
 	Protection protection.Assessment
+	// Governed is the COMPLETE lifecycle-filtered governed anchor set across
+	// every class -- invariants, failure modes, intents, forbidden fixes and
+	// contracts. Direct is deliberately narrower: it feeds the KEYWORD
+	// haystack, and widening that changes which changes are called DATA_LOSS or
+	// SECURITY, a verdict change rather than a projection fix.
+	//
+	// The EXISTENCE rules below must read Governed. "No awareness anchors
+	// apply -- graph has no facts about this file" was computed from Direct, so
+	// a high-risk file governed only by a live contract or forbidden fix was
+	// told the graph knew nothing about it while the same response listed the
+	// governing anchor (#318 review).
+	//
+	// Empty falls back to Direct, so a caller that has not been updated keeps
+	// its previous behaviour rather than silently losing every anchor.
+	Governed []*awarenesspb.KnowledgeNode
+}
+
+// governedOrDirect is the set the EXISTENCE rules read.
+func (in ClassifyInputs) governedOrDirect() []*awarenesspb.KnowledgeNode {
+	if len(in.Governed) > 0 {
+		return in.Governed
+	}
+	return in.Direct
 }
 
 // ProtectionAssessmentDegradedReasonPrefix is the stable reason-string
@@ -136,7 +159,9 @@ func classifyRiskCore(in ClassifyInputs) (awarenesspb.RiskClass, []string) {
 		}
 	}
 
-	hasAnchors := len(in.Direct) > 0
+	// Existence reads every governed class; the keyword haystack below stays
+	// on the narrower Direct set on purpose.
+	hasAnchors := len(in.governedOrDirect()) > 0
 	haystack := strings.ToLower(anchorHaystack(in.Direct))
 	hasHighRiskPath := anyPathInHighRiskDir(in.Files) || in.Protection.Protected
 	hasCriticalAnchor := anyCriticalSeverity(in.Direct)

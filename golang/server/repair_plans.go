@@ -51,6 +51,15 @@ type loadedRepairPlan struct {
 	CoversPaths []string
 	// AuthorityDomainIDs are the bare authority-domain ids the plan applies to.
 	AuthorityDomainIDs []string
+	// SubjectMatched records that this plan reached the request through an
+	// AUTHORED relationship to the subject -- covers_paths, expressed_by, or
+	// authority-domain membership -- rather than through the task text.
+	//
+	// The distinction was computed here and then discarded by flattening
+	// byPath and byTask into one slice, which left every consumer unable to
+	// tell "this plan is about these files" from "these words resemble this
+	// plan". Consumers that decide authority need that difference.
+	SubjectMatched bool
 }
 
 type repairPlanCache struct {
@@ -122,13 +131,13 @@ func classFactsToRepairPlans(facts []store.ImpactFact) []loadedRepairPlan {
 		case rdf.PropProducesOutcomeFeedback:
 			p.OutcomeFeedback = f.Object
 		case rdf.PropGovernedByContract:
-			p.GovernedContracts = append(p.GovernedContracts, bareIDFromIRI(f.Object))
+			p.GovernedContracts = append(p.GovernedContracts, governedID(f.Object))
 		case rdf.PropMustNotViolateInvariant:
-			p.PreservedInvariants = append(p.PreservedInvariants, bareIDFromIRI(f.Object))
+			p.PreservedInvariants = append(p.PreservedInvariants, governedID(f.Object))
 		case rdf.PropRepairsFailureMode:
-			p.FailureModes = append(p.FailureModes, bareIDFromIRI(f.Object))
+			p.FailureModes = append(p.FailureModes, governedID(f.Object))
 		case rdf.PropForbids:
-			p.ForbiddenFixes = append(p.ForbiddenFixes, bareIDFromIRI(f.Object))
+			p.ForbiddenFixes = append(p.ForbiddenFixes, governedID(f.Object))
 		case rdf.PropRequiresTest:
 			p.RequiredTests = append(p.RequiredTests, bareIDFromIRI(f.Object))
 		case rdf.PropExpressedBy:
@@ -170,18 +179,41 @@ func matchRepairPlans(task string, files []string, matchedDomains []loadedAuthor
 	var byPath, byTask []loadedRepairPlan
 	for _, p := range plans {
 		if planCoversFile(p, files) || planAppliesToDomain(p, domainIDs) {
+			p.SubjectMatched = true
 			byPath = append(byPath, p)
 			continue
 		}
 		if task != "" && planMatchesTask(p, taskLower) {
+			p.SubjectMatched = false
 			byTask = append(byTask, p)
 		}
 	}
-	out := append(byPath, byTask...)
-	if len(out) > maxRepairPlansSurfaced {
-		out = out[:maxRepairPlansSurfaced]
+	// The complete matched set, uncapped. maxRepairPlansSurfaced is a DISPLAY
+	// limit: applying it here decided which plans were allowed to influence
+	// change risk, so a third plan naming a live subject anchor and requiring
+	// manual_only was discarded before anything could score it. Callers cap
+	// where they SURFACE, with surfacedRepairPlans.
+	return append(byPath, byTask...)
+}
+
+// surfacedRepairPlans is the presentation slice: the plans a reader is shown.
+// Path/domain matches come first, so the cap keeps the authored ones.
+func surfacedRepairPlans(plans []loadedRepairPlan) []loadedRepairPlan {
+	if len(plans) > maxRepairPlansSurfaced {
+		return plans[:maxRepairPlansSurfaced]
 	}
-	return out
+	return plans
+}
+
+// governedID is the human identity of a governed relationship target.
+//
+// bareIDFromIRI returns the minted segment, which is EncodeIRIPath-encoded.
+// Knowledge nodes carry the DECODED id (awarenessIDFromIRI decodes on the way
+// out), so a relationship left encoded here would never compare equal to the
+// anchor it names. Decoding at load puts both in one spelling; doing it later,
+// to both sides at once, double-decodes this one.
+func governedID(iri string) string {
+	return rdf.DecodeIRIPath(bareIDFromIRI(iri))
 }
 
 // planCoversFile reports whether any touched file is under the plan's

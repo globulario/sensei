@@ -1873,3 +1873,66 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
+  - id: golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    title: Matching returns every repair plan; only surfacing is capped
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/repair_plans.go
+  - id: golang/server/preflight_applicability_test.go:TestPatternDrivenSignalsSeeEveryMatchedPattern
+    title: Pattern-driven signals read every matched pattern, not the shown one
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilityIgnoresRetiredAnchors
+    title: A retired anchor does not establish applicability
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilitySeesAnchorsThatCapsHide
+    title: Applicability is decided from the complete anchor set
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
+    title: Risk classification sees anchors a display cap hides
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
+    title: Confidence counts every live anchor, not the shown ones
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/change_impact_test.go:TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex
+    title: A retired-only file is not re-admitted as examined by the index
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/change_impact.go
+  - id: golang/server/preflight_applicability_test.go:TestExistenceStatusSeesEveryGovernedClass
+    title: An existence claim reads every governed class, not the keyword set
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusReadsTheUncappedImpact
+    title: The briefing status is counted before the display cap
+    protects:
+      failure_modes:
+        - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+      files:
+        - golang/server/preflight.go
