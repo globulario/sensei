@@ -28,7 +28,7 @@ func TestPatternMatchAloneCannotManufactureSufficientCoverage(t *testing.T) {
 		MatchReason:   []string{"shape match"},
 	}}
 
-	got := computePreflightCoverage(files, indexed, invariants, failureModes, intents, patterns)
+	got := computePreflightCoverage(files, indexed, mergeAnchors(invariants, failureModes, intents), patterns)
 
 	if got.GetSufficient() {
 		t.Fatalf("coverage was reported sufficient on zero anchors and zero indexed files, "+
@@ -62,7 +62,7 @@ func TestPreflightCoverageRestsOnAnchorsOrIndexedFiles(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := computePreflightCoverage(tc.files, tc.indexed, tc.anchors, nil, nil, tc.matched)
+			got := computePreflightCoverage(tc.files, tc.indexed, tc.anchors, tc.matched)
 			if got.GetSufficient() != tc.want {
 				t.Fatalf("sufficient=%v, want %v (note=%q)", got.GetSufficient(), tc.want, got.GetNote())
 			}

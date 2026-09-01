@@ -264,10 +264,10 @@ func TestPatternDrivenSignalsSeeEveryMatchedPattern(t *testing.T) {
 	// Coverage reports a strong match as guidance rather than as coverage --
 	// which is this same law, already correctly applied there -- so what changes
 	// is the note, not sufficiency. The note must still be able to see it.
-	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, nil, nil, all).GetNote(); !strings.Contains(note, "strong-tier") {
+	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, all).GetNote(); !strings.Contains(note, "strong-tier") {
 		t.Fatalf("a strong pattern beyond the display cap was invisible to coverage: %q", note)
 	}
-	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, nil, nil, shown).GetNote(); strings.Contains(note, "strong-tier") {
+	if note := computePreflightCoverage([]string{"a.go"}, 0, nil, shown).GetNote(); strings.Contains(note, "strong-tier") {
 		t.Fatalf("fixture is wrong: the shown subset already reports a strong tier: %q", note)
 	}
 }
@@ -361,6 +361,61 @@ func TestRetiredOnlySubjectIsNotReportedAsCovered(t *testing.T) {
 				t.Fatalf("coverage reported SUFFICIENT for a subject whose only governance was withdrawn, "+
 					"while the same response shows no live anchor: note=%q",
 					resp.GetCoverage().GetNote())
+			}
+		})
+	}
+}
+
+// Coverage was the last decision on this surface still reading the projection,
+// and it read only three of the five governed classes.
+//
+// After the examination repair, a file whose only LIVE governance is a
+// forbidden fix or a contract is examined, so it is indexed. Coverage then took
+// the "indexed == len(files)" branch and announced "no governing rule applies"
+// — while that same forbidden fix or contract went on to establish
+// applicability and let a repair plan decide authority. One response saying
+// nothing governs this AND this governed thing decides authority.
+//
+// The earlier self-contradiction was across lifecycle state; this one is across
+// CLASS VOCABULARY. Reading a closed set of five by naming three is the same
+// error in a different register (#318 review).
+func TestCoverageCountsEveryGovernedClassNotJustThree(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			invalidateImplementationPatternCacheForTest()
+			s := newTestServer(fakeStore{
+				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+					if iri != "golang/workflow/engine.go" {
+						return nil, nil
+					}
+					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
+				},
+			})
+			resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+				Task:  "adjust workflow resume behaviour",
+				Files: []string{"golang/workflow/engine.go"},
+				Mode:  awarenesspb.PreflightMode_PREFLIGHT_COMPACT,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// Guard: the three projected classes must be empty, or the anchor
+			// would be counted by the old path too and this proves nothing.
+			if n := len(resp.GetDirectInvariants()) + len(resp.GetDirectFailureModes()) +
+				len(resp.GetDirectIntents()); n != 0 {
+				t.Fatalf("fixture leaked into the three projected classes (%d), so this asserts nothing", n)
+			}
+			cov := resp.GetCoverage()
+			if strings.Contains(cov.GetNote(), "no governing rule applies") {
+				t.Fatalf("coverage announced that nothing governs a file whose live %s anchors it: note=%q",
+					class.name, cov.GetNote())
+			}
+			if cov.GetDirectAnchorCount() == 0 {
+				t.Fatalf("coverage counted 0 direct anchors for a file with a live governed %s: note=%q",
+					class.name, cov.GetNote())
 			}
 		})
 	}

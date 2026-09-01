@@ -263,32 +263,48 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	trustCautions := s.applyTrustScoring(ctx, resp)
 	resp.BlindSpots = append(resp.BlindSpots, trustCautions...)
 
+	// directLive is the COMPLETE lifecycle-filtered anchor set: every governed
+	// anchor these files hold, minus what lifecycle scoring retired, and NOT
+	// bounded by any display cap.
+	directLive := mergeAnchors(
+		primaryOnly(allInvariants, isPrimary),
+		primaryOnly(allFailureModes, isPrimary),
+		primaryOnly(allIntents, isPrimary))
+	// governedLive is directLive widened to EVERY class the examination test
+	// above accepts. Coverage must read this one.
+	//
+	// Coverage was the last decision still reading resp.Direct*, and after the
+	// examination repair that produced a second self-contradicting response:
+	// examination now counts a live forbidden fix or contract, so such a file
+	// is indexed and coverage reported "file(s) examined in the graph — NO
+	// GOVERNING RULE APPLIES", while the very same forbidden fix or contract
+	// went on to establish applicability and let a repair plan decide
+	// authority. One response saying nothing governs this and this governed
+	// thing decides authority.
+	//
+	// The earlier instance was a contradiction across lifecycle state; this one
+	// is across CLASS VOCABULARY. Reading a closed set of governed classes by
+	// naming three of its five members is the same error either way.
+	governedLive := mergeAnchors(
+		directLive,
+		primaryOnly(allForbiddenFixes, isPrimary),
+		primaryOnly(ofClass(allArchitecture, "contract"), isPrimary))
+
 	// Coverage — strict: anchors > 0 OR file indexed OR strong pattern match.
-	resp.Coverage = computePreflightCoverage(files, indexed,
-		resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents,
-		matchedPatterns)
+	resp.Coverage = computePreflightCoverage(files, indexed, governedLive, matchedPatterns)
 
 	// Risk classify (pure function). The canonical protection signal is
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
 	// touches the filesystem (contract §10).
 	protAssessment := s.assessCanonicalProtection(files)
-	// directLive is the COMPLETE lifecycle-filtered anchor set: every governed
-	// anchor these files hold, minus what lifecycle scoring retired, and NOT
-	// bounded by any display cap. Every decision below reads it.
-	//
-	// It replaces a merge over resp.Direct*, the capped response view. For
-	// confidence that was a LIVE defect: computeConfidence returns HIGH at three
-	// or more direct anchors, and compact mode caps failure modes at two, so
-	// three genuine live failure-mode anchors reported HIGH from the truth and
-	// MEDIUM from the projection. For the emptiness tests below it is
-	// decoupling rather than repair -- a cap of at least one cannot turn a
-	// non-empty set empty -- but a decision that is correct only because a cap
-	// happens to be >= 1 is the same hidden dependence on a presentation
-	// constant, and it is not worth keeping for the sake of one merge.
-	directLive := mergeAnchors(
-		primaryOnly(allInvariants, isPrimary),
-		primaryOnly(allFailureModes, isPrimary),
-		primaryOnly(allIntents, isPrimary))
+	// NOTE ON THE REMAINING ASYMMETRY, stated rather than silently resolved:
+	// coverage now reads governedLive (five classes) while classification and
+	// confidence still read directLive (three). Widening those two is not
+	// obviously right -- classifyRisk builds a KEYWORD HAYSTACK over its Direct
+	// set, so adding contract and forbidden-fix prose would change which
+	// changes are called DATA_LOSS or SECURITY, and that is a semantic change
+	// to the verdict rather than a projection fix. It is raised on the PR
+	// instead of decided here.
 	// Risk is classified from the COMPLETE live anchor set, not the response
 	// view. classifyRisk builds a keyword haystack over in.Direct and returns
 	// DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns those
@@ -540,11 +556,14 @@ func (s *server) scopeDegradedPreflightResponse(task string, files []string, sta
 // were examined and nothing governs them", and sufficient is the field whose
 // whole purpose is to separate those two answers. A strong match still reports
 // itself in the note, and still travels in the response as guidance.
+// governed is the COMPLETE lifecycle-filtered set of governed anchors across
+// every class, uncapped. It was three capped response slices, which made this
+// the last decision on the surface still reading a projection.
 func computePreflightCoverage(files []string, indexed int,
-	invariants, failureModes, intents []*awarenesspb.KnowledgeNode,
+	governed []*awarenesspb.KnowledgeNode,
 	patterns []*awarenesspb.MatchedImplementationPattern) *awarenesspb.CoverageSummary {
 
-	directCount := len(invariants) + len(failureModes) + len(intents)
+	directCount := len(governed)
 	hasStrongPattern := false
 	for _, p := range patterns {
 		if p.GetMatchStrength() == "strong" {
