@@ -116,3 +116,24 @@ func TestOnlyCorpusPathsAreMeasured(t *testing.T) {
 		}
 	}
 }
+
+// A graph built AFTER the last corpus change contains every authored change.
+//
+// The resolver tested only one direction of ancestry, so an ordinary build from
+// a code-only or merge commit -- the common case -- could never report current
+// and answered Unknown instead. A check that cannot say yes is not a check.
+func TestABuildNewerThanTheLastCorpusChangeIsCurrent(t *testing.T) {
+	a := Assess(Inputs{
+		PublishedCommit: "newer0000",
+		CorpusCommit:    "older0000",
+		Contains:        true,
+		AheadKnown:      true,
+		CommitsAhead:    0,
+	})
+	if a.State != StateCurrent {
+		t.Fatalf("state=%q: a build containing every authored change was not reported current", a.State)
+	}
+	if !a.Reachable() {
+		t.Error("admitted knowledge was reported unreachable by a graph that contains it")
+	}
+}

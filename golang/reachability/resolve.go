@@ -33,8 +33,25 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 		}
 		return strings.TrimSpace(string(out)), true
 	}
-	corpus, ok := git(append([]string{"log", "-1", "--format=%H", "--"}, CorpusPaths...)...)
-	if !ok || corpus == "" {
+	// THE CORPUS REVISION IS RESOLVED FROM THE ADMITTED BASE, NOT LOCAL HEAD.
+	//
+	// Resolving from HEAD counts a reviewer's own unmerged docs/awareness edit
+	// as "admitted", so the published graph is reported stale during the exact
+	// pre-merge review where Sensei is being used -- a false staleness warning
+	// produced by the branch under review. Admitted means merged: prefer the
+	// upstream base, and fall back to HEAD only when there is no upstream to
+	// compare against, which a solo checkout legitimately has.
+	corpus := ""
+	for _, base := range [][]string{
+		append([]string{"log", "-1", "--format=%H", "origin/main", "--"}, CorpusPaths...),
+		append([]string{"log", "-1", "--format=%H", "--"}, CorpusPaths...),
+	} {
+		if v, ok := git(base...); ok && v != "" {
+			corpus = v
+			break
+		}
+	}
+	if corpus == "" {
 		return Assess(in)
 	}
 	in.CorpusCommit = corpus
@@ -46,8 +63,19 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 		return Assess(in)
 	}
 	if _, ok := git("merge-base", "--is-ancestor", in.PublishedCommit, corpus); !ok {
-		// Reachable object, but not an ancestor of the corpus revision: a
-		// sibling branch, or a graph built from work never merged here.
+		// The published revision is not an ancestor of the corpus revision.
+		// Before concluding anything, check the OTHER direction: a graph built
+		// from a code-only or merge commit AFTER the last corpus change
+		// contains every authored change, and reporting that as Unknown made
+		// an ordinary up-to-date build unable to report current at all.
+		if _, ahead := git("merge-base", "--is-ancestor", corpus, in.PublishedCommit); ahead {
+			in.Contains = true
+			in.AheadKnown = true
+			in.CommitsAhead = 0
+			return Assess(in)
+		}
+		// Neither is an ancestor of the other: a sibling branch, or a graph
+		// built from work never merged here. Unorderable, so Unknown.
 		return Assess(in)
 	}
 	in.Contains = true
