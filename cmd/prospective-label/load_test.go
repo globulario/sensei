@@ -45,7 +45,9 @@ func TestTheToolCannotOpenWhatIsWithheldFromTheAdjudicator(t *testing.T) {
 func TestTheFrozenReferenceSetLoads(t *testing.T) {
 	root := filepath.Join("..", "..", "docs", "evaluation", "prospective-v1-reference-set")
 	if _, err := os.Stat(root); err != nil {
-		t.Skip("reference set not present")
+		// 56 tracked files. Absence is a defect here, not an environment limit.
+		t.Fatalf("frozen reference set missing at %s: %v; it is tracked in this "+
+			"repository, so this is a defect and not a reason to stop checking", root, err)
 	}
 	rs, err := loadReferenceSet(root)
 	if err != nil {
@@ -77,7 +79,9 @@ func TestTheFrozenReferenceSetLoads(t *testing.T) {
 func TestPresentationOrderIsClassThenTitleThenID(t *testing.T) {
 	root := filepath.Join("..", "..", "docs", "evaluation", "prospective-v1-reference-set")
 	if _, err := os.Stat(root); err != nil {
-		t.Skip("reference set not present")
+		// 56 tracked files. Absence is a defect here, not an environment limit.
+		t.Fatalf("frozen reference set missing at %s: %v; it is tracked in this "+
+			"repository, so this is a defect and not a reason to stop checking", root, err)
 	}
 	rs, err := loadReferenceSet(root)
 	if err != nil {

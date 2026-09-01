@@ -69,9 +69,49 @@ unprotected.** Stopping at the first survivor would have produced the opposite
 conclusion, and stopping before mutating at all would have shipped a repair
 with no evidence that it binds to anything.
 
-## Not repaired here, and why
+## Second pass: nine more repaired
 
-The remaining 25 Class B sites are listed in the commit that adds this file.
+Class B was worked through rather than left as a list.
+
+```
+cmd/prospective-label/load_test.go:48,80    the frozen reference set is 56 TRACKED
+                                            files; absence is a defect
+investigation_test.go:976,990               createValidBaseDocument builds the
+                                            fixture IN CODE, so a fixture lacking
+                                            the property is a defect in the fixture
+questiondisposition/matrix_test.go:138      seedDisposable likewise; with no scope
+                                            domain the fail-closed path is never reached
+golang/server/packaging_test.go:457,487     the seed is EMBEDDED and COMMITTED and
+                                            the marker is what certifies it
+preflight_applicability_test.go:95,229      the display-cap law (first pass)
+```
+
+`packaging_test.go:487` is the one to read. Its own comment says *"Absence of
+evidence is not a pass"* — and it skipped on absent evidence. The rule was
+written directly above the line breaking it, which is now the third time in
+this program that a test defeated a guarantee stated in its own comment.
+
+```
+M28 embedded seed marker removed                 KILLED
+M29 reference set hidden                         KILLED
+M30 createValidBaseDocument yields no coverage   KILLED
+M31 seeded question loses its scope domain       KILLED
+```
+
+Each mutation removed the real thing — the marker, the directory, the coverage,
+the domain — and ran the suite.
+
+### Four reclassified as Class A, correctly
+
+`cmd/eval-arms/protocol_test.go:128` (needs an external gin checkout),
+`cmd/awg/cmd_gate_contracts_test.go:320` (`eval/` is excluded from the
+standalone build, and says so), `cmd/awg/helpers_test.go:207` and
+`cmd/principle-check/meta_principle_coverage_test.go:445` (both need a sibling
+services checkout). These name a genuine external limitation and stay as skips.
+
+## Still not repaired, and why
+
+Fourteen Class B sites remain.
 They are not repaired in this PR because they are not one change: they span
 `golang/architecture/*` (fixture-carries-no-X conditions),
 `golang/server/packaging_test.go` (embedded seed markers),
@@ -79,6 +119,13 @@ They are not repaired in this PR because they are not one change: they span
 questions about whether the absent thing is tracked or generated, and each
 needs the surrounding test read rather than the message classified.
 
-**Closure is therefore NOT declared.** The enumeration exists so the remainder
-is a known quantity rather than an assumption, which is the whole point of the
-rule.
+**Closure is still NOT declared**, and the count is now:
+
+```
+114 total   38+4 Class A (correct)   11 repaired   14 Class B open   47 Class C unreviewed
+```
+
+The enumeration exists so the remainder is a known quantity rather than an
+assumption, which is the whole point of the rule. Declaring closure at 51 of
+114 examined was the error; declaring it at 67 would be the same error with a
+better number.

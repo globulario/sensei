@@ -135,7 +135,10 @@ func TestMissingDispositionGrantFailsClosed(t *testing.T) {
 func TestScopeBroadeningFailsClosed(t *testing.T) {
 	env := seedDisposable(t)
 	if env.ScopeDomain == "" {
-		t.Skip("seeded question has no scope domain to broaden past")
+		// seedDisposable builds the environment in code; no scope domain means
+		// the fail-closed path below is never reached.
+		t.Fatal("the seeded question carries no scope domain, so scope broadening " +
+			"is never attempted and this test asserts nothing")
 	}
 	req := answeredReusable(env)
 	req.EffectiveScopeDomain = env.ScopeDomain + ".unrelated"
