@@ -56,9 +56,22 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 	// that bug caught it.
 	//
 	// The admission branch is the remote's DEFAULT HEAD.
+	// EVERY remote, not just origin.
+	//
+	// A checkout whose canonical remote is `upstream` with no `origin` failed
+	// both the refs/remotes/origin/HEAD lookup and the origin/main fallback,
+	// and then resolved the corpus from LOCAL HEAD -- counting the feature
+	// branch's unmerged awareness edits as admitted, which is the exact false
+	// staleness the admitted-base preference exists to prevent. Hardcoding a
+	// remote name is the same mistake as hardcoding a branch name, one level
+	// out.
 	bases := [][]string{}
-	if head, ok := git("symbolic-ref", "--short", "refs/remotes/origin/HEAD"); ok && head != "" {
-		bases = append(bases, append([]string{"log", "-1", "--format=%H", head, "--"}, CorpusPaths...))
+	if remotes, ok := git("remote"); ok {
+		for _, r := range strings.Fields(remotes) {
+			if head, ok := git("symbolic-ref", "--short", "refs/remotes/"+r+"/HEAD"); ok && head != "" {
+				bases = append(bases, append([]string{"log", "-1", "--format=%H", head, "--"}, CorpusPaths...))
+			}
+		}
 	}
 	bases = append(bases,
 		append([]string{"log", "-1", "--format=%H", "origin/main", "--"}, CorpusPaths...),

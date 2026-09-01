@@ -4,7 +4,9 @@ package reachability
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -100,5 +102,75 @@ func TestARootWithoutTheCorpusAnswersUnknown(t *testing.T) {
 	}
 	if a.Reachable() {
 		t.Error("a root that cannot answer the question reported knowledge reachable")
+	}
+}
+
+// A checkout whose canonical remote is not named `origin`.
+//
+// The lookup hardcoded refs/remotes/origin/HEAD and then origin/main, so a
+// repository with an `upstream` remote and no `origin` failed both and resolved
+// the corpus from LOCAL HEAD — counting the feature branch's unmerged awareness
+// edits as admitted, which is the exact false staleness the admitted-base
+// preference exists to prevent.
+//
+// Hardcoding a remote name is the same mistake as hardcoding a branch name, one
+// level out. This builds the environment rather than arguing about it: the
+// origin-only mutation cannot be falsified in a repository that has an origin.
+func TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin(t *testing.T) {
+	admitted := t.TempDir()
+	work := t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("git fixture unavailable (%v): %s", err, out)
+		}
+	}
+
+	// An admitted repository with one corpus commit.
+	run(admitted, "init", "-q", "-b", "main")
+	if err := os.MkdirAll(filepath.Join(admitted, "docs", "awareness"), 0o755); err != nil {
+		t.Skip("cannot build fixture")
+	}
+	if err := os.WriteFile(filepath.Join(admitted, "docs/awareness/invariants.yaml"), []byte("invariants: []\n"), 0o644); err != nil {
+		t.Skip("cannot build fixture")
+	}
+	run(admitted, "add", "-A")
+	run(admitted, "commit", "-q", "-m", "admitted corpus")
+
+	// A working checkout whose ONLY remote is named upstream.
+	run(work, "init", "-q", "-b", "feature")
+	run(work, "remote", "add", "upstream", admitted)
+	run(work, "fetch", "-q", "upstream")
+	run(work, "reset", "-q", "--hard", "upstream/main")
+	run(work, "remote", "set-head", "upstream", "main")
+
+	// An UNMERGED corpus edit on the feature branch: resolving from local HEAD
+	// would count it as admitted, which is the defect.
+	if err := os.WriteFile(filepath.Join(work, "docs/awareness/invariants.yaml"), []byte("invariants: [ {id: local} ]\n"), 0o644); err != nil {
+		t.Skip("cannot write fixture edit")
+	}
+	run(work, "add", "-A")
+	run(work, "commit", "-q", "-m", "unmerged local corpus edit")
+
+	upstreamTip, err := exec.Command("git", "-C", work, "rev-parse", "upstream/main").Output()
+	if err != nil {
+		t.Skip("no upstream ref")
+	}
+	head, err := exec.Command("git", "-C", work, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skip("no head")
+	}
+
+	a := ResolveFromGit(context.Background(), work, strings.TrimSpace(string(head)))
+	if a.CorpusCommit == strings.TrimSpace(string(head)) {
+		t.Fatal("the corpus resolved from the feature branch's own HEAD; an unmerged awareness " +
+			"edit was counted as admitted because the remote is not named origin")
+	}
+	if a.CorpusCommit != strings.TrimSpace(string(upstreamTip)) {
+		t.Errorf("corpus resolved to %q, want the upstream default head %q",
+			a.CorpusCommit, strings.TrimSpace(string(upstreamTip)))
 	}
 }

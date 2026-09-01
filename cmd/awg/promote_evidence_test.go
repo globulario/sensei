@@ -4,7 +4,9 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -65,15 +67,7 @@ func olderCommit(t *testing.T) string {
 		t.Skip("not a git checkout")
 	}
 
-	var candidate string
-	if parents, ok := git("rev-list", "--parents", "-n", "1", "HEAD"); ok && len(strings.Fields(parents)) >= 3 {
-		// A merge commit: first parent is the base branch tip.
-		candidate, _ = git("rev-parse", "HEAD^1")
-	} else if _, onAdmitted := git("merge-base", "--is-ancestor", "HEAD", "origin/main"); onAdmitted {
-		candidate, _ = git("rev-parse", "HEAD~1")
-	} else if base, ok := git("merge-base", "HEAD", "origin/main"); ok {
-		candidate = base
-	}
+	candidate := selectAdmittedBase(git)
 
 	if candidate == "" || candidate == headRev {
 		t.Skip("no commit older than HEAD and outside the claimant's line is available")
@@ -248,5 +242,268 @@ func TestTheGateTestCanActuallyRunHere(t *testing.T) {
 	}
 	if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", got, head).Run(); err != nil {
 		t.Fatalf("the selected commit %s is not an ancestor of HEAD", got[:8])
+	}
+}
+
+// admittedRef returns the admitted branch ref that is actually resolvable here,
+// so callers use the ref that was found rather than one they assume exists.
+// Its ABSENCE is the signature of a CI pull-request merge ref, where the
+// workflow runs tests before fetching the base branch.
+func admittedRef(git func(...string) (string, bool)) (string, bool) {
+	for _, ref := range []string{"origin/main", "main"} {
+		if _, ok := git("rev-parse", "--verify", "-q", ref+"^{commit}"); ok {
+			return ref, true
+		}
+	}
+	return "", false
+}
+
+// selectAdmittedBase picks the commit this environment can treat as admitted.
+//
+// It is separated from olderCommit and takes its git accessor as a parameter
+// for one reason: the ordering below CANNOT BE FALSIFIED IN THIS CHECKOUT.
+// Restoring the wrong order survives every test here, because HEAD is not a
+// merge commit locally — so the environment that exposes the defect has to be
+// BUILT rather than argued about. See
+// TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip.
+//
+// THE ADMITTED REF WINS WHENEVER IT EXISTS. HEAD^1 is only correct when there
+// is no admitted ref to consult.
+//
+// An earlier order tried HEAD^1 first whenever HEAD was a merge commit, on the
+// assumption that a merge commit means a CI merge ref. It does not: a
+// developer's feature branch that has merged the admitted branch also ends in a
+// merge, and there HEAD^1 is the PRE-MERGE FEATURE TIP — a claimant-controlled
+// commit, which would then have been handed to the verifier as the promotion
+// base and made specimen A pass for the worst possible reason.
+//
+// Absence of the admitted ref is what identifies the CI environment, and that
+// is exactly the condition under which HEAD^1 is the admitted side.
+func selectAdmittedBase(git func(...string) (string, bool)) string {
+	// THE REF THAT WAS FOUND IS THE REF THAT IS USED. Asking whether SOME
+	// admitted ref exists and then hardcoding origin/main below is the same
+	// class of split the whole gate is about: a checkout holding a local `main`
+	// but no `origin/main` would take the admitted branch, fail the merge-base
+	// against a ref it never found, return "", and SKIP -- silently undoing the
+	// property that this test runs in CI at all.
+	if ref, ok := admittedRef(git); ok {
+		if _, onAdmitted := git("merge-base", "--is-ancestor", "HEAD", ref); onAdmitted {
+			// On the admitted branch: no claimant is in flight.
+			c, _ := git("rev-parse", "HEAD~1")
+			return c
+		}
+		if base, ok := git("merge-base", "HEAD", ref); ok {
+			return base
+		}
+		return ""
+	}
+	// No admitted ref at all: a CI pull-request merge ref, where the first
+	// parent is the admitted side and HEAD^2 is the claimant's.
+	if parents, ok := git("rev-list", "--parents", "-n", "1", "HEAD"); ok && len(strings.Fields(parents)) >= 3 {
+		c, _ := git("rev-parse", "HEAD^1")
+		return c
+	}
+	return ""
+}
+
+// A developer's feature branch that ends in an ordinary merge of the admitted
+// branch. HEAD is a merge commit here, exactly as on a CI pull-request merge
+// ref — but HEAD^1 is the PRE-MERGE FEATURE TIP, a commit the claimant wrote.
+// Handing that to the verifier as the promotion base would accept specimen A as
+// independently verified on the claimant's own material.
+//
+// The two environments are told apart by whether an admitted ref exists at all,
+// so this fixture gives the working repository one.
+func TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip(t *testing.T) {
+	admitted, work := t.TempDir(), t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("git fixture unavailable (%v): %s", err, out)
+		}
+	}
+	write := func(dir, name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Skip("cannot write fixture")
+		}
+	}
+
+	run(admitted, "init", "-q", "-b", "main")
+	write(admitted, "base.txt", "admitted\n")
+	run(admitted, "add", "-A")
+	run(admitted, "commit", "-q", "-m", "admitted root")
+
+	run(work, "clone", "-q", admitted, ".")
+	run(work, "checkout", "-q", "-b", "feature")
+	write(work, "claim.txt", "the claimant's own material\n")
+	run(work, "add", "-A")
+	run(work, "commit", "-q", "-m", "claimant work")
+	preMergeTip, err := exec.Command("git", "-C", work, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skip("no feature tip")
+	}
+
+	// The admitted branch moves, and the developer merges it in — an ordinary
+	// merge, leaving HEAD a merge commit whose FIRST parent is the claimant's.
+	write(admitted, "base.txt", "admitted, moved\n")
+	run(admitted, "add", "-A")
+	run(admitted, "commit", "-q", "-m", "admitted advances")
+	run(work, "fetch", "-q", "origin")
+	run(work, "merge", "-q", "--no-ff", "-m", "merge admitted into feature", "origin/main")
+
+	parents, err := exec.Command("git", "-C", work, "rev-list", "--parents", "-n", "1", "HEAD").Output()
+	if err != nil || len(strings.Fields(string(parents))) < 3 {
+		t.Skip("fixture HEAD is not a merge commit")
+	}
+
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", work}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
+	}
+	got := selectAdmittedBase(git)
+	if got == strings.TrimSpace(string(preMergeTip)) {
+		t.Fatal("the promotion base resolved to the claimant's own pre-merge feature tip; " +
+			"specimen A would be accepted as independently verified on the claimant's material")
+	}
+	if got == "" {
+		t.Fatal("no admitted base selected in a repository that has one")
+	}
+	if _, ok := git("merge-base", "--is-ancestor", got, "origin/main"); !ok {
+		t.Errorf("selected base %q is not an ancestor of the admitted branch", got)
+	}
+}
+
+// A checkout holding a local `main` but no `origin/main` — an unfetched clone,
+// or a CI job that created the branch locally. Asking whether SOME admitted ref
+// exists and then resolving against a hardcoded `origin/main` made this return
+// no base at all, so the gate test SKIPPED: green CI proving nothing, which is
+// the specific failure this whole helper was rewritten to end.
+func TestAnAdmittedRefUnderADifferentNameStillYieldsABase(t *testing.T) {
+	work := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", work}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("git fixture unavailable (%v): %s", err, out)
+		}
+	}
+	run("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(work, "base.txt"), []byte("admitted\n"), 0o644); err != nil {
+		t.Skip("cannot write fixture")
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "admitted root")
+	run("checkout", "-q", "-b", "feature")
+	if err := os.WriteFile(filepath.Join(work, "claim.txt"), []byte("claim\n"), 0o644); err != nil {
+		t.Skip("cannot write fixture")
+	}
+	run("add", "-A")
+	run("commit", "-q", "-m", "claimant work")
+
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", work}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
+	}
+	if _, ok := git("rev-parse", "--verify", "-q", "origin/main^{commit}"); ok {
+		t.Skip("fixture unexpectedly has origin/main")
+	}
+	got := selectAdmittedBase(git)
+	if got == "" {
+		t.Fatal("no base selected in a repository that has an admitted ref under the name `main`; " +
+			"the gate test would skip and CI would be green having proven nothing")
+	}
+	if _, ok := git("merge-base", "--is-ancestor", got, "main"); !ok {
+		t.Errorf("selected base %q is not an ancestor of the admitted branch", got)
+	}
+}
+
+// The CI pull-request merge ref itself: a detached merge commit with NO
+// admitted ref present, because the workflow runs tests before fetching the
+// base branch.
+//
+// Proving that this test RUNS in CI is not the same as proving it picks the
+// right parent there. Swapping HEAD^1 for HEAD^2 hands the CLAIMANT'S OWN TIP
+// to the verifier as the promotion base — specimen A accepted on the
+// claimant's material — and every other fixture here survives that mutation,
+// because none of them reach this branch.
+func TestOnACIMergeRefTheAdmittedSideIsTheFirstParent(t *testing.T) {
+	work := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", work}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Skipf("git fixture unavailable (%v): %s", err, out)
+		}
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(work, name), []byte(body), 0o644); err != nil {
+			t.Skip("cannot write fixture")
+		}
+	}
+	rev := func(ref string) string {
+		t.Helper()
+		out, err := exec.Command("git", "-C", work, "rev-parse", ref).Output()
+		if err != nil {
+			t.Skipf("cannot resolve %s", ref)
+		}
+		return strings.TrimSpace(string(out))
+	}
+
+	run("init", "-q", "-b", "main")
+	write("base.txt", "admitted\n")
+	run("add", "-A")
+	run("commit", "-q", "-m", "admitted root")
+	run("checkout", "-q", "-b", "feature")
+	write("claim.txt", "the claimant's own material\n")
+	run("add", "-A")
+	run("commit", "-q", "-m", "claimant work")
+	claimantTip := rev("HEAD")
+
+	run("checkout", "-q", "main")
+	write("base.txt", "admitted, moved\n")
+	run("add", "-A")
+	run("commit", "-q", "-m", "admitted advances")
+	admittedTip := rev("HEAD")
+
+	// GitHub builds the merge ref with the base branch checked out, so the
+	// first parent is the admitted side and the second is the claimant's.
+	run("merge", "-q", "--no-ff", "-m", "Merge pull request", "feature")
+	run("checkout", "-q", "--detach", "HEAD")
+	// Tests run before the base-branch fetch: no admitted ref is present.
+	run("branch", "-q", "-D", "main")
+	run("branch", "-q", "-D", "feature")
+
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", work}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
+	}
+	if _, ok := admittedRef(git); ok {
+		t.Skip("fixture unexpectedly retains an admitted ref")
+	}
+	got := selectAdmittedBase(git)
+	if got == claimantTip {
+		t.Fatal("on a CI merge ref the promotion base resolved to the CLAIMANT'S tip; " +
+			"specimen A would be accepted as independently verified on the claimant's own material")
+	}
+	if got != admittedTip {
+		t.Errorf("promotion base = %q, want the admitted side %q", got, admittedTip)
 	}
 }
