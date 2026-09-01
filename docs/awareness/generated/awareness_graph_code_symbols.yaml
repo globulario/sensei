@@ -6014,12 +6014,24 @@ test_symbols:
     package: main
     language: go
     doc: "Free text is not evidence. This is the specimens' actual lesson."
+  - id: cmd/awg/promote_evidence_test.go:TestOnABranchThePromotionBaseIsTheMergeBase
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestOnABranchThePromotionBaseIsTheMergeBase
+    package: main
+    language: go
+    doc: "And on a branch it is the merge-base, not HEAD -- the half that must not\nregress while fixing the above."
   - id: cmd/awg/promote_evidence_test.go:TestOnACIMergeRefTheAdmittedSideIsTheFirstParent
     file: cmd/awg/promote_evidence_test.go
     symbol: TestOnACIMergeRefTheAdmittedSideIsTheFirstParent
     package: main
     language: go
     doc: "The CI pull-request merge ref itself: a detached merge commit with NO\nadmitted ref present, because the workflow runs tests before fetching the\nbase branch.\n\nProving that this test RUNS in CI is not the same as proving it picks the\nright parent there. Swapping HEAD^1 for HEAD^2 hands the CLAIMANT'S OWN TIP\nto the verifier as the promotion base — specimen A accepted on the\nclaimant's material — and every other fixture here survives that mutation,\nbecause none of them reach this branch."
+  - id: cmd/awg/promote_evidence_test.go:TestOnTheAdmittedBranchThePromotionBaseIsHeadItself
+    file: cmd/awg/promote_evidence_test.go
+    symbol: TestOnTheAdmittedBranchThePromotionBaseIsHeadItself
+    package: main
+    language: go
+    doc: "On the admitted branch the promotion base is HEAD ITSELF.\n\nbaseCommit briefly delegated to selectAdmittedBase, which answers a\ndifferent question -- \"a commit older than HEAD and outside the claimant's\nline\" -- and therefore returns HEAD~1 here. Callers depend on\n`head == baseCommit(t)` to skip a case whose premise requires a branch, so\nthat case ran with a false premise and main went red while every pull\nrequest stayed green.\n\nA branch is never on the admitted branch and main always is, so this shape\nis CONSTRUCTED rather than taken from wherever the suite happens to run."
   - id: cmd/awg/promote_evidence_test.go:TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip
     file: cmd/awg/promote_evidence_test.go
     symbol: TestTheAdmittedBaseIsNotTheClaimantsOwnPreMergeTip
