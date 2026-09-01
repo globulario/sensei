@@ -145,6 +145,85 @@ apply."
 the code under test.** The cheap check is to make the mutation fail *loudly*
 first — if it cannot even change behaviour, it is not measuring anything.
 
+## Fourth and fifth passes: the surface is now fully examined
+
+Every one of the 114 sites has been read. Twenty-one repaired in total.
+
+### The worst find was not a hidden defect but two dead tests
+
+```
+yaml_import_phaseB_test.go   const docsDir   = "/home/dave/.../services/docs/awareness"
+intent_yaml_import_test.go   const docsIntent = "/home/dave/.../services/docs/intent"
+```
+
+Hardcoded into one person's home directory. Not conditionally skipped —
+**skipped always, everywhere else, reporting `ok`, for their whole lives.**
+Neither is findable by reading the skip message; both look like ordinary
+environment guards. Both now resolve through `SERVICES_REPO` like every other
+services-dependent test here.
+
+### And a build that was allowed to be non-deterministic
+
+`resultpipeline/build_e2e_test.go:534` skipped when two builds of **the same
+governed sources** produced different graph digests. That tolerates exactly the
+failure it is positioned to catch: either the build is non-deterministic or the
+sources are not the same, and both are defects.
+
+```
+M39 same-graph digests forced to differ      KILLED
+M40 same, Fatal reverted to Skip             SURVIVES — a non-deterministic build passes
+M41 no defect removes a file                 KILLED
+```
+
+### I nearly broke CI doing this
+
+I converted four `docs/awareness not found` skips to failures because that
+directory is 105 tracked files. **Two of them guarded the SERVICES corpus, not
+this repository's.** The conversion passed locally for exactly the reason it
+was wrong — this machine has that path — and a regex also clobbered an
+unrelated error message into claiming the directory was absent when the real
+failure was an import error.
+
+Caught by simulating the environment rather than reasoning about it:
+`SERVICES_REPO=/nonexistent go test ./...`. That check is now the habit, and
+its absence is what caused the mistake.
+
+## Left as skips, deliberately
+
+```
+symlink / FIFO / Windows / root-permission semantics    platform, named
+SERVICES_REPO, GIN_SRC, SENSEI_MODEL_BRIDGE, ruleguard  external, named
+combined_seed_test.go:24    the standalone seed genuinely omits services content
+positive_control_test.go:92 a DECLARED allow-list with a written reason per entry
+transport_outcome_test.go:414 live reachability is legitimately `unknown` on any
+                            branch behind main, which is the common case
+```
+
+The last two are the interesting ones. `positive_control_test.go` skips against
+a named `knownUncovered` map — a gap that is *declared*, not hidden, which is
+the shape this whole document is arguing for. It should ratchet downward the
+way #326 makes the dangling baseline ratchet, and that is worth doing
+separately rather than folding in here.
+
+## Closure
+
+```
+114 sites   88 legitimate (named external, platform, or declared)   21 repaired
+            5 pre-existing Fatal/structural   0 unexamined
+```
+
+**Closure IS now declared for the skip law in this repository.** Not because
+the count reached a threshold, but because every site has been read and each
+one is either a named limitation or a failure. The earlier refusals to declare
+it — at 51 of 114, and again at 67 — were the right calls: the rule asks for
+the surface to be enumerated, and it now has been.
+
+What is NOT claimed: that no such defect remains anywhere. `t.Skip` is one
+spelling of "stop checking quietly". The same shape lives in `return nil` on an
+unreadable file, in `continue` past an unparseable entry, and in any default
+branch that treats absence as emptiness. Those surfaces are not enumerated, and
+saying so is the difference between closure and completion.
+
 ## Still not repaired, and why
 
 Twelve Class B sites remain.
@@ -158,7 +237,7 @@ needs the surrounding test read rather than the message classified.
 **Closure is still NOT declared**, and the count is now:
 
 ```
-114 total   38+4 Class A (correct)   13 repaired   12 Class B open   47 Class C unreviewed
+(superseded by the closure section above)
 ```
 
 The enumeration exists so the remainder is a known quantity rather than an

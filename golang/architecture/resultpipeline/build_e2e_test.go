@@ -531,7 +531,16 @@ func TestBuildSameGraphDifferentTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	if a.ResultBinding.GraphDigestSHA256 != b.ResultBinding.GraphDigestSHA256 {
-		t.Skip("governed sources diverged unexpectedly; not a valid same-graph case")
+		// TWO BUILDS OF THE SAME GOVERNED SOURCES PRODUCED DIFFERENT DIGESTS.
+		//
+		// This skipped, which tolerates exactly the failure it is positioned to
+		// catch: either the build is non-deterministic, or the sources are not
+		// the same. Both are defects, and neither is a reason for the
+		// same-graph case to stop being checked.
+		t.Fatalf("two builds of the same governed sources produced different graph "+
+			"digests (%s vs %s): the build is non-deterministic, or the sources are not "+
+			"the same. Skipping here tolerated the defect this case exists to detect.",
+			a.ResultBinding.GraphDigestSHA256, b.ResultBinding.GraphDigestSHA256)
 	}
 	if a.ResultBinding.ResultTreeDigestSHA256 == b.ResultBinding.ResultTreeDigestSHA256 {
 		t.Fatal("different code trees must have different tree digests")

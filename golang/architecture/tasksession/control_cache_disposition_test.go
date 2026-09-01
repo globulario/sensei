@@ -75,7 +75,10 @@ func seedTaskWithArchitectQuestion(t *testing.T) (resulttestkit.Result, []qd.Ope
 	}
 	questions, err := qd.OpenQuestionsForLatestTransition(seeded.TaskDir)
 	if err != nil || len(questions) == 0 {
-		t.Skipf("seeded transition carries no architect question: %v", err)
+		// The transition is seeded by this test. No question means the seed
+		// stopped producing the case, not that the environment is limited.
+		t.Fatalf("the seeded transition carries no architect question (%v), so the "+
+			"disposition under test is never exercised", err)
 	}
 	return seeded, questions
 }

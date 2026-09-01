@@ -43,7 +43,11 @@ func TestClosureRootsAcceptTheInputSpellingProvenanceRecords(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(rel, "..") {
-		t.Skipf("temp dir %s is not outside the working directory; this test needs the cross-repo shape", corpus)
+		// t.TempDir() is outside the working directory by construction. If it
+		// is not, the cross-repo shape was never built and the assertions below
+		// prove nothing about it.
+		t.Fatalf("temp dir %s is not outside the working directory, so the cross-repo "+
+			"shape this test needs was never constructed", corpus)
 	}
 
 	// The slice records provenance as the input was spelled.

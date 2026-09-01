@@ -87,7 +87,11 @@ func TestDerivedTaskDirectoryIsAbsolute(t *testing.T) {
 	// pointer must be absolutised the same way an explicit flag is.
 	derived := filepath.Dir(filepath.Join(rel, "session.yaml"))
 	if filepath.IsAbs(derived) {
-		t.Skip("pointer paths are absolute in this fixture")
+		// The defect was in absolutising a RELATIVE path. An absolute one means
+		// the precondition is gone and the derivation under test is not
+		// exercised.
+		t.Fatalf("the derived pointer path %q is already absolute, so the relative-path "+
+			"absolutisation this test exists for is never exercised", derived)
 	}
 	absolutised := filepath.Join(repo, derived)
 	if !filepath.IsAbs(absolutised) {
