@@ -2256,7 +2256,8 @@ invariants:
       - golang/subjectstate/subjectstate_test.go:TestEveryGovernedClassCounts
       - golang/subjectstate/subjectstate_test.go:TestANilPredicateDoesNotMeanEverythingIsLive
       - golang/subjectstate/subjectstate_test.go:TestAConsumerCannotMutateTheCanonicalState
-      - golang/server/change_impact_test.go:TestALiveContractOrForbiddenFixCountsAsExamined
+      - golang/server/change_impact_test.go:TestALiveContractIsExaminedButDoesNotNameAnOwner
+      - golang/server/change_impact_test.go:TestChangeImpactEvaluatesLifecycleExactlyOnce
     evidence:
       - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
     contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.

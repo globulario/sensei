@@ -95,14 +95,25 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// "this file has a record of some kind". Setting it from raw nodes let a
 		// file whose only anchor is retired suppress that fallback while the
 		// retired anchor was correctly refused everywhere else.
-		// hasAnchors is CLASS-COMPLETE, from the canonical state.
+		// hasAnchors is DELIBERATELY NARROWER THAN GOVERNANCE, and reading it
+		// from the canonical state does not make it class-complete.
 		//
-		// It was set inside the invariant and failure-mode loops only, so a
-		// file governed solely by a live forbidden fix or contract answered
-		// "not anchored" and was told to read the source directly -- while the
-		// very same anchor established applicability and could let a repair
-		// plan decide authority. Three classes here, five everywhere else.
-		if state.HasLiveAnchors() {
+		// I widened this to every governed class and blast_radius.go says, in
+		// its own words, why that is wrong: "hasDirectAnchors asks whether this
+		// subject is anchored at all, and drives the 'we cannot name the owner'
+		// escalation... Deriving the first from the second was tidier and
+		// wrong: widening the applicability set to the classes a plan can name
+		// would then have silently stopped the owner-unknown rule from firing."
+		//
+		// A live contract or forbidden fix is governance; it does not name an
+		// OWNER. Counting it here suppressed the owner-unknown warning and the
+		// review escalation for a high-risk file with no matched authority
+		// domain -- which is the fallback's entire purpose.
+		//
+		// The canonical state is still the source. One owner for the anchors,
+		// two questions asked of them, and the narrower one NAMES its classes
+		// so the narrowing is visible here rather than implied.
+		if len(state.LiveIn(subjectstate.ClassInvariant, subjectstate.ClassFailureMode)) > 0 {
 			hasAnchors = true
 		}
 		for _, id := range state.LiveIDs(subjectstate.ClassInvariant) {

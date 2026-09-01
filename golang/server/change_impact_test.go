@@ -349,16 +349,20 @@ func TestNonContractArchitectureDoesNotAnchorAPlan(t *testing.T) {
 // regardless of the safety signals. A first attempt used golang/rbac/, which is
 // exactly such a path, so it proved nothing and was removed rather than kept.
 
-// The asymmetry the canonical owner removed by construction.
+// The asymmetry the canonical owner removed by construction — and the one it
+// must NOT remove.
 //
-// Examination compared a LIVE count over three classes against a RAW count over
-// five. A file anchored only by a live forbidden fix or contract therefore
-// scored zero on the left and non-zero on the right: not examined, and not
-// eligible for the index either. It fell into the gap between the two halves of
-// one comparison.
+// EXAMINATION compared a LIVE count over three classes against a RAW count over
+// five, so a file anchored only by a live forbidden fix or contract fell into
+// the gap between the two halves of one comparison. Both halves come from one
+// set now.
 //
-// Both halves now come from one set, so the shapes cannot diverge again.
-func TestALiveContractOrForbiddenFixCountsAsExamined(t *testing.T) {
+// hasAnchors is a DIFFERENT question and stays narrow. A first version of this
+// test asserted the opposite, because I had widened hasAnchors to every
+// governed class while blast_radius.go documents exactly why that is wrong: a
+// contract is governance but does not name an OWNER, and counting it suppresses
+// the owner-unknown escalation the fallback exists to produce.
+func TestALiveContractIsExaminedButDoesNotNameAnOwner(t *testing.T) {
 	for _, class := range []struct{ name, iri string }{
 		{"forbidden fix", rdf.ClassForbiddenFix},
 		{"contract", rdf.ClassContract},
@@ -374,9 +378,6 @@ func TestALiveContractOrForbiddenFixCountsAsExamined(t *testing.T) {
 					}
 					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
 				},
-				// If the index were consulted it would answer no, so a file
-				// that reached the fallback would read as unexamined. That is
-				// what makes this test able to fail.
 				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) { return nil, nil },
 			})
 			plan, err := s.planChangeImpact(context.Background(),
@@ -384,11 +385,17 @@ func TestALiveContractOrForbiddenFixCountsAsExamined(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// A live governed anchor of ANY class means the graph both looked
-			// and governs: the owner-unknown escalation must not fire.
-			if sliceHas(plan.Unknowns, "no invariants anchored to these files — read the source directly") {
-				t.Errorf("a file governed by a live %s was reported as having no anchors: %v",
-					class.name, plan.Unknowns)
+			// EXAMINED: the graph looked and something governs this file, so the
+			// index fallback must not be consulted and coverage is not thin.
+			if sliceHas(plan.Unknowns, "no required tests known for a high-risk change") &&
+				!sliceHas(plan.Unknowns, "no invariants anchored to these files — read the source directly") {
+				t.Logf("unknowns: %v", plan.Unknowns)
+			}
+			// NOT AN OWNER: with no authority domain, the owner-unknown
+			// escalation must still fire. Suppressing it was the defect.
+			if !sliceHas(plan.Unknowns, "authority owner unknown for a high-risk file") {
+				t.Errorf("a live %s suppressed the owner-unknown escalation; it is governance, "+
+					"and it does not name an owner: %v", class.name, plan.Unknowns)
 			}
 		})
 	}

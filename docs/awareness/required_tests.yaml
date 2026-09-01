@@ -2041,3 +2041,17 @@ required_tests:
         - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
       files:
         - golang/server/change_impact.go
+  - id: golang/server/change_impact_test.go:TestChangeImpactEvaluatesLifecycleExactlyOnce
+    title: Change-impact evaluates lifecycle exactly once
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/server/change_impact.go
+  - id: golang/server/change_impact_test.go:TestALiveContractIsExaminedButDoesNotNameAnOwner
+    title: A live contract is examined but does not name an owner
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/server/change_impact.go
