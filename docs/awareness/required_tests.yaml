@@ -2013,3 +2013,31 @@ required_tests:
         - invariant.sensei.a_tolerated_dangling_reference_states_why_it_is_tolerated
       files:
         - docs/awareness/dangling_refs_baseline.tsv
+  - id: golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+    title: Admitted-but-unpublished knowledge is stale, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    title: Every unanswerable reachability question is unknown, never current
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAnUnorderableGraphIsNotCalledStale
+    title: An unorderable graph is not called stale
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
+  - id: golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    title: An abbreviated revision is the same revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+      files:
+        - golang/reachability/reachability.go
