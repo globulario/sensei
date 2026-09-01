@@ -52,9 +52,22 @@ func olderCommit(t *testing.T) string {
 		if err != nil {
 			continue
 		}
-		if rev := strings.TrimSpace(string(out)); rev != "" && rev != headRev {
-			return rev
+		rev := strings.TrimSpace(string(out))
+		if rev == "" || rev == headRev {
+			continue
 		}
+		// VERIFY THE PRECONDITION, do not assume it.
+		//
+		// A candidate that is not an ancestor of HEAD is not "material the
+		// claimant did not introduce", and citing it makes the gate answer
+		// CLAIMANT_CONTROLLED -- a fixture failing its own setup and reporting
+		// that failure as a verdict about the gate. CI checks out a PR merge
+		// ref with a shallow history, where these assumptions do not hold, and
+		// this test was red there while passing locally.
+		if err := exec.Command("git", "-C", "../..", "merge-base", "--is-ancestor", rev, headRev).Run(); err != nil {
+			continue
+		}
+		return rev
 	}
 	t.Skip("no commit older than HEAD is available to measure independence against")
 	return ""
