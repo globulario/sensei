@@ -271,3 +271,37 @@ func TestPatternDrivenSignalsSeeEveryMatchedPattern(t *testing.T) {
 		t.Fatalf("fixture is wrong: the shown subset already reports a strong tier: %q", note)
 	}
 }
+
+// Confidence is a decision, and it was reading the projection.
+//
+// computeConfidence returns HIGH at three or more direct anchors. Compact mode
+// caps failure modes at TWO. So a subject holding three live failure-mode
+// anchors was HIGH by the truth and MEDIUM by the response view -- a governance
+// signal degraded by a display constant, found by review while the branch that
+// records that very law was in flight (#318 review).
+func TestConfidenceCountsEveryLiveAnchorNotTheShownOnes(t *testing.T) {
+	var facts []store.ImpactFact
+	for _, id := range []string{"fm.one", "fm.two", "fm.three"} {
+		facts = append(facts, anchorFacts(rdf.ClassFailureMode, id, "Live failure mode", "high")...)
+	}
+	s := newPreflightTestServer(t, map[string][]store.ImpactFact{
+		"golang/workflow/engine.go": facts,
+	}, false)
+	resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+		Task:  "adjust workflow resume behaviour",
+		Files: []string{"golang/workflow/engine.go"},
+		Mode:  awarenesspb.PreflightMode_PREFLIGHT_COMPACT,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Guard: if the cap is not actually biting, the test proves nothing.
+	if len(resp.GetDirectFailureModes()) >= 3 {
+		t.Fatalf("the display cap did not bind (%d shown), so this asserts nothing",
+			len(resp.GetDirectFailureModes()))
+	}
+	if got := resp.GetConfidence(); got != awarenesspb.Confidence_CONFIDENCE_HIGH {
+		t.Fatalf("three live anchors, %d shown: confidence %v -- a display cap decided a governance signal",
+			len(resp.GetDirectFailureModes()), got)
+	}
+}

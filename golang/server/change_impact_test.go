@@ -233,7 +233,27 @@ func seedAuthorityDomains(t *testing.T, domains ...loadedAuthorityDomain) {
 // withdrawn, making coverage sufficient, and suppressing the thin-coverage
 // escalation on a file that is high-risk by authority membership and matches
 // no path-class rule. Found by review at 2f38ae57, not by the audit.
+//
+// Table-driven over EVERY class that counts as a governed anchor. The first
+// version covered only retired invariants, so narrowing the raw count to
+// invariants/failure-modes/intents still passed it while a retired-only
+// forbidden fix or contract was handed to the index and resurrected (#318
+// review). A falsifier that covers one member of a closed set does not
+// establish the rule for the set.
 func TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"invariant", rdf.ClassInvariant},
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			retiredOnlyAnchorEscalates(t, class.iri)
+		})
+	}
+}
+
+func retiredOnlyAnchorEscalates(t *testing.T, class string) {
+	t.Helper()
 	invalidateRepairPlanCacheForTest()
 	t.Cleanup(invalidateRepairPlanCacheForTest)
 	seedAuthorityDomains(t, loadedAuthorityDomain{
@@ -243,7 +263,7 @@ func TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex(t *testing.T) {
 
 	s := newTestServer(fakeStore{
 		impactForFile: func(_ context.Context, _ string) ([]store.ImpactFact, error) {
-			return statusAnchorFacts(rdf.ClassInvariant, "retired.rule", "Retired rule", "critical", "retired"), nil
+			return statusAnchorFacts(class, "retired.rule", "Retired rule", "critical", "retired"), nil
 		},
 		// The graph does hold a SourceFile node for this path -- that is
 		// exactly the condition that made the fallback re-admit it.

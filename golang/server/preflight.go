@@ -242,8 +242,30 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Risk classify (pure function). The canonical protection signal is
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
 	// touches the filesystem (contract §10).
-	directAll := mergeAnchors(resp.DirectInvariants, resp.DirectFailureModes, resp.DirectIntents)
 	protAssessment := s.assessCanonicalProtection(files)
+	// isPrimary is the ONE lifecycle predicate this handler uses. It was
+	// duplicated as two identical closures, which is how the risk path and the
+	// applicability path came to disagree about the same node.
+	isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+	}
+	// directLive is the COMPLETE lifecycle-filtered anchor set: every governed
+	// anchor these files hold, minus what lifecycle scoring retired, and NOT
+	// bounded by any display cap. Every decision below reads it.
+	//
+	// It replaces a merge over resp.Direct*, the capped response view. For
+	// confidence that was a LIVE defect: computeConfidence returns HIGH at three
+	// or more direct anchors, and compact mode caps failure modes at two, so
+	// three genuine live failure-mode anchors reported HIGH from the truth and
+	// MEDIUM from the projection. For the emptiness tests below it is
+	// decoupling rather than repair -- a cap of at least one cannot turn a
+	// non-empty set empty -- but a decision that is correct only because a cap
+	// happens to be >= 1 is the same hidden dependence on a presentation
+	// constant, and it is not worth keeping for the sake of one merge.
+	directLive := mergeAnchors(
+		primaryOnly(allInvariants, isPrimary),
+		primaryOnly(allFailureModes, isPrimary),
+		primaryOnly(allIntents, isPrimary))
 	// Risk is classified from the COMPLETE live anchor set, not the response
 	// view. classifyRisk builds a keyword haystack over in.Direct and returns
 	// DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns those
@@ -254,14 +276,8 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// data-loss anchor behind three critical ones was simply not seen.
 	//
 	// Lifecycle filtering still applies: retired knowledge does not classify.
-	riskPrimary := func(n *awarenesspb.KnowledgeNode) bool {
-		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
-	}
 	risk, reasons := classifyRisk(ClassifyInputs{
-		Direct: mergeAnchors(
-			primaryOnly(allInvariants, riskPrimary),
-			primaryOnly(allFailureModes, riskPrimary),
-			primaryOnly(allIntents, riskPrimary)),
+		Direct:     directLive,
 		Patterns:   matchedPatterns,
 		Coverage:   resp.Coverage,
 		Files:      files,
@@ -271,7 +287,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	resp.BlindSpots = append(resp.BlindSpots, reasons...)
 
 	// Confidence.
-	resp.Confidence = computeConfidence(directAll, matchedPatterns, resp.Coverage)
+	resp.Confidence = computeConfidence(directLive, matchedPatterns, resp.Coverage)
 
 	// Action assembly (bounded by caps.actionEntries).
 	resp.RequiredActions = assembleRequiredActions(resp, risk, caps.actionEntries)
@@ -321,8 +337,9 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if len(files) > 0 {
 		// Applicability is decided from the COMPLETE governed anchor set, not
 		// from the response. resp.Direct* are capped for presentation -- as few
-		// as three invariants and two failure modes -- and directAll carries
-		// neither forbidden fixes nor architecture contracts at all. Deciding
+		// as three invariants and two failure modes -- and the merged anchor
+		// set carries neither forbidden fixes nor architecture contracts at
+		// all. Deciding
 		// applicability from that view would deny a legitimately applicable plan
 		// its vote whenever the relationship ran through an anchor that had been
 		// capped out or was never presented, which is the false negative that
@@ -337,11 +354,8 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		// re-enable a plan's blast radius while the same response was saying
 		// that knowledge is not primary guidance. Caps are presentation;
 		// lifecycle is not.
-		isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
-			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
-		}
 		assessment := assessChangeRisk(files, authorityDomains, matchedRepairPlans, risk,
-			resp.Coverage.GetSufficient(), len(directAll) > 0,
+			resp.Coverage.GetSufficient(), len(directLive) > 0,
 			newSubjectAnchors(
 				subjectAnchorIDs(primaryOnly(allInvariants, isPrimary)),
 				subjectAnchorIDs(primaryOnly(allFailureModes, isPrimary)),
@@ -385,7 +399,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// a bare directory check means a file an authority domain owns degrades
 	// even outside the static high-risk list, while helper/test files in a
 	// high-risk directory no longer falsely degrade.
-	if len(files) > 0 && len(directAll) == 0 &&
+	if len(files) > 0 && len(directLive) == 0 &&
 		(coverage.AnyFileHighRiskWeighted(files, authorityCoversPaths(authorityDomains)) || protAssessment.Protected) {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 		resp.Confidence = awarenesspb.Confidence_CONFIDENCE_LOW
@@ -432,7 +446,7 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// proof of safety"), while EMPTY can be misread as "graph is happy
 	// and has nothing to say".
 	if resp.Status != awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED &&
-		len(directAll) == 0 && len(patterns) == 0 {
+		len(directLive) == 0 && len(patterns) == 0 {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_EMPTY
 	}
 

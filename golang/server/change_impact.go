@@ -125,8 +125,19 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// is high-risk by authority membership and matches no path-class rule.
 		//
 		// A failed lifecycle filter is a DETERMINED result, not a missing one.
+		//
+		// rawAnchors must span EVERY class that can be a governed anchor here,
+		// not just the three the examination test uses. coverageSufficient
+		// below counts live forbidden fixes and contracts, so a file whose only
+		// historical governance was a forbidden fix or a contract is a file the
+		// graph looked at -- and counting only invariants, failure modes and
+		// intents would score it zero, hand it to the index, and resurrect
+		// exactly the coverage this three-state split exists to withhold.
+		// Narrowing the second state is the same defect wearing a smaller
+		// vocabulary (#318 review).
 		rawAnchors := len(impact.GetDirectInvariants()) +
-			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents())
+			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents()) +
+			len(impact.GetForbiddenFixes()) + len(ofClass(impact.GetDirectArchitecture(), "contract"))
 		examined := len(primaryOnly(impact.GetDirectInvariants(), primary))+
 			len(primaryOnly(impact.GetDirectFailureModes(), primary))+
 			len(primaryOnly(impact.GetDirectIntents(), primary)) > 0

@@ -5449,6 +5449,12 @@ test_symbols:
     symbol: TestConsistencyCheckIndexShape_SingleShapeNotFlagged
     package: main
     language: go
+  - id: cmd/awg/consumed_manifest_test.go:TestConsumedManifestCarriesUnprovableImports
+    file: cmd/awg/consumed_manifest_test.go
+    symbol: TestConsumedManifestCarriesUnprovableImports
+    package: main
+    language: go
+    doc: "A file that CONTRIBUTED TRIPLES with no consumed digest must enter the proof\nas unprovable, never be omitted from it.\n\nSkipping it turned \"not digested\" into \"not consumed\", so the JSONL importer\n-- which records no digest -- published facts nothing checked. Lack of\nfunctionality is acceptable; false attestation is not."
   - id: cmd/awg/contract_verification_wiring_test.go:TestVerificationWiring_HomeBackedPasses
     file: cmd/awg/contract_verification_wiring_test.go
     symbol: TestVerificationWiring_HomeBackedPasses
@@ -5901,6 +5907,18 @@ test_symbols:
     package: main
     language: go
     doc: "The gate, end to end, on the three specimen shapes -- through the same\nfunction runPromote now calls, with the same inputs it derives."
+  - id: cmd/awg/publication_adapter_integration_test.go:TestIntegration_AuthoritySnapshotReadsOneWorld_RealOxigraph
+    file: cmd/awg/publication_adapter_integration_test.go
+    symbol: TestIntegration_AuthoritySnapshotReadsOneWorld_RealOxigraph
+    package: main
+    language: go
+    doc: "F3: one query evaluation, one world.\n\nReading the marker, pointer and receipt separately and comparing digests\naccepts an A -> B -> A transition. This proves the single-evaluation read\nreturns all three together, so they cannot come from different worlds."
+  - id: cmd/awg/publication_adapter_integration_test.go:TestIntegration_PublicationAdapterPreservesTerms_RealOxigraph
+    file: cmd/awg/publication_adapter_integration_test.go
+    symbol: TestIntegration_PublicationAdapterPreservesTerms_RealOxigraph
+    package: main
+    language: go
+    doc: "The lossless adapter, proven against REAL Oxigraph with SEEDED state.\n\nEvery other falsifier runs against in-process fakes, which structurally\ncannot catch representation loss at the adapter boundary -- and that boundary\nis exactly where the term-kind defect lived. An earlier version of this test\nread whatever the developer's live store happened to contain and SKIPPED when\nthere was none, so it was not CI evidence at all: it could pass by finding\nnothing. This seeds its own positive and malformed specimens and refuses to\nskip once Oxigraph is available."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
@@ -23932,6 +23950,18 @@ test_symbols:
     package: coldsource
     language: go
     doc: "Triangulation over a broad directory must produce one bundle PER file-concept,\nnot one mega-bundle for the whole directory. This is the Caddy-benchmark\nregression guard in synthetic form: modules/caddyhttp had a 47-citation\nmega-bucket before file-concept keying; afterward it splits."
+  - id: golang/extractor/consumed_source_test.go:TestAnImporterThatRecordsNothingYieldsNoDigest
+    file: golang/extractor/consumed_source_test.go
+    symbol: TestAnImporterThatRecordsNothingYieldsNoDigest
+    package: extractor
+    language: go
+    doc: "THE CHOKE POINT: an importable schema whose importer records nothing must\nyield NO digest, not the classifier's.\n\nThe classifier's read is not evidence about the emitted triples. Falling back\nto it meant any importer that forgets readAndRecord silently reinstates the\noriginal lie -- a digest covering bytes the parser never saw. The policy\nlives here, once, instead of depending on 47 leaves staying correct."
+  - id: golang/extractor/consumed_source_test.go:TestTheRecordedDigestCoversTheImporterRead
+    file: golang/extractor/consumed_source_test.go
+    symbol: TestTheRecordedDigestCoversTheImporterRead
+    package: extractor
+    language: go
+    doc: "F5: the digest must cover the buffer the IMPORTER parsed.\n\nclassifyAndImport reads a file to detect its schema, then the importer\nreopens the path and parses a SECOND buffer. Digesting the classifier's read\nproves nothing about the emitted triples: a file changed between the two\nreads and restored afterwards leaves the classifier digest matching the\nrevision while the graph came from bytes no revision holds."
   - id: golang/extractor/contract_realizations_yaml_import_test.go:TestCandidateRealizes_IsNotAuthoritative
     file: golang/extractor/contract_realizations_yaml_import_test.go
     symbol: TestCandidateRealizes_IsNotAuthoritative
@@ -25496,12 +25526,90 @@ test_symbols:
     symbol: TestValidate_ContractFirst
     package: propose
     language: go
+  - id: golang/publication/decode_test.go:TestAValidV2ReceiptDecodes
+    file: golang/publication/decode_test.go
+    symbol: TestAValidV2ReceiptDecodes
+    package: publication
+    language: go
+    doc: "The valid specimen must decode. Every generated mutation below is only\nmeaningful because this passes."
+  - id: golang/publication/decode_test.go:TestEveryFieldMutationIsRefused
+    file: golang/publication/decode_test.go
+    symbol: TestEveryFieldMutationIsRefused
+    package: publication
+    language: go
+    doc: "SCHEMA-GENERATED ADVERSARIAL MATRIX.\n\nThe mutations are derived FROM THE SCHEMA rather than enumerated by hand, so\na field added later is attacked automatically instead of waiting for someone\nto remember it. This is the replacement for chasing one reviewer\ncounterexample at a time."
+  - id: golang/publication/decode_test.go:TestEveryIdentityBearingFieldChangesTheIdentity
+    file: golang/publication/decode_test.go
+    symbol: TestEveryIdentityBearingFieldChangesTheIdentity
+    package: publication
+    language: go
+    doc: "EVERY identity-bearing field must actually change the identity.\n\nFieldSpec.IdentityBearing states the law while Receipt.Identity() keeps a\nhand-maintained field list, so a future version could mark a field\nidentity-bearing in the schema and forget it in the hash -- reintroducing\npresent-and-unhashed through schema evolution rather than through a missing\ncheck. This proves the two agree, mechanically, for every version."
+  - id: golang/publication/decode_test.go:TestIdentityMismatchIsRefusedSeparately
+    file: golang/publication/decode_test.go
+    symbol: TestIdentityMismatchIsRefusedSeparately
+    package: publication
+    language: go
+    doc: "Identity mismatch is its own property, tested where it cannot mask a schema\ngap."
+  - id: golang/publication/decode_test.go:TestNoUnauthenticatedStatementIsStored
+    file: golang/publication/decode_test.go
+    symbol: TestNoUnauthenticatedStatementIsStored
+    package: publication
+    language: go
+    doc: "F4: no unauthenticated authority-bearing statement is STORED.\n\nThe receipt used to emit an rdfs:label repeating domain, revision and state\nas prose. It sat outside the schema, so an altered label left the receipt\nVERIFIED while stating contradictory provenance. The repair is deletion, not\nanother validator: a second copy of authenticated facts can only ever\ndisagree with the first."
+  - id: golang/publication/decode_test.go:TestPublicationValidationRefusesWhatTheReaderWouldRefuse
+    file: golang/publication/decode_test.go
+    symbol: TestPublicationValidationRefusesWhatTheReaderWouldRefuse
+    package: publication
+    language: go
+    doc: "Writer and verifier share one model: a receipt that would be refused must\nnever be published."
+  - id: golang/publication/decode_test.go:TestStructuralMutationsAreRefused
+    file: golang/publication/decode_test.go
+    symbol: TestStructuralMutationsAreRefused
+    package: publication
+    language: go
+    doc: "Cross-cutting mutations that are not per-field."
+  - id: golang/publication/decode_test.go:TestThePointerTypeIsPartOfItsSchema
+    file: golang/publication/decode_test.go
+    symbol: TestThePointerTypeIsPartOfItsSchema
+    package: publication
+    language: go
+    doc: "The pointer's TYPE is authority-bearing and belongs to its closed schema."
+  - id: golang/publication/decode_test.go:TestTheReceiptTypeIsPartOfItsSchema
+    file: golang/publication/decode_test.go
+    symbol: TestTheReceiptTypeIsPartOfItsSchema
+    package: publication
+    language: go
+    doc: "FAMILY A: the receipt's own rdf:type is authority-bearing.\n\nIt was added to the POINTER schema and not to the receipt schema, so a\nreceipt whose type was removed or changed still verified -- the endpoint\nreporting VERIFIED for a resource the store no longer identifies as a\npublication receipt. The same fix applied to one of two places, again."
+  - id: golang/publication/decode_test.go:TestV1KeepsItsHistoricalShape
+    file: golang/publication/decode_test.go
+    symbol: TestV1KeepsItsHistoricalShape
+    package: publication
+    language: go
+    doc: "v1 keeps its historical shape: SourceRoot is legal baggage, the version\npredicate is forbidden because v1's frozen identity cannot authenticate it,\nand A1's receipt must still decode."
+  - id: golang/publication/decode_test.go:TestV2DirtyRequiresTheCommittedTree
+    file: golang/publication/decode_test.go
+    symbol: TestV2DirtyRequiresTheCommittedTree
+    package: publication
+    language: go
+    doc: "v2 DIRTY must carry the tree its own writer records."
   - id: golang/publication/receipt_test.go:TestACleanCheckoutClaimsItsExactRevision
     file: golang/publication/receipt_test.go
     symbol: TestACleanCheckoutClaimsItsExactRevision
     package: publication
     language: go
     doc: "A clean checkout publishes its exact revision and may claim it."
+  - id: golang/publication/receipt_test.go:TestAConsumedFileWithNoDigestCannotBeProven
+    file: golang/publication/receipt_test.go
+    symbol: TestAConsumedFileWithNoDigestCannotBeProven
+    package: publication
+    language: go
+    doc: "F7: a file that CONTRIBUTED TRIPLES with no digest must fail the proof.\n\nSkipping undigested entries silently turned \"not digested\" into \"not\nconsumed\", so an importer that never recorded a digest published facts\nnothing checked."
+  - id: golang/publication/receipt_test.go:TestADanglingPointerIsDistinguishedFromAbsence
+    file: golang/publication/receipt_test.go
+    symbol: TestADanglingPointerIsDistinguishedFromAbsence
+    package: publication
+    language: go
+    doc: "A dangling pointer is its own world, not \"nothing was published\"."
   - id: golang/publication/receipt_test.go:TestADanglingPointerIsNotAnEmptyPublication
     file: golang/publication/receipt_test.go
     symbol: TestADanglingPointerIsNotAnEmptyPublication
@@ -25520,6 +25628,30 @@ test_symbols:
     package: publication
     language: go
     doc: "The receipt must survive a round trip through N-Triples and still verify."
+  - id: golang/publication/receipt_test.go:TestATamperedReceiptFailsAgainstItsStoredPointerTarget
+    file: golang/publication/receipt_test.go
+    symbol: TestATamperedReceiptFailsAgainstItsStoredPointerTarget
+    package: publication
+    language: go
+    doc: "Verification must compare the STORED target with the RECOMPUTED identity.\n\nThe first implementation recomputed the identity from a parsed receipt and\nthen checked it against an identity recomputed from the same fields, which\npasses for ANY tampered receipt because both sides move together. Resolve\nreturns the stored target so the comparison has two independently derived\nsides."
+  - id: golang/publication/receipt_test.go:TestAWitnessDetectsAMovingCheckout
+    file: golang/publication/receipt_test.go
+    symbol: TestAWitnessDetectsAMovingCheckout
+    package: publication
+    language: go
+    doc: "FAMILY B, temporal: the digest and the revision must describe one world.\n\nThe bytes were compiled at one moment and HEAD/tree/cleanliness read at a\nlater one, so a checkout that moved in between produced an exact claim for a\nrevision that did not produce those bytes."
+  - id: golang/publication/receipt_test.go:TestAllCompiledRootsMustAgreeForAnExactClaim
+    file: golang/publication/receipt_test.go
+    symbol: TestAllCompiledRootsMustAgreeForAnExactClaim
+    package: publication
+    language: go
+    doc: "FAMILY B: every compiled root must be described, or no exact claim is made.\n\nThe compiler read every --input root while the inspection read only the\nfirst, so a dirty supplementary root could contribute authenticated output\nunder another root's CLEAN_EXACT commit. Two mechanisms saying \"the compiled\ninputs\" and quantifying over different sets."
+  - id: golang/publication/receipt_test.go:TestAnIgnoredCompiledInputBreaksTheExactClaim
+    file: golang/publication/receipt_test.go
+    symbol: TestAnIgnoredCompiledInputBreaksTheExactClaim
+    package: publication
+    language: go
+    doc: "An IGNORED compiled input must break the exact claim.\n\nThe extractor walks the corpus with filepath.WalkDir, which knows nothing\nabout .gitignore, while `git status --untracked-files=all` omits ignored\nfiles. Cleanliness was measured over a different set than the one compiled,\nso an ignored YAML produced a CLEAN_EXACT attestation for bytes the named\nrevision does not contain. This is a DIFFERENT defect family from the RDF\nones: two definitions of \"the compiled inputs\" disagreeing, not a stored\nfact being normalised."
   - id: golang/publication/receipt_test.go:TestAnUntrackedInputBreaksTheExactClaim
     file: golang/publication/receipt_test.go
     symbol: TestAnUntrackedInputBreaksTheExactClaim
@@ -25532,12 +25664,36 @@ test_symbols:
     package: publication
     language: go
     doc: "THE CENTRAL FALSIFIER.\n\nTwo different commits with byte-identical awareness content must publish the\nSAME content digest and DIFFERENT revision provenance, and must not collapse\nto one receipt identity. Collapsing them is the defect this package exists to\nprevent: it is how a graph loses which world produced it while still looking\nperfectly verified."
+  - id: golang/publication/receipt_test.go:TestInspectSourceReportsTheRepositoryRelativePath
+    file: golang/publication/receipt_test.go
+    symbol: TestInspectSourceReportsTheRepositoryRelativePath
+    package: publication
+    language: go
+    doc: "InspectSource must report the repo-relative path, which is the whole point."
   - id: golang/publication/receipt_test.go:TestNonGitSourcePublishesUnknownAndNeverInfers
     file: golang/publication/receipt_test.go
     symbol: TestNonGitSourcePublishesUnknownAndNeverInfers
     package: publication
     language: go
     doc: "A source root that is not a git checkout publishes UNKNOWN and an EMPTY\nrevision. It must never be inferred, and the absent field must be absent\nrather than stated empty."
+  - id: golang/publication/receipt_test.go:TestProvingConsumedBytesCatchesARestoredFile
+    file: golang/publication/receipt_test.go
+    symbol: TestProvingConsumedBytesCatchesARestoredFile
+    package: publication
+    language: go
+    doc: "F2: a witness must contain evidence of the EVENT, not two observations\ncompatible with it.\n\nChange a file, compile, restore. Both working-tree inspections report the\nsame clean revision and tree, so a before/after comparison passes -- while\nthe compiled bytes came from a state no revision holds. Endpoint equality is\nnot continuity."
+  - id: golang/publication/receipt_test.go:TestReceiptFromTriplesMatchesTheDumpPath
+    file: golang/publication/receipt_test.go
+    symbol: TestReceiptFromTriplesMatchesTheDumpPath
+    package: publication
+    language: go
+    doc: "The bounded path must parse what the whole-graph path parses."
+  - id: golang/publication/receipt_test.go:TestResolveReturnsTheStoredTargetAndItsReceipt
+    file: golang/publication/receipt_test.go
+    symbol: TestResolveReturnsTheStoredTargetAndItsReceipt
+    package: publication
+    language: go
+    doc: "Resolve round-trips a healthy publication."
   - id: golang/publication/receipt_test.go:TestSourceStateIsReadByMembership
     file: golang/publication/receipt_test.go
     symbol: TestSourceStateIsReadByMembership
@@ -25550,6 +25706,36 @@ test_symbols:
     package: publication
     language: go
     doc: "A tampered field must break the identity, or the IRI proves nothing."
+  - id: golang/publication/receipt_test.go:TestTheHistoricalA1ReceiptStillVerifies
+    file: golang/publication/receipt_test.go
+    symbol: TestTheHistoricalA1ReceiptStillVerifies
+    package: publication
+    language: go
+    doc: "THE MIGRATION GUARD.\n\nA1's succession proof rests on this exact receipt identity, published by the\nv1 algorithm and recorded in the experiment's frozen evidence. If a later\nchange to Identity() ever alters it, the historical record stops verifying\nunder the code that superseded it -- which is rewriting the past in the\ncostume of a repair. This test pins the real value."
+  - id: golang/publication/receipt_test.go:TestUnresolvableTreeCannotClaimCleanExact
+    file: golang/publication/receipt_test.go
+    symbol: TestUnresolvableTreeCannotClaimCleanExact
+    package: publication
+    language: go
+    doc: "A publication that could not resolve its tree must not claim CLEAN_EXACT.\n\nThe verifier now requires a tree for the exact claim; the WRITER must not be\nable to produce a receipt the verifier would refuse, or the refusal surfaces\nat a start gate instead of at publication."
+  - id: golang/publication/receipt_test.go:TestV2IdentityFollowsThePathThatMeansSomething
+    file: golang/publication/receipt_test.go
+    symbol: TestV2IdentityFollowsThePathThatMeansSomething
+    package: publication
+    language: go
+    doc: "In v2 the source path is DURABLE and identity bearing: publishing the same\ncorpus from a different absolute directory must not change the receipt, and\nchanging the repo-relative path must."
+  - id: golang/publication/receipt_test.go:TestV2IsADistinctAlgorithmRatherThanAPatchedV1
+    file: golang/publication/receipt_test.go
+    symbol: TestV2IsADistinctAlgorithmRatherThanAPatchedV1
+    package: publication
+    language: go
+    doc: "v2 is a DIFFERENT algorithm, not a correction applied to v1. The same facts\nmust not produce the same identity, or the version would be decorative."
+  - id: golang/publication/receipt_test.go:TestV2PublishesNoUnhashedOperationalPath
+    file: golang/publication/receipt_test.go
+    symbol: TestV2PublishesNoUnhashedOperationalPath
+    package: publication
+    language: go
+    doc: "A v2 receipt must not publish the operational root at all. Present-and-\nunhashed is the exact shape v2 exists to remove."
   - id: golang/rdf/closure_protocol_drift_test.go:TestClosureProtocolClassesExistInOntology
     file: golang/rdf/closure_protocol_drift_test.go
     symbol: TestClosureProtocolClassesExistInOntology
@@ -26241,26 +26427,140 @@ test_symbols:
     package: main
     language: go
     doc: "The negative case: a file outside every covers_paths prefix must produce\nZERO authority lines — claiming ownership guidance where no domain matches\nwould teach agents to distrust the guidance everywhere."
+  - id: golang/server/blast_radius_test.go:TestAnchorIDsAreNotDecodedTwice
+    file: golang/server/blast_radius_test.go
+    symbol: TestAnchorIDsAreNotDecodedTwice
+    package: main
+    language: go
+    doc: "The subject side arrives already decoded. Decoding again here turned a real\n\"%2F\" in an id into \"/\", collapsing two different identities."
+  - id: golang/server/blast_radius_test.go:TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother
+    file: golang/server/blast_radius_test.go
+    symbol: TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother
+    package: main
+    language: go
+    doc: "An identity in the WRONG class must not authorise a plan. The graph's ids are\nclass-scoped, so failure mode \"x\" is not invariant \"x\", and a component named\nlike a contract is not that contract."
+  - id: golang/server/blast_radius_test.go:TestAngleBracketsAreNotStrippedFromAnIdentity
+    file: golang/server/blast_radius_test.go
+    symbol: TestAngleBracketsAreNotStrippedFromAnIdentity
+    package: main
+    language: go
+    doc: "MintIRI percent-encodes angle brackets, and both decoders decode them, so a\ndecoded bare identity may legally contain \"<\" or \">\". Treating them as IRI\nwrappers reduced the id \"<x>\" to \"x\" and let a plan naming the distinct \"x\"\nclaim an anchor that was never its own."
+  - id: golang/server/blast_radius_test.go:TestApplicabilityHoldsThroughEveryGovernedClass
+    file: golang/server/blast_radius_test.go
+    symbol: TestApplicabilityHoldsThroughEveryGovernedClass
+    package: main
+    language: go
+    doc: "A plan may be related to the subject through any governed class it can name,\nnot only through invariants. The scorer must not discriminate by class, and\nthe caller must not hand it a view that has dropped one: response caps are a\npresentation limit, and an anchor capped out of the response is still an\nanchor this subject has."
+  - id: golang/server/blast_radius_test.go:TestApplicableRepairPlanStillEscalates
+    file: golang/server/blast_radius_test.go
+    symbol: TestApplicableRepairPlanStillEscalates
+    package: main
+    language: go
+    doc: "The positive control: a plan that names an anchor this subject actually\nproduced is applicable, and must keep its vote."
+  - id: golang/server/blast_radius_test.go:TestAuthoredSubjectMatchDoesNotNeedAnAnchorIntersection
+    file: golang/server/blast_radius_test.go
+    symbol: TestAuthoredSubjectMatchDoesNotNeedAnAnchorIntersection
+    package: main
+    language: go
+    doc: "A plan matched through its OWN authored scope -- covers_paths, expressed_by,\nor authority-domain membership -- has already established that it is about\nthese files. Requiring an anchor intersection on top of that discards the\nplan's declared scope, and can downgrade a manual_only path to the generic\nfallback because the file happens to hold none of its anchor classes."
+  - id: golang/server/blast_radius_test.go:TestAuthorityFollowsTheRelationshipNotTheMatch
+    file: golang/server/blast_radius_test.go
+    symbol: TestAuthorityFollowsTheRelationshipNotTheMatch
+    package: main
+    language: go
+    doc: "The mutation pair, expressed as a test: the ONLY difference between these two\ncalls is whether the relationship exists. Everything else -- files, plan,\nlabels, coverage -- is identical."
   - id: golang/server/blast_radius_test.go:TestBlastRadiusForRepositoryPublishIsClusterOrService
     file: golang/server/blast_radius_test.go
     symbol: TestBlastRadiusForRepositoryPublishIsClusterOrService
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestGovernedIDDecodesTheMintedSegment
+    file: golang/server/blast_radius_test.go
+    symbol: TestGovernedIDDecodesTheMintedSegment
+    package: main
+    language: go
+    doc: "governedID is where the plan side becomes the human spelling, so that the\ncomparison above needs no decoding of its own."
+  - id: golang/server/blast_radius_test.go:TestGovernedIDsContainingAColonStayDistinct
+    file: golang/server/blast_radius_test.go
+    symbol: TestGovernedIDsContainingAColonStayDistinct
+    package: main
+    language: go
+    doc: "A governed id may legitimately contain a colon after a simple head. The old\nheuristic read that head as a class and stripped it, so a plan naming\n\"alpha:x\" was authorised by a subject anchored at the distinct \"beta:x\"."
+  - id: golang/server/blast_radius_test.go:TestInsufficientCoverageGivesNoRepairPlanVote
+    file: golang/server/blast_radius_test.go
+    symbol: TestInsufficientCoverageGivesNoRepairPlanVote
+    package: main
+    language: go
+    doc: "Insufficient coverage cannot bootstrap authority from an anchor coincidence.\nThin coverage is already represented conservatively elsewhere, on its own\nterms; it must not be upgraded here into a borrowed cluster label."
   - id: golang/server/blast_radius_test.go:TestLowRiskHelperDoesNotRequireApproval
     file: golang/server/blast_radius_test.go
     symbol: TestLowRiskHelperDoesNotRequireApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored
+    file: golang/server/blast_radius_test.go
+    symbol: TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored
+    package: main
+    language: go
+    doc: "The origin must actually be recorded where it is known. matchRepairPlans is\nthe only place that can tell an authored relationship from a prose\nresemblance, and it used to flatten both into one slice -- which is how the\ndistinction was lost in the first place."
+  - id: golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    file: golang/server/blast_radius_test.go
+    symbol: TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    package: main
+    language: go
+    doc: "maxRepairPlansSurfaced is a DISPLAY limit. Applying it before scoring decided\nwhich plans were allowed to influence authority: with three task matches, the\ntwo shown could fail the intersection while the third -- naming a live anchor\nand requiring manual_only -- was discarded before anything could score it."
+  - id: golang/server/blast_radius_test.go:TestNoSubjectAnchorsGivesNoRepairPlanVote
+    file: golang/server/blast_radius_test.go
+    symbol: TestNoSubjectAnchorsGivesNoRepairPlanVote
+    package: main
+    language: go
+    doc: "A subject with no anchors of its own gives no plan anything to be applicable\nto, whatever the plan says."
+  - id: golang/server/blast_radius_test.go:TestOneApplicableFileEscalatesTheCandidate
+    file: golang/server/blast_radius_test.go
+    symbol: TestOneApplicableFileEscalatesTheCandidate
+    package: main
+    language: go
+    doc: "Applicability is per candidate, not per file: one touched file genuinely\ngoverned by the plan is enough for the whole change."
+  - id: golang/server/blast_radius_test.go:TestPrimaryOnlyWithoutAPredicateKeepsEverything
+    file: golang/server/blast_radius_test.go
+    symbol: TestPrimaryOnlyWithoutAPredicateKeepsEverything
+    package: main
+    language: go
+    doc: "primaryOnly with no predicate must not silently drop everything: an absent\nfilter means \"unfiltered\", never \"empty\"."
+  - id: golang/server/blast_radius_test.go:TestProseAndStructuredComeFromTheSameVerdict
+    file: golang/server/blast_radius_test.go
+    symbol: TestProseAndStructuredComeFromTheSameVerdict
+    package: main
+    language: go
+    doc: "The prose line and the structured fields must keep coming from ONE verdict:\nthe file's own invariant says a risk verdict an agent must act on is\npublished as structured fields, not only as prose."
   - id: golang/server/blast_radius_test.go:TestRBACChangeRequiresHumanApproval
     file: golang/server/blast_radius_test.go
     symbol: TestRBACChangeRequiresHumanApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestRetiredAnchorsDoNotEstablishApplicability
+    file: golang/server/blast_radius_test.go
+    symbol: TestRetiredAnchorsDoNotEstablishApplicability
+    package: main
+    language: go
+    doc: "Lifecycle is not presentation. A deprecated, superseded or retired anchor is\nnot primary guidance, and must not be the thing that lets a repair plan\ndecide how far a change reaches -- otherwise retired knowledge re-enables an\nauthority the same response is calling out as superseded."
+  - id: golang/server/blast_radius_test.go:TestSubjectAnchorIDsCollectsEveryList
+    file: golang/server/blast_radius_test.go
+    symbol: TestSubjectAnchorIDsCollectsEveryList
+    package: main
+    language: go
+    doc: "subjectAnchorIDs must collect across every list it is given and drop none of\nthem: the applicability decision is only as complete as its input."
   - id: golang/server/blast_radius_test.go:TestUnknownAuthorityEscalatesApproval
     file: golang/server/blast_radius_test.go
     symbol: TestUnknownAuthorityEscalatesApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestUnrelatedRepairPlanDoesNotDecideAuthority
+    file: golang/server/blast_radius_test.go
+    symbol: TestUnrelatedRepairPlanDoesNotDecideAuthority
+    package: main
+    language: go
+    doc: "The reproducer from sensei#317: same files, same anchors, an unrelated plan\nmatched from task prose. It must not decide how far this change reaches."
   - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackProjection_NoRepositoryRootField
     file: golang/server/briefing_feedback_adapter_test.go
     symbol: TestBriefingFeedbackProjection_NoRepositoryRootField
@@ -26479,6 +26779,18 @@ test_symbols:
     symbol: TestInScopePatterns_NoForeignLeak
     package: main
     language: go
+  - id: golang/server/change_impact_test.go:TestAuthorityBypassGuidanceIsNotCoverage
+    file: golang/server/change_impact_test.go
+    symbol: TestAuthorityBypassGuidanceIsNotCoverage
+    package: main
+    language: go
+    doc: "Authority-domain guidance is not coverage.\n\n`forbidden` carries synthetic \"authority_bypass:\" entries appended for\npresentation alongside real forbidden-fix anchors, and counting the merged set\nas coverage let a domain match manufacture coverage for a file that holds no\ngoverned anchor at all.\n\nTHE OWED FIXTURE, NOW BUILT. The earlier version of this test used\ngolang/workflow/engine.go, which matches a path-class rule in\nassessChangeRisk, so the escalation fired anyway and reverting the repair\nstill passed. The fixture it needed is a file AnyFileHighRiskWeighted treats\nas high risk that matches NONE of those rules: FileRiskTier returns RiskHigh\nfor authority-domain membership alone, and golang/server/ is in no\npath-class prefix. So the domain makes the file high-risk and contributes\nnothing else. Counting the merged `forbidden` set as coverage now measurably\nsuppresses the thin-coverage escalation."
+  - id: golang/server/change_impact_test.go:TestChangeImpactCountsContractAnchorsAsCoverage
+    file: golang/server/change_impact_test.go
+    symbol: TestChangeImpactCountsContractAnchorsAsCoverage
+    package: main
+    language: go
+    doc: "A file whose only primary anchor is a contract is still an anchored file.\n\nCoverage here counted invariants and failure modes only, so such a file read\nas uncovered and this surface rejected an applicability preflight would have\ngranted for the same change -- the two surfaces disagreeing about one\ncandidate's authority."
   - id: golang/server/change_impact_test.go:TestImpactPlanningForDoctorRuleChange
     file: golang/server/change_impact_test.go
     symbol: TestImpactPlanningForDoctorRuleChange
@@ -26504,6 +26816,24 @@ test_symbols:
     symbol: TestImpactPlanningReportsUnknowns
     package: main
     language: go
+  - id: golang/server/change_impact_test.go:TestNonContractArchitectureDoesNotAnchorAPlan
+    file: golang/server/change_impact_test.go
+    symbol: TestNonContractArchitectureDoesNotAnchorAPlan
+    package: main
+    language: go
+    doc: "DirectArchitecture carries components, boundaries, decisions, evidence and\npatterns as well as contracts. Only a contract is a class a repair plan can\nname, so admitting the rest lets a plan that names a COMPONENT id claim\napplicability it was never granted."
+  - id: golang/server/change_impact_test.go:TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex
+    file: golang/server/change_impact_test.go
+    symbol: TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex
+    package: main
+    language: go
+    doc: "A retired anchor set is a DETERMINED result, not a missing one.\n\nThe index fallback exists (#220) to answer \"did the graph ever look at this\nfile\" for a file with no anchors at all. It queries the same SourceFile\nsubject that produced the anchors, so for a retired-only file it always says\nyes -- re-admitting as examined a file whose governance was deliberately\nwithdrawn, making coverage sufficient, and suppressing the thin-coverage\nescalation on a file that is high-risk by authority membership and matches\nno path-class rule. Found by review at 2f38ae57, not by the audit.\n\nTable-driven over EVERY class that counts as a governed anchor. The first\nversion covered only retired invariants, so narrowing the raw count to\ninvariants/failure-modes/intents still passed it while a retired-only\nforbidden fix or contract was handed to the index and resurrected (#318\nreview). A falsifier that covers one member of a closed set does not\nestablish the rule for the set."
+  - id: golang/server/change_impact_test.go:TestSafetySignalsDoNotAcceptARetiredOwner
+    file: golang/server/change_impact_test.go
+    symbol: TestSafetySignalsDoNotAcceptARetiredOwner
+    package: main
+    language: go
+    doc: "The safety signals read PRIMARY anchors, so a retired anchor cannot answer\n\"who owns this file\". golang/mcp/ is high-risk by directory and matches none\nof the path-class rules, so the owner-unknown escalation is isolated here:\nderiving hasAnchors from the raw lists makes it disappear."
   - id: golang/server/change_risk_fields_test.go:TestEnumNumbersAscendWithSeverity
     file: golang/server/change_risk_fields_test.go
     symbol: TestEnumNumbersAscendWithSeverity
@@ -26788,6 +27118,120 @@ test_symbols:
     package: controlstateproto
     language: go
     doc: "Mirrors briefing_feedback_adapter_test.go's TestBriefingResponse_FeedbackIsAdditiveFieldSeven:\nthe four control-panel read-model messages must never renumber, retype, or remove an\nexisting field — additions land as new fields with new numbers."
+  - id: golang/server/domain_publication_test.go:TestAGenerationChangeMidCompositionRefusesToAttest
+    file: golang/server/domain_publication_test.go
+    symbol: TestAGenerationChangeMidCompositionRefusesToAttest
+    package: main
+    language: go
+    doc: "FALSIFIER 3. The generation changes between the freshness read and the\npublication read. The authority must refuse to attest a coherent\npublication rather than pairing generation A with receipt B."
+  - id: golang/server/domain_publication_test.go:TestAMalformedPointerIsUnreadableRatherThanAbsent
+    file: golang/server/domain_publication_test.go
+    symbol: TestAMalformedPointerIsUnreadableRatherThanAbsent
+    package: main
+    language: go
+    doc: "FALSIFIER 8. A pointer edge that exists but names no IRI is UNREADABLE.\n\nExcluding a literal-valued edge and reporting the empty result as ABSENT\ndiscards the only evidence that a pointer was ever written. A start gate\nallowed to bootstrap on absence would fail OPEN over malformed stored state,\nwhich is worse than the dangling case already repaired."
+  - id: golang/server/domain_publication_test.go:TestANilStoreStillPreservesTheCallersPublicationQuestion
+    file: golang/server/domain_publication_test.go
+    symbol: TestANilStoreStillPreservesTheCallersPublicationQuestion
+    package: main
+    language: go
+    doc: "FALSIFIER 5. The caller's publication question must survive EVERY degraded\nbranch, including the earliest one.\n\nThe scope-degraded path was repaired first; this nil-store return dropped the\nsame predicate one branch earlier, and none of the previous falsifiers\nreached it. A degraded response must say \"you asked and I cannot answer\",\nnever \"nobody asked\"."
+  - id: golang/server/domain_publication_test.go:TestAPointerDeclaringAnotherDomainIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAPointerDeclaringAnotherDomainIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 15. A pointer whose own domain metadata describes something else is\nnot a pointer with a usable target."
+  - id: golang/server/domain_publication_test.go:TestAPointerMixingValidAndMalformedEdgesIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAPointerMixingValidAndMalformedEdgesIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 11. THE POINTER PROPERTY, not the two instances that exposed it.\n\nFalsifier 8 proved a literal-ONLY pointer is unreadable, and falsifier 7\nproved two IRI targets are unreadable. Neither reached the mixed case: a\nvalid IRI edge alongside a malformed one, where the malformed edge\ncontributes no target and the distinct-target count still reads 1.\n\nThe invariant is that a publication pointer consists of EXACTLY ONE\nwell-formed currentPublication edge. Attesting the readable half of an\nambiguous pointer is choosing which half to believe."
+  - id: golang/server/domain_publication_test.go:TestAReceiptWithAnUnknownSourceStateIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAReceiptWithAnUnknownSourceStateIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 10. The source state is a closed vocabulary, read by membership.\n\nA self-consistent receipt carrying an unrecognised state would otherwise\nverify and be projected as VERIFIED, presenting semantics this server cannot\ninterpret as an attestation it can."
+  - id: golang/server/domain_publication_test.go:TestAReceiptWithTwoValuesForOneFieldIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAReceiptWithTwoValuesForOneFieldIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 9. Two distinct values for one identity-bearing receipt field mean\nthe receipt has no single identity.\n\nThe pointer-ambiguity repair counted pointer targets and left the receipt\nBODY with the same last-row-wins defect: SELECT has no ordering, so the value\nmatching the stored IRI could win under one ordering and lose under another,\nmaking VERIFIED depend on row order."
+  - id: golang/server/domain_publication_test.go:TestATamperedReceiptIsUnreadableThroughTheEndpoint
+    file: golang/server/domain_publication_test.go
+    symbol: TestATamperedReceiptIsUnreadableThroughTheEndpoint
+    package: main
+    language: go
+    doc: "FALSIFIER 1. The pointer keeps naming receipt A while A's identity-bearing\nfields are mutated. The recomputed identity must disagree with the stored\ntarget, and the answer must be UNREADABLE rather than a confident VERIFIED."
+  - id: golang/server/domain_publication_test.go:TestAV1ReceiptCarryingAV2OnlyFieldIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAV1ReceiptCarryingAV2OnlyFieldIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 6. A v1 receipt cannot serve a field the v1 identity does not hash.\n\nThe frozen v1 algorithm omits source_path, so a backfilled v1 receipt still\nverifies while exposing an unauthenticated path -- the present-and-unhashed\ndefect v2 removed, returning through the version-agnostic parser."
+  - id: golang/server/domain_publication_test.go:TestAnEmptyPointerTargetDoesNotVanishIntoAbsence
+    file: golang/server/domain_publication_test.go
+    symbol: TestAnEmptyPointerTargetDoesNotVanishIntoAbsence
+    package: main
+    language: go
+    doc: "FALSIFIER 14. An EMPTY current-publication edge must not vanish.\n\nThe pointer was the last thing outside the lossless law. The simplified\ntransport drops empty lexical objects, so currentPublication \"\" disappeared\nand the pointer read as ABSENT -- corrupt state becoming \"never published\",\nwhich is the one answer a start gate may treat as benign."
+  - id: golang/server/domain_publication_test.go:TestAnIRIValuedReceiptFieldIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAnIRIValuedReceiptFieldIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 12. Term kind is part of the value.\n\nEvery publication field is published as a LITERAL. The resolver discarded\nTriple.ObjectIsIRI and re-rendered each object as a quoted literal, so an\nIRI-valued field was normalised into a well-formed literal and verified --\nthe digest was computed over the normalisation rather than over what the\nstore actually holds. Reproduced before it was repaired."
+  - id: golang/server/domain_publication_test.go:TestAnUndefinedPublicationFieldIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestAnUndefinedPublicationFieldIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 13. THE FIELD-AUTHENTICATION PROPERTY, generalised from v1's\nSourcePath.\n\nAn unrecognised aw:publication... predicate parses past the term-kind and\nmultiplicity checks, is then ignored by the parser, and never participates in\nthe identity -- so the receipt verifies while carrying a field nothing\nauthenticates. That is the v1 SourcePath defect stated over the namespace\ninstead of over the single field that was caught.\n\nReproduced as VERIFIED before this repair."
+  - id: golang/server/domain_publication_test.go:TestCleanExactWithoutATreeIsUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestCleanExactWithoutATreeIsUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 16. CLEAN_EXACT without a tree cannot be verified.\n\nThe exact-source claim IS the tree claim: a start gate comparing R.tree\nagainst its own checkout would have nothing to compare."
+  - id: golang/server/domain_publication_test.go:TestClosureAnswersForTheRequestedDomain
+    file: golang/server/domain_publication_test.go
+    symbol: TestClosureAnswersForTheRequestedDomain
+    package: main
+    language: go
+    doc: "F1: a compound attestation's parts must share a referent.\n\nClosure was evaluated for s.homeDomain while current_publication resolved the\nREQUESTED domain, so one response could pair an AUTHORITATIVE verdict earned\nby the home domain's proof with a VERIFIED receipt for a foreign domain that\nhas no proof at all."
+  - id: golang/server/domain_publication_test.go:TestDanglingAndAbsentStayMechanicallyDistinct
+    file: golang/server/domain_publication_test.go
+    symbol: TestDanglingAndAbsentStayMechanicallyDistinct
+    package: main
+    language: go
+    doc: "FALSIFIER 2. A pointer to a receipt that is not there is UNREADABLE; no\npointer at all is ABSENT. Collapsing them lets a corrupt record read as\nnever-published."
+  - id: golang/server/domain_publication_test.go:TestEachVersionIsJudgedAgainstItsOwnVocabulary
+    file: golang/server/domain_publication_test.go
+    symbol: TestEachVersionIsJudgedAgainstItsOwnVocabulary
+    package: main
+    language: go
+    doc: "A v1 receipt must not be judged against v2's vocabulary, or the frozen\nhistorical shape would stop verifying."
+  - id: golang/server/domain_publication_test.go:TestThePublicationLookupIsBounded
+    file: golang/server/domain_publication_test.go
+    symbol: TestThePublicationLookupIsBounded
+    package: main
+    language: go
+    doc: "FALSIFIER 4. The lookup is bounded: it never dumps the graph, it costs\nexactly two subject reads, and an authority nobody asked a publication\nquestion of costs zero."
+  - id: golang/server/domain_publication_test.go:TestTheVerdictRefusesAPublicationFromAnotherGeneration
+    file: golang/server/domain_publication_test.go
+    symbol: TestTheVerdictRefusesAPublicationFromAnotherGeneration
+    package: main
+    language: go
+    doc: "F6: the verdict must be bound to the generation the publication was READ\nFROM.\n\nThe single-evaluation snapshot closed A -> B -> A inside the publication,\nthen its marker was discarded -- so the composite could still report a\nverdict for generation A while carrying a receipt read from B. Supplying the\nevidence and not using it is the same defect as never reading it."
+  - id: golang/server/domain_publication_test.go:TestTwoCurrentPublicationTargetsAreUnreadable
+    file: golang/server/domain_publication_test.go
+    symbol: TestTwoCurrentPublicationTargetsAreUnreadable
+    package: main
+    language: go
+    doc: "FALSIFIER 7. Two current-publication targets mean the question has no single\nanswer. Describe has no defined row order, so keeping the last one let the\nsame graph attest either receipt."
   - id: golang/server/domain_scope_test.go:TestCountClassInScope
     file: golang/server/domain_scope_test.go
     symbol: TestCountClassInScope
@@ -27760,6 +28204,42 @@ test_symbols:
     symbol: TestSeedIfEmpty_SkipsWhenStoreNonEmpty
     package: main
     language: go
+  - id: golang/server/preflight_applicability_test.go:TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
+    package: main
+    language: go
+    doc: "Confidence is a decision, and it was reading the projection.\n\ncomputeConfidence returns HIGH at three or more direct anchors. Compact mode\ncaps failure modes at TWO. So a subject holding three live failure-mode\nanchors was HIGH by the truth and MEDIUM by the response view -- a governance\nsignal degraded by a display constant, found by review while the branch that\nrecords that very law was in flight (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestPatternDrivenSignalsSeeEveryMatchedPattern
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPatternDrivenSignalsSeeEveryMatchedPattern
+    package: main
+    language: go
+    doc: "Coverage and risk classification must see every matched pattern, not the one\nthe compact response shows.\n\ncaps.patterns is 1 in compact mode, and both computePreflightCoverage and\nclassifyRisk read the pattern list: coverage counts a \"strong\" match as\nsufficient, and classifyRisk's anyStrongOrMediumPattern feeds the verdict. A\nstrong pattern ranked second was therefore invisible to both."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilityIgnoresRetiredAnchors
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightApplicabilityIgnoresRetiredAnchors
+    package: main
+    language: go
+    doc: "A plan related ONLY through a retired anchor must not vote. Lifecycle is not\npresentation: the same response reports that knowledge as not primary\nguidance, and it must not be what grants authority.\n\nRun per governed class, because the filter is applied per list: dropping it\nfrom one class only is a real regression this test would otherwise miss.\n\nCOVERAGE GAP, STATED: forbidden fixes and architecture contracts are not\ncovered here. A fixture built the same way never reaches allForbiddenFixes --\nimpact.go routes nodes by a resolved class name and this fixture does not\nproduce one for that class -- so the subtest passed whether or not the filter\nwas applied, which is a test proving less than it appears. It was removed\nrather than left in. Dropping primaryOnly from allForbiddenFixes or\nallArchitecture therefore still passes this suite."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilitySeesAnchorsThatCapsHide
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightApplicabilitySeesAnchorsThatCapsHide
+    package: main
+    language: go
+    doc: "A plan related through an anchor the RESPONSE could not show must still be\nable to establish applicability. Caps are a presentation limit; they must not\ndecide authority."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightUnrelatedPlanDoesNotSetAuthority
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightUnrelatedPlanDoesNotSetAuthority
+    package: main
+    language: go
+    doc: "A plan that names nothing this subject holds is guidance only, whatever the\ntask text says. This is the original #317 reproducer at the preflight\nboundary rather than in the scorer."
+  - id: golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestRiskClassificationSeesAnchorsThatCapsHide
+    package: main
+    language: go
+    doc: "Risk classification must see the complete live anchor set.\n\nclassifyRisk builds a keyword haystack over the anchors it is given and\nreturns DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns\nthose into human_approval_required. Classifying from the capped response view\ntherefore let a presentation limit drop a security classification: severity\nsorting keeps the most severe anchors, but the keyword rules are not\nseverity-driven, so a lower-severity security anchor behind more severe ones\nwas never examined."
   - id: golang/server/preflight_coverage_authority_test.go:TestPatternMatchAloneCannotManufactureSufficientCoverage
     file: golang/server/preflight_coverage_authority_test.go
     symbol: TestPatternMatchAloneCannotManufactureSufficientCoverage
