@@ -82,9 +82,22 @@ func corpusAnchors(t *testing.T) []Anchor {
 }
 
 func TestRecallAndNuisanceAreMeasuredTogether(t *testing.T) {
+	// A MEASUREMENT THAT CAN SWITCH ITSELF OFF IS NOT A MEASUREMENT.
+	//
+	// This was a skip below 20 anchors. The corpus is part of this repository,
+	// not part of the environment, so a corpus that shrinks past the point of
+	// measurability is a repository event someone must see -- and skipping
+	// meant the recall and nuisance numbers this whole retrieval program is
+	// judged by would stop being produced while CI stayed green.
+	//
+	// The current corpus carries an order of magnitude more than this floor, so
+	// crossing it means anchors were lost, not that the threshold was tight.
 	anchors := corpusAnchors(t)
 	if len(anchors) < 20 {
-		t.Skipf("only %d authored anchors with path scopes; not enough corpus to measure", len(anchors))
+		t.Fatalf("only %d authored anchors with path scopes: below the floor for a "+
+			"meaningful recall measurement. The corpus lost anchors; the numbers this "+
+			"program is judged by would otherwise have stopped being produced silently.",
+			len(anchors))
 	}
 
 	// Subjects: every file some anchor protects, with the anchors that protect it.
