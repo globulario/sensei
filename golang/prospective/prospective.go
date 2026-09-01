@@ -73,17 +73,30 @@ const (
 )
 
 // Candidate is one piece of knowledge that COULD govern the subject.
+//
+// THE BASIS IS UNEXPORTED AND THAT IS THE WHOLE DESIGN. With an exported,
+// string-backed field a caller could write Candidate{Basis: BasisEstablished}
+// -- or deserialize one -- and AuthorityEligibleOnly would accept it with no
+// governed relationship behind it. The constitutional line of this package was
+// a struct literal away from being forged, which is not a line.
+//
+// Only Retrieve sets it, and it sets it from a relationship the graph holds.
 type Candidate struct {
 	ID     string
 	Class  string
-	Basis  Basis
 	Signal Signal
 	// Why states the relationship in words a reviewer can check.
 	Why string
+
+	basis Basis
 }
 
-// AuthorityEligible delegates to the basis. A candidate cannot override it.
-func (c Candidate) AuthorityEligible() bool { return c.Basis.AuthorityEligible() }
+// Basis reports how this candidate was reached. Read-only by construction.
+func (c Candidate) Basis() Basis { return c.basis }
+
+// AuthorityEligible delegates to the basis. A candidate cannot override it,
+// and cannot be constructed claiming one it did not earn.
+func (c Candidate) AuthorityEligible() bool { return c.basis.AuthorityEligible() }
 
 // Subject is what the caller proposes to change.
 type Subject struct {
@@ -154,7 +167,7 @@ func Retrieve(s Subject, anchors []Anchor, subjectDomains []string) []Candidate 
 			}
 		}
 		if matchedDomain != "" {
-			add(Candidate{ID: a.ID, Class: a.Class, Basis: BasisEstablished, Signal: SignalAuthorityDomain,
+			add(Candidate{ID: a.ID, Class: a.Class, basis: BasisEstablished, Signal: SignalAuthorityDomain,
 				Why: "subject and knowledge share authority domain " + matchedDomain})
 			continue
 		}
@@ -162,15 +175,15 @@ func Retrieve(s Subject, anchors []Anchor, subjectDomains []string) []Candidate 
 		// Useful, and not a relationship to this file.
 		for _, f := range a.Files {
 			if dirs[path.Dir(f)] {
-				add(Candidate{ID: a.ID, Class: a.Class, Basis: BasisResemblance, Signal: SignalSameDirectory,
+				add(Candidate{ID: a.ID, Class: a.Class, basis: BasisResemblance, Signal: SignalSameDirectory,
 					Why: "knowledge governs " + f + ", a sibling in the same directory"})
 				break
 			}
 		}
 	}
 	sort.Slice(out, func(i, j int) bool {
-		if out[i].Basis != out[j].Basis {
-			return out[i].Basis == BasisEstablished
+		if out[i].basis != out[j].basis {
+			return out[i].basis == BasisEstablished
 		}
 		return out[i].ID < out[j].ID
 	})

@@ -10,6 +10,19 @@ func TestResemblanceNeverBecomesAuthority(t *testing.T) {
 	if BasisResemblance.AuthorityEligible() {
 		t.Fatal("resemblance was made authority-eligible")
 	}
+
+	// A caller must not be able to CLAIM a basis it did not earn. With an
+	// exported field, Candidate{Basis: BasisEstablished} -- or a deserialized
+	// one -- would pass AuthorityEligibleOnly with no governed relationship
+	// behind it, and the constitutional line would be a struct literal away
+	// from being forged.
+	forged := Candidate{ID: "forged", Class: "invariant"}
+	if forged.AuthorityEligible() {
+		t.Fatal("a candidate constructed outside Retrieve claimed authority eligibility")
+	}
+	if forged.Basis() == BasisEstablished {
+		t.Fatal("the zero value of a candidate is an established relationship")
+	}
 	if !BasisEstablished.AuthorityEligible() {
 		t.Fatal("an established relationship is not authority-eligible; the package would return nothing usable")
 	}
@@ -18,7 +31,7 @@ func TestResemblanceNeverBecomesAuthority(t *testing.T) {
 	// which enough resemblance becomes a relationship.
 	var many []Candidate
 	for i := 0; i < 100; i++ {
-		many = append(many, Candidate{ID: string(rune('a'+i%26)) + "x", Basis: BasisResemblance, Signal: SignalSameDirectory})
+		many = append(many, Candidate{ID: string(rune('a'+i%26)) + "x", basis: BasisResemblance, Signal: SignalSameDirectory})
 	}
 	if got := AuthorityEligibleOnly(many); len(got) != 0 {
 		t.Fatalf("%d resemblance candidates produced %d authority-eligible ones", len(many), len(got))
@@ -40,10 +53,10 @@ func TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity(t *testing.T) {
 	for _, c := range got {
 		byID[c.ID] = c
 	}
-	if b := byID["inv.related"].Basis; b != BasisEstablished {
+	if b := byID["inv.related"].Basis(); b != BasisEstablished {
 		t.Errorf("a shared authority domain produced basis %q", b)
 	}
-	if b := byID["inv.sibling"].Basis; b != BasisResemblance {
+	if b := byID["inv.sibling"].Basis(); b != BasisResemblance {
 		t.Errorf("a directory sibling produced basis %q — proximity is not a relationship", b)
 	}
 	if eligible := AuthorityEligibleOnly(got); len(eligible) != 1 || eligible[0].ID != "inv.related" {
@@ -51,7 +64,7 @@ func TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity(t *testing.T) {
 	}
 	// Ordering must not smuggle authority in: established first is a reading
 	// convenience, and the basis still decides.
-	if got[0].Basis != BasisEstablished {
+	if got[0].Basis() != BasisEstablished {
 		t.Error("established candidates are not surfaced first")
 	}
 }

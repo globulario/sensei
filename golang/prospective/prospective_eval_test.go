@@ -32,10 +32,16 @@ import (
 func corpusAnchors(t *testing.T) []Anchor {
 	t.Helper()
 	var out []Anchor
+	// FAIL, never skip a file. If either authored corpus file is renamed,
+	// missing or unreadable, silently measuring the remainder still clears the
+	// 20-anchor threshold and both bounds -- leaving CI green while reporting
+	// recall and nuisance figures computed over a partial corpus. A number
+	// measured over an unknown population is not a smaller measurement.
 	for _, name := range []string{"invariants.yaml", "failure_modes.yaml"} {
 		b, err := os.ReadFile(filepath.Join("../../docs/awareness", name))
 		if err != nil {
-			continue
+			t.Fatalf("authored corpus file %s could not be read, so any recall figure "+
+				"would describe an unknown population: %v", name, err)
 		}
 		var cur *Anchor
 		inFiles := false
