@@ -371,6 +371,7 @@ func TestALiveContractIsExaminedButDoesNotNameAnOwner(t *testing.T) {
 			invalidateRepairPlanCacheForTest()
 			t.Cleanup(invalidateRepairPlanCacheForTest)
 			seedAuthorityDomains(t)
+			indexConsulted := false
 			s := newTestServer(fakeStore{
 				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
 					if iri != "golang/mcp/server.go" {
@@ -378,18 +379,26 @@ func TestALiveContractIsExaminedButDoesNotNameAnOwner(t *testing.T) {
 					}
 					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
 				},
-				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) { return nil, nil },
+				// RECORDS the call rather than merely answering it. The first
+				// version returned nil and only LOGGED the examination result,
+				// so a regression to consulting the index for a live anchor
+				// passed silently -- a fixture that could not fail the thing it
+				// was written to protect.
+				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+					indexConsulted = true
+					return nil, nil
+				},
 			})
 			plan, err := s.planChangeImpact(context.Background(),
 				"adjust the mcp surface", []string{"golang/mcp/server.go"})
 			if err != nil {
 				t.Fatal(err)
 			}
-			// EXAMINED: the graph looked and something governs this file, so the
-			// index fallback must not be consulted and coverage is not thin.
-			if sliceHas(plan.Unknowns, "no required tests known for a high-risk change") &&
-				!sliceHas(plan.Unknowns, "no invariants anchored to these files — read the source directly") {
-				t.Logf("unknowns: %v", plan.Unknowns)
+			// EXAMINED: a live anchor settles the question, so the index must
+			// NOT be consulted at all. Asserted, not logged.
+			if indexConsulted {
+				t.Errorf("a file governed by a live %s consulted the source-file index; "+
+					"a live anchor is a determined answer and no fallback may be asked", class.name)
 			}
 			// NOT AN OWNER: with no authority domain, the owner-unknown
 			// escalation must still fire. Suppressing it was the defect.
