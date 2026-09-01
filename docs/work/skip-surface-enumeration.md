@@ -109,9 +109,45 @@ standalone build, and says so), `cmd/awg/helpers_test.go:207` and
 `cmd/principle-check/meta_principle_coverage_test.go:445` (both need a sibling
 services checkout). These name a genuine external limitation and stay as skips.
 
+## Third pass: the "at least one" shape
+
+Two more, and the first needed a different repair than the rest.
+
+**`proofdischarge/fixtures_test.go:42`** iterates bundles, and not every bundle
+carries a `proof_discharge`. So skipping *a* bundle is correct — but skipping
+*every* bundle means the frozen validator was never exercised and the package
+still prints `ok`. A blanket `Fatal` would have been wrong here. The per-bundle
+skip stays and the **total** is asserted: `validated == 0` fails.
+
+**`closureprotocol/contract_test.go:54`** skipped when the tracked fixture
+carried no operational artifact receipts — without them the cross-result
+rejection below is never attempted.
+
+```
+M34 no bundle carries a proof_discharge          KILLED
+M35 same, with the total assertion removed       SURVIVES — the defect
+M36 fixture loses its operational artifacts      SURVIVED — see below
+M36b same mutation, placed in the right function KILLED
+```
+
+### The second time a survivor meant the mutation missed
+
+`M36` set the field to `nil` after `contractOf(loadValidTransition(t))` — and
+that line appears **three times** in the file. A single-occurrence replace hit
+line 44, inside a different test, so the function under test never saw it.
+
+This is the same error as `M26` earlier in this document, where four mutations
+survived because they targeted cap constants chosen by name. Both times the
+survivor read as "the code is unprotected" when it meant "the mutation did not
+apply."
+
+**So a surviving mutation is not a result until the mutation is shown to reach
+the code under test.** The cheap check is to make the mutation fail *loudly*
+first — if it cannot even change behaviour, it is not measuring anything.
+
 ## Still not repaired, and why
 
-Fourteen Class B sites remain.
+Twelve Class B sites remain.
 They are not repaired in this PR because they are not one change: they span
 `golang/architecture/*` (fixture-carries-no-X conditions),
 `golang/server/packaging_test.go` (embedded seed markers),
@@ -122,7 +158,7 @@ needs the surrounding test read rather than the message classified.
 **Closure is still NOT declared**, and the count is now:
 
 ```
-114 total   38+4 Class A (correct)   11 repaired   14 Class B open   47 Class C unreviewed
+114 total   38+4 Class A (correct)   13 repaired   12 Class B open   47 Class C unreviewed
 ```
 
 The enumeration exists so the remainder is a known quantity rather than an

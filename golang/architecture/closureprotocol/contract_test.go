@@ -51,7 +51,11 @@ func TestValidateResultPipelineContractRejectsForgedBindingDigest(t *testing.T) 
 func TestValidateResultPipelineContractRejectsCrossResultArtifact(t *testing.T) {
 	c := contractOf(loadValidTransition(t))
 	if len(c.OperationalArtifactReceipts) == 0 {
-		t.Skip("fixture carries no operational artifacts")
+		// The fixture is TRACKED and carries operational artifacts. Without
+		// them the cross-result rejection below is never attempted, so this
+		// skip retired the check whenever the fixture drifted.
+		t.Fatal("the valid result-transition fixture carries no operational artifact " +
+			"receipts, so the cross-result rejection is never exercised")
 	}
 	dup := append([]ArtifactReceipt(nil), c.OperationalArtifactReceipts...)
 	dup[0].ResultBindingDigestSHA256 = strings.Repeat("b", 64)

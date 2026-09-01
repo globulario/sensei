@@ -21,6 +21,13 @@ func TestFixtureProofDischarges(t *testing.T) {
 		"completed/bundle.yaml",
 		"migration-in-progress/bundle.yaml",
 	}
+	// COUNT WHAT WAS ACTUALLY VALIDATED.
+	//
+	// Skipping a bundle that carries no proof_discharge is correct per bundle
+	// -- not every bundle has one. Skipping EVERY bundle is not: the test then
+	// validates nothing and still reports ok. The per-bundle skip stays; the
+	// total is asserted below.
+	validated := 0
 	for _, rel := range paths {
 		t.Run(rel, func(t *testing.T) {
 			data, err := os.ReadFile(filepath.Join(root, rel))
@@ -44,6 +51,12 @@ func TestFixtureProofDischarges(t *testing.T) {
 			if err := closureprotocol.ValidateProofDischarge(*pd); err != nil {
 				t.Fatalf("frozen validator rejected fixture proof_discharge: %v", err)
 			}
+			validated++
 		})
+	}
+	if validated == 0 {
+		t.Fatalf("no bundle in %s carried a proof_discharge, so the frozen validator was "+
+			"never exercised; the fixtures are tracked, so this is a defect and not an "+
+			"absence of work", root)
 	}
 }
