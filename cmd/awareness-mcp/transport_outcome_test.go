@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"strings"
 	"testing"
 
@@ -315,5 +316,42 @@ func TestASoleTerminalFailureIsUnchanged(t *testing.T) {
 	}
 	if st, ok := status.FromError(err); !ok || st.Code() != codes.NotFound {
 		t.Fatalf("the raw status did not survive: %v", err)
+	}
+}
+
+// The MCP payload must carry reachability, because agents never see the CLI's
+// human authority block.
+//
+// The CLI computed it while RENDERING, and the MCP tools build their own
+// payloads — so every agent using awareness_briefing/preflight/query/impact/
+// resolve saw "authoritative" with no indication the corpus had moved past the
+// serving graph. The false-green path, left open for the callers most likely to
+// act on it unsupervised.
+func TestTheMCPAuthorityPayloadCarriesReachability(t *testing.T) {
+	obj := authorityStruct(&awarenesspb.GraphAuthority{GraphBuildCommit: "96f19456f5fb"})
+	r, ok := obj["reachability"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("an agent sees no reachability at all: %+v", obj)
+	}
+	for _, k := range []string{"state", "reachable", "detail", "asserts_absence"} {
+		if _, present := r[k]; !present {
+			t.Errorf("the agent-facing assessment omits %q", k)
+		}
+	}
+	if r["asserts_absence"] != false {
+		t.Error("a reachability state claimed absence of law to an agent")
+	}
+	// The authority fields themselves must be untouched: this is additive.
+	if obj["graph_build_commit"] != "96f19456f5fb" {
+		t.Error("adding reachability displaced the authority payload")
+	}
+}
+
+// A response whose authority states no build commit carries no assessment.
+// Absent, not a fabricated unknown: the question was never askable.
+func TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment(t *testing.T) {
+	obj := authorityStruct(&awarenesspb.GraphAuthority{})
+	if _, present := obj["reachability"]; present {
+		t.Fatalf("an unaskable question was answered anyway: %+v", obj)
 	}
 }

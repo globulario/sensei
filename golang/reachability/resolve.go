@@ -41,11 +41,43 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 	// produced by the branch under review. Admitted means merged: prefer the
 	// upstream base, and fall back to HEAD only when there is no upstream to
 	// compare against, which a solo checkout legitimately has.
-	corpus := ""
-	for _, base := range [][]string{
+	// THE ADMISSION BRANCH IS RESOLVED, NOT ASSUMED.
+	//
+	// Hardcoding origin/main silently fell through to local HEAD on any
+	// checkout tracking something else -- upstream/main, origin/master, a
+	// release branch -- which reinstates the false-staleness bug the fallback
+	// was added to avoid, on exactly the repositories that do not look like
+	// this one. Ask git which branch this one tracks, then the remote's default
+	// head, and use origin/main only as one guess among several.
+	// NOT @{upstream}. A feature branch's upstream is its OWN pushed ref --
+	// origin/feat/whatever -- so resolving the corpus from it counts the
+	// branch's unmerged awareness edits as admitted, which is the precise bug
+	// this is meant to avoid. My first attempt used it and the test written for
+	// that bug caught it.
+	//
+	// The admission branch is the remote's DEFAULT HEAD.
+	bases := [][]string{}
+	if head, ok := git("symbolic-ref", "--short", "refs/remotes/origin/HEAD"); ok && head != "" {
+		bases = append(bases, append([]string{"log", "-1", "--format=%H", head, "--"}, CorpusPaths...))
+	}
+	bases = append(bases,
 		append([]string{"log", "-1", "--format=%H", "origin/main", "--"}, CorpusPaths...),
+		// Local HEAD LAST, and only when no admission branch exists at all --
+		// a solo checkout legitimately has none.
 		append([]string{"log", "-1", "--format=%H", "--"}, CorpusPaths...),
-	} {
+	)
+	// A ROOT THAT DOES NOT OWN THE CORPUS ANSWERS NOTHING, and that is enforced
+	// here rather than by a separate guard.
+	//
+	// GraphBuildCommit is the AWARENESS-GRAPH repository's SHA; measuring it
+	// against a governed checkout that merely happens to be a git repository
+	// would compare unrelated histories. Every lookup below is scoped to
+	// CorpusPaths, so a root without them resolves nothing and falls through to
+	// Unknown. An explicit holdsCorpus() check was written and then removed: no
+	// mutation could distinguish it from this, which makes it duplication
+	// rather than defence.
+	corpus := ""
+	for _, base := range bases {
 		if v, ok := git(base...); ok && v != "" {
 			corpus = v
 			break

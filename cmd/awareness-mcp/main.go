@@ -43,6 +43,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/globulario/sensei/golang/reachability"
 	"io"
 	"net"
 	"os"
@@ -1639,6 +1640,27 @@ func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
 	obj["build_provenance_state"] = a.GetBuildProvenanceState().String()
 	obj["seed_state"] = a.GetSeedState().String()
 	obj["graph_build_commit"] = a.GetGraphBuildCommit()
+	// REACHABILITY, for the callers that are not people.
+	//
+	// The CLI computes this while rendering a human authority block, and the
+	// MCP tools never call that renderer: they build their own payloads here.
+	// So every AGENT using awareness_briefing/preflight/query/impact/resolve
+	// saw "authoritative" with no indication that the corpus had moved past the
+	// serving graph -- the false-green path this check exists to close, left
+	// open for the callers most likely to act on it unsupervised.
+	//
+	// Absent when the authority states no build commit: the question was never
+	// askable for that response, and answering it anyway would assess nothing.
+	if commit := strings.TrimSpace(a.GetGraphBuildCommit()); commit != "" {
+		r := reachability.ResolveFromGit(context.Background(), mcpCorpusRoot(), commit)
+		obj["reachability"] = map[string]interface{}{
+			"state":           string(r.State),
+			"reachable":       r.Reachable(),
+			"commits_ahead":   r.CommitsAhead,
+			"detail":          r.Detail,
+			"asserts_absence": r.AssertsAbsence(),
+		}
+	}
 	obj["graph_build_time_unix"] = a.GetGraphBuildTimeUnix()
 	obj["source_repo_commit"] = a.GetSourceRepoCommit()
 	obj["live_store_graph_triple_count"] = a.GetLiveStoreGraphTripleCount()
@@ -2682,4 +2704,15 @@ func formatAuditDiff(res *diffaudit.AuditResult) string {
 		sb.WriteString("No blocking findings found in supplied diff.")
 	}
 	return sb.String()
+}
+
+// mcpCorpusRoot is the checkout whose authored corpus the serving graph was
+// built from. AWG_REPO_ROOT names it; a bridge running anywhere else resolves
+// nothing and the assessment is Unknown, which is a member of the state set
+// rather than a silent pass.
+func mcpCorpusRoot() string {
+	if r := strings.TrimSpace(os.Getenv("AWG_REPO_ROOT")); r != "" {
+		return r
+	}
+	return "."
 }

@@ -60,3 +60,45 @@ func TestTheCorpusRevisionComesFromTheAdmittedBase(t *testing.T) {
 			a.CorpusCommit[:12])
 	}
 }
+
+// A root that does not hold the corpus cannot answer the question.
+//
+// GraphBuildCommit is the AWARENESS-GRAPH repository's SHA; measuring it
+// against a governed checkout that merely happens to be a git repository would
+// compare unrelated histories.
+//
+// HONEST NOTE ON WHAT PROVES THIS. The behaviour is enforced by every lookup
+// being scoped to CorpusPaths, so a root without them resolves nothing. An
+// explicit ownership guard was added and removed again: no mutation could
+// distinguish it from the scoping that was already there, which made it
+// duplication rather than defence. This test pins the BEHAVIOUR, and no
+// mutation isolates it to one line -- that is stated rather than implied by a
+// tidy mutation table.
+func TestARootWithoutTheCorpusAnswersUnknown(t *testing.T) {
+	// A REAL GIT REPOSITORY that simply holds no authored corpus. A bare
+	// TempDir is not this test: git fails there anyway, so the assertion passes
+	// without ever reaching the corpus-ownership check -- which is how the
+	// first version of this test let its mutation survive.
+	dir := t.TempDir()
+	for _, args := range [][]string{
+		{"init", "-q"},
+		{"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "seed"},
+	} {
+		if err := exec.Command("git", append([]string{"-C", dir}, args...)...).Run(); err != nil {
+			t.Skipf("cannot build a git fixture: %v", err)
+		}
+	}
+	head, err := exec.Command("git", "-C", dir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Skip("fixture has no HEAD")
+	}
+	// Cite the fixture's OWN commit, so ancestry would resolve happily and the
+	// only thing that can produce Unknown is the missing corpus.
+	a := ResolveFromGit(context.Background(), dir, strings.TrimSpace(string(head)))
+	if a.State != StateUnknown {
+		t.Fatalf("state=%q for a git repository that holds no authored corpus", a.State)
+	}
+	if a.Reachable() {
+		t.Error("a root that cannot answer the question reported knowledge reachable")
+	}
+}

@@ -38,6 +38,7 @@ components:
       - component.golang.architecture.workspacecontract
       - component.golang.client
       - component.golang.netcfg
+      - component.golang.reachability
     external_imports:
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
