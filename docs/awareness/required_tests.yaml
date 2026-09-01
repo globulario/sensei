@@ -1971,3 +1971,31 @@ required_tests:
         - failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
       files:
         - golang/server/preflight.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestClassificationAndRetryAreDifferentQuestions
+    title: Cancellation is its own member; classification and retry are different questions
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+    title: Every member of the closed set reaches the caller as typed data
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestATerminalFailureKeepsTheAttemptsBeforeIt
+    title: A terminal failure keeps the attempts made before it
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestASoleTerminalFailureIsUnchanged
+    title: A sole non-retryable failure returns the raw status unchanged
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go

@@ -262,3 +262,58 @@ func TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData(t *testing.T) {
 		}
 	}
 }
+
+// A mixed result must not be reported as a unanimous one.
+//
+// callWithFailover returned a non-retryable error the moment it saw one,
+// BEFORE recording it — so Unavailable at the first address followed by
+// PermissionDenied at the second discarded the first entirely and surfaced a
+// blank-address server_refusal. Two addresses that failed differently support
+// no single sentence, and the aggregate is `unclassified` (#319 review).
+func TestATerminalFailureKeepsTheAttemptsBeforeIt(t *testing.T) {
+	i := 0
+	entries := []clientEntry{{addr: "a:1"}, {addr: "b:2"}}
+	_, err := callWithFailover(entries, func(awarenessClient) (int, error) {
+		i++
+		if i == 1 {
+			return 0, status.Error(codes.Unavailable, "connection refused")
+		}
+		return 0, status.Error(codes.PermissionDenied, "nope")
+	})
+	var te *transportError
+	if !errors.As(err, &te) {
+		t.Fatalf("the earlier attempt was discarded and the result is untyped: %v", err)
+	}
+	if len(te.Addresses) != 2 {
+		t.Fatalf("recorded %d attempts, want 2 — an attempt was dropped: %+v", len(te.Addresses), te.Addresses)
+	}
+	if te.Aggregate != outcomeUnclassified {
+		t.Errorf("a mixed result aggregated to %q — the last address spoke for the whole set", te.Aggregate)
+	}
+	if te.Aggregate.assertsUnreachable() {
+		t.Error("a mixed result claimed the backend is unreachable")
+	}
+	// Both addresses must be named, not just the one that ended the loop.
+	seen := map[string]bool{}
+	for _, a := range te.Addresses {
+		seen[a.Address] = true
+	}
+	if !seen["a:1"] || !seen["b:2"] {
+		t.Errorf("an attempted address is missing from the record: %+v", te.Addresses)
+	}
+}
+
+// A single non-retryable failure returns the RAW error, exactly as before, so
+// callers that inspect its status code keep working.
+func TestASoleTerminalFailureIsUnchanged(t *testing.T) {
+	_, err := callWithFailover([]clientEntry{{addr: "a:1"}}, func(awarenessClient) (int, error) {
+		return 0, status.Error(codes.NotFound, "nope")
+	})
+	var te *transportError
+	if errors.As(err, &te) {
+		t.Fatal("a sole non-retryable failure was wrapped, changing what callers can inspect")
+	}
+	if st, ok := status.FromError(err); !ok || st.Code() != codes.NotFound {
+		t.Fatalf("the raw status did not survive: %v", err)
+	}
+}

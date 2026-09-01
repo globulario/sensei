@@ -2095,12 +2095,16 @@ failure_modes:
       - cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
       - cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
       - cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
+      - cmd/awareness-mcp/transport_outcome_test.go:TestClassificationAndRetryAreDifferentQuestions
+      - cmd/awareness-mcp/transport_outcome_test.go:TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+      - cmd/awareness-mcp/transport_outcome_test.go:TestATerminalFailureKeepsTheAttemptsBeforeIt
+      - cmd/awareness-mcp/transport_outcome_test.go:TestASoleTerminalFailureIsUnchanged
     forbidden_fix:
       - 'raise the timeout instead of correcting the classification: it moves the threshold and hides the false attribution until a larger envelope crosses the new one'
       - 'compensate downstream by parsing this prose in the consuming adapter: the adapter is replaceable and both the deadline and the classification originate in the bridge'
     evidence:
       - globulario/sensei#319, found from a sensei-code run; the three configured addresses returned RST_STREAM/CANCEL, context deadline exceeded, context deadline exceeded -- none of which is a refused connection
-    contract: Only the outcome that means the backend could not be reached may say so. A client deadline, a transport reset, a server refusal and an unclassifiable failure are four different facts, and each must survive to the caller as a typed outcome in the structured surface -- never as prose a downstream adapter has to parse.
+    contract: 'Only the outcome that means the backend could not be reached may say so. A client deadline, a transport reset, a CANCELLATION, a server refusal and an unclassifiable failure are five different facts, and each must survive to the caller as a typed outcome in the structured surface -- never as prose a downstream adapter has to parse. Cancellation is its own member and is never reported as a deadline: a call the caller aborted did not run out of budget, and saying it did asserts a fact about time that nothing established. `unclassified` is a member and an ANSWER, so it reaches the caller in the same shape as every other outcome rather than as a silence. A set of addresses that failed DIFFERENTLY aggregates to `unclassified`; the last address never speaks for the whole set.'
   - id: failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
     title: A presentation cap silently changed a governance verdict
     description: Preflight and change-impact bounded their anchor, repair-plan and pattern lists for readability, then passed the BOUNDED list to the deciding functions. In compact mode caps.invariants=3, caps.failureModes=2, caps.patterns=1 and maxRepairPlansSurfaced=2, so a governed anchor beyond the cap could not raise risk, could not establish applicability, and could not cast a repair-plan authority vote. The verdict was a function of how much fitted on screen. Three instances were live and mutation-proven; a fourth was latent (see the ordering invariant).

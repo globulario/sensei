@@ -1208,18 +1208,34 @@ func callWithFailover[T any](entries []clientEntry, invoke func(awarenessClient)
 		if err == nil {
 			return out, nil
 		}
-		if !isTransportFailure(err) {
-			return zero, err
-		}
 		msg := err.Error()
 		if st, ok := status.FromError(err); ok {
 			msg = st.Message()
 		}
+		// Record the attempt BEFORE deciding whether to stop. The terminal
+		// return used to happen first, so an Unavailable at one address
+		// followed by a PermissionDenied at the next discarded the first
+		// entirely and reported a blank-address server_refusal -- a MIXED
+		// result presented as a unanimous classification, which is the same
+		// collapse this file exists to prevent (#319 review).
 		failures = append(failures, addressOutcome{
 			Address: entry.addr,
 			Outcome: string(classifyTransportError(err)),
 			Detail:  msg,
 		})
+		if !isTransportFailure(err) {
+			// A non-retryable failure ends the loop. With no earlier attempt
+			// there is nothing to combine, so the raw error is returned exactly
+			// as before -- callers that inspect its status code keep working.
+			// With earlier attempts, they are part of the truth and travel too,
+			// and a disagreeing set aggregates to `unclassified` rather than
+			// letting the last address speak for all of them.
+			if len(failures) == 1 {
+				return zero, err
+			}
+			agg := aggregateOutcome(failures)
+			return zero, &transportError{Aggregate: agg, Addresses: failures, Code: codeFor(agg)}
+		}
 	}
 	agg := aggregateOutcome(failures)
 	return zero, &transportError{Aggregate: agg, Addresses: failures, Code: codeFor(agg)}

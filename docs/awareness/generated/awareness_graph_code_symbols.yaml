@@ -862,6 +862,18 @@ test_symbols:
     package: main
     language: go
     doc: "Every classified outcome must reach the caller as typed data, including the\nones failover does not retry. Gating the classification on the retry\npredicate silently dropped the structured surface for those (#319 review)."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestASoleTerminalFailureIsUnchanged
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestASoleTerminalFailureIsUnchanged
+    package: main
+    language: go
+    doc: "A single non-retryable failure returns the RAW error, exactly as before, so\ncallers that inspect its status code keep working."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestATerminalFailureKeepsTheAttemptsBeforeIt
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestATerminalFailureKeepsTheAttemptsBeforeIt
+    package: main
+    language: go
+    doc: "A mixed result must not be reported as a unanimous one.\n\ncallWithFailover returned a non-retryable error the moment it saw one,\nBEFORE recording it — so Unavailable at the first address followed by\nPermissionDenied at the second discarded the first entirely and surfaced a\nblank-address server_refusal. Two addresses that failed differently support\nno single sentence, and the aggregate is `unclassified` (#319 review)."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestAllAddressesTimingOutIsDeadlineNotUnavailable
