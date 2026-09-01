@@ -32,18 +32,27 @@ import (
 	"testing"
 )
 
-// ratchet is the number of tolerated Test entries at the time this check
-// landed. It may fall. It may not rise: a new dangling proof edge must be
-// repaired or explicitly re-baselined by a human who states why.
+// ratchet is the number of tolerated Test entries. It must TRACK the baseline,
+// not merely cap it.
+//
+// As a ceiling it could be gamed without anyone noticing: remove two entries,
+// add two others, and the count returns to 72 while the promised explicit
+// re-baselining never happens. So the check requires EQUALITY -- a fall must
+// lower this constant in the same change, which is the human statement the
+// ratchet was supposed to force.
 const toleratedTestEntriesRatchet = 72
 
 type baselineEntry struct{ class, id string }
 
 func readBaseline(t *testing.T) []baselineEntry {
 	t.Helper()
+	// FAIL, never skip. The baseline is a repository-owned fixture, so an
+	// unreadable one is a defect. Skipping made both checks report success
+	// while classifying nothing -- and it permitted the exact shape recorded
+	// as forbidden: delete the baseline to make the check green.
 	f, err := os.Open("../../docs/awareness/dangling_refs_baseline.tsv")
 	if err != nil {
-		t.Skipf("no baseline to classify: %v", err)
+		t.Fatalf("the governed baseline could not be opened, so nothing was classified: %v", err)
 	}
 	defer f.Close()
 	var out []baselineEntry
@@ -63,7 +72,14 @@ func readBaseline(t *testing.T) []baselineEntry {
 	return out
 }
 
-// homeTestFunctions indexes every test function this repository declares.
+// homeTestFunctions indexes every test function this repository declares, keyed
+// by "file:function".
+//
+// Keying by function NAME alone accepted the same name from ANY file, so a
+// cited test that moved to another file left the exact file:fn proof edge stale
+// and the check still passed -- the dead-binding case this exists to prevent,
+// surviving because the referent was matched loosely. A proof edge names a
+// path and a function, and both must match.
 func homeTestFunctions(t *testing.T) map[string]string {
 	t.Helper()
 	decl := regexp.MustCompile(`func\s+(Test\w+)\s*\(`)
@@ -77,8 +93,9 @@ func homeTestFunctions(t *testing.T) map[string]string {
 		if err != nil {
 			return nil
 		}
+		rel := strings.TrimPrefix(filepath.ToSlash(path), "../../")
 		for _, m := range decl.FindAllSubmatch(b, -1) {
-			out[string(m[1])] = path
+			out[rel+":"+string(m[1])] = rel
 		}
 		return nil
 	})
@@ -112,7 +129,7 @@ func TestNoHomeDomainProofEdgeHidesBehindTheBaseline(t *testing.T) {
 		if _, err := os.Stat(filepath.Join("../..", file)); err != nil {
 			continue
 		}
-		if _, ok := home[fn]; !ok {
+		if _, ok := home[file+":"+fn]; !ok {
 			dead = append(dead, e.id)
 		}
 	}
@@ -143,7 +160,7 @@ func TestEveryToleratedProofEdgeIsClassified(t *testing.T) {
 			// Bare form: no path, so this repository cannot resolve it. It is
 			// a foreign-domain or historical citation, and it is tolerated
 			// BECAUSE it is unresolvable here -- not because it was checked.
-			if _, ok := home[e.id]; ok {
+			if declaredSomewhere(home, e.id) {
 				t.Errorf("%q is declared in THIS repository but tolerated as unresolvable; "+
 					"a resolvable edge must be bound, not baselined", e.id)
 			}
@@ -157,9 +174,27 @@ func TestEveryToleratedProofEdgeIsClassified(t *testing.T) {
 	t.Logf("tolerated Test entries: %d (path-form %d, bare-form %d, unclassified %d)",
 		total, pathForm, bareForm, unclassified)
 
-	if total > toleratedTestEntriesRatchet {
+	switch {
+	case total > toleratedTestEntriesRatchet:
 		t.Fatalf("tolerated Test entries rose to %d from a ratchet of %d; "+
 			"a new dangling proof edge must be repaired, or re-baselined by a human who states why",
 			total, toleratedTestEntriesRatchet)
+	case total < toleratedTestEntriesRatchet:
+		t.Fatalf("tolerated Test entries fell to %d but the ratchet still reads %d; "+
+			"lower the constant in this change, or the freed headroom silently permits %d new ones",
+			total, toleratedTestEntriesRatchet, toleratedTestEntriesRatchet-total)
 	}
+}
+
+// declaredSomewhere answers the LOOSER question deliberately: is this bare name
+// declared anywhere in this repository? A bare citation carries no path, so
+// name is all there is to match -- and a bare name that resolves here should be
+// bound rather than baselined.
+func declaredSomewhere(home map[string]string, name string) bool {
+	for k := range home {
+		if strings.HasSuffix(k, ":"+name) {
+			return true
+		}
+	}
+	return false
 }
