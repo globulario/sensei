@@ -27,8 +27,14 @@ func TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository(t *testing.T) {
 	}
 	a := ResolveFromGit(context.Background(), "../..", strings.TrimSpace(string(head)))
 	if a.State != StateCurrent {
-		t.Fatalf("a graph built from HEAD reported %q (%s); HEAD contains every authored corpus change",
-			a.State, a.Detail)
+		// Say what the environment actually was. This failed in CI and the
+		// message could not distinguish an unfetched base from an unrelated
+		// history, which cost a full diagnostic cycle.
+		refs, _ := exec.Command("git", "-C", "../..", "for-each-ref", "--format=%(refname)",
+			"refs/remotes/", "refs/heads/").Output()
+		t.Fatalf("a graph built from HEAD reported %q (%s); HEAD contains every authored corpus change.\n"+
+			"head=%s corpus=%s published=%s\nrefs present:\n%s",
+			a.State, a.Detail, strings.TrimSpace(string(head)), a.CorpusCommit, a.PublishedCommit, refs)
 	}
 }
 

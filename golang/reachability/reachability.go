@@ -104,7 +104,16 @@ func Assess(in Inputs) Assessment {
 		// have. It may be newer, older or unrelated. Reporting `stale` would
 		// invent an ordering; reporting `current` would invent agreement.
 		out.State = StateUnknown
-		out.Detail = fmt.Sprintf("the serving graph was built from %s, which this checkout does not contain", short(out.PublishedCommit))
+		// NAME BOTH SIDES OF THE COMPARISON.
+		//
+		// Reporting only the published commit made this Unknown unactionable:
+		// it says a relation failed without saying to what, so the reader
+		// cannot tell an unfetched base from a genuinely unrelated history.
+		// An Unknown that does not state what it compared is a diagnosis
+		// nobody can act on.
+		out.Detail = fmt.Sprintf(
+			"the serving graph was built from %s, which is unordered against the authored corpus revision %s: neither contains the other in this checkout",
+			short(out.PublishedCommit), short(out.CorpusCommit))
 	case sameRevision(out.PublishedCommit, out.CorpusCommit):
 		out.State = StateCurrent
 		out.Detail = "the serving graph was built from the authored corpus revision this caller holds"
