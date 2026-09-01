@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"github.com/globulario/sensei/golang/subjectstate"
 	"sort"
 	"strings"
 
@@ -72,22 +73,39 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		primary := func(n *awarenesspb.KnowledgeNode) bool {
 			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
 		}
+		// ONE canonical answer to "what does the graph know about this file",
+		// built once from the complete raw material and filtered once. The
+		// counts below read it instead of re-deriving it, which is how the
+		// three surfaces came to disagree (self-improvement program, step B).
+		state := subjectstate.Build(subjectstate.Raw{
+			subjectstate.ClassInvariant:    asStateNodes(impact.GetDirectInvariants()),
+			subjectstate.ClassFailureMode:  asStateNodes(impact.GetDirectFailureModes()),
+			subjectstate.ClassIntent:       asStateNodes(impact.GetDirectIntents()),
+			subjectstate.ClassForbiddenFix: asStateNodes(impact.GetForbiddenFixes()),
+			subjectstate.ClassContract:     asStateNodes(ofClass(impact.GetDirectArchitecture(), "contract")),
+		}, func(n subjectstate.Node) bool {
+			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+		})
 		// hasAnchors is a SAFETY signal: it suppresses the unknown-owner
 		// escalation, so it must mean "this file has live governance", not
 		// "this file has a record of some kind". Setting it from raw nodes let a
 		// file whose only anchor is retired suppress that fallback while the
 		// retired anchor was correctly refused everywhere else.
-		for _, n := range impact.GetDirectInvariants() {
-			if primary(n) {
-				invariants.add(n.GetId())
-				hasAnchors = true
-			}
+		// hasAnchors is CLASS-COMPLETE, from the canonical state.
+		//
+		// It was set inside the invariant and failure-mode loops only, so a
+		// file governed solely by a live forbidden fix or contract answered
+		// "not anchored" and was told to read the source directly -- while the
+		// very same anchor established applicability and could let a repair
+		// plan decide authority. Three classes here, five everywhere else.
+		if state.HasLiveAnchors() {
+			hasAnchors = true
 		}
-		for _, n := range impact.GetDirectFailureModes() {
-			if primary(n) {
-				failureModes.add(n.GetId())
-				hasAnchors = true
-			}
+		for _, id := range state.LiveIDs(subjectstate.ClassInvariant) {
+			invariants.add(id)
+		}
+		for _, id := range state.LiveIDs(subjectstate.ClassFailureMode) {
+			failureModes.add(id)
 		}
 		for _, n := range impact.GetForbiddenFixes() {
 			if primary(n) {
@@ -124,24 +142,17 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 		// thin-coverage escalation, and returning local/none for a file that
 		// is high-risk by authority membership and matches no path-class rule.
 		//
-		// A failed lifecycle filter is a DETERMINED result, not a missing one.
+		// Examination is now DERIVED from the canonical state rather than
+		// recomputed here, and that removes a residual asymmetry: the live
+		// count read three classes while the raw count read five, so a file
+		// anchored only by a LIVE contract or forbidden fix scored zero on the
+		// left of the comparison and non-zero on the right. Both halves are
+		// class-complete by construction now, because there is only one set.
 		//
-		// rawAnchors must span EVERY class that can be a governed anchor here,
-		// not just the three the examination test uses. coverageSufficient
-		// below counts live forbidden fixes and contracts, so a file whose only
-		// historical governance was a forbidden fix or a contract is a file the
-		// graph looked at -- and counting only invariants, failure modes and
-		// intents would score it zero, hand it to the index, and resurrect
-		// exactly the coverage this three-state split exists to withhold.
-		// Narrowing the second state is the same defect wearing a smaller
-		// vocabulary (#318 review).
-		rawAnchors := len(impact.GetDirectInvariants()) +
-			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents()) +
-			len(impact.GetForbiddenFixes()) + len(ofClass(impact.GetDirectArchitecture(), "contract"))
-		examined := len(primaryOnly(impact.GetDirectInvariants(), primary))+
-			len(primaryOnly(impact.GetDirectFailureModes(), primary))+
-			len(primaryOnly(impact.GetDirectIntents(), primary)) > 0
-		if !examined && rawAnchors == 0 {
+		// The index may be consulted in exactly one state. A determined
+		// withdrawal is an answer, and no fallback may overturn it.
+		examined := state.Examination() == subjectstate.ExaminedGoverned
+		if state.Examination().MayConsultIndex() {
 			examined, _ = s.sourceFileExamined(ctx, f, "")
 		}
 		if examined {
@@ -249,5 +260,19 @@ func (s *stringSet) sorted() []string {
 		out = append(out, k)
 	}
 	sort.Strings(out)
+	return out
+}
+
+// asStateNodes adapts the protobuf slice to the canonical owner's interface.
+// KnowledgeNode already satisfies it; this only changes the slice's element
+// type, and exists so a forgotten class is a missing map key rather than a
+// forgotten append.
+func asStateNodes(in []*awarenesspb.KnowledgeNode) []subjectstate.Node {
+	out := make([]subjectstate.Node, 0, len(in))
+	for _, n := range in {
+		if n != nil {
+			out = append(out, n)
+		}
+	}
 	return out
 }

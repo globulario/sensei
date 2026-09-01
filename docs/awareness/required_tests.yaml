@@ -1999,3 +1999,45 @@ required_tests:
         - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
       files:
         - cmd/awareness-mcp/transport_outcome.go
+  - id: golang/subjectstate/subjectstate_test.go:TestAWithdrawnSubjectIsDeterminedNotUnknown
+    title: TestAWithdrawnSubjectIsDeterminedNotUnknown
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/subjectstate/subjectstate.go
+  - id: golang/subjectstate/subjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex
+    title: TestOnlyTheUnknownStateMayConsultTheIndex
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/subjectstate/subjectstate.go
+  - id: golang/subjectstate/subjectstate_test.go:TestEveryGovernedClassCounts
+    title: TestEveryGovernedClassCounts
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/subjectstate/subjectstate.go
+  - id: golang/subjectstate/subjectstate_test.go:TestANilPredicateDoesNotMeanEverythingIsLive
+    title: TestANilPredicateDoesNotMeanEverythingIsLive
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/subjectstate/subjectstate.go
+  - id: golang/subjectstate/subjectstate_test.go:TestAConsumerCannotMutateTheCanonicalState
+    title: TestAConsumerCannotMutateTheCanonicalState
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/subjectstate/subjectstate.go
+  - id: golang/server/change_impact_test.go:TestALiveContractOrForbiddenFixCountsAsExamined
+    title: A live contract or forbidden fix counts as examined
+    protects:
+      invariants:
+        - invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+      files:
+        - golang/server/change_impact.go

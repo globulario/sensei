@@ -2240,3 +2240,23 @@ invariants:
     evidence:
       - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
     contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
+  - id: invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject
+    title: One canonical owner answers what the graph knows about a subject
+    status: active
+    description: 'Preflight, change-impact and briefing each rebuilt ''what does the graph know about this subject'' out of raw slices. Measured 2026-09-01 the lifecycle predicate alone had FOUR call sites and THREE semantics, and the twenty-odd cap/lifecycle/applicability defects of #317 and #318 were one question with four owners rather than twenty bugs. golang/subjectstate is that owner: State is derived and cannot be asserted against its anchors, accessors copy so a consumer cannot rewrite the canonical set, and a nil lifecycle predicate yields nothing live rather than everything.'
+    protects:
+      files:
+        - golang/subjectstate/subjectstate.go
+        - golang/server/change_impact.go
+    forbidden_fixes:
+      - 'give a decision a second, locally-rebuilt view of the same subject: that is the defect, and it returns the moment two owners exist'
+    required_tests:
+      - golang/subjectstate/subjectstate_test.go:TestAWithdrawnSubjectIsDeterminedNotUnknown
+      - golang/subjectstate/subjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex
+      - golang/subjectstate/subjectstate_test.go:TestEveryGovernedClassCounts
+      - golang/subjectstate/subjectstate_test.go:TestANilPredicateDoesNotMeanEverythingIsLive
+      - golang/subjectstate/subjectstate_test.go:TestAConsumerCannotMutateTheCanonicalState
+      - golang/server/change_impact_test.go:TestALiveContractOrForbiddenFixCountsAsExamined
+    evidence:
+      - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
+    contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.

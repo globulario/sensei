@@ -345,3 +345,48 @@ func TestNonContractArchitectureDoesNotAnchorAPlan(t *testing.T) {
 // assessChangeRisk -- otherwise the path rule escalates and the test passes
 // regardless of the safety signals. A first attempt used golang/rbac/, which is
 // exactly such a path, so it proved nothing and was removed rather than kept.
+
+// The asymmetry the canonical owner removed by construction.
+//
+// Examination compared a LIVE count over three classes against a RAW count over
+// five. A file anchored only by a live forbidden fix or contract therefore
+// scored zero on the left and non-zero on the right: not examined, and not
+// eligible for the index either. It fell into the gap between the two halves of
+// one comparison.
+//
+// Both halves now come from one set, so the shapes cannot diverge again.
+func TestALiveContractOrForbiddenFixCountsAsExamined(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			invalidateRepairPlanCacheForTest()
+			t.Cleanup(invalidateRepairPlanCacheForTest)
+			seedAuthorityDomains(t)
+			s := newTestServer(fakeStore{
+				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+					if iri != "golang/mcp/server.go" {
+						return nil, nil
+					}
+					return anchorFacts(class.iri, "live.governed.thing", "A live governed thing", "high"), nil
+				},
+				// If the index were consulted it would answer no, so a file
+				// that reached the fallback would read as unexamined. That is
+				// what makes this test able to fail.
+				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) { return nil, nil },
+			})
+			plan, err := s.planChangeImpact(context.Background(),
+				"adjust the mcp surface", []string{"golang/mcp/server.go"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			// A live governed anchor of ANY class means the graph both looked
+			// and governs: the owner-unknown escalation must not fire.
+			if sliceHas(plan.Unknowns, "no invariants anchored to these files — read the source directly") {
+				t.Errorf("a file governed by a live %s was reported as having no anchors: %v",
+					class.name, plan.Unknowns)
+			}
+		})
+	}
+}
