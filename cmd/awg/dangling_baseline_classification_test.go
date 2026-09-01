@@ -26,6 +26,7 @@ package main
 import (
 	"bufio"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -209,18 +210,65 @@ func declaredSomewhere(home map[string]string, name string) bool {
 	return false
 }
 
-// homeDomainPath reports whether a cited path belongs to THIS repository's
-// tree, judged by its top-level directory rather than by the file existing.
+// homeDomainPath reports whether a cited path belongs to THIS repository, by
+// PROVENANCE rather than by current existence.
 //
-// A file that was deleted is still a home-domain path -- that is precisely the
-// case worth catching -- so existence cannot be the test for ownership.
+// Two earlier answers were both wrong, in opposite directions:
+//
+//	os.Stat(file)  deleting the cited _test.go made the entry look foreign, so
+//	               the worst case -- a dead edge -- bypassed the check.
+//	os.Stat(top)   the combined build consumes the services corpus, so a foreign
+//	               citation like cmd/foo/foo_test.go read as home merely because
+//	               Sensei has a cmd/ directory; and deleting a home-only
+//	               top-level directory restored the deletion bypass.
+//
+// Both used the filesystem AS IT IS NOW to answer a question about ORIGIN.
+// Git history answers it directly and is stable against both: a file this
+// repository ever tracked is ours, deleted or not; a services path this
+// repository never tracked is not ours, whatever directories we happen to
+// share.
 func homeDomainPath(file string) bool {
 	file = filepath.ToSlash(strings.TrimSpace(file))
-	i := strings.Index(file, "/")
-	if i <= 0 {
+	if file == "" || !strings.Contains(file, "/") {
 		return false
 	}
-	top := file[:i]
-	info, err := os.Stat(filepath.Join("../..", top))
-	return err == nil && info.IsDir()
+	out, err := exec.Command("git", "-C", "../..", "log", "--all", "--oneline", "-1", "--", file).Output()
+	if err != nil {
+		// Cannot establish provenance. NOT home -- an unanswerable ownership
+		// question must not manufacture an accusation, and the ratchet still
+		// counts the entry.
+		return false
+	}
+	return strings.TrimSpace(string(out)) != ""
+}
+
+// Ownership is provenance, not current existence — pinned permanently.
+//
+// Two earlier answers used the filesystem AS IT IS NOW to decide ORIGIN, and
+// both had a bypass: `os.Stat(file)` let a DELETED cited test look foreign, and
+// `os.Stat(topLevelDir)` let a foreign path look home because we share a `cmd/`
+// directory, while deleting a home-only directory restored the first bypass.
+//
+// The manual experiment that found this — delete a file, run, restore — is not
+// a test. Without this, re-adding an existence gate breaks nothing that fails.
+func TestOwnershipIsProvenanceNotCurrentExistence(t *testing.T) {
+	// A path this repository TRACKED AND DELETED is still ours. That is the
+	// case the check exists for, and the one an existence gate silently drops.
+	deleted := "golang/publication/oxigraph_roundtrip_test.go"
+	if _, err := os.Stat(filepath.Join("../..", deleted)); err == nil {
+		t.Skipf("%s exists again; this test needs a path deleted from history", deleted)
+	}
+	if !homeDomainPath(deleted) {
+		t.Errorf("%s was tracked and deleted in this repository and is read as foreign; "+
+			"an existence gate would let its dead proof edge bypass the check", deleted)
+	}
+
+	// A path this repository never tracked is NOT ours, even when we share its
+	// top-level directory. The combined build consumes the services corpus, so
+	// cmd/ is not evidence of ownership.
+	foreign := "cmd/globular_services_only/never_here_test.go"
+	if homeDomainPath(foreign) {
+		t.Errorf("%s was never tracked here and is claimed as ours merely because we have a cmd/ "+
+			"directory; that accuses another corpus of our defect", foreign)
+	}
 }
