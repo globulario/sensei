@@ -856,6 +856,36 @@ test_symbols:
     symbol: TestToolsList_IncludesPropose
     package: main
     language: go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestAllAddressesTimingOutIsDeadlineNotUnavailable
+    package: main
+    language: go
+    doc: "A deadline is not unreachability, and the wire code must say so too."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+    package: main
+    language: go
+    doc: "The closed set is read by MEMBERSHIP. An unrecognised code is its own member,\nnever folded into unreachable: \"we could not tell\" and \"the backend is down\"\nare the two answers this repair exists to separate."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestMixedOutcomesDoNotBecomeAConfidentClaim
+    package: main
+    language: go
+    doc: "Disagreement must not become certainty. A set of addresses that failed in\nDIFFERENT ways supports no single sentence about the backend, so the\naggregate is `unclassified` rather than the worst or the first member."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    package: main
+    language: go
+    doc: "The classification must reach the caller as DATA. Parsing the prose in a\nreplaceable downstream adapter is the repair that must not be applied."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheReportedFailureIsNotAnUnreachableBackend
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestTheReportedFailureIsNotAnUnreachableBackend
+    package: main
+    language: go
+    doc: "The reproducer from #319, verbatim: this is what the three configured\naddresses actually returned when a six-file scoped preflight exceeded the\nbudget while the evaluator was healthy the whole time."
   - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsBehaviorUnchanged
     file: cmd/awareness-mcp/workspace_tools_test.go
     symbol: TestMCPExistingAdmissionToolsBehaviorUnchanged

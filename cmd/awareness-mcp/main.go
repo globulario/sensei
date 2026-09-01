@@ -1035,9 +1035,28 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 	}
 }
 
+// toolRPCError names what actually happened.
+//
+// It used to test for Unavailable OR DeadlineExceeded and then emit one
+// sentence asserting the backend is unreachable -- distinguishing the two codes
+// and discarding the distinction. Only `unreachable` may claim unreachability
+// now; a deadline says the call did not finish in the budget and says nothing
+// about the backend being up (#319).
 func toolRPCError(surface string, err error) error {
-	if st, ok := status.FromError(err); ok && (st.Code() == codes.Unavailable || st.Code() == codes.DeadlineExceeded) {
-		return fmt.Errorf("%s unavailable: awareness-graph backend is unreachable; this is not an empty/no-guidance result: %s", surface, st.Message())
+	var te *transportError
+	if errors.As(err, &te) {
+		out := *te
+		out.Surface = surface
+		return &out
+	}
+	if st, ok := status.FromError(err); ok && isTransportFailure(err) {
+		outcome := classifyTransportError(err)
+		return &transportError{
+			Surface:   surface,
+			Aggregate: outcome,
+			Addresses: []addressOutcome{{Outcome: string(outcome), Detail: st.Message()}},
+			Code:      codeFor(outcome),
+		}
 	}
 	return fmt.Errorf("%s rpc: %w", surface, err)
 }
@@ -1161,7 +1180,12 @@ func callWithFailover[T any](entries []clientEntry, invoke func(awarenessClient)
 	if len(entries) == 0 {
 		return zero, status.Error(codes.Unavailable, "no awareness-graph backends configured")
 	}
-	transportFailures := make([]string, 0, len(entries))
+	// Each address is classified where its error is still intact. The previous
+	// loop kept only a prose fragment and then returned a MANUFACTURED
+	// codes.Unavailable, so a set of addresses that all timed out reached the
+	// caller relabelled as an unreachable backend and nothing downstream could
+	// recover the difference (#319).
+	failures := make([]addressOutcome, 0, len(entries))
 	for _, entry := range entries {
 		out, err := invoke(entry.client)
 		if err == nil {
@@ -1174,9 +1198,14 @@ func callWithFailover[T any](entries []clientEntry, invoke func(awarenessClient)
 		if st, ok := status.FromError(err); ok {
 			msg = st.Message()
 		}
-		transportFailures = append(transportFailures, fmt.Sprintf("%s: %s", entry.addr, msg))
+		failures = append(failures, addressOutcome{
+			Address: entry.addr,
+			Outcome: string(classifyTransportError(err)),
+			Detail:  msg,
+		})
 	}
-	return zero, status.Error(codes.Unavailable, "awareness-graph transport failed on all configured addresses: "+strings.Join(transportFailures, "; "))
+	agg := aggregateOutcome(failures)
+	return zero, &transportError{Aggregate: agg, Addresses: failures, Code: codeFor(agg)}
 }
 
 func (f *failoverClient) Briefing(ctx context.Context, in *awarenesspb.BriefingRequest, opts ...grpc.CallOption) (*awarenesspb.BriefingResponse, error) {
@@ -2000,6 +2029,11 @@ type rpcResp struct {
 type rpcErr struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
+	// Data carries the typed transport classification so an agent reads a
+	// machine-readable outcome instead of regexing the message. Parsing the
+	// prose downstream is the repair that must not be applied: the consuming
+	// adapter is replaceable and the classification originates here (#319).
+	Data interface{} `json:"data,omitempty"`
 }
 
 func responsePayload(id interface{}, result interface{}, err error) ([]byte, error) {
@@ -2007,6 +2041,11 @@ func responsePayload(id interface{}, result interface{}, err error) ([]byte, err
 	if err != nil {
 		code := -32000
 		msg := err.Error()
+		var te *transportError
+		if errors.As(err, &te) {
+			out.Error = &rpcErr{Code: code, Message: te.Error(), Data: te.structured()}
+			return json.Marshal(out)
+		}
 		if st, ok := status.FromError(err); ok {
 			msg = st.Code().String() + ": " + st.Message()
 		}

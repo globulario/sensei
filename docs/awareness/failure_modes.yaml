@@ -2082,3 +2082,22 @@ failure_modes:
     evidence:
       - 'CI run 32665423125 on PR #294: build-and-smoke failed at the Releases JSON API with 403; run 32665437458 on the same commit passed'
       - scripts/fetch-oxigraph.sh had already avoided this API and says so in its header — the same repository learned the same lesson twice, in two places, without one informing the other
+  - id: failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+    title: A client deadline was reported as an unreachable backend
+    description: 'toolRPCError tested for Unavailable OR DeadlineExceeded and then emitted one sentence asserting the awareness-graph backend is unreachable: it DISTINGUISHED THE TWO CODES AND THEN DISCARDED THE DISTINCTION. callWithFailover collapsed it earlier and worse, returning a MANUFACTURED codes.Unavailable whatever the per-address failures actually were, so a set of addresses that all timed out reached the caller already relabelled. A caller could not tell ''Sensei is down'' from ''this call was too slow'', making the honest reactions -- retry with a longer budget, narrow the scope, report degraded coverage -- indistinguishable from concluding absence. Measured: a 2-file scoped preflight 2.7s, a 6-file one 7.6s and failing every time while the identical call succeeded by hand. An envelope of about six files could not be governed, for a reason nobody chose and nobody could see in the message.'
+    protects:
+      files:
+        - cmd/awareness-mcp/main.go
+        - cmd/awareness-mcp/transport_outcome.go
+    required_tests:
+      - cmd/awareness-mcp/transport_outcome_test.go:TestTheReportedFailureIsNotAnUnreachableBackend
+      - cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
+      - cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
+      - cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+      - cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    forbidden_fix:
+      - 'raise the timeout instead of correcting the classification: it moves the threshold and hides the false attribution until a larger envelope crosses the new one'
+      - 'compensate downstream by parsing this prose in the consuming adapter: the adapter is replaceable and both the deadline and the classification originate in the bridge'
+    evidence:
+      - globulario/sensei#319, found from a sensei-code run; the three configured addresses returned RST_STREAM/CANCEL, context deadline exceeded, context deadline exceeded -- none of which is a refused connection
+    contract: Only the outcome that means the backend could not be reached may say so. A client deadline, a transport reset, a server refusal and an unclassifiable failure are four different facts, and each must survive to the caller as a typed outcome in the structured surface -- never as prose a downstream adapter has to parse.

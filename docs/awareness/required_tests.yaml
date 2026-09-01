@@ -1873,3 +1873,38 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_scheduler_race_reports_a_load_past_its_ceiling_as_a_comple
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheReportedFailureIsNotAnUnreachableBackend
+    title: 'The #319 reproducer is not reported as an unreachable backend'
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
+    title: Unanimous client deadlines carry DeadlineExceeded, not Unavailable
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
+    title: Disagreeing per-address outcomes aggregate to unclassified
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
+    title: An unrecognised failure is its own member, never folded into unreachable
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestTheClassificationReachesTheJSONRPCSurfaceAsData
+    title: The transport classification reaches the caller as structured data
+    protects:
+      failure_modes:
+        - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
+      files:
+        - cmd/awareness-mcp/transport_outcome.go
