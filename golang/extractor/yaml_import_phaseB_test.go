@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"github.com/globulario/sensei/internal/repofixture"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -543,15 +544,27 @@ activation_rules:
 func TestPhaseB_SelfAwareness_MoreTriplesAfterPhaseB(t *testing.T) {
 	// Run against the real services docs/awareness to confirm Phase B
 	// adds triples beyond Phase A's baseline.
-	const docsDir = "/home/dave/Documents/github.com/globulario/services/docs/awareness"
+	// THE PATH WAS HARDCODED INTO ONE PERSON'S HOME DIRECTORY, so this ran on
+	// exactly one laptop and reported ok everywhere else. It is the SERVICES
+	// corpus, not this repository's, so its absence is a genuine external
+	// limitation -- but it has to be resolvable to be skipped honestly.
+	//
+	// The sibling services-dependent tests here already take SERVICES_REPO.
+	servicesRepo := os.Getenv("SERVICES_REPO")
+	if servicesRepo == "" {
+		servicesRepo = filepath.Join("..", "..", "..", "services")
+	}
+	docsDir := filepath.Join(servicesRepo, "docs", "awareness")
 	if _, err := os.Stat(docsDir); err != nil {
-		t.Skipf("docs/awareness not found: %v", err)
+		t.Skipf("services docs/awareness not resolvable at %s; set SERVICES_REPO to run: %v", docsDir, err)
 	}
 
 	var buf bytes.Buffer
 	_, report, err := extractor.ImportAwarenessDirWithOpts(docsDir, &buf, extractor.ImportDirOptions{RepositoryIdentity: repofixture.DefaultDomain})
 	if err != nil {
-		t.Skipf("docs/awareness not accessible: %v", err)
+		// The directory EXISTS and could not be imported. That is a defect in
+		// the importer or the corpus, not a missing environment.
+		t.Fatalf("services docs/awareness at %s exists but could not be imported: %v", docsDir, err)
 	}
 
 	// After Phase B, imported file count must be strictly greater than Phase A (9 files).
