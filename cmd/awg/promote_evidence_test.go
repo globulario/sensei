@@ -230,13 +230,51 @@ func TestACitationOnTheClaimantsOwnLineIsNotIndependent(t *testing.T) {
 // than SKIP. If it reports SKIP there, this selection is wrong again and the
 // green is meaningless.
 func TestTheGateTestCanActuallyRunHere(t *testing.T) {
-	// olderCommit skips the calling test when it cannot qualify a commit, so
-	// reaching the assertion at all means selection succeeded.
-	got := olderCommit(t)
-	if got == "" {
-		t.Fatal("olderCommit returned empty without skipping")
+	// THIS GUARD MUST FAIL, NOT SKIP.
+	//
+	// It used to call olderCommit(t), which SKIPS its caller when no commit
+	// qualifies -- so the one test written to detect "the gate could not run
+	// here" vanished under exactly the condition it existed to report.
+	//
+	// That was invisible from CI, and I twice offered the invisibility as
+	// proof: `go test` WITHOUT -v prints nothing at all for a skipped test,
+	// just `ok <pkg>`. Counting "--- SKIP" lines in a CI log therefore returns
+	// zero whether the test ran or skipped. The count could not have come out
+	// any other way, so it was never evidence.
+	//
+	// The repair is not to add -v and read logs harder. It is to make the
+	// unrunnable case FAIL, so that no one has to notice a silence.
+	git := func(args ...string) (string, bool) {
+		out, err := exec.Command("git", append([]string{"-C", "../.."}, args...)...).Output()
+		if err != nil {
+			return "", false
+		}
+		return strings.TrimSpace(string(out)), true
 	}
-	head := headCommit(t)
+
+	// Skip ONLY for a named, detected reason -- never as a fallback for
+	// "something didn't work".
+	head, ok := git("rev-parse", "HEAD")
+	if !ok {
+		t.Skip("not a git checkout: no commit history to select a base from")
+	}
+	if shallow, ok := git("rev-parse", "--is-shallow-repository"); ok && shallow == "true" {
+		t.Skip("shallow clone: history is truncated, so an older commit need not be present")
+	}
+	if _, hasParent := git("rev-parse", "--verify", "-q", "HEAD^"); !hasParent {
+		if _, hasAdmitted := admittedRef(git); !hasAdmitted {
+			t.Skip("root commit with no admitted ref: nothing older than HEAD exists")
+		}
+	}
+
+	// Every remaining environment MUST yield a base. Silence here is a defect.
+	got := selectAdmittedBase(git)
+	if got == "" {
+		refName, hasRef := admittedRef(git)
+		t.Fatalf("no promotion base could be selected in a repository that has history "+
+			"(admitted ref %q present=%v); the promotion gate would have skipped and CI "+
+			"would be green having proven nothing", refName, hasRef)
+	}
 	if got == head {
 		t.Fatal("the selected commit IS head; it is not independent of the claimant")
 	}
