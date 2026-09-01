@@ -3040,6 +3040,7 @@ components:
       - component.golang.server.controlstateproto
       - component.golang.store
       - component.golang.store.oxigraph
+      - component.golang.subjectstate
     external_imports:
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
@@ -3120,6 +3121,17 @@ components:
       - component.golang.rdf
       - component.golang.seedmeta
       - component.golang.store
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
+  - id: component.golang.subjectstate
+    name: subjectstate
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/subjectstate/subjectstate.go
     uml:
       kind: Component
       stereotype: module
