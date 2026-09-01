@@ -2138,3 +2138,18 @@ failure_modes:
     evidence:
       - 'briefing printed ''authoritative (current)'' beside ''Build time: 2026-08-20'' for eleven days; the reachability line now prints STALE with the distance on the same block'
     contract: 'A caller must be able to establish whether newly admitted knowledge is reachable by the graph making a decision. Reachability is REPORTED, never repaired by rebuilding. A stale or unestablished generation is reported as unpublished or unestablished knowledge and NEVER as absence of law: ''the graph has no rule about this'' and ''the graph that would hold the rule is eleven days old'' are different answers.'
+  - id: failure.a_positive_control_gate_reported_success_while_no_rule_had_l
+    title: A positive-control gate reported success while no rule had loaded, reproducing the defect it guards against
+    severity: critical
+    description: 'The ruleguard positive-control gate exists so each principle rule is PROVEN to fire on a known-bad fixture, precisely because a rule that cannot load reports zero findings exactly like a clean tree. It had never executed in either environment. In CI no workflow installed ruleguard, so the test skipped in every run -- while its own comment said ''CI MUST install it so this attestation actually runs''. Locally ruleguard was installed but could not resolve go-ruleguard/dsl, so it loaded NO rule and every sub-test skipped. And ''proven'' was counted and never asserted, so the test reported ok while proving nothing. Three independent conditions each had to be repaired: the DSL made resolvable, the install placed in the job that actually runs go test, and proven==0 made fatal. Any one or two alone still leaves a false-green path. The first repair attempt put the install in the cross-platform COMPILE job, which runs no tests -- a green CI that changed nothing about the proof path, a fix indistinguishable from no fix.'
+    protects:
+      files:
+        - cmd/principle-check/positive_control_test.go
+    related_invariants:
+      - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
+    required_tests:
+      - cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
+    evidence:
+      - no workflow file mentioned ruleguard; the test's own comment asserted CI installs it
+      - locally every sub-test skipped with 'cannot resolve go-ruleguard/dsl'; 26 rules prove their control once the DSL is a module dependency
+      - proven was incremented at line 124 and never asserted

@@ -2027,3 +2027,10 @@ required_tests:
         - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
       files:
         - golang/reachability/reachability.go
+  - id: cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
+    title: The promotion gate reports that it could not run, by failing rather than by skipping
+    protects:
+      invariants:
+        - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
+      failure_modes:
+        - failure.a_positive_control_gate_reported_success_while_no_rule_had_l
