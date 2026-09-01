@@ -570,7 +570,7 @@ func TestMetadataTool_InfersCurrentAuthorityFromStampedFields(t *testing.T) {
 }
 
 func TestFormatGraphAuthority_MarksUnavailableAsUnknown(t *testing.T) {
-	out := formatGraphAuthority(nil)
+	out := formatGraphAuthority(context.Background(), nil)
 	for _, want := range []string{
 		"authority: non_authoritative (unknown)",
 		"graph authority metadata unavailable",

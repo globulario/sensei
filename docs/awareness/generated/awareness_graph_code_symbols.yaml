@@ -25928,6 +25928,36 @@ test_symbols:
     package: rdf
     language: go
     doc: "A v1 identity is reported as v1 and never guessed into a repository:\nsourceFile/README.md can mean any of N repositories, so inventing one\nwould manufacture exactly the false continuity the migration decision\nforbids."
+  - id: golang/reachability/reachability_test.go:TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    file: golang/reachability/reachability_test.go
+    symbol: TestAbbreviatedAndFullRevisionsAreTheSameRevision
+    package: reachability
+    language: go
+    doc: "The graph reports an abbreviated commit and a caller resolves a full one.\nEquality would call an up-to-date graph stale on every single call."
+  - id: golang/reachability/reachability_test.go:TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+    file: golang/reachability/reachability_test.go
+    symbol: TestAdmittedButUnpublishedKnowledgeIsStaleNotCurrent
+    package: reachability
+    language: go
+    doc: "The defect this package exists for: a briefing reported \"authoritative\n(current)\" while the serving graph was eleven days and 159 corpus changes\nbehind, because \"current\" was measured against the published artifact's own\nmarker -- and an artifact always matches itself."
+  - id: golang/reachability/reachability_test.go:TestAnUnorderableGraphIsNotCalledStale
+    file: golang/reachability/reachability_test.go
+    symbol: TestAnUnorderableGraphIsNotCalledStale
+    package: reachability
+    language: go
+    doc: "A graph built from a revision this checkout does not contain cannot be\nordered against it. Reporting `stale` would invent an ordering; reporting\n`current` would invent agreement."
+  - id: golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    file: golang/reachability/reachability_test.go
+    symbol: TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    package: reachability
+    language: go
+    doc: "Unknown is a MEMBER, not a fallback. Each of these could be silently reported\nas current by a permissive implementation, and each would hide the same\ndefect the package was written for."
+  - id: golang/reachability/reachability_test.go:TestOnlyCorpusPathsAreMeasured
+    file: golang/reachability/reachability_test.go
+    symbol: TestOnlyCorpusPathsAreMeasured
+    package: reachability
+    language: go
+    doc: "Code movement is not knowledge movement. Counting every commit would cry wolf\nuntil the signal was ignored, which is how a real staleness signal dies."
   - id: golang/repoeval/repoeval_test.go:TestDeriveConfidence_HonestBasis
     file: golang/repoeval/repoeval_test.go
     symbol: TestDeriveConfidence_HonestBasis
