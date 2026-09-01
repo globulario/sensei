@@ -2101,3 +2101,18 @@ failure_modes:
     evidence:
       - globulario/sensei#319, found from a sensei-code run; the three configured addresses returned RST_STREAM/CANCEL, context deadline exceeded, context deadline exceeded -- none of which is a refused connection
     contract: Only the outcome that means the backend could not be reached may say so. A client deadline, a transport reset, a server refusal and an unclassifiable failure are four different facts, and each must survive to the caller as a typed outcome in the structured surface -- never as prose a downstream adapter has to parse.
+  - id: failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict
+    title: A presentation cap silently changed a governance verdict
+    description: Preflight and change-impact bounded their anchor, repair-plan and pattern lists for readability, then passed the BOUNDED list to the deciding functions. In compact mode caps.invariants=3, caps.failureModes=2, caps.patterns=1 and maxRepairPlansSurfaced=2, so a governed anchor beyond the cap could not raise risk, could not establish applicability, and could not cast a repair-plan authority vote. The verdict was a function of how much fitted on screen. Three instances were live and mutation-proven; a fourth was latent (see the ordering invariant).
+    protects:
+      files:
+        - golang/server/preflight.go
+        - golang/server/change_impact.go
+        - golang/server/blast_radius.go
+    related_invariants:
+      - invariant.sensei.governance_decides_from_complete_state_and_projects_afterwards
+    required_tests:
+      - golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
+      - golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    evidence:
+      - each of the three was proven by reverting the wiring and watching the falsifier fail; ten further caps in the package were inspected BY READING ONLY, which is a weaker evidence class and is recorded as such

@@ -856,6 +856,12 @@ test_symbols:
     symbol: TestToolsList_IncludesPropose
     package: main
     language: go
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestARefusalThatIsNotRetriedStillArrivesAsTypedData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestARefusalThatIsNotRetriedStillArrivesAsTypedData
+    package: main
+    language: go
+    doc: "Every classified outcome must reach the caller as typed data, including the\nones failover does not retry. Gating the classification on the retry\npredicate silently dropped the structured surface for those (#319 review)."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestAllAddressesTimingOutIsDeadlineNotUnavailable
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestAllAddressesTimingOutIsDeadlineNotUnavailable
@@ -868,6 +874,18 @@ test_symbols:
     package: main
     language: go
     doc: "The closed set is read by MEMBERSHIP. An unrecognised code is its own member,\nnever folded into unreachable: \"we could not tell\" and \"the backend is down\"\nare the two answers this repair exists to separate."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestClassificationAndRetryAreDifferentQuestions
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestClassificationAndRetryAreDifferentQuestions
+    package: main
+    language: go
+    doc: "The two questions are separate, and each is pinned.\n\nAn earlier revision of this branch derived the failover predicate FROM the\nclassification, on the theory that a second code list was a duplicated\nvocabulary. Review showed they are different questions and cannot be one set:\nserver_refusal covers Unauthenticated (which retries) and PermissionDenied\n(which must not). Collapsing them made server_refusal unreachable for a\npermission failure."
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+    file: cmd/awareness-mcp/transport_outcome_test.go
+    symbol: TestEveryMemberOfTheClosedSetReachesTheCallerAsTypedData
+    package: main
+    language: go
+    doc: "\"We could not classify this\" is an ANSWER, and the caller is entitled to it\nin the same shape as every other answer.\n\nTwo gates were tried in toolRPCError and each dropped a member of the closed\nset: isTransportFailure made server_refusal unreachable for a permission\nfailure, then classifiable() made `unclassified` itself unreachable, so an\nInternal or NotFound produced a bare error with no structured data (#319\nreview)."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestMixedOutcomesDoNotBecomeAConfidentClaim
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestMixedOutcomesDoNotBecomeAConfidentClaim
@@ -26457,26 +26475,140 @@ test_symbols:
     package: main
     language: go
     doc: "The negative case: a file outside every covers_paths prefix must produce\nZERO authority lines — claiming ownership guidance where no domain matches\nwould teach agents to distrust the guidance everywhere."
+  - id: golang/server/blast_radius_test.go:TestAnchorIDsAreNotDecodedTwice
+    file: golang/server/blast_radius_test.go
+    symbol: TestAnchorIDsAreNotDecodedTwice
+    package: main
+    language: go
+    doc: "The subject side arrives already decoded. Decoding again here turned a real\n\"%2F\" in an id into \"/\", collapsing two different identities."
+  - id: golang/server/blast_radius_test.go:TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother
+    file: golang/server/blast_radius_test.go
+    symbol: TestAnchorInOneClassDoesNotAuthoriseAPlanNamingAnother
+    package: main
+    language: go
+    doc: "An identity in the WRONG class must not authorise a plan. The graph's ids are\nclass-scoped, so failure mode \"x\" is not invariant \"x\", and a component named\nlike a contract is not that contract."
+  - id: golang/server/blast_radius_test.go:TestAngleBracketsAreNotStrippedFromAnIdentity
+    file: golang/server/blast_radius_test.go
+    symbol: TestAngleBracketsAreNotStrippedFromAnIdentity
+    package: main
+    language: go
+    doc: "MintIRI percent-encodes angle brackets, and both decoders decode them, so a\ndecoded bare identity may legally contain \"<\" or \">\". Treating them as IRI\nwrappers reduced the id \"<x>\" to \"x\" and let a plan naming the distinct \"x\"\nclaim an anchor that was never its own."
+  - id: golang/server/blast_radius_test.go:TestApplicabilityHoldsThroughEveryGovernedClass
+    file: golang/server/blast_radius_test.go
+    symbol: TestApplicabilityHoldsThroughEveryGovernedClass
+    package: main
+    language: go
+    doc: "A plan may be related to the subject through any governed class it can name,\nnot only through invariants. The scorer must not discriminate by class, and\nthe caller must not hand it a view that has dropped one: response caps are a\npresentation limit, and an anchor capped out of the response is still an\nanchor this subject has."
+  - id: golang/server/blast_radius_test.go:TestApplicableRepairPlanStillEscalates
+    file: golang/server/blast_radius_test.go
+    symbol: TestApplicableRepairPlanStillEscalates
+    package: main
+    language: go
+    doc: "The positive control: a plan that names an anchor this subject actually\nproduced is applicable, and must keep its vote."
+  - id: golang/server/blast_radius_test.go:TestAuthoredSubjectMatchDoesNotNeedAnAnchorIntersection
+    file: golang/server/blast_radius_test.go
+    symbol: TestAuthoredSubjectMatchDoesNotNeedAnAnchorIntersection
+    package: main
+    language: go
+    doc: "A plan matched through its OWN authored scope -- covers_paths, expressed_by,\nor authority-domain membership -- has already established that it is about\nthese files. Requiring an anchor intersection on top of that discards the\nplan's declared scope, and can downgrade a manual_only path to the generic\nfallback because the file happens to hold none of its anchor classes."
+  - id: golang/server/blast_radius_test.go:TestAuthorityFollowsTheRelationshipNotTheMatch
+    file: golang/server/blast_radius_test.go
+    symbol: TestAuthorityFollowsTheRelationshipNotTheMatch
+    package: main
+    language: go
+    doc: "The mutation pair, expressed as a test: the ONLY difference between these two\ncalls is whether the relationship exists. Everything else -- files, plan,\nlabels, coverage -- is identical."
   - id: golang/server/blast_radius_test.go:TestBlastRadiusForRepositoryPublishIsClusterOrService
     file: golang/server/blast_radius_test.go
     symbol: TestBlastRadiusForRepositoryPublishIsClusterOrService
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestGovernedIDDecodesTheMintedSegment
+    file: golang/server/blast_radius_test.go
+    symbol: TestGovernedIDDecodesTheMintedSegment
+    package: main
+    language: go
+    doc: "governedID is where the plan side becomes the human spelling, so that the\ncomparison above needs no decoding of its own."
+  - id: golang/server/blast_radius_test.go:TestGovernedIDsContainingAColonStayDistinct
+    file: golang/server/blast_radius_test.go
+    symbol: TestGovernedIDsContainingAColonStayDistinct
+    package: main
+    language: go
+    doc: "A governed id may legitimately contain a colon after a simple head. The old\nheuristic read that head as a class and stripped it, so a plan naming\n\"alpha:x\" was authorised by a subject anchored at the distinct \"beta:x\"."
+  - id: golang/server/blast_radius_test.go:TestInsufficientCoverageGivesNoRepairPlanVote
+    file: golang/server/blast_radius_test.go
+    symbol: TestInsufficientCoverageGivesNoRepairPlanVote
+    package: main
+    language: go
+    doc: "Insufficient coverage cannot bootstrap authority from an anchor coincidence.\nThin coverage is already represented conservatively elsewhere, on its own\nterms; it must not be upgraded here into a borrowed cluster label."
   - id: golang/server/blast_radius_test.go:TestLowRiskHelperDoesNotRequireApproval
     file: golang/server/blast_radius_test.go
     symbol: TestLowRiskHelperDoesNotRequireApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored
+    file: golang/server/blast_radius_test.go
+    symbol: TestMatchRepairPlansRecordsWhetherTheMatchWasAuthored
+    package: main
+    language: go
+    doc: "The origin must actually be recorded where it is known. matchRepairPlans is\nthe only place that can tell an authored relationship from a prose\nresemblance, and it used to flatten both into one slice -- which is how the\ndistinction was lost in the first place."
+  - id: golang/server/blast_radius_test.go:TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    file: golang/server/blast_radius_test.go
+    symbol: TestMatchingReturnsEveryPlanAndSurfacingIsWhatCaps
+    package: main
+    language: go
+    doc: "maxRepairPlansSurfaced is a DISPLAY limit. Applying it before scoring decided\nwhich plans were allowed to influence authority: with three task matches, the\ntwo shown could fail the intersection while the third -- naming a live anchor\nand requiring manual_only -- was discarded before anything could score it."
+  - id: golang/server/blast_radius_test.go:TestNoSubjectAnchorsGivesNoRepairPlanVote
+    file: golang/server/blast_radius_test.go
+    symbol: TestNoSubjectAnchorsGivesNoRepairPlanVote
+    package: main
+    language: go
+    doc: "A subject with no anchors of its own gives no plan anything to be applicable\nto, whatever the plan says."
+  - id: golang/server/blast_radius_test.go:TestOneApplicableFileEscalatesTheCandidate
+    file: golang/server/blast_radius_test.go
+    symbol: TestOneApplicableFileEscalatesTheCandidate
+    package: main
+    language: go
+    doc: "Applicability is per candidate, not per file: one touched file genuinely\ngoverned by the plan is enough for the whole change."
+  - id: golang/server/blast_radius_test.go:TestPrimaryOnlyWithoutAPredicateKeepsEverything
+    file: golang/server/blast_radius_test.go
+    symbol: TestPrimaryOnlyWithoutAPredicateKeepsEverything
+    package: main
+    language: go
+    doc: "primaryOnly with no predicate must not silently drop everything: an absent\nfilter means \"unfiltered\", never \"empty\"."
+  - id: golang/server/blast_radius_test.go:TestProseAndStructuredComeFromTheSameVerdict
+    file: golang/server/blast_radius_test.go
+    symbol: TestProseAndStructuredComeFromTheSameVerdict
+    package: main
+    language: go
+    doc: "The prose line and the structured fields must keep coming from ONE verdict:\nthe file's own invariant says a risk verdict an agent must act on is\npublished as structured fields, not only as prose."
   - id: golang/server/blast_radius_test.go:TestRBACChangeRequiresHumanApproval
     file: golang/server/blast_radius_test.go
     symbol: TestRBACChangeRequiresHumanApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestRetiredAnchorsDoNotEstablishApplicability
+    file: golang/server/blast_radius_test.go
+    symbol: TestRetiredAnchorsDoNotEstablishApplicability
+    package: main
+    language: go
+    doc: "Lifecycle is not presentation. A deprecated, superseded or retired anchor is\nnot primary guidance, and must not be the thing that lets a repair plan\ndecide how far a change reaches -- otherwise retired knowledge re-enables an\nauthority the same response is calling out as superseded."
+  - id: golang/server/blast_radius_test.go:TestSubjectAnchorIDsCollectsEveryList
+    file: golang/server/blast_radius_test.go
+    symbol: TestSubjectAnchorIDsCollectsEveryList
+    package: main
+    language: go
+    doc: "subjectAnchorIDs must collect across every list it is given and drop none of\nthem: the applicability decision is only as complete as its input."
   - id: golang/server/blast_radius_test.go:TestUnknownAuthorityEscalatesApproval
     file: golang/server/blast_radius_test.go
     symbol: TestUnknownAuthorityEscalatesApproval
     package: main
     language: go
+  - id: golang/server/blast_radius_test.go:TestUnrelatedRepairPlanDoesNotDecideAuthority
+    file: golang/server/blast_radius_test.go
+    symbol: TestUnrelatedRepairPlanDoesNotDecideAuthority
+    package: main
+    language: go
+    doc: "The reproducer from sensei#317: same files, same anchors, an unrelated plan\nmatched from task prose. It must not decide how far this change reaches."
   - id: golang/server/briefing_feedback_adapter_test.go:TestBriefingFeedbackProjection_NoRepositoryRootField
     file: golang/server/briefing_feedback_adapter_test.go
     symbol: TestBriefingFeedbackProjection_NoRepositoryRootField
@@ -26695,6 +26827,18 @@ test_symbols:
     symbol: TestInScopePatterns_NoForeignLeak
     package: main
     language: go
+  - id: golang/server/change_impact_test.go:TestAuthorityBypassGuidanceIsNotCoverage
+    file: golang/server/change_impact_test.go
+    symbol: TestAuthorityBypassGuidanceIsNotCoverage
+    package: main
+    language: go
+    doc: "Authority-domain guidance is not coverage.\n\n`forbidden` carries synthetic \"authority_bypass:\" entries appended for\npresentation alongside real forbidden-fix anchors, and counting the merged set\nas coverage let a domain match manufacture coverage for a file that holds no\ngoverned anchor at all.\n\nTHE OWED FIXTURE, NOW BUILT. The earlier version of this test used\ngolang/workflow/engine.go, which matches a path-class rule in\nassessChangeRisk, so the escalation fired anyway and reverting the repair\nstill passed. The fixture it needed is a file AnyFileHighRiskWeighted treats\nas high risk that matches NONE of those rules: FileRiskTier returns RiskHigh\nfor authority-domain membership alone, and golang/server/ is in no\npath-class prefix. So the domain makes the file high-risk and contributes\nnothing else. Counting the merged `forbidden` set as coverage now measurably\nsuppresses the thin-coverage escalation."
+  - id: golang/server/change_impact_test.go:TestChangeImpactCountsContractAnchorsAsCoverage
+    file: golang/server/change_impact_test.go
+    symbol: TestChangeImpactCountsContractAnchorsAsCoverage
+    package: main
+    language: go
+    doc: "A file whose only primary anchor is a contract is still an anchored file.\n\nCoverage here counted invariants and failure modes only, so such a file read\nas uncovered and this surface rejected an applicability preflight would have\ngranted for the same change -- the two surfaces disagreeing about one\ncandidate's authority."
   - id: golang/server/change_impact_test.go:TestImpactPlanningForDoctorRuleChange
     file: golang/server/change_impact_test.go
     symbol: TestImpactPlanningForDoctorRuleChange
@@ -26720,6 +26864,24 @@ test_symbols:
     symbol: TestImpactPlanningReportsUnknowns
     package: main
     language: go
+  - id: golang/server/change_impact_test.go:TestNonContractArchitectureDoesNotAnchorAPlan
+    file: golang/server/change_impact_test.go
+    symbol: TestNonContractArchitectureDoesNotAnchorAPlan
+    package: main
+    language: go
+    doc: "DirectArchitecture carries components, boundaries, decisions, evidence and\npatterns as well as contracts. Only a contract is a class a repair plan can\nname, so admitting the rest lets a plan that names a COMPONENT id claim\napplicability it was never granted."
+  - id: golang/server/change_impact_test.go:TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex
+    file: golang/server/change_impact_test.go
+    symbol: TestRetiredOnlyAnchorsAreNotReExaminedByTheIndex
+    package: main
+    language: go
+    doc: "A retired anchor set is a DETERMINED result, not a missing one.\n\nThe index fallback exists (#220) to answer \"did the graph ever look at this\nfile\" for a file with no anchors at all. It queries the same SourceFile\nsubject that produced the anchors, so for a retired-only file it always says\nyes -- re-admitting as examined a file whose governance was deliberately\nwithdrawn, making coverage sufficient, and suppressing the thin-coverage\nescalation on a file that is high-risk by authority membership and matches\nno path-class rule. Found by review at 2f38ae57, not by the audit.\n\nTable-driven over EVERY class that counts as a governed anchor. The first\nversion covered only retired invariants, so narrowing the raw count to\ninvariants/failure-modes/intents still passed it while a retired-only\nforbidden fix or contract was handed to the index and resurrected (#318\nreview). A falsifier that covers one member of a closed set does not\nestablish the rule for the set."
+  - id: golang/server/change_impact_test.go:TestSafetySignalsDoNotAcceptARetiredOwner
+    file: golang/server/change_impact_test.go
+    symbol: TestSafetySignalsDoNotAcceptARetiredOwner
+    package: main
+    language: go
+    doc: "The safety signals read PRIMARY anchors, so a retired anchor cannot answer\n\"who owns this file\". golang/mcp/ is high-risk by directory and matches none\nof the path-class rules, so the owner-unknown escalation is isolated here:\nderiving hasAnchors from the raw lists makes it disappear."
   - id: golang/server/change_risk_fields_test.go:TestEnumNumbersAscendWithSeverity
     file: golang/server/change_risk_fields_test.go
     symbol: TestEnumNumbersAscendWithSeverity
@@ -28090,6 +28252,72 @@ test_symbols:
     symbol: TestSeedIfEmpty_SkipsWhenStoreNonEmpty
     package: main
     language: go
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusDoesNotCountRetiredAnchors
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestBriefingStatusDoesNotCountRetiredAnchors
+    package: main
+    language: go
+    doc: "The briefing surface applied NO lifecycle filtering at all.\n\nFound by the #318 sweep rather than by a review round: preflight and\nchange_impact were both repaired to treat a retired-only subject as governed\nby nothing, while briefing still counted retired anchors and answered OK --\n\"an anchor binds this file\" -- for the same file. And because the\nprinciple-guidance fallback is gated on `directAnchors == 0`, the retired\nanchor ALSO suppressed the meta-principle advice that exists precisely for\nfiles nothing governs. One missing filter both overstated the status and\nwithheld the remedy."
+  - id: golang/server/preflight_applicability_test.go:TestBriefingStatusReadsTheUncappedImpact
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestBriefingStatusReadsTheUncappedImpact
+    package: main
+    language: go
+    doc: "The briefing status is a DECISION, and it was reading the display-capped set.\n\nagent_compact bounds each impact class to four nodes. Four retired critical\ninvariants sort ahead of a fifth live one, so the capped set the status read\ncontained no live anchor at all: the file was reported context/inference-only\nAND handed the unanchored principle guidance that exists for files nothing\ngoverns — while a live rule bound it the whole time (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestConfidenceCountsEveryLiveAnchorNotTheShownOnes
+    package: main
+    language: go
+    doc: "Confidence is a decision, and it was reading the projection.\n\ncomputeConfidence returns HIGH at three or more direct anchors. Compact mode\ncaps failure modes at TWO. So a subject holding three live failure-mode\nanchors was HIGH by the truth and MEDIUM by the response view -- a governance\nsignal degraded by a display constant, found by review while the branch that\nrecords that very law was in flight (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestCoverageCountsEveryGovernedClassNotJustThree
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestCoverageCountsEveryGovernedClassNotJustThree
+    package: main
+    language: go
+    doc: "Coverage was the last decision on this surface still reading the projection,\nand it read only three of the five governed classes.\n\nAfter the examination repair, a file whose only LIVE governance is a\nforbidden fix or a contract is examined, so it is indexed. Coverage then took\nthe \"indexed == len(files)\" branch and announced \"no governing rule applies\"\n— while that same forbidden fix or contract went on to establish\napplicability and let a repair plan decide authority. One response saying\nnothing governs this AND this governed thing decides authority.\n\nThe earlier self-contradiction was across lifecycle state; this one is across\nCLASS VOCABULARY. Reading a closed set of five by naming three is the same\nerror in a different register (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestExistenceStatusSeesEveryGovernedClass
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestExistenceStatusSeesEveryGovernedClass
+    package: main
+    language: go
+    doc: "\"The graph has no facts about this file\" is an EXISTENCE claim, and it was\nstill reading three of the five governed classes.\n\nAfter coverage and applicability began accepting live forbidden fixes and\ncontracts, a high-risk file governed only by one of those was declared\nDEGRADED with \"no facts about this file\" while the same response listed the\ngoverning anchor and could let it authorise a repair plan (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestPatternDrivenSignalsSeeEveryMatchedPattern
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPatternDrivenSignalsSeeEveryMatchedPattern
+    package: main
+    language: go
+    doc: "Coverage and risk classification must see every matched pattern, not the one\nthe compact response shows.\n\ncaps.patterns is 1 in compact mode, and both computePreflightCoverage and\nclassifyRisk read the pattern list: coverage counts a \"strong\" match as\nsufficient, and classifyRisk's anyStrongOrMediumPattern feeds the verdict. A\nstrong pattern ranked second was therefore invisible to both."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilityIgnoresRetiredAnchors
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightApplicabilityIgnoresRetiredAnchors
+    package: main
+    language: go
+    doc: "A plan related ONLY through a retired anchor must not vote. Lifecycle is not\npresentation: the same response reports that knowledge as not primary\nguidance, and it must not be what grants authority.\n\nRun per governed class, because the filter is applied per list: dropping it\nfrom one class only is a real regression this test would otherwise miss.\n\nCOVERAGE GAP, STATED: forbidden fixes and architecture contracts are not\ncovered here. A fixture built the same way never reaches allForbiddenFixes --\nimpact.go routes nodes by a resolved class name and this fixture does not\nproduce one for that class -- so the subtest passed whether or not the filter\nwas applied, which is a test proving less than it appears. It was removed\nrather than left in. Dropping primaryOnly from allForbiddenFixes or\nallArchitecture therefore still passes this suite."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightApplicabilitySeesAnchorsThatCapsHide
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightApplicabilitySeesAnchorsThatCapsHide
+    package: main
+    language: go
+    doc: "A plan related through an anchor the RESPONSE could not show must still be\nable to establish applicability. Caps are a presentation limit; they must not\ndecide authority."
+  - id: golang/server/preflight_applicability_test.go:TestPreflightUnrelatedPlanDoesNotSetAuthority
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestPreflightUnrelatedPlanDoesNotSetAuthority
+    package: main
+    language: go
+    doc: "A plan that names nothing this subject holds is guidance only, whatever the\ntask text says. This is the original #317 reproducer at the preflight\nboundary rather than in the scorer."
+  - id: golang/server/preflight_applicability_test.go:TestRetiredOnlySubjectIsNotReportedAsCovered
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestRetiredOnlySubjectIsNotReportedAsCovered
+    package: main
+    language: go
+    doc: "Preflight had the sibling of the change_impact resurrection, and it produced\na response that contradicted itself.\n\n`indexed` was decided from the RAW anchor lists, before lifecycle filtering.\ncomputePreflightCoverage calls coverage sufficient once every requested file\nis indexed. So a retired-only subject reported:\n\n\tcoverage.sufficient = true   (\"these files were examined, nothing governs them\")\n\tdirectLive           = empty (\"that governance was withdrawn\")\n\nin the SAME response. Table-driven over every governed class, because\nnarrowing the set to invariants/failure-modes/intents rebuilds the asymmetry\nfor forbidden-fix-only and contract-only subjects (#318 review)."
+  - id: golang/server/preflight_applicability_test.go:TestRiskClassificationSeesAnchorsThatCapsHide
+    file: golang/server/preflight_applicability_test.go
+    symbol: TestRiskClassificationSeesAnchorsThatCapsHide
+    package: main
+    language: go
+    doc: "Risk classification must see the complete live anchor set.\n\nclassifyRisk builds a keyword haystack over the anchors it is given and\nreturns DATA_LOSS_RISK or SECURITY_RISK from it, and assessChangeRisk turns\nthose into human_approval_required. Classifying from the capped response view\ntherefore let a presentation limit drop a security classification: severity\nsorting keeps the most severe anchors, but the keyword rules are not\nseverity-driven, so a lower-severity security anchor behind more severe ones\nwas never examined."
   - id: golang/server/preflight_coverage_authority_test.go:TestPatternMatchAloneCannotManufactureSufficientCoverage
     file: golang/server/preflight_coverage_authority_test.go
     symbol: TestPatternMatchAloneCannotManufactureSufficientCoverage

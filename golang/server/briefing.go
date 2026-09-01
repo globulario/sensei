@@ -132,6 +132,21 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Unavailable, "code symbol query failed: %v", err)
 	}
+	// COUNTED BEFORE THE CAP, and it has to be counted rather than kept.
+	//
+	// The briefing status is a decision, and with a capped set four retired
+	// critical invariants sorting ahead of a fifth live one make directAnchors
+	// == 0 in a compact profile -- so a file a live rule binds is reported
+	// context/inference-only AND handed the unanchored principle guidance that
+	// exists for files nothing governs (#318 review).
+	//
+	// Holding a second reference does NOT work: limitImpactResponseWithProfile
+	// mutates the response in place and returns the same pointer, so
+	// `uncapped := impact` aliases the capped object. That version of this
+	// repair compiled, read correctly, and changed nothing.
+	directAnchors := primaryAnchorCount(impact, func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), nodeScore{})
+	})
 	impact = limitImpactResponseWithProfile(impact, profile)
 	sectionScope := briefingScope(requestedDomain, resolvedScope, s.homeDomain)
 	codeSyms = focusCodeSymbolsForTask(task, codeSyms)
@@ -158,7 +173,32 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// picks up a code_symbol id for every indexed file, so a file nothing
 	// governs answered OK. Counting here, before code symbols and before
 	// task-level material, is what lets the status name its own predicate.
-	directAnchors := len(referenced)
+	//
+	// LIFECYCLE, added by the #318 sweep rather than by a review round.
+	// This surface applied NO lifecycle filtering whatever -- no
+	// isPrimaryStatus, no trust scoring -- so a file whose only governance had
+	// been RETIRED reported OK ("an anchor binds this file") while preflight
+	// and change_impact both, correctly, treat that same file as governed by
+	// nothing. Worse, the principle-guidance fallback below is gated on
+	// `directAnchors == 0`, so the retired anchor also SUPPRESSED the
+	// meta-principle advice that exists precisely for files nothing governs:
+	// one missing filter both overstated the status and withheld the remedy.
+	//
+	// Retired anchors stay in `referenced` and in the prose, as they do on the
+	// other surfaces: they are guidance, and they are not a binding.
+	// SCOPE OF THIS FILTER, STATED BECAUSE IT IS NARROWER THAN PREFLIGHT'S.
+	// It reads the node's AUTHORED status only. The complete predicate is
+	// isPrimaryStatus(status, s.scoreNode(...)), where scoreNode fetches a
+	// promotion status that can override the authored one -- but scoreNode
+	// issues one Describe PER NODE, and briefing is the per-file hot path. A
+	// scoped preflight has already been observed to be cancelled and then
+	// misreported as unreachable when it grew too many round-trips, and an
+	// unreachable briefing is a worse failure than an unfiltered one.
+	//
+	// So: a node authored `retired`/`deprecated`/`superseded` no longer lifts
+	// this status, and a node whose PROMOTION status alone demotes it still
+	// does. That residue is real and is raised on the PR rather than closed by
+	// quietly paying the I/O or quietly ignoring it.
 
 	existingIRIs := buildExistingIRISet(impact)
 	referenced = append(referenced, codeRefIDsFromSymbols(codeSyms, existingIRIs)...)
@@ -217,7 +257,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	if domains, derr := s.loadAuthorityDomains(ctx); derr == nil {
 		matchedDomains := matchAuthorityDomains([]string{file}, domains)
 		if plans, perr := s.loadRepairPlans(ctx); perr == nil {
-			repairPlans = matchRepairPlans(task, []string{file}, matchedDomains, plans)
+			repairPlans = surfacedRepairPlans(matchRepairPlans(task, []string{file}, matchedDomains, plans))
 		}
 	}
 	for _, rp := range repairPlans {
@@ -928,4 +968,23 @@ func composePackageInferenceNote(p packageInference) string {
 	}
 	b.WriteString("\nThese govern the package, not necessarily this file. Confirm before treating one as binding here.")
 	return b.String()
+}
+
+// primaryAnchorCount counts the anchors that BIND a file: every governed class
+// collectImpact returns, minus what lifecycle scoring retired. It exists so the
+// briefing status names the same predicate preflight and change_impact do.
+func primaryAnchorCount(impact *awarenesspb.ImpactResponse, isPrimary func(*awarenesspb.KnowledgeNode) bool) int {
+	n := 0
+	for _, list := range [][]*awarenesspb.KnowledgeNode{
+		impact.GetDirectInvariants(),
+		impact.GetDirectFailureModes(),
+		impact.GetDirectIncidentPatterns(),
+		impact.GetDirectIntents(),
+		impact.GetForbiddenFixes(),
+		impact.GetRequiredTests(),
+		impact.GetDirectArchitecture(),
+	} {
+		n += len(primaryOnly(list, isPrimary))
+	}
+	return n
 }

@@ -46,6 +46,12 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	invariants := newStringSet()
 	failureModes := newStringSet()
 	forbidden := newStringSet()
+	// forbiddenAnchors holds only GOVERNED forbidden-fix anchors. `forbidden`
+	// additionally carries synthetic "authority_bypass:" entries appended for
+	// presentation, and mixing the two let authority-domain guidance report
+	// coverage a file does not have.
+	forbiddenAnchors := newStringSet()
+	contracts := newStringSet()
 	tests := newStringSet()
 
 	// Per-file impact (invariants, failure modes, forbidden fixes, tests).
@@ -60,21 +66,85 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 			plan.Unknowns = append(plan.Unknowns, "impact_query_failed_for_"+f)
 			continue
 		}
+		// Lifecycle filtering, matching what preflight applies: a deprecated,
+		// superseded or retired anchor is not primary guidance and must not
+		// establish that a repair plan applies to this subject.
+		primary := func(n *awarenesspb.KnowledgeNode) bool {
+			return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+		}
+		// hasAnchors is a SAFETY signal: it suppresses the unknown-owner
+		// escalation, so it must mean "this file has live governance", not
+		// "this file has a record of some kind". Setting it from raw nodes let a
+		// file whose only anchor is retired suppress that fallback while the
+		// retired anchor was correctly refused everywhere else.
 		for _, n := range impact.GetDirectInvariants() {
-			invariants.add(n.GetId())
-			hasAnchors = true
+			if primary(n) {
+				invariants.add(n.GetId())
+				hasAnchors = true
+			}
 		}
 		for _, n := range impact.GetDirectFailureModes() {
-			failureModes.add(n.GetId())
-			hasAnchors = true
+			if primary(n) {
+				failureModes.add(n.GetId())
+				hasAnchors = true
+			}
 		}
 		for _, n := range impact.GetForbiddenFixes() {
-			forbidden.add(n.GetId())
+			if primary(n) {
+				forbidden.add(n.GetId())
+				forbiddenAnchors.add(n.GetId())
+			}
+		}
+		// Architecture contracts are a class a repair plan can name, so this
+		// surface must see them too or it would deny applicability that
+		// preflight grants for the same change.
+		for _, n := range impact.GetDirectArchitecture() {
+			// Contracts only: this list also carries components, boundaries,
+			// decisions, evidence and patterns.
+			if primary(n) && strings.EqualFold(strings.TrimSpace(n.GetClass()), "contract") {
+				contracts.add(n.GetId())
+			}
 		}
 		for _, n := range impact.GetRequiredTests() {
 			tests.add(n.GetId())
 		}
-		if len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0 {
+		// Examination has THREE states here, and collapsing them into one
+		// boolean is what let a withdrawal read as coverage (#318 review).
+		//
+		//   primary anchors > 0        -> examined, and something governs it
+		//   raw anchors, none primary  -> the graph looked, and every rule it
+		//                                 learned has since been RETIRED
+		//   no anchors at all          -> unknown; ask the index (#220)
+		//
+		// The index lookup answers the third state. It must not be allowed to
+		// answer the second: it queries the same SourceFile subject that just
+		// returned those retired anchors, so it always says yes, and a file
+		// whose governance was deliberately withdrawn is re-admitted as
+		// examined -- making coverageSufficient true, suppressing the
+		// thin-coverage escalation, and returning local/none for a file that
+		// is high-risk by authority membership and matches no path-class rule.
+		//
+		// A failed lifecycle filter is a DETERMINED result, not a missing one.
+		//
+		// rawAnchors must span EVERY class that can be a governed anchor here,
+		// not just the three the examination test uses. coverageSufficient
+		// below counts live forbidden fixes and contracts, so a file whose only
+		// historical governance was a forbidden fix or a contract is a file the
+		// graph looked at -- and counting only invariants, failure modes and
+		// intents would score it zero, hand it to the index, and resurrect
+		// exactly the coverage this three-state split exists to withhold.
+		// Narrowing the second state is the same defect wearing a smaller
+		// vocabulary (#318 review).
+		rawAnchors := len(impact.GetDirectInvariants()) +
+			len(impact.GetDirectFailureModes()) + len(impact.GetDirectIntents()) +
+			len(impact.GetForbiddenFixes()) + len(ofClass(impact.GetDirectArchitecture(), "contract"))
+		examined := len(primaryOnly(impact.GetDirectInvariants(), primary))+
+			len(primaryOnly(impact.GetDirectFailureModes(), primary))+
+			len(primaryOnly(impact.GetDirectIntents(), primary)) > 0
+		if !examined && rawAnchors == 0 {
+			examined, _ = s.sourceFileExamined(ctx, f, "")
+		}
+		if examined {
 			indexed++
 		}
 	}
@@ -98,15 +168,29 @@ func (s *server) planChangeImpact(ctx context.Context, task string, files []stri
 	var matchedPlans []loadedRepairPlan
 	if plans, err := s.loadRepairPlans(ctx); err == nil {
 		matchedPlans = matchRepairPlans(task, files, authorityDomains, plans)
-		for _, p := range matchedPlans {
+		// Reported plans are capped for the reader; assessChangeRisk below is
+		// given the complete matched set, so a plan that is not shown can still
+		// be the one that decides authority.
+		for _, p := range surfacedRepairPlans(matchedPlans) {
 			plan.AffectedRepairPlans = append(plan.AffectedRepairPlans, p.ID)
 		}
 	}
 
 	// Risk → blast radius + approval gate.
-	coverageSufficient := len(invariants.items)+len(failureModes.items) > 0 || indexed > 0
+	// Every governed class a plan can name counts towards coverage, for the
+	// same reason: a subject anchored only by a contract or a forbidden fix is
+	// still anchored.
+	coverageSufficient := len(invariants.items)+len(failureModes.items)+
+		len(forbiddenAnchors.items)+len(contracts.items) > 0 || indexed > 0
 	risk := awarenesspb.RiskClass_UNKNOWN_IMPACT
-	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient, hasAnchors)
+	// The same applicability rule as preflight, from this surface's own anchors.
+	// Leaving this call on the old shape would let one surface decide authority
+	// with applicability and the other without it, and the two would disagree
+	// about the same change while both claiming to be the verdict.
+	anchors := newSubjectAnchors(invariants.sorted(), failureModes.sorted(),
+		forbiddenAnchors.sorted(), contracts.sorted())
+	assessment := assessChangeRisk(files, authorityDomains, matchedPlans, risk, coverageSufficient,
+		hasAnchors, anchors)
 	plan.BlastRadius = assessment.BlastRadius
 	plan.ApprovalGate = assessment.ApprovalGate
 
