@@ -623,12 +623,12 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		var text string
 		if resp.GetStatus() == awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
 			text = fmt.Sprintf("%sstatus: EMPTY\nreferenced_ids: []\nno direct awareness anchors found for %s",
-				formatGraphAuthority(resp.GetAuthority()), file)
+				formatGraphAuthority(ctx, resp.GetAuthority()), file)
 		} else {
 			text = fmt.Sprintf("%sstatus: %s\ngenerated_in_ms: %d\nreferenced_ids: %v\n\n%s",
-				formatGraphAuthority(resp.GetAuthority()), resp.GetStatus().String(), resp.GetGeneratedInMs(), resp.GetReferencedIds(), resp.GetProse())
+				formatGraphAuthority(ctx, resp.GetAuthority()), resp.GetStatus().String(), resp.GetGeneratedInMs(), resp.GetReferencedIds(), resp.GetProse())
 		}
-		return &toolResult{Text: text, Structured: structBriefing(resp)}, nil
+		return &toolResult{Text: text, Structured: structBriefing(ctx, resp)}, nil
 
 	case "awareness_impact":
 		file, _ := args["file"].(string)
@@ -640,7 +640,7 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if err != nil {
 			return nil, toolRPCError("impact", err)
 		}
-		return &toolResult{Text: formatImpact(resp), Structured: structImpact(resp)}, nil
+		return &toolResult{Text: formatImpact(ctx, resp), Structured: structImpact(ctx, resp)}, nil
 
 	case "awareness_resolve":
 		class, _ := args["class"].(string)
@@ -659,13 +659,13 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		}
 		var text string
 		if !resp.GetFound() {
-			text = fmt.Sprintf("%snot found: %s:%s", formatGraphAuthority(resp.GetAuthority()), class, id)
+			text = fmt.Sprintf("%snot found: %s:%s", formatGraphAuthority(ctx, resp.GetAuthority()), class, id)
 		} else {
 			n := resp.GetNode()
 			text = fmt.Sprintf("%sfound: true\nid: %s:%s\nlabel: %s\nseverity: %s\nstatus: %s\nrelated_ids: %v",
-				formatGraphAuthority(resp.GetAuthority()), n.GetClass(), n.GetId(), n.GetLabel(), n.GetSeverity(), n.GetStatus(), n.GetRelatedIds())
+				formatGraphAuthority(ctx, resp.GetAuthority()), n.GetClass(), n.GetId(), n.GetLabel(), n.GetSeverity(), n.GetStatus(), n.GetRelatedIds())
 		}
-		return &toolResult{Text: text, Structured: structResolve(resp)}, nil
+		return &toolResult{Text: text, Structured: structResolve(ctx, resp)}, nil
 
 	case "awareness_query":
 		modeStr, _ := args["mode"].(string)
@@ -704,7 +704,7 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if err != nil {
 			return nil, toolRPCError("query", err)
 		}
-		return &toolResult{Text: formatQuery(resp), Structured: structQuery(resp)}, nil
+		return &toolResult{Text: formatQuery(ctx, resp), Structured: structQuery(ctx, resp)}, nil
 
 	case "awareness_metadata":
 		domain, _ := args["domain"].(string)
@@ -712,7 +712,7 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if err != nil {
 			return nil, toolRPCError("metadata", err)
 		}
-		return &toolResult{Text: formatMetadata(resp), Structured: structMetadata(resp)}, nil
+		return &toolResult{Text: formatMetadata(ctx, resp), Structured: structMetadata(ctx, resp)}, nil
 
 	case "awareness_preflight":
 		task, _ := args["task"].(string)
@@ -744,7 +744,7 @@ func (b *bridge) callTool(ctx context.Context, name string, args map[string]inte
 		if err != nil {
 			return nil, toolRPCError("preflight", err)
 		}
-		return &toolResult{Text: formatPreflight(resp), Structured: structPreflight(resp)}, nil
+		return &toolResult{Text: formatPreflight(ctx, resp), Structured: structPreflight(ctx, resp)}, nil
 
 	case "awareness_edit_check":
 		file, _ := args["file"].(string)
@@ -1404,9 +1404,9 @@ func preflightModeFromString(s string) (awarenesspb.PreflightMode, error) {
 	}
 }
 
-func formatQuery(resp *awarenesspb.QueryResponse) string {
+func formatQuery(ctx context.Context, resp *awarenesspb.QueryResponse) string {
 	var b strings.Builder
-	b.WriteString(formatGraphAuthority(resp.GetAuthority()))
+	b.WriteString(formatGraphAuthority(ctx, resp.GetAuthority()))
 	fmt.Fprintf(&b, "rows: %d\ngenerated_in_ms: %d\n", len(resp.GetRows()), resp.GetGeneratedInMs())
 	for _, r := range resp.GetRows() {
 		fmt.Fprintf(&b, "\n- id: %s\n  class: %s\n  label: %s", r.GetId(), r.GetClass(), r.GetLabel())
@@ -1427,7 +1427,7 @@ func formatQuery(resp *awarenesspb.QueryResponse) string {
 	return b.String()
 }
 
-func formatMetadata(resp *awarenesspb.MetadataResponse) string {
+func formatMetadata(ctx context.Context, resp *awarenesspb.MetadataResponse) string {
 	var b strings.Builder
 	mv := awarenessclient.InterpretMetadataAuthority(resp)
 	verdict, state, warning := mv.Verdict, mv.State, mv.Warning
@@ -1438,6 +1438,9 @@ func formatMetadata(resp *awarenesspb.MetadataResponse) string {
 		fmt.Fprintf(&b, "graph_authority.warning: %s\n", warning)
 	}
 	fmt.Fprintf(&b, "graph_build_commit: %s\n", resp.GetGraphBuildCommit())
+	if m := reachabilityMap(ctx, resp.GetGraphBuildCommit()); m != nil {
+		fmt.Fprintf(&b, "reachability: %v (%v)\n", m["state"], m["detail"])
+	}
 	fmt.Fprintf(&b, "graph_build_time_unix: %d\n", resp.GetGraphBuildTimeUnix())
 	fmt.Fprintf(&b, "source_repo_commit: %s\n", resp.GetSourceRepoCommit())
 	fmt.Fprintf(&b, "embedded_seed_digest_sha256: %s\n", resp.GetEmbeddedSeedDigestSha256())
@@ -1488,8 +1491,19 @@ func formatMetadata(resp *awarenesspb.MetadataResponse) string {
 // formatGraphAuthority renders the authority stamp as ONE line for the text
 // block (Pillar 3.1 — the ~19-line prose dump moved into structuredContent via
 // authorityStruct). Trailing newline so callers can prepend it to a body.
-func formatGraphAuthority(authority *awarenesspb.GraphAuthority) string {
-	return authorityOneLine(authority) + "\n"
+// formatGraphAuthority renders the authority line for clients that read only
+// content[].text and ignore structuredContent.
+//
+// Reachability was added to the structured map alone, so those clients kept
+// seeing "authority: authoritative (current)" with no staleness warning -- the
+// false-green path closed for structured readers and left open for the older
+// ones the text block exists to support.
+func formatGraphAuthority(ctx context.Context, authority *awarenesspb.GraphAuthority) string {
+	out := authorityOneLine(authority) + "\n"
+	if m := reachabilityMap(ctx, authority.GetGraphBuildCommit()); m != nil {
+		out += fmt.Sprintf("reachability: %v (%v)\n", m["state"], m["detail"])
+	}
+	return out
 }
 
 // Authority interpretation (verdict / freshness / warning) is centralized in
@@ -1514,9 +1528,9 @@ func formatEditCheck(resp *awarenesspb.EditCheckResponse) string {
 	return b.String()
 }
 
-func formatPreflight(resp *awarenesspb.PreflightResponse) string {
+func formatPreflight(ctx context.Context, resp *awarenesspb.PreflightResponse) string {
 	var b strings.Builder
-	b.WriteString(formatGraphAuthority(resp.GetAuthority()))
+	b.WriteString(formatGraphAuthority(ctx, resp.GetAuthority()))
 	fmt.Fprintf(&b, "status: %s\n", resp.GetStatus().String())
 	fmt.Fprintf(&b, "risk_class: %s\n", resp.GetRiskClass().String())
 	fmt.Fprintf(&b, "confidence: %s\n", resp.GetConfidence().String())
@@ -1569,9 +1583,9 @@ func formatPreflight(resp *awarenesspb.PreflightResponse) string {
 	return b.String()
 }
 
-func formatImpact(resp *awarenesspb.ImpactResponse) string {
+func formatImpact(ctx context.Context, resp *awarenesspb.ImpactResponse) string {
 	var b strings.Builder
-	b.WriteString(formatGraphAuthority(resp.GetAuthority()))
+	b.WriteString(formatGraphAuthority(ctx, resp.GetAuthority()))
 	// Text now lists the REAL nodes (id + label), not just counts — the full
 	// structured payload rides in structuredContent (structImpact).
 	writeNodeLines := func(title string, nodes []*awarenesspb.KnowledgeNode) {
@@ -1623,7 +1637,7 @@ func authorityOneLine(a *awarenesspb.GraphAuthority) string {
 // interpreted verdict PLUS the raw provenance fields (build commits, digests,
 // certification). Nothing the old ~19-line text block carried is lost — it just
 // moves from prose into JSON.
-func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
+func authorityStruct(ctx context.Context, a *awarenesspb.GraphAuthority) map[string]interface{} {
 	av := awarenessclient.InterpretAuthority(a)
 	obj := map[string]interface{}{
 		"verdict":       av.Verdict,
@@ -1651,15 +1665,8 @@ func authorityStruct(a *awarenesspb.GraphAuthority) map[string]interface{} {
 	//
 	// Absent when the authority states no build commit: the question was never
 	// askable for that response, and answering it anyway would assess nothing.
-	if commit := strings.TrimSpace(a.GetGraphBuildCommit()); commit != "" {
-		r := reachability.ResolveFromGit(context.Background(), mcpCorpusRoot(), commit)
-		obj["reachability"] = map[string]interface{}{
-			"state":           string(r.State),
-			"reachable":       r.Reachable(),
-			"commits_ahead":   r.CommitsAhead,
-			"detail":          r.Detail,
-			"asserts_absence": r.AssertsAbsence(),
-		}
+	if m := reachabilityMap(ctx, a.GetGraphBuildCommit()); m != nil {
+		obj["reachability"] = m
 	}
 	obj["graph_build_time_unix"] = a.GetGraphBuildTimeUnix()
 	obj["source_repo_commit"] = a.GetSourceRepoCommit()
@@ -1745,8 +1752,8 @@ func putNodes(obj map[string]interface{}, key string, nodes []*awarenesspb.Knowl
 // structImpact is the machine-parseable Impact payload: the REAL nodes the file
 // is anchored to (not just counts — that was the Pillar 3.1 blocker), split
 // direct vs inferred, plus symbols and their references.
-func structImpact(resp *awarenesspb.ImpactResponse) map[string]interface{} {
-	obj := map[string]interface{}{"authority": authorityStruct(resp.GetAuthority())}
+func structImpact(ctx context.Context, resp *awarenesspb.ImpactResponse) map[string]interface{} {
+	obj := map[string]interface{}{"authority": authorityStruct(ctx, resp.GetAuthority())}
 	putNodes(obj, "direct_invariants", resp.GetDirectInvariants())
 	putNodes(obj, "direct_failure_modes", resp.GetDirectFailureModes())
 	putNodes(obj, "direct_incident_patterns", resp.GetDirectIncidentPatterns())
@@ -1776,7 +1783,7 @@ func structImpact(resp *awarenesspb.ImpactResponse) map[string]interface{} {
 }
 
 // structBriefing is the machine-parseable Briefing payload.
-func structBriefing(resp *awarenesspb.BriefingResponse) map[string]interface{} {
+func structBriefing(ctx context.Context, resp *awarenesspb.BriefingResponse) map[string]interface{} {
 	status := "EMPTY"
 	if resp.GetStatus() != awarenesspb.BriefingStatus_BRIEFING_STATUS_EMPTY {
 		status = resp.GetStatus().String()
@@ -1786,7 +1793,7 @@ func structBriefing(resp *awarenesspb.BriefingResponse) map[string]interface{} {
 		ids = []string{}
 	}
 	return map[string]interface{}{
-		"authority":       authorityStruct(resp.GetAuthority()),
+		"authority":       authorityStruct(ctx, resp.GetAuthority()),
 		"status":          status,
 		"generated_in_ms": resp.GetGeneratedInMs(),
 		"referenced_ids":  ids,
@@ -1837,9 +1844,9 @@ func structFrom(value interface{}) map[string]interface{} {
 }
 
 // structResolve is the machine-parseable Resolve payload.
-func structResolve(resp *awarenesspb.ResolveResponse) map[string]interface{} {
+func structResolve(ctx context.Context, resp *awarenesspb.ResolveResponse) map[string]interface{} {
 	obj := map[string]interface{}{
-		"authority": authorityStruct(resp.GetAuthority()),
+		"authority": authorityStruct(ctx, resp.GetAuthority()),
 		"found":     resp.GetFound(),
 	}
 	if resp.GetFound() {
@@ -1849,7 +1856,7 @@ func structResolve(resp *awarenesspb.ResolveResponse) map[string]interface{} {
 }
 
 // structQuery is the machine-parseable Query payload.
-func structQuery(resp *awarenesspb.QueryResponse) map[string]interface{} {
+func structQuery(ctx context.Context, resp *awarenesspb.QueryResponse) map[string]interface{} {
 	rows := make([]map[string]interface{}, 0, len(resp.GetRows()))
 	for _, r := range resp.GetRows() {
 		row := map[string]interface{}{"id": r.GetId(), "class": r.GetClass(), "label": r.GetLabel()}
@@ -1868,7 +1875,7 @@ func structQuery(resp *awarenesspb.QueryResponse) map[string]interface{} {
 		rows = append(rows, row)
 	}
 	return map[string]interface{}{
-		"authority":       authorityStruct(resp.GetAuthority()),
+		"authority":       authorityStruct(ctx, resp.GetAuthority()),
 		"generated_in_ms": resp.GetGeneratedInMs(),
 		"rows":            rows,
 	}
@@ -1876,11 +1883,19 @@ func structQuery(resp *awarenesspb.QueryResponse) map[string]interface{} {
 
 // structMetadata is the machine-parseable Metadata payload: the counts and
 // state signals the text block renders, as a JSON object.
-func structMetadata(resp *awarenesspb.MetadataResponse) map[string]interface{} {
+func structMetadata(ctx context.Context, resp *awarenesspb.MetadataResponse) map[string]interface{} {
 	mv := awarenessclient.InterpretMetadataAuthority(resp)
 	auth := map[string]interface{}{"verdict": mv.Verdict, "state": mv.State, "authoritative": mv.Authoritative}
 	if mv.Warning != "" {
 		auth["warning"] = mv.Warning
+	}
+	// awareness_metadata is the PRIMARY GRAPH-HEALTH TOOL, and it builds its own
+	// authority map rather than calling authorityStruct -- so repairing the five
+	// read tools left the one an agent reaches for FIRST reporting
+	// current/authoritative with no reachability warning. The sixth surface,
+	// missed because it was the one that did not share the helper.
+	if m := reachabilityMap(ctx, resp.GetGraphBuildCommit()); m != nil {
+		auth["reachability"] = m
 	}
 	return map[string]interface{}{
 		"authority":                auth,
@@ -1909,9 +1924,9 @@ func structMetadata(resp *awarenesspb.MetadataResponse) map[string]interface{} {
 }
 
 // structPreflight is the machine-parseable Preflight payload.
-func structPreflight(resp *awarenesspb.PreflightResponse) map[string]interface{} {
+func structPreflight(ctx context.Context, resp *awarenesspb.PreflightResponse) map[string]interface{} {
 	obj := map[string]interface{}{
-		"authority":  authorityStruct(resp.GetAuthority()),
+		"authority":  authorityStruct(ctx, resp.GetAuthority()),
 		"status":     resp.GetStatus().String(),
 		"risk_class": resp.GetRiskClass().String(),
 		"confidence": resp.GetConfidence().String(),
@@ -2715,4 +2730,30 @@ func mcpCorpusRoot() string {
 		return r
 	}
 	return "."
+}
+
+// reachabilityMap is the ONE place the assessment is built, so a renderer
+// cannot be repaired while its sibling is forgotten -- which is exactly what
+// happened when five MCP tools were fixed and awareness_metadata was not.
+//
+// It takes the TOOL'S context. The git subprocess was launched with
+// context.Background(), so on a slow or stalled checkout it ignored the
+// whole-call deadline: the gRPC request could finish inside its budget while
+// response construction blocked the single stdio request loop indefinitely.
+//
+// Returns nil when the graph states no build commit: the question was never
+// askable for that response, and answering it anyway would assess nothing.
+func reachabilityMap(ctx context.Context, buildCommit string) map[string]interface{} {
+	commit := strings.TrimSpace(buildCommit)
+	if commit == "" {
+		return nil
+	}
+	r := reachability.ResolveFromGit(ctx, mcpCorpusRoot(), commit)
+	return map[string]interface{}{
+		"state":           string(r.State),
+		"reachable":       r.Reachable(),
+		"commits_ahead":   r.CommitsAhead,
+		"detail":          r.Detail,
+		"asserts_absence": r.AssertsAbsence(),
+	}
 }
