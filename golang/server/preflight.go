@@ -138,6 +138,13 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Per-file impact queries. Single-file failures degrade just that
 	// branch; other files keep going.
 	indexed := 0
+	// isPrimary is the ONE lifecycle predicate this handler uses. It was
+	// duplicated as two identical closures, which is how the risk path and the
+	// applicability path came to disagree about the same node.
+	isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
+		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
+	}
+
 	for _, file := range files {
 		impact, _, _, _, err := s.collectImpact(ctx, file, requestedDomain)
 		if err != nil {
@@ -151,13 +158,35 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		allForbiddenFixes = append(allForbiddenFixes, impact.GetForbiddenFixes()...)
 		allRequiredTests = append(allRequiredTests, impact.GetRequiredTests()...)
 		allArchitecture = append(allArchitecture, impact.GetDirectArchitecture()...)
-		// Anchors prove examination on their own; the index lookup establishes
-		// it WITHOUT them, and only that second direction was missing (#220).
-		// Before it, a file the graph holds and governs by nothing read
-		// identically to a file nobody had ever analysed. The lookup is skipped
-		// when an anchor already settled the question.
-		examined := len(impact.GetDirectInvariants())+len(impact.GetDirectFailureModes())+len(impact.GetDirectIntents()) > 0
-		if !examined {
+		// The SAME three-state examination model change_impact.go uses, for the
+		// same reason and over the same closed set of governed classes.
+		//
+		//   live governed anchor      -> examined
+		//   raw anchors, none primary -> a DETERMINED withdrawal, not coverage
+		//   no governed anchors       -> unknown; only now consult the index (#220)
+		//
+		// Anchors prove examination on their own, and the index lookup
+		// establishes it WITHOUT them -- before #220 a file the graph holds and
+		// governs by nothing read identically to a file nobody had analysed.
+		// But counting RAW anchors here let a retired-only subject increment
+		// `indexed`, and computePreflightCoverage calls coverage sufficient
+		// once every requested file is indexed. The same response then reported
+		// directLive empty, because that governance was withdrawn -- one
+		// request asserting both "fully covered" and "nothing governs this".
+		//
+		// Every governed class counts, not the first three: a subject whose
+		// only anchor is a forbidden fix or a contract is anchored, and
+		// narrowing the set here would rebuild the asymmetry on this surface
+		// after change_impact.go removed it (#318 review).
+		governedRaw := len(impact.GetDirectInvariants()) + len(impact.GetDirectFailureModes()) +
+			len(impact.GetDirectIntents()) + len(impact.GetForbiddenFixes()) +
+			len(ofClass(impact.GetDirectArchitecture(), "contract"))
+		examined := len(primaryOnly(impact.GetDirectInvariants(), isPrimary))+
+			len(primaryOnly(impact.GetDirectFailureModes(), isPrimary))+
+			len(primaryOnly(impact.GetDirectIntents(), isPrimary))+
+			len(primaryOnly(impact.GetForbiddenFixes(), isPrimary))+
+			len(primaryOnly(ofClass(impact.GetDirectArchitecture(), "contract"), isPrimary)) > 0
+		if !examined && governedRaw == 0 {
 			var blindSpot string
 			examined, blindSpot = s.sourceFileExamined(ctx, file, requestedDomain)
 			if blindSpot != "" {
@@ -243,12 +272,6 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// derived here (I/O boundary) — classifyRisk itself stays pure and never
 	// touches the filesystem (contract §10).
 	protAssessment := s.assessCanonicalProtection(files)
-	// isPrimary is the ONE lifecycle predicate this handler uses. It was
-	// duplicated as two identical closures, which is how the risk path and the
-	// applicability path came to disagree about the same node.
-	isPrimary := func(n *awarenesspb.KnowledgeNode) bool {
-		return isPrimaryStatus(n.GetStatus(), s.scoreNode(ctx, n.GetIri()))
-	}
 	// directLive is the COMPLETE lifecycle-filtered anchor set: every governed
 	// anchor these files hold, minus what lifecycle scoring retired, and NOT
 	// bounded by any display cap. Every decision below reads it.

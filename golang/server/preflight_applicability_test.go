@@ -305,3 +305,63 @@ func TestConfidenceCountsEveryLiveAnchorNotTheShownOnes(t *testing.T) {
 			len(resp.GetDirectFailureModes()), got)
 	}
 }
+
+// Preflight had the sibling of the change_impact resurrection, and it produced
+// a response that contradicted itself.
+//
+// `indexed` was decided from the RAW anchor lists, before lifecycle filtering.
+// computePreflightCoverage calls coverage sufficient once every requested file
+// is indexed. So a retired-only subject reported:
+//
+//	coverage.sufficient = true   ("these files were examined, nothing governs them")
+//	directLive           = empty ("that governance was withdrawn")
+//
+// in the SAME response. Table-driven over every governed class, because
+// narrowing the set to invariants/failure-modes/intents rebuilds the asymmetry
+// for forbidden-fix-only and contract-only subjects (#318 review).
+func TestRetiredOnlySubjectIsNotReportedAsCovered(t *testing.T) {
+	for _, class := range []struct{ name, iri string }{
+		{"invariant", rdf.ClassInvariant},
+		{"forbidden fix", rdf.ClassForbiddenFix},
+		{"contract", rdf.ClassContract},
+	} {
+		t.Run(class.name, func(t *testing.T) {
+			invalidateImplementationPatternCacheForTest()
+			// The graph DOES hold a SourceFile node for this path. That is the
+			// condition under which the fallback resurrects the subject, so a
+			// fixture without it would pass for the wrong reason: narrowing the
+			// governed-class set would leave the lookup answering "no" anyway.
+			s := newTestServer(fakeStore{
+				impactForFile: func(_ context.Context, iri string) ([]store.ImpactFact, error) {
+					if iri != "golang/workflow/engine.go" {
+						return nil, nil
+					}
+					return statusAnchorFacts(class.iri, "retired.rule", "Retired rule", "critical", "retired"), nil
+				},
+				sourceFileIRIs: func(_ context.Context, _ string) ([]string, error) {
+					return []string{"urn:test:sourcefile:1"}, nil
+				},
+			})
+			resp, err := s.Preflight(context.Background(), &awarenesspb.PreflightRequest{
+				Task:  "adjust workflow resume behaviour",
+				Files: []string{"golang/workflow/engine.go"},
+				Mode:  awarenesspb.PreflightMode_PREFLIGHT_COMPACT,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			live := len(resp.GetDirectInvariants()) + len(resp.GetDirectFailureModes()) +
+				len(resp.GetDirectIntents())
+			// Guard: if lifecycle filtering did not remove the anchor, the
+			// contradiction cannot arise and this asserts nothing.
+			if live != 0 {
+				t.Fatalf("the retired anchor survived as primary guidance (%d shown), so this proves nothing", live)
+			}
+			if resp.GetCoverage().GetSufficient() {
+				t.Fatalf("coverage reported SUFFICIENT for a subject whose only governance was withdrawn, "+
+					"while the same response shows no live anchor: note=%q",
+					resp.GetCoverage().GetNote())
+			}
+		})
+	}
+}
