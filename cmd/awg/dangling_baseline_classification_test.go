@@ -125,8 +125,18 @@ func TestNoHomeDomainProofEdgeHidesBehindTheBaseline(t *testing.T) {
 		if !isPath || !strings.HasSuffix(file, "_test.go") {
 			continue // bare-name form; classified by the test below
 		}
-		// Only a file this repository actually has is a home-domain edge.
-		if _, err := os.Stat(filepath.Join("../..", file)); err != nil {
+		// A HOME-DOMAIN edge is one whose path belongs to this repository's
+		// tree, whether or not the file is still there.
+		//
+		// Testing os.Stat on the file itself let the worst case through: DELETE
+		// the cited _test.go entirely and the entry was skipped as foreign,
+		// counted as path-form, and the total stayed at 72. The dead-binding
+		// case this check exists to catch, defeated by deleting more.
+		//
+		// Ownership is decided by the top-level directory, which is stable and
+		// present regardless of the file: cmd/ and golang/ are this repository,
+		// and a path rooted anywhere else belongs to a corpus built elsewhere.
+		if !homeDomainPath(file) {
 			continue
 		}
 		if _, ok := home[file+":"+fn]; !ok {
@@ -197,4 +207,20 @@ func declaredSomewhere(home map[string]string, name string) bool {
 		}
 	}
 	return false
+}
+
+// homeDomainPath reports whether a cited path belongs to THIS repository's
+// tree, judged by its top-level directory rather than by the file existing.
+//
+// A file that was deleted is still a home-domain path -- that is precisely the
+// case worth catching -- so existence cannot be the test for ownership.
+func homeDomainPath(file string) bool {
+	file = filepath.ToSlash(strings.TrimSpace(file))
+	i := strings.Index(file, "/")
+	if i <= 0 {
+		return false
+	}
+	top := file[:i]
+	info, err := os.Stat(filepath.Join("../..", top))
+	return err == nil && info.IsDir()
 }
