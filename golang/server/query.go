@@ -80,10 +80,25 @@ func (s *server) Query(ctx context.Context, req *awarenesspb.QueryRequest) (*awa
 	return &awarenesspb.QueryResponse{
 		Rows:          rows,
 		GeneratedInMs: time.Since(start).Milliseconds(),
-		Authority:     s.graphAuthority(ctx),
-		Total:         int32(total),
-		TotalKnown:    totalKnown,
-		Truncated:     moreRowsExist(offset, len(rows), limit, total, totalKnown),
+		// THE ATTESTATION MUST DESCRIBE THE SAME REFERENT AS THE ANSWER.
+		//
+		// This was s.graphAuthority(ctx), which resolves closure for the
+		// SERVER'S HOME DOMAIN while every row above is scoped to
+		// requestedDomain. On a multi-domain store that pairs an
+		// AUTHORITATIVE verdict earned by one domain with rows drawn from
+		// another -- and the worst specimen is `rows: []` beside
+		// `authoritative: true`, which turns "this surface returned nothing"
+		// into an apparently authoritative claim that nothing exists.
+		//
+		// Observed live: awareness_query(domain=github.com/globulario/sensei)
+		// reported authoritative while the store's own proof set held
+		// github.com_globulario_sensei.unproven.json, and awareness_metadata
+		// -- reading the same generation -- correctly reported
+		// non_authoritative. Two surfaces, one referent, opposite verdicts.
+		Authority:  s.graphAuthorityFor(ctx, requestedDomain),
+		Total:      int32(total),
+		TotalKnown: totalKnown,
+		Truncated:  moreRowsExist(offset, len(rows), limit, total, totalKnown),
 	}, nil
 }
 
