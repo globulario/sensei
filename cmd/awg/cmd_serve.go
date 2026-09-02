@@ -144,7 +144,7 @@ Flags:
 				return 1
 			}
 
-			oxiCmd = exec.Command(oxiBin, "serve", "--location", data, "--bind", *oxigraphBind)
+			oxiCmd = exec.Command(oxiBin, oxigraphServeArgs(data, *oxigraphBind)...)
 			oxiCmd.Stdout = os.Stderr // Oxigraph logs go to stderr
 			oxiCmd.Stderr = os.Stderr
 			if err := oxiCmd.Start(); err != nil {
@@ -692,4 +692,22 @@ func watchBackendHealth(ctx context.Context, url string, interval time.Duration,
 		case <-ticker.C:
 		}
 	}
+}
+
+// oxigraphServeArgs builds the Oxigraph child-process argv.
+//
+// Extracted so the flags are ASSERTABLE. A mutation removing
+// --union-default-graph from an inline exec.Command survived the entire test
+// suite: nothing proved we set it, only that it mattered.
+//
+// --union-default-graph: once domains publish into their own named graphs, an
+// unqualified { ?s ?p ?o } pattern matches the DEFAULT graph only and returns
+// ZERO rows -- measured on oxigraph 0.5.9. Every existing query in this
+// codebase is unqualified, so without this flag the whole read surface would
+// silently go empty. That is the worst available failure: `rows: []` is an
+// observation, not evidence of absence, so an empty store and a broken read
+// surface are indistinguishable. With no named graphs present the flag is a
+// no-op, so it is safe to set before the migration begins.
+func oxigraphServeArgs(location, bind string) []string {
+	return []string{"serve", "--location", location, "--bind", bind, "--union-default-graph"}
 }

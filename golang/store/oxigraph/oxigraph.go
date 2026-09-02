@@ -532,6 +532,24 @@ func (c *Client) storeURL() string {
 	return base + "/store?default"
 }
 
+// graphURL addresses ONE publication domain's named graph.
+//
+// The graph slot is the provenance slot. N-Triples has three components and an
+// assertion has four -- subject, predicate, object, and the domain that
+// authored it -- so subject tagging was never a mistake, it was the only place
+// a fourth component could live in a 3-tuple. Publishing each domain into its
+// own named graph gives that fourth component somewhere to go, and makes a
+// publication structurally incapable of touching a neighbour: measured on
+// oxigraph 0.5.9, re-PUTting one domain's graph left another domain's
+// assertions about the SAME subject untouched.
+//
+// The domain is query-escaped: a domain is a repository URL and contains
+// characters (":", "/") that would otherwise terminate or re-key the parameter.
+func (c *Client) graphURL(domain string) string {
+	base := strings.TrimSuffix(c.queryURL, "/query")
+	return base + "/store?graph=" + url.QueryEscape(domain)
+}
+
 // CountTriples returns the number of triples in the default graph.
 // Uses a cheap SELECT COUNT(*) query; returns 0 on any error so callers
 // can safely treat a query failure as "store appears empty" without hard-failing.
@@ -1055,8 +1073,31 @@ func (c *Client) Subjects(ctx context.Context) ([]string, error) {
 // The upload has a 60 s deadline so a slow network does not hang startup
 // indefinitely; the caller should also pass a context with a deadline.
 func (c *Client) Load(ctx context.Context, r io.Reader) error {
+	return c.load(ctx, c.storeURL(), r)
+}
+
+// LoadGraph replaces ONE publication domain's named graph.
+//
+// Unlike Load, which replaces the whole default graph, this is scoped: content
+// authored by other domains is not readable, writable, or destroyable through
+// this call. That is the property the previous model could not provide --
+// publishing sensei moved the services slice from 059f47624207 to 5d0eb2f4eb85
+// and cost services its closure proof, because slice identity was computed over
+// tagged SUBJECTS and 173 identifiers are legitimately co-authored.
+//
+// An empty domain is refused rather than silently redirected to the default
+// graph: a caller that meant to publish a domain and instead replaced the
+// entire store would destroy every other domain's assertions.
+func (c *Client) LoadGraph(ctx context.Context, domain string, r io.Reader) error {
+	if strings.TrimSpace(domain) == "" {
+		return fmt.Errorf("oxigraph load: refusing to publish an unnamed domain into the default graph")
+	}
+	return c.load(ctx, c.graphURL(domain), r)
+}
+
+func (c *Client) load(ctx context.Context, target string, r io.Reader) error {
 	loadClient := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.storeURL(), r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, target, r)
 	if err != nil {
 		return fmt.Errorf("oxigraph load: build request: %w", err)
 	}
