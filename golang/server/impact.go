@@ -55,7 +55,7 @@ func (s *server) Impact(ctx context.Context, req *awarenesspb.ImpactRequest) (*a
 		}
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
-	resp.Authority = s.graphAuthority(ctx)
+	resp.Authority = s.graphAuthorityFor(ctx, strings.TrimSpace(req.GetDomain()))
 	return resp, nil
 }
 

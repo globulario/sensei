@@ -112,7 +112,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 			ReferencedIds:          referenced,
 			Status:                 statusVal,
 			ImplementationPatterns: implPatterns,
-			Authority:              s.graphAuthority(ctx),
+			Authority:              s.graphAuthorityFor(ctx, requestedDomain),
 			Feedback:               feedback.Wire,
 		}
 		s.logBriefingUsage(req, out, profile)
@@ -349,7 +349,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		ReferencedIds:          referenced,
 		Status:                 statusVal,
 		ImplementationPatterns: implPatterns,
-		Authority:              s.graphAuthority(ctx),
+		Authority:              s.graphAuthorityFor(ctx, requestedDomain),
 		Feedback:               feedback.Wire,
 	}
 	s.logBriefingUsage(req, out, profile)

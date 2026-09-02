@@ -78,7 +78,7 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 		return nil, status.Errorf(codes.Unavailable, "backend query failed: %v", err)
 	}
 	if len(triples) == 0 {
-		out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthority(ctx)}
+		out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthorityFor(ctx, requestedDomain)}
 		s.logResolveUsage(req, out)
 		return out, nil
 	}
@@ -99,12 +99,12 @@ func (s *server) Resolve(ctx context.Context, req *awarenesspb.ResolveRequest) (
 	// facts; untagged nodes default to the home domain.
 	if requestedDomain != "" {
 		if !nodeInScopeFromTriples(triples, s.homeDomain, requestedDomain) {
-			out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthority(ctx)}
+			out := &awarenesspb.ResolveResponse{Found: false, Authority: s.graphAuthorityFor(ctx, requestedDomain)}
 			s.logResolveUsage(req, out)
 			return out, nil
 		}
 	}
-	out := &awarenesspb.ResolveResponse{Found: true, Node: node, Authority: s.graphAuthority(ctx)}
+	out := &awarenesspb.ResolveResponse{Found: true, Node: node, Authority: s.graphAuthorityFor(ctx, requestedDomain)}
 	s.logResolveUsage(req, out)
 	return out, nil
 }
