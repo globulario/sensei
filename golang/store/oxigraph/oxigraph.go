@@ -37,6 +37,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"github.com/globulario/sensei/golang/rdf"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
@@ -530,6 +531,42 @@ func (c *Client) QueryURL() string { return c.queryURL }
 func (c *Client) storeURL() string {
 	base := strings.TrimSuffix(c.queryURL, "/query")
 	return base + "/store?default"
+}
+
+// graphURL addresses ONE publication domain's named graph.
+//
+// The graph slot is the provenance slot. N-Triples has three components and an
+// assertion has four -- subject, predicate, object, and the domain that
+// authored it -- so subject tagging was never a mistake, it was the only place
+// a fourth component could live in a 3-tuple. Publishing each domain into its
+// own named graph gives that fourth component somewhere to go, and makes a
+// publication structurally incapable of touching a neighbour: measured on
+// oxigraph 0.5.9, re-PUTting one domain's graph left another domain's
+// assertions about the SAME subject untouched.
+//
+// The domain is mapped to an ABSOLUTE IRI first, then query-escaped.
+//
+// Both steps are load-bearing, and both were measured on oxigraph 0.5.9:
+//
+//   - A relative graph name is NOT rejected. It is resolved against the
+//     server's base URL, so "github.com/globulario/sensei" becomes
+//     "http://127.0.0.1:7988/github.com/globulario/sensei". The endpoint's host
+//     and port would become part of the domain's identity, and the same
+//     repository published through a different address would be a DIFFERENT
+//     graph. Provenance must not depend on where the publisher happened to be
+//     standing -- that is the defect this whole change removes.
+//   - The escaping matters because a domain contains ":" and "/", which would
+//     otherwise terminate or re-key the query parameter.
+//
+// GraphIRI is the stable mapping, independent of endpoint, port and scheme of
+// the store being written to.
+func GraphIRI(domain string) string {
+	return "https://" + domain
+}
+
+func (c *Client) graphURL(domain string) string {
+	base := strings.TrimSuffix(c.queryURL, "/query")
+	return base + "/store?graph=" + url.QueryEscape(GraphIRI(domain))
 }
 
 // CountTriples returns the number of triples in the default graph.
@@ -1055,8 +1092,42 @@ func (c *Client) Subjects(ctx context.Context) ([]string, error) {
 // The upload has a 60 s deadline so a slow network does not hang startup
 // indefinitely; the caller should also pass a context with a deadline.
 func (c *Client) Load(ctx context.Context, r io.Reader) error {
+	return c.load(ctx, c.storeURL(), r)
+}
+
+// LoadGraph replaces ONE publication domain's named graph.
+//
+// Unlike Load, which replaces the whole default graph, this is scoped: content
+// authored by other domains is not readable, writable, or destroyable through
+// this call. That is the property the previous model could not provide --
+// publishing sensei moved the services slice from 059f47624207 to 5d0eb2f4eb85
+// and cost services its closure proof, because slice identity was computed over
+// tagged SUBJECTS and 173 identifiers are legitimately co-authored.
+//
+// An empty domain is refused rather than silently redirected to the default
+// graph: a caller that meant to publish a domain and instead replaced the
+// entire store would destroy every other domain's assertions.
+func (c *Client) LoadGraph(ctx context.Context, domain string, r io.Reader) error {
+	if strings.TrimSpace(domain) == "" {
+		return fmt.Errorf("oxigraph load: refusing to publish an unnamed domain into the default graph")
+	}
+	// The domain IS the graph name, so an alias is a second graph for one
+	// logical domain. "GitHub.com/org/repo", "github.com/org/repo/" and a
+	// scheme-prefixed spelling each address a DIFFERENT graph, so a later
+	// publication under the canonical spelling replaces only one of them and
+	// stale assertions survive alongside current ones -- defeating the
+	// per-domain replacement this method exists to provide. Identity must be
+	// canonical BEFORE it is used as a key, so this uses the repository's
+	// shared contract rather than a local notion of "looks fine".
+	if err := repodomain.Validate(domain); err != nil {
+		return fmt.Errorf("oxigraph load: %q is not a canonical publication domain: %w", domain, err)
+	}
+	return c.load(ctx, c.graphURL(domain), r)
+}
+
+func (c *Client) load(ctx context.Context, target string, r io.Reader) error {
 	loadClient := &http.Client{Timeout: 60 * time.Second}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.storeURL(), r)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, target, r)
 	if err != nil {
 		return fmt.Errorf("oxigraph load: build request: %w", err)
 	}
