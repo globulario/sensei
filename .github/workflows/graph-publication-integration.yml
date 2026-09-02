@@ -72,3 +72,29 @@ jobs:
             echo "::error::the adapter test SKIPPED in a job that installs Oxigraph; a skip is not evidence"
             exit 1
           fi
+
+      # The named-graph carrier's only real-Oxigraph proofs. Under the
+      # integration build tag they are invisible to `go test ./...`, and this
+      # workflow ran ./cmd/awg only — so per-domain isolation and the
+      # staging-visibility hazard were proven locally and UNPROVEN on the
+      # runner. A relative graph name is not rejected by Oxigraph: it is
+      # resolved against the server's base URL, so the endpoint silently becomes
+      # part of the domain's identity. Exactly that class of defect merges green
+      # while these proofs do not execute.
+      - name: Prove per-domain named-graph publication
+        run: |
+          PATH="$PWD/bin:$PATH" go test -tags=integration ./golang/store/oxigraph \
+            -run '^TestIntegration_(PublishingOneDomainLeavesAnotherUntouched|DefaultGraphContentIsAttributableToNoDomain|UnionReadsWouldExposeInFlightStagingGraphs|GraphIRIIsIndependentOfTheEndpoint)$' \
+            -count=1 -timeout 5m -v 2>&1 | tee namedgraph.log
+          # A filter that matches nothing produces a green step with no evidence
+          # in it, so every proof must be seen to have run.
+          for want in PublishingOneDomainLeavesAnotherUntouched DefaultGraphContentIsAttributableToNoDomain UnionReadsWouldExposeInFlightStagingGraphs GraphIRIIsIndependentOfTheEndpoint; do
+            if ! grep -q -- "--- PASS: TestIntegration_${want}" namedgraph.log; then
+              echo "::error::${want} did not run; the -run filter or the test name has drifted"
+              exit 1
+            fi
+          done
+          if grep -q -- '--- SKIP' namedgraph.log; then
+            echo "::error::a named-graph proof SKIPPED in a job that installs Oxigraph; a skip is not evidence"
+            exit 1
+          fi

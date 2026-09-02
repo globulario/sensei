@@ -20,7 +20,7 @@ func TestGraphURLEscapesTheDomain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new: %v", err)
 	}
-	got := c.graphURL("https://github.com/globulario/sensei")
+	got := c.graphURL("github.com/globulario/sensei")
 
 	// A domain is a repository URL. Unescaped, its ":" and "/" would terminate
 	// or re-key the query parameter and the PUT would land somewhere else --
@@ -36,6 +36,21 @@ func TestGraphURLEscapesTheDomain(t *testing.T) {
 
 func TestGraphURLIsDistinctPerDomain(t *testing.T) {
 	c, _ := New("http://127.0.0.1:7878/query")
+
+	// A relative graph name is resolved against the SERVER's base URL, so the
+	// endpoint would leak into the domain's identity. The graph IRI must be the
+	// same no matter which store is being written to.
+	other, _ := New("http://10.1.2.3:9999/query")
+	if x, y := GraphIRI("github.com/globulario/sensei"), GraphIRI("github.com/globulario/sensei"); x != y {
+		t.Fatalf("graph IRI is unstable: %s vs %s", x, y)
+	}
+	if !strings.HasPrefix(GraphIRI("github.com/globulario/sensei"), "https://") {
+		t.Fatalf("graph IRI is not absolute: %s", GraphIRI("github.com/globulario/sensei"))
+	}
+	if a, b := c.graphURL("github.com/globulario/sensei"), other.graphURL("github.com/globulario/sensei"); !strings.HasSuffix(a, strings.SplitN(b, "/store?", 2)[1]) {
+		t.Fatalf("the same domain addressed a different graph on a different endpoint:\n  %s\n  %s", a, b)
+	}
+
 	if a, b := c.graphURL("github.com/globulario/sensei"), c.graphURL("github.com/globulario/services"); a == b {
 		t.Fatalf("two domains addressed the same graph: %s", a)
 	}

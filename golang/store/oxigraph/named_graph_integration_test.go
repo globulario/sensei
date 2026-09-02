@@ -284,3 +284,37 @@ func TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs(t *testing.T) {
 		})
 	}
 }
+
+// A relative graph name is NOT rejected by Oxigraph -- it is resolved against
+// the server's base URL, so "github.com/globulario/sensei" published at
+// 127.0.0.1:7988 becomes http://127.0.0.1:7988/github.com/globulario/sensei.
+// The endpoint would become part of the domain's identity and the same
+// repository would be a different graph at a different address. This pins the
+// mapping against a real store, on two different ports.
+func TestIntegration_GraphIRIIsIndependentOfTheEndpoint(t *testing.T) {
+	const domain = "github.com/globulario/sensei"
+	seen := map[string]bool{}
+
+	for _, run := range []string{"first endpoint", "second endpoint"} {
+		queryURL := startPrivateOxigraph(t, false)
+		c, err := oxigraph.New(queryURL)
+		if err != nil {
+			t.Fatalf("%s: new: %v", run, err)
+		}
+		if err := c.LoadGraph(context.Background(), domain,
+			strings.NewReader(triple("https://ex.org/inv.x", "TestX"))); err != nil {
+			t.Fatalf("%s: publish: %v", run, err)
+		}
+		raw := countMatching(t, queryURL, `SELECT ?g WHERE { GRAPH ?g { ?s ?p ?o } }`)
+		if !strings.Contains(raw, oxigraph.GraphIRI(domain)) {
+			t.Fatalf("%s: graph IRI is not the stable mapping %q:\n%s", run, oxigraph.GraphIRI(domain), raw)
+		}
+		if strings.Contains(raw, "127.0.0.1") {
+			t.Fatalf("%s: the endpoint leaked into the graph IRI:\n%s", run, raw)
+		}
+		seen[oxigraph.GraphIRI(domain)] = true
+	}
+	if len(seen) != 1 {
+		t.Fatalf("one domain produced %d distinct graph IRIs", len(seen))
+	}
+}

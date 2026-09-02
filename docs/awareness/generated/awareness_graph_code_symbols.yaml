@@ -29379,6 +29379,12 @@ test_symbols:
     package: oxigraph_test
     language: go
     doc: "Unattributed content must be claimable by NO domain. A partially migrated\ncorpus therefore reports affected domains UNPROVEN by construction rather\nthan falling back to subject tags."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_GraphIRIIsIndependentOfTheEndpoint
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_GraphIRIIsIndependentOfTheEndpoint
+    package: oxigraph_test
+    language: go
+    doc: "A relative graph name is NOT rejected by Oxigraph -- it is resolved against\nthe server's base URL, so \"github.com/globulario/sensei\" published at\n127.0.0.1:7988 becomes http://127.0.0.1:7988/github.com/globulario/sensei.\nThe endpoint would become part of the domain's identity and the same\nrepository would be a different graph at a different address. This pins the\nmapping against a real store, on two different ports."
   - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_PublishingOneDomainLeavesAnotherUntouched
     file: golang/store/oxigraph/named_graph_integration_test.go
     symbol: TestIntegration_PublishingOneDomainLeavesAnotherUntouched

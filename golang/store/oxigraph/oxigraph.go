@@ -544,11 +544,29 @@ func (c *Client) storeURL() string {
 // oxigraph 0.5.9, re-PUTting one domain's graph left another domain's
 // assertions about the SAME subject untouched.
 //
-// The domain is query-escaped: a domain is a repository URL and contains
-// characters (":", "/") that would otherwise terminate or re-key the parameter.
+// The domain is mapped to an ABSOLUTE IRI first, then query-escaped.
+//
+// Both steps are load-bearing, and both were measured on oxigraph 0.5.9:
+//
+//   - A relative graph name is NOT rejected. It is resolved against the
+//     server's base URL, so "github.com/globulario/sensei" becomes
+//     "http://127.0.0.1:7988/github.com/globulario/sensei". The endpoint's host
+//     and port would become part of the domain's identity, and the same
+//     repository published through a different address would be a DIFFERENT
+//     graph. Provenance must not depend on where the publisher happened to be
+//     standing -- that is the defect this whole change removes.
+//   - The escaping matters because a domain contains ":" and "/", which would
+//     otherwise terminate or re-key the query parameter.
+//
+// GraphIRI is the stable mapping, independent of endpoint, port and scheme of
+// the store being written to.
+func GraphIRI(domain string) string {
+	return "https://" + domain
+}
+
 func (c *Client) graphURL(domain string) string {
 	base := strings.TrimSuffix(c.queryURL, "/query")
-	return base + "/store?graph=" + url.QueryEscape(domain)
+	return base + "/store?graph=" + url.QueryEscape(GraphIRI(domain))
 }
 
 // CountTriples returns the number of triples in the default graph.
