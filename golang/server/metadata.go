@@ -62,6 +62,13 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	resp.GovernancePackPublisher = local.governancePublisher
 	resp.CombinedGraphDigestSha256 = local.combinedGraphDigest
 	resp.CombinedGraphTripleCount = local.combinedGraphTriples
+	// READ THE SCOPE BEFORE STAMPING AUTHORITY FOR IT.
+	//
+	// This was resolved 50 lines further down, where the per-class counts are
+	// computed, and the authority stamp below therefore could not see it. The
+	// counts were scoped to the caller's domain and the verdict beside them was
+	// not, which is the whole defect in one ordering.
+	requestedDomain := strings.TrimSpace(req.GetDomain())
 	freshness := snapshotGraphFreshness(ctx, s)
 	resp.EmbeddedSeedDigestSha256 = freshness.verification.Expected.Digest
 	resp.EmbeddedSeedMarkerIri = freshness.verification.Expected.IRI
@@ -77,7 +84,15 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	// run started and preflight refused (issue #176). Answered from the SAME
 	// snapshot every other graph-backed surface uses, so the two cannot
 	// disagree.
-	resp.Authority = graphAuthorityFromSnapshot(freshness, s)
+	//
+	// AND FOR THE SAME DOMAIN. The snapshot was already shared; the SCOPE was
+	// not. This read graphAuthorityFromSnapshot, which is
+	// graphAuthorityFromSnapshotFor with closureDomain "", so the closure proof
+	// behind the verdict was evaluated for the home domain and then attached to
+	// counts scoped to the caller's. Every other surface -- query, resolve,
+	// briefing, impact -- passes the requested domain through. Metadata is the
+	// one that did not, and it is the surface an agent reaches for first.
+	resp.Authority = graphAuthorityFromSnapshotFor(freshness, s, requestedDomain)
 	if resp.GetGovernancePackState() == awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_CURRENT &&
 		freshness.verification.State != seedmeta.FreshnessCurrent {
 		resp.GovernancePackState = awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_STALE
@@ -128,7 +143,7 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	// requested, count only nodes visible to it (reusing InScope over the facts
 	// ClassFacts already returns) so a multi-domain graph reports this project's
 	// totals.
-	domain := strings.TrimSpace(req.GetDomain())
+	domain := requestedDomain
 	countClass := func(classIRI string) int64 {
 		if domain == "" {
 			n, _ := c.CountByClass(ctx, classIRI)
