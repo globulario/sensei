@@ -2125,3 +2125,8 @@ required_tests:
         - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
       failure_modes:
         - failure.a_positive_control_gate_reported_success_while_no_rule_had_l
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    title: Union reads stay disabled while staging graphs exist
+    protects:
+      failure_modes:
+        - failure.union_default_graph_reads_expose_in_flight_staging_graphs

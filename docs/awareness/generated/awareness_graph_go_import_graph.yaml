@@ -3140,6 +3140,7 @@ components:
       - golang/store/oxigraph/oxigraph.go
       - golang/store/oxigraph/sparql_literal.go
     depends_on:
+      - component.golang.architecture.repodomain
       - component.golang.rdf
       - component.golang.seedmeta
       - component.golang.store

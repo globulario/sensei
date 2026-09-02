@@ -70,6 +70,44 @@ func TestLoadGraphRefusesAnUnnamedDomain(t *testing.T) {
 	}
 }
 
+// An ALIAS is a second graph for one logical domain. Each of these addresses a
+// different named graph than the canonical spelling, so a later publication
+// under the canonical form replaces only one of them and stale assertions
+// survive beside current ones -- exactly the per-domain replacement this
+// primitive promises.
+func TestLoadGraphRefusesNoncanonicalDomainAliases(t *testing.T) {
+	var reached string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached = r.URL.RequestURI()
+		w.WriteHeader(http.StatusCreated)
+	}))
+	defer srv.Close()
+
+	c, err := New(srv.URL + "/query")
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	for _, alias := range []string{
+		"GitHub.com/globulario/sensei",         // case
+		"https://github.com/globulario/sensei", // scheme
+		"github.com",                           // host with no path
+		"github.com/globulario/sensei ",        // trailing whitespace
+	} {
+		reached = ""
+		if err := c.LoadGraph(context.Background(), alias, strings.NewReader("")); err == nil {
+			t.Fatalf("alias %q accepted: it addresses a second graph for one logical domain", alias)
+		}
+		if reached != "" {
+			t.Fatalf("alias %q refused but still issued a request to %s", alias, reached)
+		}
+	}
+
+	// The canonical spelling must still work, or the check is just a wall.
+	if err := c.LoadGraph(context.Background(), "github.com/globulario/sensei", strings.NewReader("")); err != nil {
+		t.Fatalf("canonical domain rejected: %v", err)
+	}
+}
+
 func TestLoadGraphPutsToTheDomainsGraph(t *testing.T) {
 	var method, uri, body string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

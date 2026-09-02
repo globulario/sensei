@@ -37,6 +37,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/globulario/sensei/golang/architecture/repodomain"
 	"github.com/globulario/sensei/golang/rdf"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
@@ -1091,6 +1092,17 @@ func (c *Client) Load(ctx context.Context, r io.Reader) error {
 func (c *Client) LoadGraph(ctx context.Context, domain string, r io.Reader) error {
 	if strings.TrimSpace(domain) == "" {
 		return fmt.Errorf("oxigraph load: refusing to publish an unnamed domain into the default graph")
+	}
+	// The domain IS the graph name, so an alias is a second graph for one
+	// logical domain. "GitHub.com/org/repo", "github.com/org/repo/" and a
+	// scheme-prefixed spelling each address a DIFFERENT graph, so a later
+	// publication under the canonical spelling replaces only one of them and
+	// stale assertions survive alongside current ones -- defeating the
+	// per-domain replacement this method exists to provide. Identity must be
+	// canonical BEFORE it is used as a key, so this uses the repository's
+	// shared contract rather than a local notion of "looks fine".
+	if err := repodomain.Validate(domain); err != nil {
+		return fmt.Errorf("oxigraph load: %q is not a canonical publication domain: %w", domain, err)
 	}
 	return c.load(ctx, c.graphURL(domain), r)
 }
