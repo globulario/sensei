@@ -2135,3 +2135,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    title: Union reads stay disabled while staging graphs exist
+    protects:
+      failure_modes:
+        - failure.union_default_graph_reads_expose_in_flight_staging_graphs

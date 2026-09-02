@@ -144,7 +144,7 @@ Flags:
 				return 1
 			}
 
-			oxiCmd = exec.Command(oxiBin, "serve", "--location", data, "--bind", *oxigraphBind)
+			oxiCmd = exec.Command(oxiBin, oxigraphServeArgs(data, *oxigraphBind)...)
 			oxiCmd.Stdout = os.Stderr // Oxigraph logs go to stderr
 			oxiCmd.Stderr = os.Stderr
 			if err := oxiCmd.Start(); err != nil {
@@ -692,4 +692,29 @@ func watchBackendHealth(ctx context.Context, url string, interval time.Duration,
 		case <-ticker.C:
 		}
 	}
+}
+
+// oxigraphServeArgs builds the Oxigraph child-process argv.
+//
+// Extracted so the flags are ASSERTABLE. A mutation removing a flag from an
+// inline exec.Command survived the entire test suite: nothing proved we set it.
+//
+// --union-default-graph is DELIBERATELY ABSENT, and must stay absent until
+// staging-graph visibility is resolved.
+//
+// It is tempting to add: once domains publish into their own named graphs, an
+// unqualified { ?s ?p ?o } matches the DEFAULT graph only and returns ZERO
+// rows, so every query in this codebase would silently empty. But named graphs
+// ALREADY EXIST and are not domains. `sensei build` PUTs a candidate slice and
+// a SECOND seed marker into urn:sensei:graph-staging:<marker> and then promotes
+// it in one transaction (cmd_build.go). Union reads would expose that
+// in-flight candidate -- and a duplicate marker -- to every concurrent briefing
+// and metadata query, destroying the atomicity the staging design exists to
+// provide.
+//
+// So the carrier (LoadGraph) lands proven while the read surface stays
+// default-only. Enabling union reads requires first making staging graphs
+// invisible to readers -- a separate change with its own proof.
+func oxigraphServeArgs(location, bind string) []string {
+	return []string{"serve", "--location", location, "--bind", bind}
 }
