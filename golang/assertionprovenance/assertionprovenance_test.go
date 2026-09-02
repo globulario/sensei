@@ -5,6 +5,7 @@ package assertionprovenance
 import (
 	"errors"
 	"math/rand"
+	"strings"
 	"testing"
 )
 
@@ -200,7 +201,11 @@ func TestSliceDigestDistinguishesSlicesThatSeparatorEncodingWouldCollide(t *test
 
 	digest := func(name string, in []Assertion) string {
 		t.Helper()
-		got, err := SliceDigest(in, d)
+		dom := d
+		if len(in) > 0 {
+			dom = in[0].Origin
+		}
+		got, err := SliceDigest(in, dom)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
@@ -218,6 +223,25 @@ func TestSliceDigestDistinguishesSlicesThatSeparatorEncodingWouldCollide(t *test
 	})
 	if a == b {
 		t.Fatal("two slices differing only in field boundaries digested identically; the encoding is forgeable")
+	}
+
+	// Neither of the pairs above is sufficient on its own. The first was
+	// built against a THREE-field encoding; appending Origin as a fourth
+	// field breaks that collision, so a mutation reverting to
+	// "S.P.O.Origin joined by \n" survived it. This pair collides under the
+	// four-field delimited form, holds the count at 2, and keeps Origin
+	// constant across the slice (Slice filters on it, so a forger cannot vary
+	// it). Only per-field length prefixes separate these.
+	shifted := digest("shifted", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c\x1fd\ne", Origin: Domain("d")},
+		{Subject: "f", Predicate: "g", Object: "h", Origin: Domain("d")},
+	})
+	regrouped := digest("regrouped", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c", Origin: Domain("d")},
+		{Subject: "e", Predicate: "d\nf", Object: "g\x1fh", Origin: Domain("d")},
+	})
+	if shifted == regrouped {
+		t.Fatal("four-field delimited collision digested identically; framing is not load-bearing")
 	}
 
 	// Differing counts must also separate, for completeness.
@@ -276,5 +300,63 @@ func TestCarryForwardRefusesMalformedDependencyDigestsWithoutPanicking(t *testin
 		if why == "" {
 			t.Fatalf("digest %q: refused without stating why", bad)
 		}
+	}
+}
+
+// --- Proofs added for the two review findings on 2d62e000 ----------------
+
+// Finding 5 (P1): the statement key must not collide either.
+//
+// {a,b,"c\x1fd"} and {a,"b\x1fc",d} are different statements that a
+// delimiter-joined key cannot tell apart. Because that key gates the `seen`
+// map, the second same-origin assertion is DISCARDED before any digest is
+// computed: the framed digest then faithfully hashes a slice that silently
+// lost an assertion, and carry-forward preserves the proof across a real
+// change. Framing the digest is not sufficient if the key that decides
+// membership is still delimited.
+func TestSliceKeepsStatementsThatADelimitedKeyWouldConflate(t *testing.T) {
+	const d = Domain("sensei")
+
+	first := Assertion{Subject: "a", Predicate: "b", Object: "c\x1fd", Origin: d}
+	second := Assertion{Subject: "a", Predicate: "b\x1fc", Object: "d", Origin: d}
+
+	got, err := Slice([]Assertion{first, second}, d)
+	if err != nil {
+		t.Fatalf("slice: %v", err)
+	}
+	if len(got) != 2 {
+		t.Fatalf("two distinct statements collapsed to %d; the membership key collides", len(got))
+	}
+
+	// The consequence the collision actually produces: adding the second
+	// assertion must be visible to carry-forward.
+	before := []Assertion{first}
+	after := []Assertion{first, second}
+	if ok, why := CarryForward(before, after, d, nil); ok {
+		t.Fatalf("carry-forward survived a genuinely added assertion: %s", why)
+	}
+}
+
+// Finding 6 (P1): proof metadata must be self-consistent before it is trusted.
+//
+// Metadata naming assertion A while pinning DigestOf(B) would otherwise pass
+// whenever B is live, regardless of what happened to A.
+func TestCarryForwardRefusesDependencyMetadataThatPinsAnotherAssertion(t *testing.T) {
+	const sensei, services = Domain("sensei"), Domain("services")
+
+	own := Assertion{Subject: "inv.x", Predicate: "notedBy", Object: "sensei", Origin: sensei}
+	a := Assertion{Subject: "inv.x", Predicate: "requiresTest", Object: "TestA", Origin: services}
+	b := Assertion{Subject: "inv.y", Predicate: "requiresTest", Object: "TestB", Origin: services}
+
+	// B stays live; A is gone. The pin names A but carries B's digest.
+	after := []Assertion{own, b}
+	deps := []Dependency{{On: a, Digest: DigestOf(b)}}
+
+	ok, why := CarryForward([]Assertion{own, a, b}, after, sensei, deps)
+	if ok {
+		t.Fatal("inconsistent dependency metadata preserved a closure proof")
+	}
+	if !strings.Contains(why, ErrInconsistentDependency.Error()) {
+		t.Fatalf("refused, but not as inconsistent metadata: %s", why)
 	}
 }

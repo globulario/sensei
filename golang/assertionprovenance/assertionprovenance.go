@@ -63,13 +63,25 @@ type Assertion struct {
 	Origin Domain
 }
 
-// canonical renders the STATEMENT, deliberately without Origin.
+// statementKey renders the STATEMENT, deliberately without Origin.
 //
-// Used only to ask "are these the same statement?", which is the question
-// ambiguous-ownership detection asks: one statement claimed by two domains.
-// It is NOT an identity and must never be digested -- see identityBytes.
-func (a Assertion) canonical() string {
-	return a.Subject + "\x1f" + a.Predicate + "\x1f" + a.Object
+// It answers "are these the same statement?", which is what ownership
+// detection, deduplication and ordering all ask.
+//
+// FRAMED, not delimiter-joined. An earlier version joined with "\x1f" and was
+// described as safe because it was "never digested". That reasoning was wrong:
+// the key decides MEMBERSHIP. Under it, {a,b,"c\x1fd"} and {a,"b\x1fc",d}
+// collide, so the second same-origin assertion is dropped by the seen map
+// BEFORE any digest is computed -- the framed digest then faithfully hashes a
+// slice that has silently lost an assertion, and carry-forward preserves a
+// proof across a real change. Framing the digest while leaving the key
+// delimited fixes the layer that is looked at and leaves the layer that feeds
+// it: the invariant belongs at the choke point, and every encoding of a
+// statement in this package is now that one function.
+func (a Assertion) statementKey() string {
+	var b bytes.Buffer
+	writeFramed(&b, a.Subject, a.Predicate, a.Object)
+	return b.String()
 }
 
 // writeFramed writes length-prefixed fields.
@@ -103,6 +115,17 @@ func (a Assertion) identityBytes() []byte {
 	writeFramed(&b, a.Subject, a.Predicate, a.Object, string(a.Origin))
 	return b.Bytes()
 }
+
+// ErrInconsistentDependency reports proof metadata whose pinned digest does not
+// belong to the assertion it names.
+//
+// Dependency carries BOTH the assertion relied upon and the digest recorded
+// when the proof was taken. Serialized metadata can arrive with those two
+// disagreeing -- On: A, Digest: DigestOf(B) -- through corruption or forgery.
+// Testing only live membership would then accept the dependency whenever B is
+// live, even though A itself changed or vanished. The pair must be
+// self-consistent before it is allowed to speak about liveness.
+var ErrInconsistentDependency = errors.New("dependency digest does not match the assertion it names")
 
 // abbrev shortens a digest for a message without assuming it is well-formed.
 //
@@ -144,7 +167,7 @@ func Slice(all []Assertion, d Domain) ([]Assertion, error) {
 		if strings.TrimSpace(string(a.Origin)) == "" {
 			return nil, fmt.Errorf("%w: %s %s", ErrUnattributed, a.Subject, a.Predicate)
 		}
-		key := a.canonical()
+		key := a.statementKey()
 		if prev, seen := owner[key]; seen && prev != a.Origin {
 			return nil, fmt.Errorf("%w: %s %s claimed by %q and %q",
 				ErrAmbiguousOwnership, a.Subject, a.Predicate, prev, a.Origin)
@@ -155,13 +178,13 @@ func Slice(all []Assertion, d Domain) ([]Assertion, error) {
 	var out []Assertion
 	seen := map[string]bool{}
 	for _, a := range all {
-		if a.Origin != d || seen[a.canonical()] {
+		if a.Origin != d || seen[a.statementKey()] {
 			continue
 		}
-		seen[a.canonical()] = true
+		seen[a.statementKey()] = true
 		out = append(out, a)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].canonical() < out[j].canonical() })
+	sort.Slice(out, func(i, j int) bool { return out[i].statementKey() < out[j].statementKey() })
 	return out, nil
 }
 
@@ -244,6 +267,12 @@ func CarryForward(before, after []Assertion, d Domain, deps []Dependency) (bool,
 		liveStatements[a.Subject+"\x1f"+a.Predicate] = true
 	}
 	for _, dep := range deps {
+		// The pin must describe its own assertion before it may vouch for it.
+		if want := DigestOf(dep.On); dep.Digest != want {
+			return false, fmt.Sprintf("%s: %s %s pins %s but the named assertion digests to %s",
+				ErrInconsistentDependency, dep.On.Subject, dep.On.Predicate,
+				abbrev(dep.Digest), abbrev(want))
+		}
 		if liveIdentities[dep.Digest] {
 			continue
 		}
