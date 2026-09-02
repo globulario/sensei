@@ -768,6 +768,24 @@ test_symbols:
     symbol: TestPhase10ToolsAreRegisteredAndReadOnly
     package: main
     language: go
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestABlankBuildCommitIsNotARevision
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestABlankBuildCommitIsNotARevision
+    package: main
+    language: go
+    doc: "Whitespace is not a revision. A build commit of spaces must reach the owner as\nempty, not be measured against the corpus as if it named something."
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestAGraphStatingNoRevisionIsReportedUnknownNotOmitted
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestAGraphStatingNoRevisionIsReportedUnknownNotOmitted
+    package: main
+    language: go
+    doc: "A GRAPH THAT STATES NO REVISION IS UNKNOWN, AND UNKNOWN MUST BE SAID OUT LOUD.\n\nreachabilityMap returned nil for an empty build commit, so every surface below\nemitted no reachability signal at all. The justification was that \"the question\nwas never askable\" -- but reachability.Assess answers exactly this input in its\nfirst case, as Unknown. The report was therefore not withheld for want of an\nanswer; the answer was discarded.\n\nThis is the state measured live on 2026-09-01: graph_build_commit empty while\nthe same response said state=current, verdict=authoritative. An agent reading\nthat response had nothing to distinguish it from a graph whose generation was\nestablished and fresh."
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    package: main
+    language: go
+    doc: "EVERY SURFACE, NOT THE HELPER ALONE.\n\nThe helper was already \"the ONE place the assessment is built\" and the nil\nreturn still reached four renderers, because each guarded on nil separately.\nFixing the helper without these four would leave the same hole behind a\ndifferent line of code, which is the failure this repository keeps recording:\na mechanism repaired at one surface while its siblings are forgotten."
   - id: cmd/awareness-mcp/recovery_tools_test.go:TestCompletionToolsRejectNonStringIdentity
     file: cmd/awareness-mcp/recovery_tools_test.go
     symbol: TestCompletionToolsRejectNonStringIdentity
@@ -880,12 +898,12 @@ test_symbols:
     package: main
     language: go
     doc: "A deadline is not unreachability, and the wire code must say so too."
-  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnMCPAuthorityWithoutABuildCommitReportsUnknown
     file: cmd/awareness-mcp/transport_outcome_test.go
-    symbol: TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+    symbol: TestAnMCPAuthorityWithoutABuildCommitReportsUnknown
     package: main
     language: go
-    doc: "A response whose authority states no build commit carries no assessment.\nAbsent, not a fabricated unknown: the question was never askable."
+    doc: "A response whose authority states no build commit carries no assessment.\nAbsent, not a fabricated unknown: the question was never askable.\nREVERSED, AND THE GOVERNING CONTRACT IS WHY.\n\nThis asserted that an authority with no build commit carries NO reachability\nkey -- \"an unaskable question was answered anyway\". The question is askable:\nPublishedCommit == \"\" is the first case in reachability.Assess and its answer\nis Unknown. The failure mode this whole mechanism serves states the rule\ndirectly:\n\n\t\"A stale or unestablished generation is reported as unpublished or\n\t UNESTABLISHED knowledge and NEVER as absence of law.\"\n\t  -- failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl\n\nAn absent key is absence. So the old assertion did not protect the contract,\nit excluded the contract's own third state, and the exclusion was measured\nlive on 2026-09-01: an empty graph_build_commit beside state=current,\nverdict=authoritative, and no reachability signal anywhere in the response.\n\nThe direction of this change matters for the constitutional rule that no\nrepair may weaken Unknown. This one does the reverse: it makes Unknown\nSAYABLE where it was silently dropped."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
@@ -5903,12 +5921,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
-  - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitCarriesNoAssessment
+  - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
-    symbol: TestAResponseWithNoBuildCommitCarriesNoAssessment
+    symbol: TestAResponseWithNoBuildCommitReportsUnknown
     package: main
     language: go
-    doc: "A response whose authority states no build commit gets NO reachability key.\n\nAbsent, not a fabricated \"unknown\": the question was never askable for that\nresponse, and answering it anyway would be an assessment of nothing."
+    doc: "A response whose authority states no build commit gets NO reachability key.\n\nAbsent, not a fabricated \"unknown\": the question was never askable for that\nresponse, and answering it anyway would be an assessment of nothing.\nREVERSED. See TestAnMCPAuthorityWithoutABuildCommitReportsUnknown for the\nfull reasoning; the same contract governs both surfaces, and they were both\nsilent in the same measured live state.\n\nFor a --json caller the distinction is sharper than for a human reader. A\nmissing key reads as \"this build does not emit that field\"; state \"unknown\"\nreads as \"this graph could not account for its own generation\". Only the\nsecond is true, and only the second stops an automated caller from reading a\nmissing rule as an absent rule."
   - id: cmd/awg/json_reachability_test.go:TestEmitProtoJSONActuallyPrintsReachability
     file: cmd/awg/json_reachability_test.go
     symbol: TestEmitProtoJSONActuallyPrintsReachability
@@ -6092,6 +6110,18 @@ test_symbols:
     package: main
     language: go
     doc: "The lossless adapter, proven against REAL Oxigraph with SEEDED state.\n\nEvery other falsifier runs against in-process fakes, which structurally\ncannot catch representation loss at the adapter boundary -- and that boundary\nis exactly where the term-kind defect lived. An earlier version of this test\nread whatever the developer's live store happened to contain and SKIPPED when\nthere was none, so it was not CI evidence at all: it could pass by finding\nnothing. This seeds its own positive and malformed specimens and refuses to\nskip once Oxigraph is available."
+  - id: cmd/awg/reachability_unknown_test.go:TestJSONCallersSeeUnknownRatherThanAMissingKey
+    file: cmd/awg/reachability_unknown_test.go
+    symbol: TestJSONCallersSeeUnknownRatherThanAMissingKey
+    package: main
+    language: go
+    doc: "A --json CALLER GETS THE KEY, CARRYING \"unknown\".\n\nwithReachability returned the encoded response untouched when the authority\nstated no build commit, on the grounds that an absent key beat a \"fabricated\"\nunknown. It is not fabricated: the owner returns it. And for an automated\ncaller -- which is most callers, and the reason this moved out of the human\nrenderer -- a missing key reads as a field this build does not emit, while\n\"unknown\" reads as a generation that could not be established."
+  - id: cmd/awg/reachability_unknown_test.go:TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    file: cmd/awg/reachability_unknown_test.go
+    symbol: TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    package: main
+    language: go
+    doc: "THE HUMAN BLOCK NAMES REACHABILITY EVEN WHEN THE GRAPH NAMES NO REVISION.\n\nThe reachability line was printed only when GetGraphBuildCommit() was\nnon-empty. An empty build commit is not a missing question -- it is the\nFIRST Unknown case in reachability.Assess -- so the guard removed the line\nfrom exactly the graph that cannot account for itself, and printed\n\"Authority: authoritative (current)\" with nothing beside it.\n\nThat output is the pre-#321 block this line exists to replace, reproduced by\nthe condition #321 was written for. Measured live on 2026-09-01."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints

@@ -64,11 +64,15 @@ func printGraphAuthority(authority *awarenesspb.GraphAuthority) {
 	// It is a REPORT and never a rebuild, and a stale or unknown result is
 	// reported as unpublished or unestablished knowledge -- never as absence of
 	// law.
-	if commit := authority.GetGraphBuildCommit(); commit != "" {
-		root := reachabilityRepoRoot()
-		a := reachability.ResolveFromGit(context.Background(), root, commit)
-		fmt.Printf("  %s\n", a.Line())
-	}
+	//
+	// PRINTED UNCONDITIONALLY. Guarding on a non-empty build commit removed the
+	// line entirely from a graph that states no revision -- the one case where
+	// the reader most needs it, and the case measured live on 2026-09-01. The
+	// block then showed "authoritative (current)" with nothing beside it, which
+	// is the pre-#321 output this line was added to replace.
+	a := reachability.ResolveFromGit(context.Background(), reachabilityRepoRoot(),
+		authority.GetGraphBuildCommit())
+	fmt.Printf("  %s\n", a.Line())
 	if commit := authority.GetCertifiedAwarenessGraphCommit(); commit != "" {
 		fmt.Printf("  Tx awg:       %s\n", commit)
 	}

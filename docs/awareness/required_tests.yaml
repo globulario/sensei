@@ -2125,6 +2125,16 @@ required_tests:
         - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
       failure_modes:
         - failure.a_positive_control_gate_reported_success_while_no_rule_had_l
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    title: Every MCP surface reports unknown when the graph states no revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+  - id: cmd/awg/reachability_unknown_test.go:TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    title: The CLI authority block names reachability when the graph states no revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
   - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
     title: Union reads stay disabled while staging graphs exist
     protects:
