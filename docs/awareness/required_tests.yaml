@@ -1999,6 +1999,34 @@ required_tests:
         - failure.sensei.a_client_deadline_was_reported_as_an_unreachable_backend
       files:
         - cmd/awareness-mcp/transport_outcome.go
+  - id: golang/prospective/prospective_test.go:TestResemblanceNeverBecomesAuthority
+    title: TestResemblanceNeverBecomesAuthority
+    protects:
+      invariants:
+        - invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
+      files:
+        - golang/prospective/prospective.go
+  - id: golang/prospective/prospective_test.go:TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity
+    title: TestTheTwoBasesAreDistinguishedByRelationshipNotSimilarity
+    protects:
+      invariants:
+        - invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
+      files:
+        - golang/prospective/prospective.go
+  - id: golang/prospective/prospective_test.go:TestADirectAnchorIsNotAProspectiveCandidate
+    title: TestADirectAnchorIsNotAProspectiveCandidate
+    protects:
+      invariants:
+        - invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
+      files:
+        - golang/prospective/prospective.go
+  - id: golang/prospective/prospective_eval_test.go:TestRecallAndNuisanceAreMeasuredTogether
+    title: Recall and nuisance are measured together
+    protects:
+      invariants:
+        - invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
+      files:
+        - golang/prospective/prospective.go
   - id: cmd/awg/dangling_baseline_classification_test.go:TestNoHomeDomainProofEdgeHidesBehindTheBaseline
     title: TestNoHomeDomainProofEdgeHidesBehindTheBaseline
     protects:
