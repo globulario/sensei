@@ -2512,6 +2512,17 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.assertionprovenance
+    name: assertionprovenance
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/assertionprovenance/assertionprovenance.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.client
     name: client
     kind: module
