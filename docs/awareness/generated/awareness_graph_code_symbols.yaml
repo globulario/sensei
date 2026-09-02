@@ -5948,6 +5948,18 @@ test_symbols:
     package: main
     language: go
     doc: "Crash after change_observed but before scope_verified: a re-run with an\nidentical observation resumes from the recorded change without appending a\nsecond change_observed."
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgs
+    file: cmd/awg/oxigraph_serve_args_test.go
+    symbol: TestOxigraphServeArgs
+    package: main
+    language: go
+    doc: "A mutation removing a flag from an inline exec.Command survived the entire\nsuite once: the store-level tests proved a flag MATTERED while nothing proved\nwe SET it. The argv is built in one place so it can be asserted."
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    file: cmd/awg/oxigraph_serve_args_test.go
+    symbol: TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    package: main
+    language: go
+    doc: "--union-default-graph must NOT be set while transient staging graphs exist.\n\n`sensei build` stages a candidate slice and a SECOND seed marker in\nurn:sensei:graph-staging:<marker> before promoting it in one transaction.\nUnion reads would expose that in-flight candidate to every concurrent\nunqualified query and break atomic publication. This is an invariant, not a\npreference: it must fail if someone adds the flag for the (real, but later)\nreason that named-graph publication needs it."
   - id: cmd/awg/promote_establish_test.go:TestADerivationEstablishesOnlyWhenItDerives
     file: cmd/awg/promote_establish_test.go
     symbol: TestADerivationEstablishesOnlyWhenItDerives
@@ -29361,6 +29373,51 @@ test_symbols:
     package: store
     language: go
     doc: "The validator rejects ALL Unicode whitespace/control characters — not only ASCII — while\nlegal non-ASCII IRI characters stay accepted."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_DefaultGraphContentIsAttributableToNoDomain
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_DefaultGraphContentIsAttributableToNoDomain
+    package: oxigraph_test
+    language: go
+    doc: "Unattributed content must be claimable by NO domain. A partially migrated\ncorpus therefore reports affected domains UNPROVEN by construction rather\nthan falling back to subject tags."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_PublishingOneDomainLeavesAnotherUntouched
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_PublishingOneDomainLeavesAnotherUntouched
+    package: oxigraph_test
+    language: go
+    doc: "The defect this replaces: publishing sensei moved the services slice from\n059f47624207 to 5d0eb2f4eb85 and cost services its closure proof, because\nslice identity was computed over tagged SUBJECTS and 173 identifiers are\nlegitimately co-authored. Scoped to a graph, the PUT cannot reach a neighbour."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs
+    package: oxigraph_test
+    language: go
+    doc: "Named graphs are ALREADY in use, and they are not domains.\n\n`sensei build` PUTs a candidate slice and a SECOND seed marker into\nurn:sensei:graph-staging:<marker>, then promotes it in one transaction. Two\nproperties matter, and they pull in opposite directions:\n\n\tdefault-only reads  atomic publication holds; a named-graph domain is INVISIBLE\n\tunion reads         a domain becomes visible; so does every in-flight candidate\n\nThis test pins BOTH, because they are why the carrier lands while the read\nsurface stays default-only. The earlier version of this test asserted only\nthe second half and did so with a substring check that passed for any count."
+  - id: golang/store/oxigraph/named_graph_test.go:TestGraphURLEscapesTheDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestGraphURLEscapesTheDomain
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestGraphURLIsDistinctPerDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestGraphURLIsDistinctPerDomain
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphPutsToTheDomainsGraph
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphPutsToTheDomainsGraph
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphRefusesAnUnnamedDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphRefusesAnUnnamedDomain
+    package: oxigraph
+    language: go
+    doc: "An unnamed domain must be REFUSED, never redirected to the default graph:\na caller that meant to publish one domain and instead replaced the whole\nstore would destroy every other domain's assertions."
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphRefusesNoncanonicalDomainAliases
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphRefusesNoncanonicalDomainAliases
+    package: oxigraph
+    language: go
+    doc: "An ALIAS is a second graph for one logical domain. Each of these addresses a\ndifferent named graph than the canonical spelling, so a later publication\nunder the canonical form replaces only one of them and stale assertions\nsurvive beside current ones -- exactly the per-domain replacement this\nprimitive promises."
   - id: golang/store/oxigraph/oxigraph_integration_test.go:TestIntegration_Health_LiveOxigraph
     file: golang/store/oxigraph/oxigraph_integration_test.go
     symbol: TestIntegration_Health_LiveOxigraph
