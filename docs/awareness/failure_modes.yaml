@@ -2165,3 +2165,27 @@ failure_modes:
     evidence:
       - removing the publishProofSet call from the --all path fails TestBothStoreLoadPathsPublishTheGeneration; making Invalidate a no-op fails TestInvalidateDropsAPointerThatDescribesReplacedContent; renaming the scan anchor fails the vacuous-pass guard; end to end, the same --all build that refused a briefing before the fix serves one after it
     contract: A build that replaces the store's content replaces the record that identifies it, or drops that record. A store must never claim a generation describing content it no longer holds, because the freshness gate prefers the store-scoped record over any per-repository copy.
+  - id: failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
+    title: A domain-scoped answer carried the home domain's authority because the scope was read after the stamp
+    severity: high
+    description: 'Metadata accepted req.domain, scoped its per-class and triple counts to it, and stamped resp.Authority from graphAuthorityFromSnapshot -- graphAuthorityFromSnapshotFor with closureDomain '''' -- fifty lines BEFORE it read req.GetDomain(). The closure proof behind the verdict was therefore evaluated for the home domain and attached to counts scoped to the caller''s. Neither half is wrong alone; the composite hands an agent domain X''s node counts beside an AUTHORITATIVE verdict about a different repository''s publication. Measured with the authorityReferentServer fixture: Metadata(domain=sensei-code) returned AUTHORITATIVE with the closure evaluator asked about nothing at all. The drift detector that exists for exactly this class, TestAllDomainScopedSurfacesProjectTheSameAuthority, excluded metadata on the recorded grounds that it ''read the requested domain correctly'' -- so the one surface assumed correct was the one still defective, and its hardcoded surface list covered 3 of 6 projecting files while its comment promised that a new surface would fail there automatically.'
+    protects:
+      files:
+        - golang/server/metadata.go
+    required_tests:
+      - golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    evidence:
+      - reverting the one-line scoping change fails both TestMetadataAuthorityAnswersForTheDomainItWasAsked and the metadata surface of the drift detector; a positive control proves a proven domain still reports AUTHORITATIVE, so the negative case is not a blanket refusal
+    contract: A response scoped to a requested domain carries authority evaluated for THAT domain. A surface that accepts a scope may not stamp a verdict computed for another, and a coverage check over sibling surfaces must enumerate them structurally rather than by a hand-maintained list whose name claims more than its body.
+  - id: failure.union_default_graph_reads_expose_in_flight_staging_graphs
+    title: Union default-graph reads expose in-flight staging graphs
+    description: Named graphs already exist and are NOT domains. Enabling union reads to make named-graph domain publication readable also makes transient staging graphs readable, destroying the atomicity the staging design provides.
+    protects:
+      files:
+        - cmd/awg/cmd_serve.go
+    related_invariants:
+      - graph.publication_requires_pre_mutation_domain_source_admission
+    required_tests:
+      - cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    evidence:
+      - 'sensei build PUTs a candidate slice and a SECOND seed marker into urn:sensei:graph-staging:<marker> and promotes it in one transaction (cmd/awg/cmd_build.go). With oxigraph --union-default-graph, an unqualified { ?s ?p ?o } matches every named graph, so concurrent briefing and metadata readers observe the unpublished candidate and a duplicate marker before the promotion commits. Measured: default-only reads see 0 triples and the staged candidate is invisible; union reads see 2 and it leaks.'

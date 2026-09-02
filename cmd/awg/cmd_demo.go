@@ -94,7 +94,7 @@ Flags:
 	// 1. Oxigraph (the local RDF store), as a child on an ephemeral port.
 	_ = os.MkdirAll(filepath.Join(work, "oxi"), 0o755)
 	oxiLog := filepath.Join(work, "oxigraph.log")
-	oxi := exec.Command(oxiBin, "serve", "--location", filepath.Join(work, "oxi"), "--bind", oxiBind)
+	oxi := exec.Command(oxiBin, oxigraphServeArgs(filepath.Join(work, "oxi"), oxiBind)...)
 	if err := startWithLog(oxi, oxiLog); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei demo: start oxigraph: %v\n", err)
 		return 1

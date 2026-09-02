@@ -158,9 +158,56 @@ func TestAllDomainScopedSurfacesProjectTheSameAuthority(t *testing.T) {
 			}
 			return r.GetAuthority()
 		}},
+		{"briefing", func() *awarenesspb.GraphAuthority {
+			r, err := s.Briefing(ctx, &awarenesspb.BriefingRequest{File: "test/example.go", Domain: d})
+			if err != nil {
+				t.Fatalf("briefing: %v", err)
+			}
+			return r.GetAuthority()
+		}},
+		{"impact", func() *awarenesspb.GraphAuthority {
+			r, err := s.Impact(ctx, &awarenesspb.ImpactRequest{File: "test/example.go", Domain: d})
+			if err != nil {
+				t.Fatalf("impact: %v", err)
+			}
+			return r.GetAuthority()
+		}},
+		// METADATA IS HERE BECAUSE THE COMMENT ABOVE WAS WRONG ABOUT IT.
+		//
+		// It recorded metadata as the surface that "read the requested domain
+		// correctly", and that was true of its COUNTS and false of its
+		// authority: it called graphAuthorityFromSnapshot -- closureDomain ""
+		// -- before it had even read req.GetDomain(). The one surface excluded
+		// from the drift detector on the grounds that it was already right was
+		// the one still carrying the defect.
+		{"metadata", func() *awarenesspb.GraphAuthority {
+			r, err := s.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: d})
+			if err != nil {
+				t.Fatalf("metadata: %v", err)
+			}
+			return r.GetAuthority()
+		}},
 		{"graphAuthorityFor", func() *awarenesspb.GraphAuthority {
 			return s.graphAuthorityFor(ctx, d)
 		}},
+	}
+	// The names above are the surfaces this test drives.
+	// TestEveryAuthorityProjectingSurfaceIsCovered requires that set to account
+	// for every file in the package that projects authority, so a surface added
+	// later cannot quietly skip this check.
+	driven := map[string]bool{}
+	for _, sf := range surfaces {
+		driven[sf.name] = true
+	}
+	for file, name := range authorityCoveredFiles {
+		if name == "" {
+			continue // deliberately not domain-scoped; the entry records why
+		}
+		if !driven[name] {
+			t.Errorf("authorityCoveredFiles maps %s to surface %q, which this test does "+
+				"not drive: the covered set claims coverage this test does not provide",
+				file, name)
+		}
 	}
 
 	want := surfaces[len(surfaces)-1].get() // the canonical computation

@@ -349,10 +349,34 @@ func TestTheMCPAuthorityPayloadCarriesReachability(t *testing.T) {
 
 // A response whose authority states no build commit carries no assessment.
 // Absent, not a fabricated unknown: the question was never askable.
-func TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment(t *testing.T) {
+// REVERSED, AND THE GOVERNING CONTRACT IS WHY.
+//
+// This asserted that an authority with no build commit carries NO reachability
+// key -- "an unaskable question was answered anyway". The question is askable:
+// PublishedCommit == "" is the first case in reachability.Assess and its answer
+// is Unknown. The failure mode this whole mechanism serves states the rule
+// directly:
+//
+//	"A stale or unestablished generation is reported as unpublished or
+//	 UNESTABLISHED knowledge and NEVER as absence of law."
+//	  -- failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+//
+// An absent key is absence. So the old assertion did not protect the contract,
+// it excluded the contract's own third state, and the exclusion was measured
+// live on 2026-09-01: an empty graph_build_commit beside state=current,
+// verdict=authoritative, and no reachability signal anywhere in the response.
+//
+// The direction of this change matters for the constitutional rule that no
+// repair may weaken Unknown. This one does the reverse: it makes Unknown
+// SAYABLE where it was silently dropped.
+func TestAnMCPAuthorityWithoutABuildCommitReportsUnknown(t *testing.T) {
 	obj := authorityStruct(context.Background(), &awarenesspb.GraphAuthority{})
-	if _, present := obj["reachability"]; present {
-		t.Fatalf("an unaskable question was answered anyway: %+v", obj)
+	r, ok := obj["reachability"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("unestablished generation reported as absence of assessment: %+v", obj)
+	}
+	if got := r["state"]; got != "unknown" {
+		t.Fatalf("state=%v, want unknown", got)
 	}
 }
 

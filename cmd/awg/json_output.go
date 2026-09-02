@@ -49,14 +49,19 @@ func emitProtoJSON(m proto.Message) int {
 // answer, and a server cannot compute it because it does not hold the corpus.
 // Encoding it as a response field would claim the server asserted it.
 //
-// A response whose authority block states no build commit gets no reachability
-// key at all -- absent rather than a fabricated "unknown", because the question
-// was never askable for that response.
+// A RESPONSE WHOSE AUTHORITY BLOCK STATES NO BUILD COMMIT STILL GETS THE KEY,
+// carrying state "unknown".
+//
+// It used to get no key at all, called "absent rather than a fabricated
+// unknown, because the question was never askable". But reachability.Assess
+// answers that exact input in its first case, and the answer is Unknown --
+// so the key was not withheld for lack of an answer, it was withheld DESPITE
+// one. For a --json caller the two are not close: a missing key reads as a
+// field this build does not emit, while state "unknown" reads as a graph whose
+// generation could not be established. Only the second is true, and only the
+// second stops the caller from treating a missing rule as an absent rule.
 func withReachability(encoded []byte, m proto.Message) []byte {
-	commit := authorityBuildCommit(m)
-	if strings.TrimSpace(commit) == "" {
-		return encoded
-	}
+	commit := strings.TrimSpace(authorityBuildCommit(m))
 	var obj map[string]interface{}
 	if err := json.Unmarshal(encoded, &obj); err != nil {
 		return encoded
