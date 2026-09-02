@@ -26683,6 +26683,24 @@ test_symbols:
     package: main
     language: go
     doc: "The negative case: a file outside every covers_paths prefix must produce\nZERO authority lines — claiming ownership guidance where no domain matches\nwould teach agents to distrust the guidance everywhere."
+  - id: golang/server/authority_referent_test.go:TestAllDomainScopedSurfacesProjectTheSameAuthority
+    file: golang/server/authority_referent_test.go
+    symbol: TestAllDomainScopedSurfacesProjectTheSameAuthority
+    package: main
+    language: go
+    doc: "EVERY SURFACE MUST PROJECT THE SAME AUTHORITY FOR THE SAME REFERENT.\n\nThis is the drift detector. Each surface can look individually reasonable and\nstill disagree with its siblings — which is exactly what happened: query,\nbriefing, impact and resolve stamped the HOME domain's authority onto answers\nscoped to a requested domain, while metadata read the requested domain\ncorrectly. Asserting each surface separately would not have caught it,\nbecause each was self-consistent.\n\nA surface added later that forgets to scope its attestation fails here\nwithout anyone remembering to write a new test for it."
+  - id: golang/server/authority_referent_test.go:TestQueryAuthorityDescribesTheRequestedDomainNotTheHomeDomain
+    file: golang/server/authority_referent_test.go
+    symbol: TestQueryAuthorityDescribesTheRequestedDomainNotTheHomeDomain
+    package: main
+    language: go
+    doc: "A DOMAIN-SCOPED ANSWER MAY NOT CARRY ANOTHER DOMAIN'S AUTHORITY.\n\nQuery scopes every row to the requested domain and then stamped the response\nwith s.graphAuthority(ctx), which resolves closure for the server's HOME\ndomain. On a multi-domain store that pairs an AUTHORITATIVE verdict earned by\none domain with rows drawn from another.\n\nObserved live before this repair:\n\n\tawareness_query(domain=github.com/globulario/sensei)  -> authoritative: true\n\tawareness_metadata(domain=github.com/globulario/sensei) -> non_authoritative\n\nwhile the store's own proof set held github.com_globulario_sensei.unproven.json.\nTwo surfaces, one referent, opposite verdicts."
+  - id: golang/server/authority_referent_test.go:TestQueryAuthorityIsAuthoritativeForAProvenDomain
+    file: golang/server/authority_referent_test.go
+    symbol: TestQueryAuthorityIsAuthoritativeForAProvenDomain
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL: the fixture must be able to produce AUTHORITATIVE at all.\n\nWithout this, a fixture that is merely never-fresh would make the test above\npass whether or not the defect is present — which is exactly what the first\nversion of it did."
   - id: golang/server/blast_radius_test.go:TestAnchorIDsAreNotDecodedTwice
     file: golang/server/blast_radius_test.go
     symbol: TestAnchorIDsAreNotDecodedTwice
