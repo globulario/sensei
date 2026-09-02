@@ -22848,6 +22848,42 @@ test_symbols:
     package: workspacecontract
     language: go
     doc: "TestValidateIdentitySchemaCompilesAndEnforcesRealConstraints proves\nValidateIdentitySchema is a real Draft 2020-12 validator, not a stub."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestAnAssertionClaimedByTwoDomainsIsRefused
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestAnAssertionClaimedByTwoDomainsIsRefused
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 4. One assertion claimed by two domains is refused, not resolved."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestChangingADeclaredDependencyInvalidatesTheDependent
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestChangingADeclaredDependencyInvalidatesTheDependent
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 3. THE BLADE. A foreign assertion that IS a declared dependency\nchanges, and the dependent domain becomes UNPROVEN.\n\nWithout this, \"identity follows authorship\" would silently become permission\nto ignore cross-domain semantic change — which is worse than the defect it\nreplaces."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestDigestIsIndependentOfSerializationOrder
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestDigestIsIndependentOfSerializationOrder
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 6. Reordered serialization yields an identical digest."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestForeignAssertionOnASharedSubjectDoesNotInvalidate
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestForeignAssertionOnASharedSubjectDoesNotInvalidate
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 2. A foreign assertion added on a shared subject, which is NOT a\ndependency, leaves the local domain PROVEN.\n\nThis is the exact event that cost services its proof on the live store."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestSharedSubjectYieldsStableIndependentIdentities
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestSharedSubjectYieldsStableIndependentIdentities
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 1. Same subject, different domains, different assertions — both\nidentities stable.\n\nUnder subject ownership this was impossible: each domain's digest covered\nevery triple on the shared subject, so each contained the other's content and\nmoved whenever the other published."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestUnattributedAssertionIsRefusedRatherThanAssigned
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestUnattributedAssertionIsRefusedRatherThanAssigned
+    package: assertionprovenance
+    language: go
+    doc: "PROOF 5. Missing provenance is UNKNOWN, never silently assigned.\n\nThe migration will produce partially annotated corpora, and the tempting\nfallback is to attribute by subject tag — the model being retired."
   - id: golang/client/auth_test.go:TestBearerToken
     file: golang/client/auth_test.go
     symbol: TestBearerToken
