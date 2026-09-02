@@ -7,16 +7,14 @@ import (
 	"testing"
 )
 
-// A mutation removing --union-default-graph from the inline exec.Command
-// survived the entire suite: the store-level tests prove the flag MATTERS,
-// nothing proved we SET it. This closes that gap.
-func TestOxigraphServeArgsSetUnionDefaultGraph(t *testing.T) {
+// A mutation removing a flag from an inline exec.Command survived the entire
+// suite once: the store-level tests proved a flag MATTERED while nothing proved
+// we SET it. The argv is built in one place so it can be asserted.
+func TestOxigraphServeArgs(t *testing.T) {
 	args := oxigraphServeArgs("/var/lib/sensei/oxi", "127.0.0.1:7878")
 
-	if !slices.Contains(args, "--union-default-graph") {
-		t.Fatalf("--union-default-graph missing: every unqualified query in this "+
-			"codebase would return zero rows against a named-graph store, and an "+
-			"empty read surface is indistinguishable from an empty store.\ngot: %v", args)
+	if len(args) == 0 || args[0] != "serve" {
+		t.Fatalf("argv must begin with the serve subcommand: %v", args)
 	}
 	for _, want := range [][2]string{{"--location", "/var/lib/sensei/oxi"}, {"--bind", "127.0.0.1:7878"}} {
 		i := slices.Index(args, want[0])
@@ -24,7 +22,20 @@ func TestOxigraphServeArgsSetUnionDefaultGraph(t *testing.T) {
 			t.Fatalf("%s not followed by %q in %v", want[0], want[1], args)
 		}
 	}
-	if len(args) == 0 || args[0] != "serve" {
-		t.Fatalf("argv must begin with the serve subcommand: %v", args)
+}
+
+// --union-default-graph must NOT be set while transient staging graphs exist.
+//
+// `sensei build` stages a candidate slice and a SECOND seed marker in
+// urn:sensei:graph-staging:<marker> before promoting it in one transaction.
+// Union reads would expose that in-flight candidate to every concurrent
+// unqualified query and break atomic publication. This is an invariant, not a
+// preference: it must fail if someone adds the flag for the (real, but later)
+// reason that named-graph publication needs it.
+func TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist(t *testing.T) {
+	if args := oxigraphServeArgs("/tmp/oxi", "127.0.0.1:0"); slices.Contains(args, "--union-default-graph") {
+		t.Fatalf("union reads enabled while sensei build still stages candidates in "+
+			"urn:sensei:graph-staging:<marker>: concurrent readers would observe an "+
+			"unpublished candidate and a duplicate marker.\ngot: %v", args)
 	}
 }

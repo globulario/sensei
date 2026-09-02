@@ -696,18 +696,25 @@ func watchBackendHealth(ctx context.Context, url string, interval time.Duration,
 
 // oxigraphServeArgs builds the Oxigraph child-process argv.
 //
-// Extracted so the flags are ASSERTABLE. A mutation removing
-// --union-default-graph from an inline exec.Command survived the entire test
-// suite: nothing proved we set it, only that it mattered.
+// Extracted so the flags are ASSERTABLE. A mutation removing a flag from an
+// inline exec.Command survived the entire test suite: nothing proved we set it.
 //
-// --union-default-graph: once domains publish into their own named graphs, an
-// unqualified { ?s ?p ?o } pattern matches the DEFAULT graph only and returns
-// ZERO rows -- measured on oxigraph 0.5.9. Every existing query in this
-// codebase is unqualified, so without this flag the whole read surface would
-// silently go empty. That is the worst available failure: `rows: []` is an
-// observation, not evidence of absence, so an empty store and a broken read
-// surface are indistinguishable. With no named graphs present the flag is a
-// no-op, so it is safe to set before the migration begins.
+// --union-default-graph is DELIBERATELY ABSENT, and must stay absent until
+// staging-graph visibility is resolved.
+//
+// It is tempting to add: once domains publish into their own named graphs, an
+// unqualified { ?s ?p ?o } matches the DEFAULT graph only and returns ZERO
+// rows, so every query in this codebase would silently empty. But named graphs
+// ALREADY EXIST and are not domains. `sensei build` PUTs a candidate slice and
+// a SECOND seed marker into urn:sensei:graph-staging:<marker> and then promotes
+// it in one transaction (cmd_build.go). Union reads would expose that
+// in-flight candidate -- and a duplicate marker -- to every concurrent briefing
+// and metadata query, destroying the atomicity the staging design exists to
+// provide.
+//
+// So the carrier (LoadGraph) lands proven while the read surface stays
+// default-only. Enabling union reads requires first making staging graphs
+// invisible to readers -- a separate change with its own proof.
 func oxigraphServeArgs(location, bind string) []string {
-	return []string{"serve", "--location", location, "--bind", bind, "--union-default-graph"}
+	return []string{"serve", "--location", location, "--bind", bind}
 }

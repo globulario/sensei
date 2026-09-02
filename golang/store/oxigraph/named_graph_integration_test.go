@@ -14,13 +14,16 @@ package oxigraph_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -90,9 +93,44 @@ func countMatching(t *testing.T, queryURL, sparql string) string {
 		t.Fatalf("query: %v", err)
 	}
 	defer resp.Body.Close()
-	buf := make([]byte, 8192)
-	n, _ := resp.Body.Read(buf)
-	return string(buf[:n])
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read result: %v", err)
+	}
+	return string(body)
+}
+
+// countValue decodes the ?n binding of a SPARQL COUNT.
+//
+// Substring-matching the raw result is FALSE-GREEN: Oxigraph reports an integer
+// COUNT with datatype http://www.w3.org/2001/XMLSchema#integer, and that URI
+// contains "0", so strings.Contains(result, "0") succeeds for ANY count. A test
+// written that way passes whether or not the property holds.
+func countValue(t *testing.T, queryURL, sparql string) int {
+	t.Helper()
+	var out struct {
+		Results struct {
+			Bindings []map[string]struct {
+				Value string `json:"value"`
+			} `json:"bindings"`
+		} `json:"results"`
+	}
+	raw := countMatching(t, queryURL, sparql)
+	if err := json.Unmarshal([]byte(raw), &out); err != nil {
+		t.Fatalf("decode count result: %v\nraw: %s", err, raw)
+	}
+	if len(out.Results.Bindings) != 1 {
+		t.Fatalf("expected exactly one binding, got %d\nraw: %s", len(out.Results.Bindings), raw)
+	}
+	b, ok := out.Results.Bindings[0]["n"]
+	if !ok {
+		t.Fatalf("no ?n binding\nraw: %s", raw)
+	}
+	n, err := strconv.Atoi(b.Value)
+	if err != nil {
+		t.Fatalf("count %q is not an integer: %v", b.Value, err)
+	}
+	return n
 }
 
 func triple(subject, object string) string {
@@ -177,23 +215,72 @@ func TestIntegration_DefaultGraphContentIsAttributableToNoDomain(t *testing.T) {
 	}
 }
 
-// Without the flag, every unqualified query in this codebase returns ZERO rows.
-// That is the migration's worst failure mode: rows: [] is an observation, not
-// evidence of absence, so a silently empty read surface looks like a clean graph.
-func TestIntegration_WithoutUnionDefaultGraphTheReadSurfaceGoesEmpty(t *testing.T) {
-	queryURL := startPrivateOxigraph(t, false)
-	c, _ := oxigraph.New(queryURL)
-	if err := c.LoadGraph(context.Background(), "github.com/globulario/sensei",
-		strings.NewReader(triple("https://ex.org/inv.x", "TestX"))); err != nil {
-		t.Fatalf("publish: %v", err)
+// Named graphs are ALREADY in use, and they are not domains.
+//
+// `sensei build` PUTs a candidate slice and a SECOND seed marker into
+// urn:sensei:graph-staging:<marker>, then promotes it in one transaction. Two
+// properties matter, and they pull in opposite directions:
+//
+//	default-only reads  atomic publication holds; a named-graph domain is INVISIBLE
+//	union reads         a domain becomes visible; so does every in-flight candidate
+//
+// This test pins BOTH, because they are why the carrier lands while the read
+// surface stays default-only. The earlier version of this test asserted only
+// the second half and did so with a substring check that passed for any count.
+func TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs(t *testing.T) {
+	const stagingIRI = "urn:sensei:graph-staging:testmarker"
+
+	for _, tc := range []struct {
+		name              string
+		union             bool
+		wantUnqualified   int
+		wantStagingHidden bool
+	}{
+		{"default-only reads: staging is invisible, atomicity holds", false, 0, true},
+		{"union reads: staging leaks into every unqualified query", true, 2, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			queryURL := startPrivateOxigraph(t, tc.union)
+			c, err := oxigraph.New(queryURL)
+			if err != nil {
+				t.Fatalf("new: %v", err)
+			}
+			ctx := context.Background()
+
+			// A published domain...
+			if err := c.LoadGraph(ctx, "github.com/globulario/sensei",
+				strings.NewReader(triple("https://ex.org/inv.x", "TestX"))); err != nil {
+				t.Fatalf("publish domain: %v", err)
+			}
+			// ...and an UNPUBLISHED candidate staged by sensei build.
+			staged := triple("https://ex.org/inv.candidate", "TestCandidate")
+			req, err := http.NewRequest(http.MethodPut,
+				strings.TrimSuffix(queryURL, "/query")+"/store?graph="+url.QueryEscape(stagingIRI),
+				strings.NewReader(staged))
+			if err != nil {
+				t.Fatalf("stage request: %v", err)
+			}
+			req.Header.Set("Content-Type", "application/n-triples")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				t.Fatalf("stage candidate: %v", err)
+			}
+			_ = resp.Body.Close()
+
+			got := countValue(t, queryURL, `SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }`)
+			if got != tc.wantUnqualified {
+				t.Fatalf("unqualified read surface = %d triples, want %d", got, tc.wantUnqualified)
+			}
+
+			leaked := countValue(t, queryURL,
+				`SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o . FILTER(CONTAINS(STR(?s), "inv.candidate")) }`)
+			if tc.wantStagingHidden && leaked != 0 {
+				t.Fatalf("an unpublished candidate was visible to an unqualified read (%d triples)", leaked)
+			}
+			if !tc.wantStagingHidden && leaked == 0 {
+				t.Fatal("expected union reads to expose the staged candidate; they did not, " +
+					"so this test no longer demonstrates the hazard")
+			}
+		})
 	}
-	unqualified := countMatching(t, queryURL, `SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }`)
-	if !strings.Contains(unqualified, "0") {
-		t.Fatalf("expected an empty unqualified read surface without the flag, got:\n%s", unqualified)
-	}
-	viaGraph := countMatching(t, queryURL, `SELECT ?g WHERE { GRAPH ?g { ?s ?p ?o } }`)
-	if !strings.Contains(viaGraph, "sensei") {
-		t.Fatalf("content was not readable via GRAPH ?g either:\n%s", viaGraph)
-	}
-	_ = url.QueryEscape
 }
