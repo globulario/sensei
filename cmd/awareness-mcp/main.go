@@ -1438,9 +1438,8 @@ func formatMetadata(ctx context.Context, resp *awarenesspb.MetadataResponse) str
 		fmt.Fprintf(&b, "graph_authority.warning: %s\n", warning)
 	}
 	fmt.Fprintf(&b, "graph_build_commit: %s\n", resp.GetGraphBuildCommit())
-	if m := reachabilityMap(ctx, resp.GetGraphBuildCommit()); m != nil {
-		fmt.Fprintf(&b, "reachability: %v (%v)\n", m["state"], m["detail"])
-	}
+	m := reachabilityMap(ctx, resp.GetGraphBuildCommit())
+	fmt.Fprintf(&b, "reachability: %v (%v)\n", m["state"], m["detail"])
 	fmt.Fprintf(&b, "graph_build_time_unix: %d\n", resp.GetGraphBuildTimeUnix())
 	fmt.Fprintf(&b, "source_repo_commit: %s\n", resp.GetSourceRepoCommit())
 	fmt.Fprintf(&b, "embedded_seed_digest_sha256: %s\n", resp.GetEmbeddedSeedDigestSha256())
@@ -1500,9 +1499,8 @@ func formatMetadata(ctx context.Context, resp *awarenesspb.MetadataResponse) str
 // ones the text block exists to support.
 func formatGraphAuthority(ctx context.Context, authority *awarenesspb.GraphAuthority) string {
 	out := authorityOneLine(authority) + "\n"
-	if m := reachabilityMap(ctx, authority.GetGraphBuildCommit()); m != nil {
-		out += fmt.Sprintf("reachability: %v (%v)\n", m["state"], m["detail"])
-	}
+	m := reachabilityMap(ctx, authority.GetGraphBuildCommit())
+	out += fmt.Sprintf("reachability: %v (%v)\n", m["state"], m["detail"])
 	return out
 }
 
@@ -1663,11 +1661,10 @@ func authorityStruct(ctx context.Context, a *awarenesspb.GraphAuthority) map[str
 	// serving graph -- the false-green path this check exists to close, left
 	// open for the callers most likely to act on it unsupervised.
 	//
-	// Absent when the authority states no build commit: the question was never
-	// askable for that response, and answering it anyway would assess nothing.
-	if m := reachabilityMap(ctx, a.GetGraphBuildCommit()); m != nil {
-		obj["reachability"] = m
-	}
+	// PRESENT ON EVERY RESPONSE, INCLUDING ONE WHOSE AUTHORITY STATES NO BUILD
+	// COMMIT -- that case is Unknown, and an absent key is how Unknown became
+	// indistinguishable from a graph nobody had a question about.
+	obj["reachability"] = reachabilityMap(ctx, a.GetGraphBuildCommit())
 	obj["graph_build_time_unix"] = a.GetGraphBuildTimeUnix()
 	obj["source_repo_commit"] = a.GetSourceRepoCommit()
 	obj["live_store_graph_triple_count"] = a.GetLiveStoreGraphTripleCount()
@@ -1894,9 +1891,7 @@ func structMetadata(ctx context.Context, resp *awarenesspb.MetadataResponse) map
 	// read tools left the one an agent reaches for FIRST reporting
 	// current/authoritative with no reachability warning. The sixth surface,
 	// missed because it was the one that did not share the helper.
-	if m := reachabilityMap(ctx, resp.GetGraphBuildCommit()); m != nil {
-		auth["reachability"] = m
-	}
+	auth["reachability"] = reachabilityMap(ctx, resp.GetGraphBuildCommit())
 	return map[string]interface{}{
 		"authority":                auth,
 		"graph_freshness_state":    awarenessclient.EffectiveMetadataFreshness(resp).String(),
@@ -2741,14 +2736,27 @@ func mcpCorpusRoot() string {
 // whole-call deadline: the gRPC request could finish inside its budget while
 // response construction blocked the single stdio request loop indefinitely.
 //
-// Returns nil when the graph states no build commit: the question was never
-// askable for that response, and answering it anyway would assess nothing.
+// IT NEVER RETURNS NIL, AND A GRAPH THAT STATES NO BUILD COMMIT IS THE REASON.
+//
+// This suppressed the whole report when the build commit was empty, on the
+// stated grounds that "the question was never askable". The owner disagrees:
+// PublishedCommit == "" is the FIRST case in reachability.Assess, and its
+// answer is Unknown with the detail "the serving graph does not state which
+// revision produced it". Unknown is a member of that closed set, not a
+// fallback, so returning nil did not decline to answer -- it DELETED an answer
+// the owner had already given, and turned unavailable into absent.
+//
+// That is not a hypothetical input. Measured 2026-09-01 against the live graph
+// this tooling queries: graph_build_commit was EMPTY while the same response
+// reported state=current, verdict=authoritative, freshness=CURRENT. The one
+// mechanism built to prevent that false green was silent in precisely the state
+// that produces it, and every surface below said nothing rather than Unknown.
 func reachabilityMap(ctx context.Context, buildCommit string) map[string]interface{} {
-	commit := strings.TrimSpace(buildCommit)
-	if commit == "" {
-		return nil
-	}
-	r := reachability.ResolveFromGit(ctx, mcpCorpusRoot(), commit)
+	// The empty commit is passed THROUGH to the owner rather than branched on
+	// here. A guard at this level, however careful, is this file deciding a
+	// question reachability.Assess already answers -- the fourth reading of one
+	// state that the single-owner rule exists to prevent.
+	r := reachability.ResolveFromGit(ctx, mcpCorpusRoot(), strings.TrimSpace(buildCommit))
 	return map[string]interface{}{
 		"state":           string(r.State),
 		"reachable":       r.Reachable(),
