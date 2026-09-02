@@ -256,8 +256,10 @@ Flags:
 	if txPath == "" && agRepo != "" {
 		txPath = seedmeta.RuntimeTransactionPath(markerPath)
 	}
+	var txBytesForProofSet []byte
 	if txPath != "" {
 		txBytes, err := buildTransactionTSV(agRepo, svcRepo, ntBytes)
+		txBytesForProofSet = txBytes
 		if err != nil {
 			if txRequested {
 				fmt.Fprintf(os.Stderr, "sensei build: publish runtime transaction: %v\n", err)
@@ -286,7 +288,8 @@ Flags:
 	//
 	// Written after the marker so a crash between the two leaves the store
 	// unproven (fail-closed) rather than falsely vouched for.
-	if rep := buildClosureReport(*repo, inputDirs, markerPath, marker, ntBytes); rep != nil {
+	allReport := buildClosureReport(*repo, inputDirs, markerPath, marker, ntBytes)
+	if rep := allReport; rep != nil {
 		if err := rep.Write(markerPath); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei build: publish closure report: %v\n", err)
 			return 1
@@ -298,6 +301,34 @@ Flags:
 		fmt.Fprintf(os.Stderr, "  closure report: %s (%s — %d/%d projected, %d missing, %d foreign)\n",
 			closure.ReportPath(markerPath), status, rep.Projected, rep.ExpectedToProject,
 			rep.Missing, rep.Unexpected)
+	}
+
+	// PUBLISH THE STORE-SCOPED GENERATION. --all REPLACED THE CONTENT AND MUST
+	// REPLACE THE IDENTITY THAT DESCRIBES IT.
+	//
+	// Only --repo did this. So a cold-start build rewrote the entire store and
+	// left ~/.sensei/graph/<store> naming the PREVIOUS generation -- and
+	// expectedGraphMarker prefers that store-scoped record over the marker file
+	// written two lines below. Every freshness-gated surface then compared the
+	// live store against a generation it was not built to and refused:
+	//
+	//   graph freshness stale for briefing: live store missing expected graph
+	//   marker f87c6912...
+	//
+	// Measured 2026-09-02: a brand-new store on a port last used three days
+	// earlier inherited that port's stale generation record. `sensei build
+	// --all` loaded 108887 triples, wrote a marker file agreeing with the store
+	// exactly, and briefing still refused -- because the authoritative record
+	// was neither of those. The refusal is correct in form and false in fact,
+	// which is the worst kind: it is indistinguishable from a genuinely stale
+	// store, so the honest reaction (rebuild) is the one that does not help.
+	//
+	// --all names no domain, so no domain is claimed proven here. The
+	// generation and marker are what the freshness gate reads; domain proofs
+	// come from a --repo build, and Compose records the others as unproven
+	// rather than carrying a verdict across a whole-store replace.
+	if code := publishProofSet(endpoint, strings.TrimSpace(*repo), marker, txBytesForProofSet, allReport, ntBytes); code != 0 {
+		return code
 	}
 
 	fmt.Fprintf(os.Stderr, "  loaded %d bytes into %s (%s, %d triples)\n", len(ntBytes), endpoint, marker.Digest[:12], marker.TripleCount)

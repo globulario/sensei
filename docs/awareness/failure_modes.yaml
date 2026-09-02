@@ -2153,6 +2153,18 @@ failure_modes:
       - no workflow file mentioned ruleguard; the test's own comment asserted CI installs it
       - locally every sub-test skipped with 'cannot resolve go-ruleguard/dsl'; 26 rules prove their control once the DSL is a module dependency
       - proven was incremented at line 124 and never asserted
+  - id: failure.a_whole_store_replace_left_the_store_claiming_the_generation
+    title: A whole-store replace left the store claiming the generation it had just destroyed
+    severity: critical
+    description: 'sensei build --all replaces every triple in the store and never published a store-scoped proof set; only --repo did. expectedGraphMarker prefers that store-scoped record over the per-repository marker file, so after a cold-start build every freshness-gated surface compared the live store against the generation it had just replaced and refused: ''graph freshness stale for briefing: live store missing expected graph marker''. Measured 2026-09-02: a brand-new empty store on a port last used three days earlier inherited that port''s generation record from ~/.sensei/graph/<store-id>/current.json; a --all build loaded 108887 triples and wrote a marker file agreeing with the store exactly, and briefing still refused. The refusal is correct in FORM and false in FACT, which is the worst kind -- it is indistinguishable from a genuinely stale store, so the honest reaction (rebuild) is the one that does not help, and every rebuild reproduced it.'
+    protects:
+      files:
+        - cmd/awg/cmd_build.go
+    required_tests:
+      - cmd/awg/build_publishes_generation_test.go:TestBothStoreLoadPathsPublishTheGeneration
+    evidence:
+      - removing the publishProofSet call from the --all path fails TestBothStoreLoadPathsPublishTheGeneration; making Invalidate a no-op fails TestInvalidateDropsAPointerThatDescribesReplacedContent; renaming the scan anchor fails the vacuous-pass guard; end to end, the same --all build that refused a briefing before the fix serves one after it
+    contract: A build that replaces the store's content replaces the record that identifies it, or drops that record. A store must never claim a generation describing content it no longer holds, because the freshness gate prefers the store-scoped record over any per-repository copy.
   - id: failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
     title: A domain-scoped answer carried the home domain's authority because the scope was read after the stamp
     severity: high

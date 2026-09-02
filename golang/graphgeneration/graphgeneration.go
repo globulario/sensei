@@ -284,6 +284,32 @@ func Write(dir, storeURL string, s *Set) error {
 	})
 }
 
+// Invalidate drops the store's current-generation pointer.
+//
+// IT IS THE OTHER HALF OF A WHOLE-STORE REPLACE. A cold-start build destroys
+// every triple the previous generation described, so that generation stops
+// being a true statement about this store the moment the upload succeeds. When
+// a replacement proof set can be published it is; when it cannot -- a corpus
+// carrying no domains has no domain proofs, and Write rightly refuses a set
+// that would drop every proof while claiming to be one -- the pointer must
+// still go.
+//
+// Leaving it is the defect this exists to prevent: expectedGraphMarker prefers
+// the store-scoped record over the marker file, so a stale pointer makes every
+// freshness-gated surface compare the live store against content that no longer
+// exists. Removing it makes storeScopedExpectedMarker report "not published",
+// which is TRUE and falls through to the marker file this build just wrote.
+//
+// The generation directories are left alone. They are immutable history and
+// removing the pointer is not a claim that they never happened.
+func Invalidate(dir string) error {
+	err := os.Remove(filepath.Join(dir, CurrentPointerFile))
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("graph generation: drop current pointer: %w", err)
+	}
+	return nil
+}
+
 // Load reads the current proof set. A missing pointer is reported as such so
 // callers can fall back to the legacy per-repository layout rather than
 // treating absence as a passing verdict.
@@ -416,7 +442,15 @@ func Compose(prev *Set, gen Generation, marker seedmeta.Marker, transaction []by
 	for _, d := range DomainsPresent(postUpdateNT) {
 		wanted[d] = true
 	}
-	wanted[builtDomain] = true
+	// AN UNNAMED DOMAIN IS NOT A DOMAIN.
+	//
+	// A cold-start (--all) build names no domain, and adding "" here would
+	// invent a domain entry keyed by the empty string whose slice digest is
+	// computed over nothing. The generation and marker are still published --
+	// those are what the freshness gate reads -- but no domain is claimed.
+	if strings.TrimSpace(builtDomain) != "" {
+		wanted[builtDomain] = true
+	}
 
 	for domain := range wanted {
 		digest := SliceDigest(postUpdateNT, domain)

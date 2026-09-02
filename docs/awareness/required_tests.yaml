@@ -2125,6 +2125,27 @@ required_tests:
         - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
       failure_modes:
         - failure.a_positive_control_gate_reported_success_while_no_rule_had_l
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestInvalidateDropsAPointerThatDescribesReplacedContent
+    title: A store stops claiming a generation whose content was replaced
+    protects:
+      failure_modes:
+        - failure.a_whole_store_replace_left_the_store_claiming_the_generation
+      files:
+        - cmd/awg/graph_proofset.go
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestAnUnnamedBuiltDomainIsNotRecordedAsADomain
+    title: An unnamed built domain is not recorded as a domain
+    protects:
+      failure_modes:
+        - failure.a_whole_store_replace_left_the_store_claiming_the_generation
+      files:
+        - cmd/awg/graph_proofset.go
+  - id: cmd/awg/build_publishes_generation_test.go:TestBothStoreLoadPathsPublishTheGeneration
+    title: Both store-load paths publish the generation that describes the store
+    protects:
+      failure_modes:
+        - failure.a_whole_store_replace_left_the_store_claiming_the_generation
+      files:
+        - cmd/awg/cmd_build.go
   - id: golang/server/metadata_authority_domain_test.go:TestEveryAuthorityProjectingSurfaceIsCovered
     title: Every authority-projecting surface is covered by the domain drift detector
     protects:
