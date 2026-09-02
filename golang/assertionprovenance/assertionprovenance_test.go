@@ -152,3 +152,129 @@ func mustDigest(t *testing.T, all []Assertion, d Domain) string {
 	}
 	return s
 }
+
+// --- Proofs added for the four review findings on b4a763d6 ---------------
+
+// Finding 1 (P1): a dependency reassigned to another domain must invalidate.
+//
+// Same subject, predicate and object; different author. If the digest omits
+// Origin these are indistinguishable and the closure proof survives an
+// authority change -- the exact collapse this package exists to prevent.
+func TestCarryForwardRejectsADependencyReassignedToAnotherDomain(t *testing.T) {
+	const sensei, services = Domain("sensei"), Domain("services")
+
+	depBefore := Assertion{Subject: "inv.x", Predicate: "requiresTest", Object: "TestX", Origin: services}
+	depAfter := depBefore
+	depAfter.Origin = sensei // reassigned; statement byte-identical
+
+	if DigestOf(depBefore) == DigestOf(depAfter) {
+		t.Fatal("reassigning an assertion to another domain left its digest unchanged; provenance is not in the identity")
+	}
+
+	own := Assertion{Subject: "inv.x", Predicate: "notedBy", Object: "sensei", Origin: sensei}
+	before := []Assertion{own, depBefore}
+	after := []Assertion{own, depAfter}
+	deps := []Dependency{{On: depBefore, Digest: DigestOf(depBefore)}}
+
+	ok, why := CarryForward(before, after, sensei, deps)
+	if ok {
+		t.Fatalf("carry-forward survived a dependency changing author: %s", why)
+	}
+}
+
+// Finding 2 (P1): the slice digest must not be forgeable by field content.
+//
+// The obvious example -- {a,b,c},{d,e,f} against the single merged assertion
+// {a,b,"c\nd\x1fe\x1ff"} -- is NOT sufficient: those slices differ in length,
+// so a count prefix alone separates them and the test passes without ever
+// exercising the framing. A mutation reverting the encoding survived it.
+//
+// The load-bearing case holds the count fixed and moves a field boundary
+// BETWEEN two assertions, so only per-field length prefixes can tell them
+// apart:
+//
+//	A = {a,b,"c\nd"}, {e,f,g}   -> a.b.c\nd \n e.f.g \n
+//	B = {a,b,c}, {"d\ne",f,g}   -> a.b.c \n d\ne.f.g \n      (identical bytes)
+func TestSliceDigestDistinguishesSlicesThatSeparatorEncodingWouldCollide(t *testing.T) {
+	const d = Domain("sensei")
+
+	digest := func(name string, in []Assertion) string {
+		t.Helper()
+		got, err := SliceDigest(in, d)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		return got
+	}
+
+	// Same assertion COUNT; the difference is only where a field ends.
+	a := digest("A", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c\nd", Origin: d},
+		{Subject: "e", Predicate: "f", Object: "g", Origin: d},
+	})
+	b := digest("B", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c", Origin: d},
+		{Subject: "d\ne", Predicate: "f", Object: "g", Origin: d},
+	})
+	if a == b {
+		t.Fatal("two slices differing only in field boundaries digested identically; the encoding is forgeable")
+	}
+
+	// Differing counts must also separate, for completeness.
+	two := digest("two", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c", Origin: d},
+		{Subject: "d", Predicate: "e", Object: "f", Origin: d},
+	})
+	one := digest("one", []Assertion{
+		{Subject: "a", Predicate: "b", Object: "c\nd\x1fe\x1ff", Origin: d},
+	})
+	if two == one {
+		t.Fatal("a two-assertion slice digested identically to the merged single assertion")
+	}
+}
+
+// Finding 3 (P2): a multi-valued predicate must not lose proofs to ordering.
+//
+// A subject with two requiresTest edges: depending on the FIRST must hold, and
+// must hold under either serialization order.
+func TestCarryForwardHonoursEveryValueOfAMultiValuedPredicate(t *testing.T) {
+	const sensei, services = Domain("sensei"), Domain("services")
+
+	first := Assertion{Subject: "inv.x", Predicate: "requiresTest", Object: "TestA", Origin: services}
+	second := Assertion{Subject: "inv.x", Predicate: "requiresTest", Object: "TestB", Origin: services}
+	own := Assertion{Subject: "inv.x", Predicate: "notedBy", Object: "sensei", Origin: sensei}
+
+	deps := []Dependency{{On: first, Digest: DigestOf(first)}}
+
+	for _, order := range []struct {
+		name  string
+		after []Assertion
+	}{
+		{"first then second", []Assertion{own, first, second}},
+		{"second then first", []Assertion{own, second, first}},
+	} {
+		ok, why := CarryForward([]Assertion{own, first, second}, order.after, sensei, deps)
+		if !ok {
+			t.Fatalf("%s: an unchanged dependency was reported lost: %s", order.name, why)
+		}
+	}
+}
+
+// Finding 4 (P2): malformed proof metadata must fail closed, not panic.
+func TestCarryForwardRefusesMalformedDependencyDigestsWithoutPanicking(t *testing.T) {
+	const sensei, services = Domain("sensei"), Domain("services")
+
+	dep := Assertion{Subject: "inv.x", Predicate: "requiresTest", Object: "TestA", Origin: services}
+	own := Assertion{Subject: "inv.x", Predicate: "notedBy", Object: "sensei", Origin: sensei}
+	corpus := []Assertion{own, dep}
+
+	for _, bad := range []string{"", "abc", "0123456789ab"} {
+		ok, why := CarryForward(corpus, corpus, sensei, []Dependency{{On: dep, Digest: bad}})
+		if ok {
+			t.Fatalf("digest %q: carry-forward accepted a pin that matches nothing live", bad)
+		}
+		if why == "" {
+			t.Fatalf("digest %q: refused without stating why", bad)
+		}
+	}
+}

@@ -34,10 +34,13 @@
 package assertionprovenance
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 )
@@ -60,11 +63,59 @@ type Assertion struct {
 	Origin Domain
 }
 
-// canonical renders an assertion for digesting. Object is included: two domains
-// saying different things about one subject are different assertions, which is
-// the entire point.
+// canonical renders the STATEMENT, deliberately without Origin.
+//
+// Used only to ask "are these the same statement?", which is the question
+// ambiguous-ownership detection asks: one statement claimed by two domains.
+// It is NOT an identity and must never be digested -- see identityBytes.
 func (a Assertion) canonical() string {
 	return a.Subject + "\x1f" + a.Predicate + "\x1f" + a.Object
+}
+
+// writeFramed writes length-prefixed fields.
+//
+// Separator-joined encodings are forgeable when field values are arbitrary
+// strings: with "\n" between assertions and "\x1f" between fields, the two
+// assertions {a,b,c},{d,e,f} encode exactly like the single assertion
+// {a,b,"c\nd\x1fe\x1ff"}. A digest that cannot distinguish those reports
+// "unchanged" across a semantic replacement, which is the one thing it exists
+// to catch. Length prefixes remove the ambiguity: no field can contain its own
+// terminator because there is no terminator.
+func writeFramed(w io.Writer, parts ...string) {
+	var n [8]byte
+	for _, part := range parts {
+		binary.BigEndian.PutUint64(n[:], uint64(len(part)))
+		w.Write(n[:])
+		io.WriteString(w, part)
+	}
+}
+
+// identityBytes is the digest input for one assertion: the statement AND its
+// authoring domain.
+//
+// Origin is included because this package's subject is provenance. Excluding it
+// would mean an assertion REASSIGNED from one domain to another -- same
+// subject, predicate and object, different author -- digests identically, so a
+// closure proof survives an authority change. That is precisely the collapse
+// (subject identity vs assertion ownership) the package was written to prevent.
+func (a Assertion) identityBytes() []byte {
+	var b bytes.Buffer
+	writeFramed(&b, a.Subject, a.Predicate, a.Object, string(a.Origin))
+	return b.Bytes()
+}
+
+// abbrev shortens a digest for a message without assuming it is well-formed.
+//
+// Refusal messages describe metadata that may itself be malformed; slicing a
+// short or empty digest would turn a fail-closed refusal into a panic.
+func abbrev(digest string) string {
+	if digest == "" {
+		return "(empty)"
+	}
+	if len(digest) <= 12 {
+		return digest
+	}
+	return digest[:12]
 }
 
 // ErrUnattributed reports assertions with no Origin.
@@ -126,9 +177,14 @@ func SliceDigest(all []Assertion, d Domain) (string, error) {
 		return "", err
 	}
 	h := sha256.New()
+	var n [8]byte
+	binary.BigEndian.PutUint64(n[:], uint64(len(slice)))
+	h.Write(n[:])
 	for _, a := range slice {
-		h.Write([]byte(a.canonical()))
-		h.Write([]byte{'\n'})
+		blob := a.identityBytes()
+		binary.BigEndian.PutUint64(n[:], uint64(len(blob)))
+		h.Write(n[:])
+		h.Write(blob)
 	}
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
@@ -146,7 +202,7 @@ type Dependency struct {
 
 // DigestOf is the identity of a single assertion, for dependency pinning.
 func DigestOf(a Assertion) string {
-	sum := sha256.Sum256([]byte(a.canonical()))
+	sum := sha256.Sum256(a.identityBytes())
 	return hex.EncodeToString(sum[:])
 }
 
@@ -172,24 +228,32 @@ func CarryForward(before, after []Assertion, d Domain, deps []Dependency) (bool,
 	}
 	if beforeDigest != afterDigest {
 		return false, fmt.Sprintf("this domain's own authored assertions changed (%s -> %s)",
-			beforeDigest[:12], afterDigest[:12])
+			abbrev(beforeDigest), abbrev(afterDigest))
 	}
 
-	live := map[string]string{}
+	// The DECISION is set membership over full assertion identities. An earlier
+	// version indexed live[subject+predicate] = digest, which keeps only the
+	// LAST value for a multi-valued predicate: a subject with two requiresTest
+	// edges would report the still-present first edge as changed, and merely
+	// REORDERING the identical assertions would flip the verdict. Proof loss
+	// must not depend on serialization order.
+	liveIdentities := map[string]bool{}
+	liveStatements := map[string]bool{}
 	for _, a := range after {
-		live[a.Subject+"\x1f"+a.Predicate] = DigestOf(a)
+		liveIdentities[DigestOf(a)] = true
+		liveStatements[a.Subject+"\x1f"+a.Predicate] = true
 	}
 	for _, dep := range deps {
-		key := dep.On.Subject + "\x1f" + dep.On.Predicate
-		got, present := live[key]
-		if !present {
-			return false, fmt.Sprintf("a declared dependency disappeared: %s %s",
-				dep.On.Subject, dep.On.Predicate)
+		if liveIdentities[dep.Digest] {
+			continue
 		}
-		if got != dep.Digest {
-			return false, fmt.Sprintf("a declared dependency changed: %s %s (%s -> %s)",
-				dep.On.Subject, dep.On.Predicate, dep.Digest[:12], got[:12])
+		// Only for phrasing the refusal -- never for deciding it.
+		if liveStatements[dep.On.Subject+"\x1f"+dep.On.Predicate] {
+			return false, fmt.Sprintf("a declared dependency changed: %s %s (pinned %s is no longer among the live assertions)",
+				dep.On.Subject, dep.On.Predicate, abbrev(dep.Digest))
 		}
+		return false, fmt.Sprintf("a declared dependency disappeared: %s %s",
+			dep.On.Subject, dep.On.Predicate)
 	}
 	return true, "authored assertions unchanged and every declared dependency still holds"
 }
