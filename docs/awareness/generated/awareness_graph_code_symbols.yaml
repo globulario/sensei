@@ -26112,6 +26112,12 @@ test_symbols:
     package: reachability
     language: go
     doc: "A checkout whose canonical remote is not named `origin`.\n\nThe lookup hardcoded refs/remotes/origin/HEAD and then origin/main, so a\nrepository with an `upstream` remote and no `origin` failed both and resolved\nthe corpus from LOCAL HEAD — counting the feature branch's unmerged awareness\nedits as admitted, which is the exact false staleness the admitted-base\npreference exists to prevent.\n\nHardcoding a remote name is the same mistake as hardcoding a branch name, one\nlevel out. This builds the environment rather than arguing about it: the\norigin-only mutation cannot be falsified in a repository that has an origin."
+  - id: golang/reachability/resolve_test.go:TestTheCorpusBaseIsChosenByOrderabilityNotByRemoteListingOrder
+    file: golang/reachability/resolve_test.go
+    symbol: TestTheCorpusBaseIsChosenByOrderabilityNotByRemoteListingOrder
+    package: reachability
+    language: go
+    doc: "A fork checkout: `origin` is the fork, `upstream` is the canonical\nrepository, and `git remote` lists origin first.\n\nTaking the first remote default-head that returns any commit made the FORK's\nline the corpus, and the published revision need not be ordered against it —\nreported as \"neither contains the other\", an honest Unknown about a question\nasked of the wrong branch. The base must be chosen by whether it can be\nordered against the published revision, not by the order git happens to list\nremotes in."
   - id: golang/reachability/resolve_test.go:TestTheCorpusRevisionComesFromTheAdmittedBase
     file: golang/reachability/resolve_test.go
     symbol: TestTheCorpusRevisionComesFromTheAdmittedBase
