@@ -2132,3 +2132,10 @@ required_tests:
         - failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
       files:
         - golang/server/metadata.go
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    title: Metadata answers authority for the domain it was asked about
+    protects:
+      failure_modes:
+        - failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
+      files:
+        - golang/server/metadata.go
