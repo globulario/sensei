@@ -2240,6 +2240,19 @@ invariants:
     evidence:
       - globulario/sensei#318 at 2f38ae57; the falsifier proves the helpers see an out-of-cap strong pattern, and the commit states plainly that the call-site wiring is not covered and why
     contract: A decision must depend on its semantic inputs DIRECTLY. It may not be correct only because some other function happens to sort, rank, or truncate in a favourable order. Where a decision reads a bounded list, correctness must not require the reader to know how that list was ordered elsewhere.
+  - id: invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
+    title: A verification mechanism must prove its falsifying path executed, not merely observe no failure
+    severity: critical
+    status: active
+    description: 'NON-EXECUTION FALSE GREEN. A verification mechanism reports success because the path that could have falsified the claim did not execute. Observed forms, each a distinct specimen in this repository: a dependency was unavailable so the test skipped and the package printed ok; a fixture''s precondition was absent so the assertion below it was irrelevant; a mutation never reached the code under test so its survival was read as protection; a rule could not load so it reported zero findings exactly like a clean tree; a CI edit landed in a job that runs no tests so the proof path was untouched while CI went green. All collapse into the same visible outcome -- PASS, no findings, silence -- which is indistinguishable from genuine success. The closure condition is ordered and none of its steps is optional: prove setup, then prove execution, then prove the falsifier can fire, and only then interpret the absence of a finding. This is not a testing style preference. Silence is produced both by ''nothing was wrong'' and by ''nothing was examined'', and a mechanism that cannot separate them is not a verification mechanism.'
+    protects:
+      files:
+        - cmd/awg/promote_evidence_test.go
+        - golang/reachability/resolve.go
+    required_tests:
+      - cmd/awg/promote_evidence_test.go:TestTheGateTestCanActuallyRunHere
+      - golang/reachability/reachability_test.go:TestEveryUnanswerableQuestionIsUnknownNeverCurrent
+    contract: A proof mechanism reports success only when the path that could have falsified the claim actually ran. Absence of a finding is interpretable ONLY after setup, execution, and the falsifier's ability to fire have each been shown.
   - id: invariant.sensei.resemblance_may_guide_a_change_but_never_govern_it
     title: Resemblance may guide a change but never govern it
     status: active
