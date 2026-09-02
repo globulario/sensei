@@ -2153,6 +2153,18 @@ failure_modes:
       - no workflow file mentioned ruleguard; the test's own comment asserted CI installs it
       - locally every sub-test skipped with 'cannot resolve go-ruleguard/dsl'; 26 rules prove their control once the DSL is a module dependency
       - proven was incremented at line 124 and never asserted
+  - id: failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
+    title: A domain-scoped answer carried the home domain's authority because the scope was read after the stamp
+    severity: high
+    description: 'Metadata accepted req.domain, scoped its per-class and triple counts to it, and stamped resp.Authority from graphAuthorityFromSnapshot -- graphAuthorityFromSnapshotFor with closureDomain '''' -- fifty lines BEFORE it read req.GetDomain(). The closure proof behind the verdict was therefore evaluated for the home domain and attached to counts scoped to the caller''s. Neither half is wrong alone; the composite hands an agent domain X''s node counts beside an AUTHORITATIVE verdict about a different repository''s publication. Measured with the authorityReferentServer fixture: Metadata(domain=sensei-code) returned AUTHORITATIVE with the closure evaluator asked about nothing at all. The drift detector that exists for exactly this class, TestAllDomainScopedSurfacesProjectTheSameAuthority, excluded metadata on the recorded grounds that it ''read the requested domain correctly'' -- so the one surface assumed correct was the one still defective, and its hardcoded surface list covered 3 of 6 projecting files while its comment promised that a new surface would fail there automatically.'
+    protects:
+      files:
+        - golang/server/metadata.go
+    required_tests:
+      - golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    evidence:
+      - reverting the one-line scoping change fails both TestMetadataAuthorityAnswersForTheDomainItWasAsked and the metadata surface of the drift detector; a positive control proves a proven domain still reports AUTHORITATIVE, so the negative case is not a blanket refusal
+    contract: A response scoped to a requested domain carries authority evaluated for THAT domain. A surface that accepts a scope may not stamp a verdict computed for another, and a coverage check over sibling surfaces must enumerate them structurally rather than by a hand-maintained list whose name claims more than its body.
   - id: failure.union_default_graph_reads_expose_in_flight_staging_graphs
     title: Union default-graph reads expose in-flight staging graphs
     description: Named graphs already exist and are NOT domains. Enabling union reads to make named-graph domain publication readable also makes transient staging graphs readable, destroying the atomicity the staging design provides.

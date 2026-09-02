@@ -28405,6 +28405,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestValidateBackend_UnhealthyStore_RequireTrue_ReturnsError is the\nother arm: the operator explicitly demanded a healthy backend at\nstartup, so we must fail fast with a message that names the URL and\nthe underlying cause. Anything less makes incident triage harder."
+  - id: golang/server/metadata_authority_domain_test.go:TestEveryAuthorityProjectingSurfaceIsCovered
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestEveryAuthorityProjectingSurfaceIsCovered
+    package: main
+    language: go
+    doc: "THE DRIFT DETECTOR MUST KNOW WHAT IT IS SUPPOSED TO COVER.\n\nTestAllDomainScopedSurfacesProjectTheSameAuthority promises that \"a surface\nadded later that forgets to scope its attestation fails here without anyone\nremembering to write a new test for it\". Its surface list was hardcoded, so\nthat promise was false: three of the six projecting files were absent, and\nmetadata -- absent, and assumed correct in the comment -- was the one still\ncarrying the defect.\n\nA name is not a scope. This test is what makes the name true."
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    package: main
+    language: go
+    doc: "METADATA SCOPES ITS COUNTS TO THE REQUESTED DOMAIN AND ITS AUTHORITY TO THE\nHOME DOMAIN.\n\nTestAllDomainScopedSurfacesProjectTheSameAuthority says in its own comment\nthat query, briefing, impact and resolve stamped the home domain's authority\nonto a domain-scoped answer \"while metadata read the requested domain\ncorrectly\". Metadata is the surface that did NOT get fixed, and the comment\nrecords it as the one that was already right.\n\nIt is not. Metadata builds its authority from graphAuthorityFromSnapshot,\nwhich is graphAuthorityFromSnapshotFor with closureDomain \"\" -- and it does so\nBEFORE it reads req.GetDomain() at all. So the closure proof behind the\nverdict is evaluated for the home domain, then attached to counts that were\nscoped to the caller's domain.\n\nThe composite is the dangerous part, not either half: an agent asking\nawareness_metadata(domain=X) is handed X's node counts beside an\nAUTHORITATIVE verdict that is about a different repository's publication.\nThis is the primary graph-health tool -- the one an agent reaches for first\n-- so the answer it gives is the one everything downstream trusts."
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataStillReportsAuthoritativeForAProvenDomain
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestMetadataStillReportsAuthoritativeForAProvenDomain
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL. The assertion above must be reachable: a proven domain has\nto be able to come back AUTHORITATIVE, or the negative case proves nothing\nand would keep passing if Metadata started refusing everything."
   - id: golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
     file: golang/server/metadata_authority_test.go
     symbol: TestMetadataAndPreflightCannotDisagreeAboutAuthority

@@ -2125,6 +2125,20 @@ required_tests:
         - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
       failure_modes:
         - failure.a_positive_control_gate_reported_success_while_no_rule_had_l
+  - id: golang/server/metadata_authority_domain_test.go:TestEveryAuthorityProjectingSurfaceIsCovered
+    title: Every authority-projecting surface is covered by the domain drift detector
+    protects:
+      failure_modes:
+        - failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
+      files:
+        - golang/server/metadata.go
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    title: Metadata answers authority for the domain it was asked about
+    protects:
+      failure_modes:
+        - failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
+      files:
+        - golang/server/metadata.go
   - id: cmd/awareness-mcp/reachability_unknown_test.go:TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
     title: Every MCP surface reports unknown when the graph states no revision
     protects:
