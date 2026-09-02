@@ -2165,3 +2165,15 @@ failure_modes:
     evidence:
       - reverting the one-line scoping change fails both TestMetadataAuthorityAnswersForTheDomainItWasAsked and the metadata surface of the drift detector; a positive control proves a proven domain still reports AUTHORITATIVE, so the negative case is not a blanket refusal
     contract: A response scoped to a requested domain carries authority evaluated for THAT domain. A surface that accepts a scope may not stamp a verdict computed for another, and a coverage check over sibling surfaces must enumerate them structurally rather than by a hand-maintained list whose name claims more than its body.
+  - id: failure.union_default_graph_reads_expose_in_flight_staging_graphs
+    title: Union default-graph reads expose in-flight staging graphs
+    description: Named graphs already exist and are NOT domains. Enabling union reads to make named-graph domain publication readable also makes transient staging graphs readable, destroying the atomicity the staging design provides.
+    protects:
+      files:
+        - cmd/awg/cmd_serve.go
+    related_invariants:
+      - graph.publication_requires_pre_mutation_domain_source_admission
+    required_tests:
+      - cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    evidence:
+      - 'sensei build PUTs a candidate slice and a SECOND seed marker into urn:sensei:graph-staging:<marker> and promotes it in one transaction (cmd/awg/cmd_build.go). With oxigraph --union-default-graph, an unqualified { ?s ?p ?o } matches every named graph, so concurrent briefing and metadata readers observe the unpublished candidate and a duplicate marker before the promotion commits. Measured: default-only reads see 0 triples and the staged candidate is invisible; union reads see 2 and it leaks.'

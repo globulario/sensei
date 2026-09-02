@@ -768,6 +768,24 @@ test_symbols:
     symbol: TestPhase10ToolsAreRegisteredAndReadOnly
     package: main
     language: go
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestABlankBuildCommitIsNotARevision
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestABlankBuildCommitIsNotARevision
+    package: main
+    language: go
+    doc: "Whitespace is not a revision. A build commit of spaces must reach the owner as\nempty, not be measured against the corpus as if it named something."
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestAGraphStatingNoRevisionIsReportedUnknownNotOmitted
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestAGraphStatingNoRevisionIsReportedUnknownNotOmitted
+    package: main
+    language: go
+    doc: "A GRAPH THAT STATES NO REVISION IS UNKNOWN, AND UNKNOWN MUST BE SAID OUT LOUD.\n\nreachabilityMap returned nil for an empty build commit, so every surface below\nemitted no reachability signal at all. The justification was that \"the question\nwas never askable\" -- but reachability.Assess answers exactly this input in its\nfirst case, as Unknown. The report was therefore not withheld for want of an\nanswer; the answer was discarded.\n\nThis is the state measured live on 2026-09-01: graph_build_commit empty while\nthe same response said state=current, verdict=authoritative. An agent reading\nthat response had nothing to distinguish it from a graph whose generation was\nestablished and fresh."
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    file: cmd/awareness-mcp/reachability_unknown_test.go
+    symbol: TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    package: main
+    language: go
+    doc: "EVERY SURFACE, NOT THE HELPER ALONE.\n\nThe helper was already \"the ONE place the assessment is built\" and the nil\nreturn still reached four renderers, because each guarded on nil separately.\nFixing the helper without these four would leave the same hole behind a\ndifferent line of code, which is the failure this repository keeps recording:\na mechanism repaired at one surface while its siblings are forgotten."
   - id: cmd/awareness-mcp/recovery_tools_test.go:TestCompletionToolsRejectNonStringIdentity
     file: cmd/awareness-mcp/recovery_tools_test.go
     symbol: TestCompletionToolsRejectNonStringIdentity
@@ -880,12 +898,12 @@ test_symbols:
     package: main
     language: go
     doc: "A deadline is not unreachability, and the wire code must say so too."
-  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+  - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnMCPAuthorityWithoutABuildCommitReportsUnknown
     file: cmd/awareness-mcp/transport_outcome_test.go
-    symbol: TestAnMCPAuthorityWithoutABuildCommitCarriesNoAssessment
+    symbol: TestAnMCPAuthorityWithoutABuildCommitReportsUnknown
     package: main
     language: go
-    doc: "A response whose authority states no build commit carries no assessment.\nAbsent, not a fabricated unknown: the question was never askable."
+    doc: "A response whose authority states no build commit carries no assessment.\nAbsent, not a fabricated unknown: the question was never askable.\nREVERSED, AND THE GOVERNING CONTRACT IS WHY.\n\nThis asserted that an authority with no build commit carries NO reachability\nkey -- \"an unaskable question was answered anyway\". The question is askable:\nPublishedCommit == \"\" is the first case in reachability.Assess and its answer\nis Unknown. The failure mode this whole mechanism serves states the rule\ndirectly:\n\n\t\"A stale or unestablished generation is reported as unpublished or\n\t UNESTABLISHED knowledge and NEVER as absence of law.\"\n\t  -- failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl\n\nAn absent key is absence. So the old assertion did not protect the contract,\nit excluded the contract's own third state, and the exclusion was measured\nlive on 2026-09-01: an empty graph_build_commit beside state=current,\nverdict=authoritative, and no reachability signal anywhere in the response.\n\nThe direction of this change matters for the constitutional rule that no\nrepair may weaken Unknown. This one does the reverse: it makes Unknown\nSAYABLE where it was silently dropped."
   - id: cmd/awareness-mcp/transport_outcome_test.go:TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
     file: cmd/awareness-mcp/transport_outcome_test.go
     symbol: TestAnUnrecognisedFailureIsUnclassifiedNotUnreachable
@@ -5903,12 +5921,12 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
-  - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitCarriesNoAssessment
+  - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
-    symbol: TestAResponseWithNoBuildCommitCarriesNoAssessment
+    symbol: TestAResponseWithNoBuildCommitReportsUnknown
     package: main
     language: go
-    doc: "A response whose authority states no build commit gets NO reachability key.\n\nAbsent, not a fabricated \"unknown\": the question was never askable for that\nresponse, and answering it anyway would be an assessment of nothing."
+    doc: "A response whose authority states no build commit gets NO reachability key.\n\nAbsent, not a fabricated \"unknown\": the question was never askable for that\nresponse, and answering it anyway would be an assessment of nothing.\nREVERSED. See TestAnMCPAuthorityWithoutABuildCommitReportsUnknown for the\nfull reasoning; the same contract governs both surfaces, and they were both\nsilent in the same measured live state.\n\nFor a --json caller the distinction is sharper than for a human reader. A\nmissing key reads as \"this build does not emit that field\"; state \"unknown\"\nreads as \"this graph could not account for its own generation\". Only the\nsecond is true, and only the second stops an automated caller from reading a\nmissing rule as an absent rule."
   - id: cmd/awg/json_reachability_test.go:TestEmitProtoJSONActuallyPrintsReachability
     file: cmd/awg/json_reachability_test.go
     symbol: TestEmitProtoJSONActuallyPrintsReachability
@@ -5948,6 +5966,18 @@ test_symbols:
     package: main
     language: go
     doc: "Crash after change_observed but before scope_verified: a re-run with an\nidentical observation resumes from the recorded change without appending a\nsecond change_observed."
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgs
+    file: cmd/awg/oxigraph_serve_args_test.go
+    symbol: TestOxigraphServeArgs
+    package: main
+    language: go
+    doc: "A mutation removing a flag from an inline exec.Command survived the entire\nsuite once: the store-level tests proved a flag MATTERED while nothing proved\nwe SET it. The argv is built in one place so it can be asserted."
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    file: cmd/awg/oxigraph_serve_args_test.go
+    symbol: TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    package: main
+    language: go
+    doc: "--union-default-graph must NOT be set while transient staging graphs exist.\n\n`sensei build` stages a candidate slice and a SECOND seed marker in\nurn:sensei:graph-staging:<marker> before promoting it in one transaction.\nUnion reads would expose that in-flight candidate to every concurrent\nunqualified query and break atomic publication. This is an invariant, not a\npreference: it must fail if someone adds the flag for the (real, but later)\nreason that named-graph publication needs it."
   - id: cmd/awg/promote_establish_test.go:TestADerivationEstablishesOnlyWhenItDerives
     file: cmd/awg/promote_establish_test.go
     symbol: TestADerivationEstablishesOnlyWhenItDerives
@@ -6080,6 +6110,18 @@ test_symbols:
     package: main
     language: go
     doc: "The lossless adapter, proven against REAL Oxigraph with SEEDED state.\n\nEvery other falsifier runs against in-process fakes, which structurally\ncannot catch representation loss at the adapter boundary -- and that boundary\nis exactly where the term-kind defect lived. An earlier version of this test\nread whatever the developer's live store happened to contain and SKIPPED when\nthere was none, so it was not CI evidence at all: it could pass by finding\nnothing. This seeds its own positive and malformed specimens and refuses to\nskip once Oxigraph is available."
+  - id: cmd/awg/reachability_unknown_test.go:TestJSONCallersSeeUnknownRatherThanAMissingKey
+    file: cmd/awg/reachability_unknown_test.go
+    symbol: TestJSONCallersSeeUnknownRatherThanAMissingKey
+    package: main
+    language: go
+    doc: "A --json CALLER GETS THE KEY, CARRYING \"unknown\".\n\nwithReachability returned the encoded response untouched when the authority\nstated no build commit, on the grounds that an absent key beat a \"fabricated\"\nunknown. It is not fabricated: the owner returns it. And for an automated\ncaller -- which is most callers, and the reason this moved out of the human\nrenderer -- a missing key reads as a field this build does not emit, while\n\"unknown\" reads as a generation that could not be established."
+  - id: cmd/awg/reachability_unknown_test.go:TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    file: cmd/awg/reachability_unknown_test.go
+    symbol: TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    package: main
+    language: go
+    doc: "THE HUMAN BLOCK NAMES REACHABILITY EVEN WHEN THE GRAPH NAMES NO REVISION.\n\nThe reachability line was printed only when GetGraphBuildCommit() was\nnon-empty. An empty build commit is not a missing question -- it is the\nFIRST Unknown case in reachability.Assess -- so the guard removed the line\nfrom exactly the graph that cannot account for itself, and printed\n\"Authority: authoritative (current)\" with nothing beside it.\n\nThat output is the pre-#321 block this line exists to replace, reproduced by\nthe condition #321 was written for. Measured live on 2026-09-01."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
@@ -28363,6 +28405,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestValidateBackend_UnhealthyStore_RequireTrue_ReturnsError is the\nother arm: the operator explicitly demanded a healthy backend at\nstartup, so we must fail fast with a message that names the URL and\nthe underlying cause. Anything less makes incident triage harder."
+  - id: golang/server/metadata_authority_domain_test.go:TestEveryAuthorityProjectingSurfaceIsCovered
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestEveryAuthorityProjectingSurfaceIsCovered
+    package: main
+    language: go
+    doc: "THE DRIFT DETECTOR MUST KNOW WHAT IT IS SUPPOSED TO COVER.\n\nTestAllDomainScopedSurfacesProjectTheSameAuthority promises that \"a surface\nadded later that forgets to scope its attestation fails here without anyone\nremembering to write a new test for it\". Its surface list was hardcoded, so\nthat promise was false: three of the six projecting files were absent, and\nmetadata -- absent, and assumed correct in the comment -- was the one still\ncarrying the defect.\n\nA name is not a scope. This test is what makes the name true."
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestMetadataAuthorityAnswersForTheDomainItWasAsked
+    package: main
+    language: go
+    doc: "METADATA SCOPES ITS COUNTS TO THE REQUESTED DOMAIN AND ITS AUTHORITY TO THE\nHOME DOMAIN.\n\nTestAllDomainScopedSurfacesProjectTheSameAuthority says in its own comment\nthat query, briefing, impact and resolve stamped the home domain's authority\nonto a domain-scoped answer \"while metadata read the requested domain\ncorrectly\". Metadata is the surface that did NOT get fixed, and the comment\nrecords it as the one that was already right.\n\nIt is not. Metadata builds its authority from graphAuthorityFromSnapshot,\nwhich is graphAuthorityFromSnapshotFor with closureDomain \"\" -- and it does so\nBEFORE it reads req.GetDomain() at all. So the closure proof behind the\nverdict is evaluated for the home domain, then attached to counts that were\nscoped to the caller's domain.\n\nThe composite is the dangerous part, not either half: an agent asking\nawareness_metadata(domain=X) is handed X's node counts beside an\nAUTHORITATIVE verdict that is about a different repository's publication.\nThis is the primary graph-health tool -- the one an agent reaches for first\n-- so the answer it gives is the one everything downstream trusts."
+  - id: golang/server/metadata_authority_domain_test.go:TestMetadataStillReportsAuthoritativeForAProvenDomain
+    file: golang/server/metadata_authority_domain_test.go
+    symbol: TestMetadataStillReportsAuthoritativeForAProvenDomain
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL. The assertion above must be reachable: a proven domain has\nto be able to come back AUTHORITATIVE, or the negative case proves nothing\nand would keep passing if Metadata started refusing everything."
   - id: golang/server/metadata_authority_test.go:TestMetadataAndPreflightCannotDisagreeAboutAuthority
     file: golang/server/metadata_authority_test.go
     symbol: TestMetadataAndPreflightCannotDisagreeAboutAuthority
@@ -29361,6 +29421,57 @@ test_symbols:
     package: store
     language: go
     doc: "The validator rejects ALL Unicode whitespace/control characters — not only ASCII — while\nlegal non-ASCII IRI characters stay accepted."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_DefaultGraphContentIsAttributableToNoDomain
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_DefaultGraphContentIsAttributableToNoDomain
+    package: oxigraph_test
+    language: go
+    doc: "Unattributed content must be claimable by NO domain. A partially migrated\ncorpus therefore reports affected domains UNPROVEN by construction rather\nthan falling back to subject tags."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_GraphIRIIsIndependentOfTheEndpoint
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_GraphIRIIsIndependentOfTheEndpoint
+    package: oxigraph_test
+    language: go
+    doc: "A relative graph name is NOT rejected by Oxigraph -- it is resolved against\nthe server's base URL, so \"github.com/globulario/sensei\" published at\n127.0.0.1:7988 becomes http://127.0.0.1:7988/github.com/globulario/sensei.\nThe endpoint would become part of the domain's identity and the same\nrepository would be a different graph at a different address. This pins the\nmapping against a real store, on two different ports."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_PublishingOneDomainLeavesAnotherUntouched
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_PublishingOneDomainLeavesAnotherUntouched
+    package: oxigraph_test
+    language: go
+    doc: "The defect this replaces: publishing sensei moved the services slice from\n059f47624207 to 5d0eb2f4eb85 and cost services its closure proof, because\nslice identity was computed over tagged SUBJECTS and 173 identifiers are\nlegitimately co-authored. Scoped to a graph, the PUT cannot reach a neighbour."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs
+    package: oxigraph_test
+    language: go
+    doc: "Named graphs are ALREADY in use, and they are not domains.\n\n`sensei build` PUTs a candidate slice and a SECOND seed marker into\nurn:sensei:graph-staging:<marker>, then promotes it in one transaction. Two\nproperties matter, and they pull in opposite directions:\n\n\tdefault-only reads  atomic publication holds; a named-graph domain is INVISIBLE\n\tunion reads         a domain becomes visible; so does every in-flight candidate\n\nThis test pins BOTH, because they are why the carrier lands while the read\nsurface stays default-only. The earlier version of this test asserted only\nthe second half and did so with a substring check that passed for any count."
+  - id: golang/store/oxigraph/named_graph_test.go:TestGraphURLEscapesTheDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestGraphURLEscapesTheDomain
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestGraphURLIsDistinctPerDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestGraphURLIsDistinctPerDomain
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphPutsToTheDomainsGraph
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphPutsToTheDomainsGraph
+    package: oxigraph
+    language: go
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphRefusesAnUnnamedDomain
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphRefusesAnUnnamedDomain
+    package: oxigraph
+    language: go
+    doc: "An unnamed domain must be REFUSED, never redirected to the default graph:\na caller that meant to publish one domain and instead replaced the whole\nstore would destroy every other domain's assertions."
+  - id: golang/store/oxigraph/named_graph_test.go:TestLoadGraphRefusesNoncanonicalDomainAliases
+    file: golang/store/oxigraph/named_graph_test.go
+    symbol: TestLoadGraphRefusesNoncanonicalDomainAliases
+    package: oxigraph
+    language: go
+    doc: "An ALIAS is a second graph for one logical domain. Each of these addresses a\ndifferent named graph than the canonical spelling, so a later publication\nunder the canonical form replaces only one of them and stale assertions\nsurvive beside current ones -- exactly the per-domain replacement this\nprimitive promises."
   - id: golang/store/oxigraph/oxigraph_integration_test.go:TestIntegration_Health_LiveOxigraph
     file: golang/store/oxigraph/oxigraph_integration_test.go
     symbol: TestIntegration_Health_LiveOxigraph

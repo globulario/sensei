@@ -81,10 +81,22 @@ func TestJSONOutputCarriesReachability(t *testing.T) {
 //
 // Absent, not a fabricated "unknown": the question was never askable for that
 // response, and answering it anyway would be an assessment of nothing.
-func TestAResponseWithNoBuildCommitCarriesNoAssessment(t *testing.T) {
+// REVERSED. See TestAnMCPAuthorityWithoutABuildCommitReportsUnknown for the
+// full reasoning; the same contract governs both surfaces, and they were both
+// silent in the same measured live state.
+//
+// For a --json caller the distinction is sharper than for a human reader. A
+// missing key reads as "this build does not emit that field"; state "unknown"
+// reads as "this graph could not account for its own generation". Only the
+// second is true, and only the second stops an automated caller from reading a
+// missing rule as an absent rule.
+func TestAResponseWithNoBuildCommitReportsUnknown(t *testing.T) {
 	resp := &awarenesspb.BriefingResponse{Authority: &awarenesspb.GraphAuthority{}}
 	out := withReachability([]byte(`{"authority":{}}`), resp)
-	if strings.Contains(string(out), "reachability") {
-		t.Fatalf("an unaskable question was answered anyway: %s", out)
+	if !strings.Contains(string(out), `"reachability"`) {
+		t.Fatalf("unestablished generation reported as absence of assessment: %s", out)
+	}
+	if !strings.Contains(string(out), `"state": "unknown"`) {
+		t.Fatalf("reachability key does not carry unknown: %s", out)
 	}
 }

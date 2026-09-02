@@ -2139,3 +2139,18 @@ required_tests:
         - failure.a_domain_scoped_answer_carried_the_home_domain_s_authority_b
       files:
         - golang/server/metadata.go
+  - id: cmd/awareness-mcp/reachability_unknown_test.go:TestEverySurfaceReportsUnknownWhenTheGraphStatesNoRevision
+    title: Every MCP surface reports unknown when the graph states no revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+  - id: cmd/awg/reachability_unknown_test.go:TestTheAuthorityBlockNamesReachabilityWhenTheGraphStatesNoRevision
+    title: The CLI authority block names reachability when the graph states no revision
+    protects:
+      failure_modes:
+        - failure.sensei.a_decision_surface_reported_current_while_the_admitted_knowl
+  - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
+    title: Union reads stay disabled while staging graphs exist
+    protects:
+      failure_modes:
+        - failure.union_default_graph_reads_expose_in_flight_staging_graphs
