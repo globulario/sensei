@@ -1192,6 +1192,12 @@ test_symbols:
     package: main
     language: go
     doc: "A project that correctly installs the principle pack holds a mirror it does\nnot author. Custody refuses to publish that mirror under the project's own\ndomain, so closure must not expect the project to project its identities —\notherwise the correct state is unprovable and every such repository reports\nits whole mirror missing.\n\nObserved live while running issue #176's regression matrix: sensei-code\nreported 23/161 projected with 138 missing, which is exactly the pack's\nprinciple count, and could never become authoritative."
+  - id: cmd/awg/build_publishes_generation_test.go:TestBothStoreLoadPathsPublishTheGeneration
+    file: cmd/awg/build_publishes_generation_test.go
+    symbol: TestBothStoreLoadPathsPublishTheGeneration
+    package: main
+    language: go
+    doc: "EVERY PATH THAT LOADS THE STORE PUBLISHES THE GENERATION THAT DESCRIBES IT.\n\nThere are two: the domain-scoped --repo update and the cold-start --all\nreplace. Only --repo published a proof set, so --all rewrote every triple in\nthe store and left ~/.sensei/graph/<store> naming the previous publication.\nexpectedGraphMarker prefers that store-scoped record over the marker file, so\nbriefing and preflight compared the live store against a generation it was\nnot built to and refused.\n\nThe refusal was correct in FORM and false in FACT, which is the worst kind:\nindistinguishable from a genuinely stale store, so the honest reaction --\nrebuild -- was the one that did not help. Measured 2026-09-02 on a new store\nwhose port had last been used three days earlier.\n\nA source-level check rather than an integration one, deliberately. Driving\nthe real path needs a live Oxigraph, and a test that skips when one is absent\nis not a check -- it would have been absent in CI for exactly the same reason\nthe defect survived."
   - id: cmd/awg/build_transaction_test.go:TestEvaluateBuildTransactionFreshness_Current
     file: cmd/awg/build_transaction_test.go
     symbol: TestEvaluateBuildTransactionFreshness_Current
@@ -25460,6 +25466,30 @@ test_symbols:
     symbol: TestVerifyPack_Valid
     package: governancepack
     language: go
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestAColdStartGenerationReplacesThePreviousOne
+    file: golang/graphgeneration/coldstart_generation_test.go
+    symbol: TestAColdStartGenerationReplacesThePreviousOne
+    package: graphgeneration
+    language: go
+    doc: "A WHOLE-STORE REPLACE MUST REPLACE THE IDENTITY THAT DESCRIBES THE STORE.\n\n`sensei build --all` rewrote every triple and left the store-scoped\ngeneration naming the PREVIOUS publication, because only --repo published a\nproof set. expectedGraphMarker prefers that record over the marker file, so\nevery freshness-gated surface compared the live store against a generation it\nwas not built to and refused:\n\n\tgraph freshness stale for briefing: live store missing expected graph\n\tmarker f87c6912...\n\nMeasured 2026-09-02 on a brand-new store whose port had last been used three\ndays earlier: it inherited that port's generation record, and a build that\nagreed with the store exactly could not serve a briefing."
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestAnUnnamedBuiltDomainIsNotRecordedAsADomain
+    file: golang/graphgeneration/coldstart_generation_test.go
+    symbol: TestAnUnnamedBuiltDomainIsNotRecordedAsADomain
+    package: graphgeneration
+    language: go
+    doc: "AN UNNAMED DOMAIN IS NOT A DOMAIN.\n\nbuiltDomain was added to the wanted set unconditionally, so a cold-start\nbuild would create an entry keyed by the empty string with a slice digest\ncomputed over nothing -- a proof-shaped record about no subject."
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestInvalidateDropsAPointerThatDescribesReplacedContent
+    file: golang/graphgeneration/coldstart_generation_test.go
+    symbol: TestInvalidateDropsAPointerThatDescribesReplacedContent
+    package: graphgeneration
+    language: go
+    doc: "A STORE MUST NOT KEEP CLAIMING A GENERATION IT NO LONGER HOLDS.\n\nWhen a cold-start build cannot publish a replacement set -- Write refuses one\nwith no domain proofs, because publishing it would drop every proof while\nclaiming to be a publication -- the previous pointer must still go. The\ncontent it described has already been replaced by the time that refusal is\nreached, and expectedGraphMarker prefers the store-scoped record over the\nmarker file, so leaving it makes a fresh store inherit a stale identity."
+  - id: golang/graphgeneration/coldstart_generation_test.go:TestInvalidateIsQuietWhenNothingWasPublished
+    file: golang/graphgeneration/coldstart_generation_test.go
+    symbol: TestInvalidateIsQuietWhenNothingWasPublished
+    package: graphgeneration
+    language: go
+    doc: "Invalidating a store that never published is not an error: \"there is nothing\nto drop\" and \"the drop failed\" are different, and only one is a problem."
   - id: golang/graphgeneration/domain_slice_count_test.go:TestAProofSetWithoutCountsRecordsNoExpectation
     file: golang/graphgeneration/domain_slice_count_test.go
     symbol: TestAProofSetWithoutCountsRecordsNoExpectation

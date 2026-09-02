@@ -59,8 +59,24 @@ func publishProofSet(storeEndpoint, builtDomain string, marker seedmeta.Marker,
 	)
 
 	if err := graphgeneration.Write(dir, storeEndpoint, next); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: publish graph proof set: %v\n", err)
-		return 1
+		// A SET THAT CANNOT BE PUBLISHED MUST NOT LEAVE THE PREVIOUS ONE STANDING.
+		//
+		// Write refuses a set with no domain proofs, correctly: publishing one
+		// would drop every domain's proof while claiming to be a publication.
+		// But the store's content has already been replaced by the time we get
+		// here, so the previous generation is no longer a true statement about
+		// it -- and expectedGraphMarker prefers that record over the marker
+		// file. Leaving it is how a fresh build inherits a stale identity.
+		//
+		// Dropping the pointer reports "this store has published nothing",
+		// which is true, and falls through to the marker file this build wrote.
+		if invErr := graphgeneration.Invalidate(dir); invErr != nil {
+			fmt.Fprintf(os.Stderr, "sensei build: publish graph proof set: %v (and the stale pointer could not be dropped: %v)\n", err, invErr)
+			return 1
+		}
+		fmt.Fprintf(os.Stderr, "  proof set: not published (%v)\n", err)
+		fmt.Fprintf(os.Stderr, "    the store's previous generation pointer was dropped: it described content this build replaced\n")
+		return 0
 	}
 
 	proven, refused := summarizeProofSet(next)
