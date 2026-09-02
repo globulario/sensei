@@ -505,7 +505,7 @@ incident_patterns:
 func TestImportDir_SelfAwareness_ExpandedCoverage(t *testing.T) {
 	docsDir := "../../docs/awareness"
 	if _, err := os.Stat(docsDir); err != nil {
-		t.Skipf("docs/awareness not found relative to test dir: %v", err)
+		t.Fatalf("docs/awareness is absent (%v): it is 105 tracked files in this repository, so this is a defect and not a reason to stop importing", err)
 	}
 
 	report, out := importDir(t, docsDir)
@@ -555,7 +555,7 @@ func TestImportDir_SelfAwareness_ExpandedCoverage(t *testing.T) {
 func TestImportDir_SelfAwareness_NoUnsupportedAuthoritativeFilesOutsideGenerated(t *testing.T) {
 	docsDir := "../../docs/awareness"
 	if _, err := os.Stat(docsDir); err != nil {
-		t.Skipf("docs/awareness not found relative to test dir: %v", err)
+		t.Fatalf("docs/awareness is absent (%v): it is 105 tracked files in this repository, so this is a defect and not a reason to stop importing", err)
 	}
 
 	report, _ := importDir(t, docsDir)

@@ -454,7 +454,11 @@ func (noDumpStore) CountByClass(ctx context.Context, classIRI string) (int64, er
 func TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift(t *testing.T) {
 	marker, ok := normalizedEmbeddedSeedMarker()
 	if !ok {
-		t.Skip("embedded seed carries no marker in this build")
+		// The seed is EMBEDDED and COMMITTED, and the marker is what certifies
+		// it. A build whose seed carries no marker is the failure this startup
+		// boundary exists to catch, not a configuration to skip past.
+		t.Fatal("the embedded seed carries no marker: the seed cannot be certified, " +
+			"which is the condition this startup boundary exists to refuse")
 	}
 	drifted := seedVerifierStore{dumpFn: func() ([]byte, error) {
 		needle := "<" + marker.IRI + "> "
@@ -484,7 +488,10 @@ func TestEnforceCurrentSeed_FailsClosedOnCountPreservingContentDrift(t *testing.
 // of evidence is not a pass.
 func TestEnforceCurrentSeed_FailsClosedWhenContentCannotBeVerified(t *testing.T) {
 	if _, ok := normalizedEmbeddedSeedMarker(); !ok {
-		t.Skip("embedded seed carries no marker in this build")
+		// Same reasoning as above, and this test's own comment states the rule
+		// it was breaking: "Absence of evidence is not a pass."
+		t.Fatal("the embedded seed carries no marker, so this fail-closed boundary " +
+			"is never exercised; absence of evidence is not a pass")
 	}
 	err := enforceCurrentSeed(context.Background(), noDumpStore{}, "http://test/query", false, log.New(io.Discard, "", 0))
 	if err == nil {

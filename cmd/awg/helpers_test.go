@@ -183,7 +183,11 @@ func TestGenerateNT_FromAwarenessGraphRepo_RetainsPairedServicesAuthority(t *tes
 		t.Fatalf("resolveAGRepo: %v", err)
 	}
 	if agRepo == "" {
-		t.Skip("awareness-graph repo root not discoverable from test cwd")
+		// resolveAGRepo returned NO ERROR and no path. The test runs inside the
+		// repository it is trying to find, so an empty answer is the resolver
+		// being wrong, not the environment being limited.
+		t.Fatal("resolveAGRepo succeeded but returned no root, from a test running " +
+			"inside the awareness-graph repository itself")
 	}
 	// Standalone build: when awareness-graph carries its own namespace registry
 	// it is the self-only (open-source) build, whose seed intentionally omits the

@@ -114,7 +114,11 @@ func TestRemovedFilesAreDeletedInTheDefectCommit(t *testing.T) {
 		}
 	}
 	if checked == 0 {
-		t.Skip("no defect in the suite removes a file")
+		// The "at least one" shape: skipping a defect that removes no file is
+		// right per defect, but checking NONE means the deletion-recording
+		// assertion never ran and the package still reports ok.
+		t.Fatal("no defect in the suite removes a file, so deletion recording was never " +
+			"exercised; the suite is defined in this repository, so this is a defect")
 	}
 }
 

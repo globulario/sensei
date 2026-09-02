@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"github.com/globulario/sensei/internal/repofixture"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -456,9 +457,24 @@ related_invariants:
 // directory in the services repo and verifies that intent files are now imported
 // rather than classified as known_unsupported.
 func TestPhaseC_Intent_IntegrationSelfAwareness(t *testing.T) {
-	const docsIntent = "/home/dave/Documents/github.com/globulario/services/docs/intent"
+	// THE PATH WAS HARDCODED INTO ONE PERSON'S HOME DIRECTORY.
+	//
+	// It read "/home/dave/Documents/github.com/globulario/services/docs/intent",
+	// so this test could not run on any other machine, on CI, or even on
+	// another checkout of the services repository on the same machine. It was
+	// not conditionally skipped; it was unconditionally skipped everywhere but
+	// one laptop, while reporting ok.
+	//
+	// The sibling services-dependent tests in this repository already take
+	// SERVICES_REPO, so this now does the same and skips by the same named
+	// reason they use.
+	servicesRepo := os.Getenv("SERVICES_REPO")
+	if servicesRepo == "" {
+		servicesRepo = filepath.Join("..", "..", "..", "services")
+	}
+	docsIntent := filepath.Join(servicesRepo, "docs", "intent")
 	if _, err := os.Stat(docsIntent); err != nil {
-		t.Skipf("docs/intent not found: %v", err)
+		t.Skipf("services docs/intent not resolvable at %s; set SERVICES_REPO to run: %v", docsIntent, err)
 	}
 
 	var buf bytes.Buffer

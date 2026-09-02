@@ -27,8 +27,14 @@ func TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository(t *testing.T) {
 	}
 	a := ResolveFromGit(context.Background(), "../..", strings.TrimSpace(string(head)))
 	if a.State != StateCurrent {
-		t.Fatalf("a graph built from HEAD reported %q (%s); HEAD contains every authored corpus change",
-			a.State, a.Detail)
+		// Say what the environment actually was. This failed in CI and the
+		// message could not distinguish an unfetched base from an unrelated
+		// history, which cost a full diagnostic cycle.
+		refs, _ := exec.Command("git", "-C", "../..", "for-each-ref", "--format=%(refname)",
+			"refs/remotes/", "refs/heads/").Output()
+		t.Fatalf("a graph built from HEAD reported %q (%s); HEAD contains every authored corpus change.\n"+
+			"head=%s corpus=%s published=%s\nrefs present:\n%s",
+			a.State, a.Detail, strings.TrimSpace(string(head)), a.CorpusCommit, a.PublishedCommit, refs)
 	}
 }
 
@@ -178,5 +184,86 @@ func TestTheAdmittedBaseIsFoundOnARemoteNotNamedOrigin(t *testing.T) {
 	if a.CorpusCommit != strings.TrimSpace(string(upstreamTip)) {
 		t.Errorf("corpus resolved to %q, want the upstream default head %q",
 			a.CorpusCommit, strings.TrimSpace(string(upstreamTip)))
+	}
+}
+
+// A fork checkout: `origin` is the fork, `upstream` is the canonical
+// repository, and `git remote` lists origin first.
+//
+// Taking the first remote default-head that returns any commit made the FORK's
+// line the corpus, and the published revision need not be ordered against it —
+// reported as "neither contains the other", an honest Unknown about a question
+// asked of the wrong branch. The base must be chosen by whether it can be
+// ordered against the published revision, not by the order git happens to list
+// remotes in.
+func TestTheCorpusBaseIsChosenByOrderabilityNotByRemoteListingOrder(t *testing.T) {
+	if err := exec.Command("git", "--version").Run(); err != nil {
+		t.Skipf("git is not installed: %v", err)
+	}
+	canonical, fork, work := t.TempDir(), t.TempDir(), t.TempDir()
+	run := func(dir string, args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+			"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("fixture step `git %s` failed: %v\n%s", strings.Join(args, " "), err, out)
+		}
+	}
+	corpus := func(dir, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Join(dir, "docs", "awareness"), 0o755); err != nil {
+			t.Fatalf("cannot build fixture: %v", err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "docs/awareness/invariants.yaml"), []byte(body), 0o644); err != nil {
+			t.Fatalf("cannot write fixture: %v", err)
+		}
+	}
+
+	// The canonical repository, with the admitted corpus.
+	run(canonical, "init", "-q", "-b", "main")
+	corpus(canonical, "invariants: [ {id: canonical} ]\n")
+	run(canonical, "add", "-A")
+	run(canonical, "commit", "-q", "-m", "canonical corpus")
+
+	// A fork with an UNRELATED history that also carries a corpus commit.
+	run(fork, "init", "-q", "-b", "main")
+	corpus(fork, "invariants: [ {id: fork} ]\n")
+	run(fork, "add", "-A")
+	run(fork, "commit", "-q", "-m", "fork corpus")
+
+	// The working checkout descends from CANONICAL, but its `origin` is the
+	// fork — the ordinary shape of a contributor's clone.
+	run(work, "init", "-q", "-b", "feature")
+	run(work, "remote", "add", "origin", fork)
+	run(work, "remote", "add", "upstream", canonical)
+	run(work, "fetch", "-q", "origin")
+	run(work, "fetch", "-q", "upstream")
+	run(work, "reset", "-q", "--hard", "upstream/main")
+	run(work, "remote", "set-head", "origin", "main")
+	run(work, "remote", "set-head", "upstream", "main")
+
+	head, err := exec.Command("git", "-C", work, "rev-parse", "HEAD").Output()
+	if err != nil {
+		t.Fatalf("fixture has no head: %v", err)
+	}
+	canonicalTip, err := exec.Command("git", "-C", work, "rev-parse", "upstream/main").Output()
+	if err != nil {
+		t.Fatalf("fixture has no upstream ref: %v", err)
+	}
+	// The fixture must actually be the case under test: origin listed first.
+	remotes, err := exec.Command("git", "-C", work, "remote").Output()
+	if err != nil || !strings.HasPrefix(strings.TrimSpace(string(remotes)), "origin") {
+		t.Fatalf("fixture does not list origin first (%q); the case under test is not constructed", remotes)
+	}
+
+	a := ResolveFromGit(context.Background(), work, strings.TrimSpace(string(head)))
+	if a.State != StateCurrent {
+		t.Fatalf("a checkout whose canonical remote is `upstream` reported %q (%s); the fork's "+
+			"unrelated line was taken as the corpus because git lists origin first",
+			a.State, a.Detail)
+	}
+	if a.CorpusCommit != strings.TrimSpace(string(canonicalTip)) {
+		t.Errorf("corpus resolved to %q, want the canonical tip %q", a.CorpusCommit, strings.TrimSpace(string(canonicalTip)))
 	}
 }

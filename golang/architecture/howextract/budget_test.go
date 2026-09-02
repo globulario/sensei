@@ -201,7 +201,11 @@ func TestEvidenceCeilingCutsReceiptsRatherThanCountingThem(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(full.RawEvidence) < 2 {
-		t.Skip("fixture produces too little evidence for a meaningful ceiling")
+		// The fixture is in this repository. Producing too little evidence
+		// means it is no longer the case under test, so the ceiling below is
+		// never exercised and passing asserts coverage that is absent.
+		t.Fatalf("fixture produced %d raw evidence item(s), too few for a meaningful "+
+			"ceiling; the budget ceiling is unexercised", len(full.RawEvidence))
 	}
 
 	opts := defaultOpts()
@@ -316,7 +320,8 @@ func TestBudgetDroppedEvidenceIsNotReportedAsNoResult(t *testing.T) {
 		discovering[rec.Provider.ID] = true
 	}
 	if len(discovering) < 2 {
-		t.Skip("fixture exercises too few providers for this to be meaningful")
+		t.Fatal("the fixture exercises too few providers for the per-provider budget to " +
+			"be meaningful; this assertion is unexercised rather than satisfied")
 	}
 
 	opts := defaultOpts()

@@ -973,7 +973,11 @@ func TestCoverageEvidenceResolutionSurvivesTheIndex(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				doc := createValidBaseDocument()
 				if len(doc.Coverage) == 0 || len(doc.Coverage[0].ResultEvidenceIDs) == 0 {
-					t.Skip("fixture carries no resolved coverage evidence")
+					// createValidBaseDocument builds this IN CODE. A fixture that
+					// lacks the property under test is a defect in the fixture,
+					// and skipping retires the mutation table silently.
+					t.Fatal("createValidBaseDocument produced no resolved coverage evidence, " +
+						"so this mutation table asserts nothing")
 				}
 				tc.mutate(&doc)
 				err := Validate(doc)
@@ -987,7 +991,8 @@ func TestCoverageEvidenceResolutionSurvivesTheIndex(t *testing.T) {
 	t.Run("a duplicate evidence ID in one entry is refused", func(t *testing.T) {
 		doc := createValidBaseDocument()
 		if len(doc.Coverage) == 0 || len(doc.Coverage[0].ResultEvidenceIDs) == 0 {
-			t.Skip("fixture carries no resolved coverage evidence")
+			t.Fatal("createValidBaseDocument produced no resolved coverage evidence, " +
+				"so the duplicate-id refusal is never exercised")
 		}
 		id := doc.Coverage[0].ResultEvidenceIDs[0]
 		doc.Coverage[0].ResultEvidenceIDs = append(doc.Coverage[0].ResultEvidenceIDs, id)
