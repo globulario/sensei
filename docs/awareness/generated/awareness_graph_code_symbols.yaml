@@ -22854,6 +22854,30 @@ test_symbols:
     package: assertionprovenance
     language: go
     doc: "PROOF 4. One assertion claimed by two domains is refused, not resolved."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestCarryForwardHonoursEveryValueOfAMultiValuedPredicate
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestCarryForwardHonoursEveryValueOfAMultiValuedPredicate
+    package: assertionprovenance
+    language: go
+    doc: "Finding 3 (P2): a multi-valued predicate must not lose proofs to ordering.\n\nA subject with two requiresTest edges: depending on the FIRST must hold, and\nmust hold under either serialization order."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestCarryForwardRefusesDependencyMetadataThatPinsAnotherAssertion
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestCarryForwardRefusesDependencyMetadataThatPinsAnotherAssertion
+    package: assertionprovenance
+    language: go
+    doc: "Finding 6 (P1): proof metadata must be self-consistent before it is trusted.\n\nMetadata naming assertion A while pinning DigestOf(B) would otherwise pass\nwhenever B is live, regardless of what happened to A."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestCarryForwardRefusesMalformedDependencyDigestsWithoutPanicking
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestCarryForwardRefusesMalformedDependencyDigestsWithoutPanicking
+    package: assertionprovenance
+    language: go
+    doc: "Finding 4 (P2): malformed proof metadata must fail closed, not panic."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestCarryForwardRejectsADependencyReassignedToAnotherDomain
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestCarryForwardRejectsADependencyReassignedToAnotherDomain
+    package: assertionprovenance
+    language: go
+    doc: "Finding 1 (P1): a dependency reassigned to another domain must invalidate.\n\nSame subject, predicate and object; different author. If the digest omits\nOrigin these are indistinguishable and the closure proof survives an\nauthority change -- the exact collapse this package exists to prevent."
   - id: golang/assertionprovenance/assertionprovenance_test.go:TestChangingADeclaredDependencyInvalidatesTheDependent
     file: golang/assertionprovenance/assertionprovenance_test.go
     symbol: TestChangingADeclaredDependencyInvalidatesTheDependent
@@ -22878,6 +22902,18 @@ test_symbols:
     package: assertionprovenance
     language: go
     doc: "PROOF 1. Same subject, different domains, different assertions — both\nidentities stable.\n\nUnder subject ownership this was impossible: each domain's digest covered\nevery triple on the shared subject, so each contained the other's content and\nmoved whenever the other published."
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestSliceDigestDistinguishesSlicesThatSeparatorEncodingWouldCollide
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestSliceDigestDistinguishesSlicesThatSeparatorEncodingWouldCollide
+    package: assertionprovenance
+    language: go
+    doc: "Finding 2 (P1): the slice digest must not be forgeable by field content.\n\nThe obvious example -- {a,b,c},{d,e,f} against the single merged assertion\n{a,b,\"c\\nd\\x1fe\\x1ff\"} -- is NOT sufficient: those slices differ in length,\nso a count prefix alone separates them and the test passes without ever\nexercising the framing. A mutation reverting the encoding survived it.\n\nThe load-bearing case holds the count fixed and moves a field boundary\nBETWEEN two assertions, so only per-field length prefixes can tell them\napart:\n\n\tA = {a,b,\"c\\nd\"}, {e,f,g}   -> a.b.c\\nd \\n e.f.g \\n\n\tB = {a,b,c}, {\"d\\ne\",f,g}   -> a.b.c \\n d\\ne.f.g \\n      (identical bytes)"
+  - id: golang/assertionprovenance/assertionprovenance_test.go:TestSliceKeepsStatementsThatADelimitedKeyWouldConflate
+    file: golang/assertionprovenance/assertionprovenance_test.go
+    symbol: TestSliceKeepsStatementsThatADelimitedKeyWouldConflate
+    package: assertionprovenance
+    language: go
+    doc: "Finding 5 (P1): the statement key must not collide either.\n\n{a,b,\"c\\x1fd\"} and {a,\"b\\x1fc\",d} are different statements that a\ndelimiter-joined key cannot tell apart. Because that key gates the `seen`\nmap, the second same-origin assertion is DISCARDED before any digest is\ncomputed: the framed digest then faithfully hashes a slice that silently\nlost an assertion, and carry-forward preserves the proof across a real\nchange. Framing the digest is not sufficient if the key that decides\nmembership is still delimited."
   - id: golang/assertionprovenance/assertionprovenance_test.go:TestUnattributedAssertionIsRefusedRatherThanAssigned
     file: golang/assertionprovenance/assertionprovenance_test.go
     symbol: TestUnattributedAssertionIsRefusedRatherThanAssigned
