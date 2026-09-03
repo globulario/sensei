@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sort"
 	"sync"
 
@@ -112,8 +113,21 @@ func classFactsToRuntimeEvidence(facts []store.ImpactFact) []loadedRuntimeEviden
 	return out
 }
 
-// matchRuntimeEvidence returns the evidence profiles for the authority domains
-// a touched file belongs to.
+// matchRuntimeEvidence returns EVERY evidence profile for the authority domains
+// a touched file belongs to. It matches; it does not present.
+//
+// It used to cap the result at maxEvidenceSurfaced and return the prefix, which
+// put a presentation bound inside the matching step. The bound then reached
+// Preflight's RequiredActions with nothing saying it had been applied, so a
+// third required evidence profile was dropped in silence: a caller satisfied
+// two requirements, saw no others, and had no way to learn a third existed.
+//
+// The requirement is not softened -- the rendering is still bounded, because an
+// unbounded action list is its own defect. What changes is that the omission is
+// STATED, and that the complete set survives long enough for a caller to be
+// told how much of it it is seeing. Deciding from the whole set and projecting
+// afterwards is the shape this repository already records; capping first is the
+// shape it records as the defect.
 func matchRuntimeEvidence(matchedDomains []loadedAuthorityDomain, profiles []loadedRuntimeEvidence) []loadedRuntimeEvidence {
 	if len(profiles) == 0 || len(matchedDomains) == 0 {
 		return nil
@@ -131,17 +145,24 @@ func matchRuntimeEvidence(matchedDomains []loadedAuthorityDomain, profiles []loa
 			}
 		}
 	}
-	if len(out) > maxEvidenceSurfaced {
-		out = out[:maxEvidenceSurfaced]
-	}
 	return out
 }
 
 // evidenceRequirementActions renders matched evidence profiles as bounded
 // required-action lines for Preflight.
+//
+// The bound lives here, at the presentation edge, and it announces itself. A
+// required action that is silently absent is worse than a long list: the reader
+// cannot distinguish "these are the requirements" from "these are two of the
+// requirements", and only the first is safe to act on.
 func evidenceRequirementActions(profiles []loadedRuntimeEvidence) []string {
+	shown, omitted := profiles, 0
+	if len(shown) > maxEvidenceSurfaced {
+		omitted = len(shown) - maxEvidenceSurfaced
+		shown = shown[:maxEvidenceSurfaced]
+	}
 	var out []string
-	for _, ev := range profiles {
+	for _, ev := range shown {
 		name := ev.Label
 		if name == "" {
 			name = ev.ID
@@ -157,6 +178,14 @@ func evidenceRequirementActions(profiles []loadedRuntimeEvidence) []string {
 		if ev.CannotPromoteToPassWhenStale {
 			out = append(out, "Evidence ["+name+"]: stale or missing evidence must NOT be promoted to PASS — yield UNKNOWN/CHECK_ERROR/DEGRADED")
 		}
+	}
+	// NAME THE OMISSION, and name it as incompleteness rather than as a count.
+	// "+2 more" reads as detail a reader may skip; this list is requirements,
+	// and a reader who skips it believes it satisfied.
+	if omitted > 0 {
+		out = append(out, fmt.Sprintf(
+			"Evidence requirements INCOMPLETE: %d further requirement(s) apply to this change and are not listed here — this list is bounded at %d, so satisfying it is not sufficient",
+			omitted, maxEvidenceSurfaced))
 	}
 	return out
 }

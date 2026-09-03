@@ -29357,6 +29357,24 @@ test_symbols:
     package: main
     language: go
     doc: "12. Confidence tiering — 0/1-2/≥3 anchor bands."
+  - id: golang/server/runtime_evidence_cap_test.go:TestACompleteRequiredEvidenceListDoesNotClaimIncompleteness
+    file: golang/server/runtime_evidence_cap_test.go
+    symbol: TestACompleteRequiredEvidenceListDoesNotClaimIncompleteness
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL: an un-truncated list must NOT claim incompleteness, or the\nwarning becomes noise attached to every preflight and stops being read."
+  - id: golang/server/runtime_evidence_cap_test.go:TestATruncatedRequiredEvidenceListSaysItIsIncomplete
+    file: golang/server/runtime_evidence_cap_test.go
+    symbol: TestATruncatedRequiredEvidenceListSaysItIsIncomplete
+    package: main
+    language: go
+    doc: "A REQUIREMENT THAT IS NOT SHOWN MUST NOT BE SILENTLY ABSENT.\n\nmaxEvidenceSurfaced capped the MATCHED set and returned the prefix, so\nPreflight's RequiredActions carried two requirements out of three with\nnothing saying so. A caller satisfied what it was shown and had no way to\nlearn a third applied. Bounding the list is fine; bounding it in silence\nturns \"these are the requirements\" into \"these are two of the requirements\"\nwithout changing a single word of the output."
+  - id: golang/server/runtime_evidence_cap_test.go:TestMatchingStillDecidesTheSameChangesNeedEvidence
+    file: golang/server/runtime_evidence_cap_test.go
+    symbol: TestMatchingStillDecidesTheSameChangesNeedEvidence
+    package: main
+    language: go
+    doc: "The decision the consumer makes on this list is len(matched) > 0. It was\ncap-invariant before and must stay so — this pins that the repair did not\nchange which changes surface evidence requirements at all."
   - id: golang/server/runtime_evidence_golden_test.go:TestPreflightSurfacesEvidenceRequirements
     file: golang/server/runtime_evidence_golden_test.go
     symbol: TestPreflightSurfacesEvidenceRequirements

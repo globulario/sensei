@@ -2201,3 +2201,17 @@ failure_modes:
     evidence:
       - with file_status removed from the response the RPC test fails because the field reads as its zero value OK for a file with no anchors; with the presence check removed an absent field is read as governed; live, 4 governed files record OK and 4 ungoverned record EMPTY where all 9 previously recorded DEGRADED
     contract: A response that answers two independent questions carries two fields. A composite that folds a subsystem's availability into an epistemic verdict may be offered, but never as the only answer, because a consumer needing the second question then receives the first. An additive status field is optional so that absence is distinguishable from its zero value.
+  - id: failure.a_required_action_list_was_bounded_in_silence_so_satisfying
+    title: A required-action list was bounded in silence, so satisfying it was not sufficient
+    severity: high
+    description: 'matchRuntimeEvidence capped its result at maxEvidenceSurfaced=2 and returned the prefix, putting a presentation bound inside the matching step. The capped list became Preflight RequiredActions with nothing recording that a bound had been applied, so a third required evidence profile was dropped in silence: a caller satisfied the two requirements it was shown, saw no others, and had no way to learn a third applied. The consumer''s decision len(matched)>0 was cap-invariant, so no verdict changed -- which is why it survived: the defect is not a wrong verdict but an output that reads as complete while being a prefix. Found 2026-09-02 during reflex-v1''s by-hand verification and deliberately NOT scored as the cap-before-decision shape, because stretching that definition to claim a subject would have manufactured the experiment''s result.'
+    protects:
+      files:
+        - golang/server/runtime_evidence.go
+    related_invariants:
+      - invariant.sensei.governance_decides_from_complete_state_and_projects_afterwards
+    required_tests:
+      - golang/server/runtime_evidence_cap_test.go:TestATruncatedRequiredEvidenceListSaysItIsIncomplete
+    evidence:
+      - restoring the cap inside matchRuntimeEvidence fails TestATruncatedRequiredEvidenceListSaysItIsIncomplete on the matched count; bounding without the incompleteness line fails it on the message; emitting the line unconditionally fails the positive control
+    contract: A bounded list of REQUIREMENTS states that it is bounded. Matching decides what applies and returns it complete; presentation bounds it and names what it omitted. A requirement absent without a statement of absence converts 'these are the requirements' into 'these are some of them' with no change to the output a reader sees.
