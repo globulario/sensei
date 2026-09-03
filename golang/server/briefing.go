@@ -332,7 +332,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	}
 
 	prose := composeBriefingProseWithPrinciples(file, task, impact, codeSyms, implPatterns, principleGuidance, statusVal, profile)
-	prose += composePackageInferenceNote(inference)
+	prose += composePackageInferenceNote(inference, profile.inferredNodes)
 	var ib strings.Builder
 	appendMatchedIntentsSection(&ib, matchedIntents)
 	prose += ib.String()
@@ -940,7 +940,7 @@ func renderingGroupsBriefingSection(groups []store.RenderingGroupInfo) string {
 //
 // An unavailable walk says so. Rendering nothing would make "this package has
 // no other governed files" and "the query failed" look identical.
-func composePackageInferenceNote(p packageInference) string {
+func composePackageInferenceNote(p packageInference, cap int) string {
 	if p.Unavailable {
 		return "\n\nPackage-level inference unavailable: " + p.Reason +
 			"\n(absence of inferred anchors below is NOT evidence the package is ungoverned)"
@@ -957,12 +957,28 @@ func composePackageInferenceNote(p packageInference) string {
 			from: p.from[iri], class: p.class[iri],
 		})
 	}
+	// ORDER BY AN AUTHORED PROPERTY, NOT BY A GUESS ABOUT RELEVANCE.
+	//
+	// Alphabetical-by-class ordering decided what survives a bound arbitrarily.
+	// Severity is authored on the entry itself and says nothing about this
+	// subject, so it ranks the same way for every file in the package and
+	// cannot encode which answer anyone hopes for. Ties keep the previous
+	// class/id order so the output stays deterministic.
 	sort.Slice(lines, func(i, j int) bool {
+		if r, s := severityRank(lines[i].severity), severityRank(lines[j].severity); r != s {
+			return r < s
+		}
 		if lines[i].class != lines[j].class {
 			return lines[i].class < lines[j].class
 		}
 		return lines[i].id < lines[j].id
 	})
+
+	omitted := 0
+	if cap > 0 && len(lines) > cap {
+		omitted = len(lines) - cap
+		lines = lines[:cap]
+	}
 
 	var b strings.Builder
 	b.WriteString("\n\nInferred from this package (anchored to sibling files, NOT to this file):")
@@ -976,6 +992,15 @@ func composePackageInferenceNote(p packageInference) string {
 			b.WriteString(" — " + l.label)
 		}
 		b.WriteString("\n  via " + l.from)
+	}
+	// STATE THE BOUND. An unannounced truncation of package context reads as
+	// "this is what the package carries", which is the same silence this
+	// repository keeps recording elsewhere -- and here it would hide exactly
+	// the inferred anchor a reader might have wanted.
+	if omitted > 0 {
+		b.WriteString(fmt.Sprintf(
+			"\n- (+%d further inferred anchor(s) not shown; this section is bounded at %d. "+
+				"Ask for a deeper briefing to see them.)", omitted, cap))
 	}
 	b.WriteString("\nThese govern the package, not necessarily this file. Confirm before treating one as binding here.")
 	return b.String()

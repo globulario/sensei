@@ -2215,3 +2215,17 @@ failure_modes:
     evidence:
       - restoring the cap inside matchRuntimeEvidence fails TestATruncatedRequiredEvidenceListSaysItIsIncomplete on the matched count; bounding without the incompleteness line fails it on the message; emitting the line unconditionally fails the positive control
     contract: A bounded list of REQUIREMENTS states that it is bounded. Matching decides what applies and returns it complete; presentation bounds it and names what it omitted. A requirement absent without a statement of absence converts 'these are the requirements' into 'these are some of them' with no change to the output a reader sees.
+  - id: failure.the_one_briefing_section_that_scales_with_the_package_outwei
+    title: The one briefing section that scales with the package outweighed every section about the file
+    severity: high
+    description: 'composePackageInferenceNote rendered every inferred node unbounded. It is the only briefing section whose size scales with how much of the PACKAGE is governed rather than with what is known about the file, so in a large heavily-anchored package it dominated everything else. Measured 2026-09-03 across a fixed 15-file set: mean 23863 bytes of delivered context per governed edit, mean 109 inferred entries, near-identical for every file in golang/server -- including code_symbol.go and provenance.go, which carried 0 direct anchors and 0 decision-focus items and still delivered ~30KB about other files. A section explicitly labelled ''NOT about this file'' that outweighs the rest by two orders of magnitude is not subordinate, and an agent that learns to skim past it has been trained to skim past the briefing.'
+    protects:
+      files:
+        - golang/server/briefing.go
+    related_invariants:
+      - invariant.sensei.governance_decides_from_complete_state_and_projects_afterwards
+    required_tests:
+      - golang/server/briefing_inferred_bound_test.go:TestTheInferredSectionIsBoundedAndSaysSo
+    evidence:
+      - 'same fixed set before and after: mean delivered context 23863B -> 3018B (87% reduction), mean inferred entries 109 -> 5, while Decision focus changed on 0 of 12 files and direct-anchor counts changed on 0 of 12; removing the bound, bounding silently, reverting to alphabetical survivors, or announcing truncation unconditionally each fail a test'
+    contract: A briefing section that is subordinate by its own label is bounded, and states the bound. What survives a bound is chosen by an authored property of the entries, never by an ordering that merely happens to sort some earlier. Bounding a section must not change which knowledge is presented as governing the file.

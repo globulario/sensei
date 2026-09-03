@@ -21,6 +21,18 @@ type briefingSurfaceProfile struct {
 	codeSymbols       int
 	codeSectionItems  int
 	patterns          int
+	// inferredNodes bounds the package-inference section.
+	//
+	// It was UNBOUNDED, and it is the only section whose size scales with how
+	// much of the PACKAGE is governed rather than with what is known about the
+	// file. Measured 2026-09-03 on golang/server, a large and heavily anchored
+	// package: 128-146 entries and ~30 KB per briefing, near-identical for every
+	// file in it -- including files with 0 direct anchors and 0 decision-focus
+	// items, which received 30 KB saying nothing about themselves.
+	//
+	// The section is explicitly "NOT about this file". Subordinate material that
+	// outweighs the rest by two orders of magnitude is not subordinate.
+	inferredNodes int
 }
 
 var (
@@ -31,6 +43,7 @@ var (
 		codeSymbols:       5,
 		codeSectionItems:  5,
 		patterns:          2,
+		inferredNodes:     8,
 	}
 	standardBriefingProfile = briefingSurfaceProfile{
 		impactNodes:       maxSurfaceNodesPerClass,
@@ -39,6 +52,7 @@ var (
 		codeSymbols:       maxBriefingCodeSymbols,
 		codeSectionItems:  maxCodeSymbolSectionEntries,
 		patterns:          maxPatternsPerBriefing,
+		inferredNodes:     12,
 	}
 	deepBriefingProfile = briefingSurfaceProfile{
 		impactNodes:       24,
@@ -47,6 +61,7 @@ var (
 		codeSymbols:       16,
 		codeSectionItems:  16,
 		patterns:          maxPatternsPerBriefing,
+		inferredNodes:     40,
 	}
 	agentCompactBriefingProfile = briefingSurfaceProfile{
 		impactNodes:       4,
@@ -55,6 +70,7 @@ var (
 		codeSymbols:       3,
 		codeSectionItems:  3,
 		patterns:          1,
+		inferredNodes:     5,
 	}
 )
 
