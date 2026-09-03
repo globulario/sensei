@@ -2229,3 +2229,17 @@ failure_modes:
     evidence:
       - 'same fixed set before and after: mean delivered context 23863B -> 3018B (87% reduction), mean inferred entries 109 -> 5, while Decision focus changed on 0 of 12 files and direct-anchor counts changed on 0 of 12; removing the bound, bounding silently, reverting to alphabetical survivors, or announcing truncation unconditionally each fail a test'
     contract: A briefing section that is subordinate by its own label is bounded, and states the bound. What survives a bound is chosen by an authored property of the entries, never by an ordering that merely happens to sort some earlier. Bounding a section must not change which knowledge is presented as governing the file.
+  - id: failure.a_freshness_gate_compared_what_it_had_just_produced_against
+    title: A freshness gate compared what it had just produced against itself and never checked what was committed
+    severity: high
+    description: 'scripts/build-awareness-graph-self.sh --check, the gate CI runs, regenerated docs/awareness/generated into a TEMP directory and then compared only the SEED. Both sides of that comparison derive from the fresh scan, so the COMMITTED generated artifacts never entered any comparison and could drift arbitrarily while the gate printed ''fresh'' and exited 0. Reproduced twice at 58c055fb: an annotation report reading discovered_tests 999999, and code_symbols.yaml with a real symbol deleted; both passed. It is material rather than cosmetic because sensei build reads -input docs/awareness recursively, so the committed generated files are PUBLISHED into the served graph -- a drifted one publishes wrong knowledge past the gate that exists to prevent exactly that. The comparison mechanism already existed: scripts/build-awareness-graph.sh implements check_file and applies it to _code_symbols.yaml and _code_edges.yaml while deliberately excluding the annotation report as informational. The repository had already decided which artifacts must not drift; the script CI actually runs simply never consumed that decision.'
+    protects:
+      files:
+        - scripts/build-awareness-graph-self.sh
+    related_invariants:
+      - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
+    required_tests:
+      - cmd/awg/self_build_gate_test.go:TestGeneratedFreshnessCheck
+    evidence:
+      - 'the comparison is executed, not inspected: TestGeneratedFreshnessCheck drives scripts/check-generated-freshness.sh against real directories, and disabling the comparison while leaving every string a source scan searches for fails its drift cases. Invocation is proven separately in CI, because source cannot establish it: the workflow corrupts a committed load-bearing artifact, runs the real gate, and requires a non-zero exit whose cause is STALE. Verified on this branch -- gate correctly rejected a drifted committed artifact -- and the disabled-invocation mutation exits 0 with drift present, which only the CI control catches.'
+    contract: A freshness gate compares the COMMITTED artifact against a freshly derived one. Comparing two freshly derived copies proves only that generation is deterministic. An artifact that is published must be checked; an absent comparison is reported as unchecked, never as agreement.

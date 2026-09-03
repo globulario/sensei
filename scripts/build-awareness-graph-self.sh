@@ -117,6 +117,36 @@ run_scan "$TMP/generated"
 # Mirror the corpus with fresh generated/ so yaml2nt sees the same layout.
 run_yaml2nt "$TMP/awareness.nt"
 
+# ── Committed generated artifacts ─────────────────────────────────────────────
+#
+# CHECK WHAT IS COMMITTED, not only what this run just produced.
+#
+# Both sides of the seed comparison below are built from the FRESH scan above, so
+# the committed docs/awareness/generated/* never entered any comparison. It could
+# drift arbitrarily while this gate printed "fresh" and exited 0. Reproduced at
+# 58c055fb twice: an annotation report reading `discovered_tests: 999999`, and
+# code_symbols.yaml with a real symbol deleted, both passed.
+#
+# That is not cosmetic. `sensei build` reads `-input docs/awareness` recursively,
+# so the COMMITTED generated files are published into the served graph -- a
+# drifted one publishes wrong knowledge, and the gate that exists to prevent it
+# could not see it.
+#
+# The comparison set and its exclusion are the repository's own, already decided
+# in scripts/build-awareness-graph.sh: _code_symbols.yaml and _code_edges.yaml
+# are load-bearing; the annotation report is "informational diagnostics" and is
+# deliberately NOT compared. This script simply never consumed that decision.
+# The comparison lives in its own entry point so it can be EXECUTED by a test
+# rather than inspected as source. Its first version was inline here and proven
+# only by scanning this file for strings -- which cannot tell a mechanism from a
+# mention of one, as review pointed out.
+echo ""
+echo "Checking committed generated files..."
+if ! "$AG/scripts/check-generated-freshness.sh" "$AG_GENERATED" "$TMP/generated"; then
+    echo "       Run scripts/build-awareness-graph-self.sh and commit the result." >&2
+    exit 1
+fi
+
 if go run ./cmd/awg seed-freshness -committed "$SEED" -generated "$TMP/awareness.nt" -ag-repo "$AG"; then
     echo "awareness.nt: fresh (standalone)."
     exit 0

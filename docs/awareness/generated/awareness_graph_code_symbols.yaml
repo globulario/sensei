@@ -6459,6 +6459,12 @@ test_symbols:
     symbol: TestNtSubjectPredicate
     package: main
     language: go
+  - id: cmd/awg/self_build_gate_test.go:TestGeneratedFreshnessCheck
+    file: cmd/awg/self_build_gate_test.go
+    symbol: TestGeneratedFreshnessCheck
+    package: main
+    language: go
+    doc: "THE GATE COMPARES WHAT IS COMMITTED, NOT WHAT IT JUST PRODUCED.\n\n--check regenerated generated/ into a temp directory and compared only the\nseed. Both sides of that comparison derive from the fresh scan, so the\ncommitted artifacts never entered any comparison and could drift while the\ngate printed \"fresh\" and exited 0. Reproduced at 58c055fb with a deleted\nsymbol and with discovered_tests: 999999. `sensei build` publishes those\ncommitted files into the served graph, so drift there publishes wrong\nknowledge past the gate meant to prevent it."
   - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_ExactMatchRequired
     file: cmd/awg/serve_compatibility_test.go
     symbol: TestCheckAwarenessCompatibility_ExactMatchRequired
