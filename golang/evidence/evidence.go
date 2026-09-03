@@ -80,6 +80,50 @@ type Event struct {
 	// backend, or a status carrying no governing knowledge. Absent when a
 	// briefing was delivered.
 	Reason string `json:"reason,omitempty"`
+	// Coverage classifies whether the observed edit was a briefing OPPORTUNITY
+	// at all. Delivered cannot express this: Delivered separates outcomes among
+	// rows that EXIST, and the case this field was added for is the edit that
+	// used to produce no row whatsoever.
+	//
+	// Without it, "no delivered rows" and "no edits happened" are the same
+	// measurement, so an instrument that observed nothing reports the same
+	// number as one that observed perfect coverage. A campaign measured that:
+	// every edit ran outside the resolving project root, the command exited 0
+	// having written nothing, and the resulting zero read as a clean result.
+	//
+	// CoverageClass is a CLOSED set. Read it by membership -- switch on the
+	// values you know and treat an unrecognized value as unrecognized. Reading
+	// it by exclusion ("not outside_project, so it must be covered") fails open
+	// and re-creates exactly the blindness this field exists to remove.
+	Coverage CoverageClass `json:"coverage,omitempty"`
+}
+
+// CoverageClass is the closed vocabulary of Event.Coverage.
+type CoverageClass string
+
+const (
+	// CoverageInProject: the edited file lies inside the resolved project, so a
+	// briefing was attempted. Delivered then says how that attempt went.
+	CoverageInProject CoverageClass = "in_project"
+	// CoverageOutsideProject: an edit was observed whose file lies outside the
+	// resolved project root. No briefing was attempted and none should have
+	// been -- but the edit happened, and a coverage figure that omits it
+	// overstates itself.
+	CoverageOutsideProject CoverageClass = "outside_project"
+	// CoverageNoProject: an edit was observed with no resolvable Sensei project.
+	CoverageNoProject CoverageClass = "no_project"
+)
+
+// KnownCoverage reports whether c is a member of the closed set. Callers that
+// classify rows MUST consult it rather than assuming an unfamiliar value is
+// benign.
+func KnownCoverage(c CoverageClass) bool {
+	switch c {
+	case CoverageInProject, CoverageOutsideProject, CoverageNoProject:
+		return true
+	default:
+		return false
+	}
 }
 
 // Append writes one event as a JSONL line to path, creating the parent

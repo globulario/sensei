@@ -2224,3 +2224,8 @@ required_tests:
         - failure.a_freshness_gate_compared_what_it_had_just_produced_against
       files:
         - scripts/build-awareness-graph-self.sh
+  - id: cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
+    title: An observed edit is countable even when the hook declines to brief it
+    protects:
+      failure_modes:
+        - failure.an_edit_the_hook_declined_to_brief_produced_no_row_so_zero_c

@@ -2243,3 +2243,15 @@ failure_modes:
     evidence:
       - 'the comparison is executed, not inspected: TestGeneratedFreshnessCheck drives scripts/check-generated-freshness.sh against real directories, and disabling the comparison while leaving every string a source scan searches for fails its drift cases. Invocation is proven separately in CI, because source cannot establish it: the workflow corrupts a committed load-bearing artifact, runs the real gate, and requires a non-zero exit whose cause is STALE. Verified on this branch -- gate correctly rejected a drifted committed artifact -- and the disabled-invocation mutation exits 0 with drift present, which only the CI control catches.'
     contract: A freshness gate compares the COMMITTED artifact against a freshly derived one. Comparing two freshly derived copies proves only that generation is deterministic. An artifact that is published must be checked; an absent comparison is reported as unchecked, never as agreement.
+  - id: failure.an_edit_the_hook_declined_to_brief_produced_no_row_so_zero_c
+    title: An edit the hook declined to brief produced no row, so zero coverage read as zero work
+    description: sensei edit-brief resolved its ledger only AFTER the relWithinRoot guard, so an edit whose file lay outside the resolved project root returned 0 having written nothing. Declining to brief an out-of-project file is correct policy; writing no row for it is not. The ledger counted deliveries and had no representation for an edit that was observed and never became a briefing opportunity, so a ledger holding zero rows was indistinguishable from a repository nobody edited. Repaired by resolving the ledger before the guard and recording the declined edit with a typed CoverageClass drawn from a closed set, so observed edits and briefing opportunities are separate counts.
+    protects:
+      files:
+        - cmd/awg/cmd_edit_brief.go
+    related_invariants:
+      - controlstate.missing_source_must_not_synthesize_zero_or_closed
+    required_tests:
+      - cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
+    evidence:
+      - 'Campaign 001 ran every edit in a git worktree outside the session''s resolving project root. The delivery ledger held 2 rows, both from the campaign''s opening analysis in the main checkout, and 0 for the ~15 edits that followed. Reproduced at 6a087916 by piping a PreToolUse payload naming an out-of-project file: exit 0, no row, no ledger file created at all.'
