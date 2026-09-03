@@ -85,32 +85,50 @@ var (
 	}
 )
 
+// briefingDepth binds a depth's NAME to its profile.
+type briefingDepth struct {
+	name    string
+	profile briefingSurfaceProfile
+}
+
+// briefingDepthRegistry is the ONE place a briefing depth exists.
+//
+// The name-to-profile mapping used to live in two switch statements, and the
+// invariant test that proves every bounded depth has an exhaustive one to point
+// at kept a THIRD list of the same names. A depth added to production and
+// forgotten in the test would have left the test green while the guarantee it
+// asserts was false -- a test claiming to cover future surfaces while
+// enumerating today's, which is the defect the test was written to generalise.
+//
+// Registering here puts a new depth into production selection and into the
+// proof in the same edit, because there is nowhere else to put it.
+var briefingDepthRegistry = []briefingDepth{
+	{name: "agent_compact", profile: agentCompactBriefingProfile},
+	{name: "compact", profile: compactBriefingProfile},
+	{name: defaultBriefingDepth, profile: standardBriefingProfile},
+	{name: "deep", profile: deepBriefingProfile},
+}
+
+// defaultBriefingDepth is what an empty or unrecognised depth normalises to.
+const defaultBriefingDepth = "standard"
+
 func normalizeBriefingDepth(depth string) string {
-	switch depth {
-	case "agent_compact":
-		return "agent_compact"
-	case "compact":
-		return "compact"
-	case "deep":
-		return "deep"
-	case "", "standard":
-		return "standard"
-	default:
-		return "standard"
+	for _, d := range briefingDepthRegistry {
+		if depth == d.name {
+			return d.name
+		}
 	}
+	return defaultBriefingDepth
 }
 
 func briefingProfileForDepth(depth string) briefingSurfaceProfile {
-	switch normalizeBriefingDepth(depth) {
-	case "agent_compact":
-		return agentCompactBriefingProfile
-	case "compact":
-		return compactBriefingProfile
-	case "deep":
-		return deepBriefingProfile
-	default:
-		return standardBriefingProfile
+	name := normalizeBriefingDepth(depth)
+	for _, d := range briefingDepthRegistry {
+		if d.name == name {
+			return d.profile
+		}
 	}
+	return standardBriefingProfile
 }
 
 func limitImpactResponseWithProfile(resp *awarenesspb.ImpactResponse, profile briefingSurfaceProfile) *awarenesspb.ImpactResponse {

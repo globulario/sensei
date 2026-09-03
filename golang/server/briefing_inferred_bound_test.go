@@ -120,27 +120,61 @@ func TestTheDeepestBriefingOmitsNothing(t *testing.T) {
 	}
 }
 
-// THE PROMISE ITSELF, not one value of it.
+// THE PROMISE ITSELF, not one value of it, and not one list of it.
 //
 // Fixing deep alone would leave the same defect available to the next depth
-// anyone adds. The invariant is: any profile that CAN truncate must have a
-// deeper profile that does not, or its truncation notice is false.
+// anyone adds. The first version of this test asserted that — and then kept its
+// OWN hardcoded list of the four depths that existed that day, so a later
+// `ultra` depth could be capped, omitted from the list, and leave this green
+// while the guarantee was false.
+//
+// That is precisely the defect being generalised, recreated inside its own
+// generalisation. It is fixed the only way that holds: the test iterates
+// briefingDepthRegistry, which is also what production selects from, so a depth
+// cannot exist without entering this proof.
 func TestEveryBoundedDepthHasAnExhaustiveDepthToPointAt(t *testing.T) {
-	depths := []string{"agent_compact", "compact", "standard", "deep"}
-	exhaustive := []string{}
-	for _, d := range depths {
-		if briefingProfileForDepth(d).inferredNodes <= 0 {
-			exhaustive = append(exhaustive, d)
+	if len(briefingDepthRegistry) == 0 {
+		t.Fatal("no depths registered: this check would pass over an empty world")
+	}
+
+	var exhaustive []string
+	for _, d := range briefingDepthRegistry {
+		if d.profile.inferredNodes < 0 {
+			t.Errorf("depth %q has a negative inferred bound (%d), which is neither "+
+				"bounded nor exhaustive", d.name, d.profile.inferredNodes)
+		}
+		if d.profile.inferredNodes == 0 {
+			exhaustive = append(exhaustive, d.name)
 		}
 	}
+
+	// Every bounded depth's truncation notice tells the reader to ask for a
+	// deeper briefing. That instruction is followable only if some depth
+	// returns the complete section.
 	if len(exhaustive) == 0 {
-		t.Fatal("no depth returns the complete package inference, so every truncation " +
-			"notice tells the reader to ask for something that does not exist")
+		t.Fatal("no registered depth returns the complete package inference, so every " +
+			"truncation notice tells the reader to ask for something that does not exist")
 	}
-	// And the escape hatch must be reachable by name: an unknown depth
-	// normalizes to standard, so it cannot be requested by accident.
-	if briefingProfileForDepth("deep").inferredNodes > 0 {
-		t.Errorf("deep is bounded; the exhaustive depths are %v, and a caller "+
-			"has no documented way to ask for those", exhaustive)
+
+	// The profile comment says exactly one may be exhaustive. Assert the claim
+	// rather than leaving prose to be trusted.
+	if len(exhaustive) != 1 {
+		t.Errorf("depths %v are all exhaustive; the profile documents exactly one, so "+
+			"either the comment or the registry is wrong", exhaustive)
+	}
+
+	// And it must be the deepest one a caller can name, or the escape hatch is
+	// unreachable by the instruction that points at it.
+	if exhaustive[0] != "deep" {
+		t.Errorf("the exhaustive depth is %q, but the truncation notice tells readers to "+
+			"ask for a DEEPER briefing", exhaustive[0])
+	}
+
+	// An unregistered depth must normalise into the registry, never past it.
+	if got := normalizeBriefingDepth("__no_such_depth__"); got != defaultBriefingDepth {
+		t.Errorf("an unregistered depth normalised to %q, which is not the default", got)
+	}
+	if briefingProfileForDepth("__no_such_depth__") != briefingProfileForDepth(defaultBriefingDepth) {
+		t.Error("an unregistered depth resolved to a profile the registry does not hold")
 	}
 }
