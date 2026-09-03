@@ -27213,6 +27213,42 @@ test_symbols:
     package: main
     language: go
     doc: "AND THE REAL RPC MUST SET IT.\n\nA field that exists in the proto and is never populated is the same hole one\nindirection later. The first version of this test built a BriefingResponse\nliteral by hand and asserted the two fields differed — which proves the\nstruct has two fields and nothing about the server. Deleting `FileStatus:`\nfrom the response construction survived it.\n\nThis drives the actual Briefing RPC on an unconfigured server, which is the\ndeployment where feedback is unavailable and every status composes to\nDEGRADED."
+  - id: golang/server/briefing_inferred_bound_test.go:TestAnUnavailableWalkStillSaysSo
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestAnUnavailableWalkStillSaysSo
+    package: main
+    language: go
+    doc: "An unavailable walk is not an empty one, and the bound must not blur that."
+  - id: golang/server/briefing_inferred_bound_test.go:TestAnUntruncatedInferredSectionClaimsNoOmission
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestAnUntruncatedInferredSectionClaimsNoOmission
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL: an unbounded-enough section must NOT claim truncation, or\nthe notice appears on every briefing and stops being read."
+  - id: golang/server/briefing_inferred_bound_test.go:TestEveryBoundedDepthHasAnExhaustiveDepthToPointAt
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestEveryBoundedDepthHasAnExhaustiveDepthToPointAt
+    package: main
+    language: go
+    doc: "THE PROMISE ITSELF, not one value of it, and not one list of it.\n\nFixing deep alone would leave the same defect available to the next depth\nanyone adds. The first version of this test asserted that — and then kept its\nOWN hardcoded list of the four depths that existed that day, so a later\n`ultra` depth could be capped, omitted from the list, and leave this green\nwhile the guarantee was false.\n\nThat is precisely the defect being generalised, recreated inside its own\ngeneralisation. It is fixed the only way that holds: the test iterates\nbriefingDepthRegistry, which is also what production selects from, so a depth\ncannot exist without entering this proof."
+  - id: golang/server/briefing_inferred_bound_test.go:TestTheBoundKeepsTheMostSevereAuthoredEntries
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestTheBoundKeepsTheMostSevereAuthoredEntries
+    package: main
+    language: go
+    doc: "WHAT SURVIVES THE BOUND IS DECIDED BY AN AUTHORED PROPERTY.\n\nAlphabetical-by-id ordering decided it arbitrarily. Severity is authored on\nthe entry and is independent of the subject, so it ranks identically for\nevery file in the package and cannot encode a hoped-for answer."
+  - id: golang/server/briefing_inferred_bound_test.go:TestTheDeepestBriefingOmitsNothing
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestTheDeepestBriefingOmitsNothing
+    package: main
+    language: go
+    doc: "THE DEEPEST BRIEFING OMITS NOTHING, so the instruction to ask for one is\nfollowable.\n\nFound by independent review on 46b775d9. The bounded section tells a reader\nto \"ask for a deeper briefing to see them\" — and at depth=deep there is no\ndeeper depth to ask for, so a cap there promised a recovery path that did not\nexist. That is the second-order form of the defect this bound was added to\nfix: an omission that lies about how to recover from it."
+  - id: golang/server/briefing_inferred_bound_test.go:TestTheInferredSectionIsBoundedAndSaysSo
+    file: golang/server/briefing_inferred_bound_test.go
+    symbol: TestTheInferredSectionIsBoundedAndSaysSo
+    package: main
+    language: go
+    doc: "THE SUBORDINATE SECTION MUST NOT OUTWEIGH EVERYTHING ELSE.\n\nThe package-inference section was unbounded, and it is the only section whose\nsize scales with how much of the PACKAGE is governed rather than with what is\nknown about the file. Measured on golang/server: 128-146 entries, ~30 KB per\nbriefing, near-identical for every file -- including files with 0 direct\nanchors and 0 decision-focus items, which received 30 KB about other files."
   - id: golang/server/briefing_repo_context_test.go:TestBriefingRequest_HasNoFilesystemRootField
     file: golang/server/briefing_repo_context_test.go
     symbol: TestBriefingRequest_HasNoFilesystemRootField

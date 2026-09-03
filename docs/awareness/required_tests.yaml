@@ -2203,3 +2203,17 @@ required_tests:
         - failure.a_required_action_list_was_bounded_in_silence_so_satisfying
       files:
         - golang/server/runtime_evidence.go
+  - id: golang/server/briefing_inferred_bound_test.go:TestTheBoundKeepsTheMostSevereAuthoredEntries
+    title: A bounded inferred section keeps the most severe authored entries
+    protects:
+      failure_modes:
+        - failure.the_one_briefing_section_that_scales_with_the_package_outwei
+      files:
+        - golang/server/briefing.go
+  - id: golang/server/briefing_inferred_bound_test.go:TestTheInferredSectionIsBoundedAndSaysSo
+    title: The inferred briefing section is bounded and states the bound
+    protects:
+      failure_modes:
+        - failure.the_one_briefing_section_that_scales_with_the_package_outwei
+      files:
+        - golang/server/briefing.go
