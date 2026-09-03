@@ -136,38 +136,13 @@ run_yaml2nt "$TMP/awareness.nt"
 # in scripts/build-awareness-graph.sh: _code_symbols.yaml and _code_edges.yaml
 # are load-bearing; the annotation report is "informational diagnostics" and is
 # deliberately NOT compared. This script simply never consumed that decision.
-GENERATED_STALE=false
-check_generated() {
-    local name="$1"
-    local committed="$AG_GENERATED/$name" fresh="$TMP/generated/$name"
-    if [[ ! -f "$fresh" ]]; then
-        # A file the scanner did not produce cannot be judged. Say so rather
-        # than passing silently: an absent comparison is not a clean one.
-        echo "  UNCHECKED: $name (scanner produced no fresh copy)" >&2
-        GENERATED_STALE=true
-        return
-    fi
-    if [[ ! -f "$committed" ]]; then
-        echo "  MISSING:   $name is not committed" >&2
-        GENERATED_STALE=true
-        return
-    fi
-    if diff -q "$fresh" "$committed" >/dev/null 2>&1; then
-        echo "  ok:        $name"
-    else
-        echo "  STALE:     $name" >&2
-        diff --unified=3 "$committed" "$fresh" >&2 || true
-        GENERATED_STALE=true
-    fi
-}
-
+# The comparison lives in its own entry point so it can be EXECUTED by a test
+# rather than inspected as source. Its first version was inline here and proven
+# only by scanning this file for strings -- which cannot tell a mechanism from a
+# mention of one, as review pointed out.
 echo ""
 echo "Checking committed generated files..."
-check_generated "awareness_graph_code_symbols.yaml"
-check_generated "awareness_graph_code_edges.yaml"
-
-if $GENERATED_STALE; then
-    echo "STALE: committed docs/awareness/generated/ does not match a fresh scan." >&2
+if ! "$AG/scripts/check-generated-freshness.sh" "$AG_GENERATED" "$TMP/generated"; then
     echo "       Run scripts/build-awareness-graph-self.sh and commit the result." >&2
     exit 1
 fi

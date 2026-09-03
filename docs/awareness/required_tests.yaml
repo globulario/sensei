@@ -2221,6 +2221,6 @@ required_tests:
     title: The self-build gate checks committed generated artifacts, not only freshly produced ones
     protects:
       failure_modes:
-        - failure.a_freshness_gate_compared_what_it_had_just_produced_agains
+        - failure.a_freshness_gate_compared_what_it_had_just_produced_against
       files:
         - scripts/build-awareness-graph-self.sh
