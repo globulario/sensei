@@ -2217,3 +2217,10 @@ required_tests:
         - failure.the_one_briefing_section_that_scales_with_the_package_outwei
       files:
         - golang/server/briefing.go
+  - id: cmd/awg/self_build_gate_test.go:TestSelfBuildGateChecksCommittedGeneratedArtifacts
+    title: The self-build gate checks committed generated artifacts, not only freshly produced ones
+    protects:
+      failure_modes:
+        - failure.a_freshness_gate_compared_what_it_had_just_produced_agains
+      files:
+        - scripts/build-awareness-graph-self.sh

@@ -6459,6 +6459,12 @@ test_symbols:
     symbol: TestNtSubjectPredicate
     package: main
     language: go
+  - id: cmd/awg/self_build_gate_test.go:TestSelfBuildGateChecksCommittedGeneratedArtifacts
+    file: cmd/awg/self_build_gate_test.go
+    symbol: TestSelfBuildGateChecksCommittedGeneratedArtifacts
+    package: main
+    language: go
+    doc: "THE GATE MUST CHECK WHAT IS COMMITTED, NOT ONLY WHAT IT JUST PRODUCED.\n\n--check regenerated generated/ into a TEMP directory and then compared only\nthe seed. Both sides of that comparison come from the fresh scan, so the\ncommitted docs/awareness/generated/* never entered any comparison and could\ndrift arbitrarily while the gate printed \"fresh\" and exited 0.\n\nReproduced at 58c055fb twice: an annotation report reading\n`discovered_tests: 999999`, and code_symbols.yaml with a real symbol deleted.\nBoth passed. `sensei build` reads docs/awareness recursively, so the committed\nfiles are PUBLISHED — a drifted one publishes wrong knowledge past the gate\nthat exists to prevent exactly that.\n\nA SOURCE-LEVEL CHECK, deliberately. Driving the real path builds two tools and\nscans ~1700 files, which does not belong in the unit suite; and a test that\nskips when that is unavailable is not a check — the same reasoning recorded on\nTestBothStoreLoadPathsPublishTheGeneration. The behavioural proof (drift in\neach artifact fails; a clean tree passes; the report stays tolerated) is\nrecorded in the campaign evidence, and this test protects the mechanism from\nsilent removal."
   - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_ExactMatchRequired
     file: cmd/awg/serve_compatibility_test.go
     symbol: TestCheckAwarenessCompatibility_ExactMatchRequired
