@@ -2196,3 +2196,10 @@ required_tests:
         - failure.a_subsystem_s_health_overwrote_the_file_s_own_coverage_verdi
       files:
         - golang/server/briefing.go
+  - id: golang/server/runtime_evidence_cap_test.go:TestATruncatedRequiredEvidenceListSaysItIsIncomplete
+    title: A truncated required-evidence list reports its own incompleteness
+    protects:
+      failure_modes:
+        - failure.a_required_action_list_was_bounded_in_silence_so_satisfying
+      files:
+        - golang/server/runtime_evidence.go
