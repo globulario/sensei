@@ -104,19 +104,18 @@ func TestGeneratedFreshnessCheck(t *testing.T) {
 	}
 }
 
-// And the gate CI runs must actually CONSUME the checker. A correct mechanism
-// nothing calls is the defect this campaign keeps finding.
-func TestSelfBuildGateConsumesTheChecker(t *testing.T) {
-	b, err := os.ReadFile(filepath.Join(repoRootForGate(t), "scripts", "build-awareness-graph-self.sh"))
-	if err != nil {
-		t.Fatalf("read self-build script: %v", err)
-	}
-	src := string(b)
-	if !strings.Contains(src, "scripts/check-generated-freshness.sh") {
-		t.Fatal("the gate CI runs does not invoke the generated-freshness checker, " +
-			"so committed artifacts are never compared")
-	}
-	if !strings.Contains(src, `if ! "$AG/scripts/check-generated-freshness.sh"`) {
-		t.Error("the checker is invoked but its exit status is not acted on")
-	}
-}
+// WHY THERE IS NO GO TEST THAT THE GATE INVOKES THE CHECKER.
+//
+// There was one. It searched build-awareness-graph-self.sh for the invocation
+// and for the exit-status handling. Review pointed out that wrapping the real
+// call in `if false; then ... fi` preserves both tokens while the comparison
+// never runs -- the same hole as the first version of this file, one level out,
+// and I had defended it before it was demonstrated.
+//
+// A source read can establish that a call is WRITTEN. It cannot establish that
+// it EXECUTES. So invocation is proven where it is actually load-bearing: the
+// CI workflow corrupts a committed artifact, runs the real gate, and requires a
+// non-zero exit ("The freshness gate actually rejects drifted committed
+// artifacts"). The step beside it proves the gate passes on a clean tree.
+//
+// Two halves, both executed, neither sufficient alone.

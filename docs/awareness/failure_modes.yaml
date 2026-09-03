@@ -2239,7 +2239,7 @@ failure_modes:
     related_invariants:
       - invariant.a_verification_mechanism_must_prove_its_falsifying_path_exec
     required_tests:
-      - cmd/awg/self_build_gate_test.go:TestSelfBuildGateChecksCommittedGeneratedArtifacts
+      - cmd/awg/self_build_gate_test.go:TestGeneratedFreshnessCheck
     evidence:
       - removing the check block, discarding its result, dropping one artifact, treating a missing fresh copy as agreement, or renaming the anchor each fail TestSelfBuildGateChecksCommittedGeneratedArtifacts; on first real use the repaired gate immediately caught genuine drift introduced by this campaign's own new test file
     contract: A freshness gate compares the COMMITTED artifact against a freshly derived one. Comparing two freshly derived copies proves only that generation is deterministic. An artifact that is published must be checked; an absent comparison is reported as unchecked, never as agreement.

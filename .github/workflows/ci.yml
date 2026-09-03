@@ -112,6 +112,37 @@ jobs:
         # fails here; --check also fails if the committed seed drifted.
         run: scripts/build-awareness-graph-self.sh --check
 
+      - name: The freshness gate actually rejects drifted committed artifacts
+        # POSITIVE CONTROL for the step above, and the only proof that the gate
+        # INVOKES its comparison rather than merely containing the call.
+        #
+        # A Go test can execute check-generated-freshness.sh directly, and does.
+        # It cannot establish that the gate calls it: wrapping the invocation in
+        # `if false; then ... fi` preserves every token a source scan searches
+        # for while the comparison never runs. Review found exactly that, twice,
+        # on two successive attempts to prove it from source.
+        #
+        # So the chain is proven where it actually matters: corrupt a committed
+        # load-bearing artifact, run the real gate, require a non-zero exit.
+        # The step above proves the gate passes on a clean tree; this one proves
+        # it can fail. Neither alone is a check.
+        run: |
+          set -euo pipefail
+          f=docs/awareness/generated/awareness_graph_code_symbols.yaml
+          cp "$f" /tmp/committed.bak
+          printf '\n# injected drift for the positive control\n' >> "$f"
+          if scripts/build-awareness-graph-self.sh --check >/tmp/drift.out 2>&1; then
+            cp /tmp/committed.bak "$f"
+            echo "::error::the freshness gate PASSED with a drifted committed artifact"
+            tail -20 /tmp/drift.out
+            exit 1
+          fi
+          cp /tmp/committed.bak "$f"
+          grep -q "STALE" /tmp/drift.out || {
+            echo "::error::gate failed but not for the drift it was given"; tail -20 /tmp/drift.out; exit 1; }
+          echo "gate correctly rejected a drifted committed artifact"
+          git diff --quiet -- "$f" || { echo "::error::control did not restore the tree"; exit 1; }
+
       - name: Inferred proto contracts are fresh (architectural spine Stage B)
         # contract.* nodes inferred from proto/awareness_graph.proto are generated
         # by cmd/proto-scan and committed. Fails if the committed YAML drifts.
