@@ -5781,6 +5781,42 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestABackendDegradationDoesNotPromoteAnUngovernedFile
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestABackendDegradationDoesNotPromoteAnUngovernedFile
+    package: main
+    language: go
+    doc: "A DEGRADED SUBSYSTEM MUST NOT MAKE EVERY FILE LOOK GOVERNED.\n\n`status` folds the feedback subsystem's availability into the same field as\nthe file's coverage, so a server running without --repo-root returns\nDEGRADED for every file. Measured 2026-09-02: the hook could not tell the\nfile its graph governs by one direct anchor from a README it knows nothing\nabout, and delivered both. file_status is the file's own verdict preserved,\nand it is what decides delivery."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestARefusedBriefingIsRecordedAsAMissedOpportunity
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestARefusedBriefingIsRecordedAsAMissedOpportunity
+    package: main
+    language: go
+    doc: "AN UNREACHABLE BACKEND IS AN OPPORTUNITY, NOT AN ABSENCE."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestOnlyGoverningStatusesInterruptTheEdit
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestOnlyGoverningStatusesInterruptTheEdit
+    package: main
+    language: go
+    doc: "NOISE IS NOT DELIVERY, AND IT IS NOT SILENCE EITHER.\n\nCONTEXT_ONLY is excluded on the vocabulary's own terms -- \"naming a file's\nsymbols is not knowledge about it\". A hook that interrupts every edit with\nsymbol lists teaches an agent to skim past Sensei, which is worse than never\ninterrupting. EMPTY carries nothing by definition.\n\nThe closed set is read by MEMBERSHIP: an unset/unknown status is withheld\ntoo, because \"deliver unless EMPTY\" would deliver a status added later as\nthough it governed the file."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestPreferFileStatusKeepsTheFileVerdictAndDistrustsAnAbsentField
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestPreferFileStatusKeepsTheFileVerdictAndDistrustsAnAbsentField
+    package: main
+    language: go
+    doc: "THE SELECTION ITSELF, not a stub of it.\n\nThe delivery tests above replace editBriefRPC wholesale, so they never\nexecute the line that chooses between the wire status and the file status.\nA mutation deleting that choice survived every one of them — the exact\nnon-execution false green this repository keeps recording. This drives the\nchoice directly.\n\nfile_status is `optional`, so absence is a distinct input from any value.\nThat is what lets a GOVERNED file stay OK while the feedback subsystem is\ndegraded; a presence-blind version had to take the weaker claim and made\ndirect-anchor hits uncountable."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestTheHookDeliversGoverningLawWithoutBeingAsked
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestTheHookDeliversGoverningLawWithoutBeingAsked
+    package: main
+    language: go
+    doc: "THE HOOK DELIVERS GOVERNING LAW WITHOUT ANYONE ASKING FOR IT.\n\nThis is the criterion-5 mechanism, and the ordering is the claim: the agent\nmakes no briefing call, the hook fires on the edit payload alone, and the\nlaw reaches the agent BEFORE the write. Measured three times on 2026-09-02,\nthe governing law for a defect was the only thing the graph said about the\nfile it was written in -- rank 1 of 1 -- and reached nobody, because nothing\ndelivered it."
+  - id: cmd/awg/edit_brief_delivery_test.go:TestTheHookUsesThisProjectsConfiguredInstance
+    file: cmd/awg/edit_brief_delivery_test.go
+    symbol: TestTheHookUsesThisProjectsConfiguredInstance
+    package: main
+    language: go
+    doc: "THE PROJECT'S CONFIG NAMES THE INSTANCE.\n\nThe flag default is one repository's port. A hook using it answers from\nwhichever project owns that port -- on the machine this was measured, a\ndifferent repository's domain entirely -- and a briefing served from the\nwrong graph is worse than none."
   - id: cmd/awg/endpoint_binding_test.go:TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
     file: cmd/awg/endpoint_binding_test.go
     symbol: TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
@@ -27165,6 +27201,18 @@ test_symbols:
     package: main
     language: go
     doc: "File-scoped, matching repository: the verified promotion appears as a structured record with\nexact provenance, its governed identity is a referenced id, prose matches the structured set,\nand no raw answer text / verification error / absolute root leaks."
+  - id: golang/server/briefing_file_status_test.go:TestFileStatusSurvivesADegradedFeedbackSubsystem
+    file: golang/server/briefing_file_status_test.go
+    symbol: TestFileStatusSurvivesADegradedFeedbackSubsystem
+    package: main
+    language: go
+    doc: "THE FILE'S VERDICT AND THE SUBSYSTEM'S HEALTH ARE TWO FACTS.\n\ncombineBriefingStatus answers \"how much should you trust this whole answer\",\nand returning DEGRADED for an unavailable feedback subsystem is right for\nthat question. It is wrong as the ONLY answer, because it also erases\n\"does anything govern this file\" — and the two are orthogonal.\n\nMeasured 2026-09-02: a server running without --repo-root has no feedback\nprojection, so every briefing came back DEGRADED. An automatic pre-edit\nbriefing therefore could not distinguish a file governed by a direct anchor\nfrom a README the graph knows nothing about, and interrupted both\nidentically. file_status is the first fact, preserved."
+  - id: golang/server/briefing_file_status_test.go:TestTheBriefingRPCPopulatesFileStatus
+    file: golang/server/briefing_file_status_test.go
+    symbol: TestTheBriefingRPCPopulatesFileStatus
+    package: main
+    language: go
+    doc: "AND THE REAL RPC MUST SET IT.\n\nA field that exists in the proto and is never populated is the same hole one\nindirection later. The first version of this test built a BriefingResponse\nliteral by hand and asserted the two fields differed — which proves the\nstruct has two fields and nothing about the server. Deleting `FileStatus:`\nfrom the response construction survived it.\n\nThis drives the actual Briefing RPC on an unconfigured server, which is the\ndeployment where feedback is unavailable and every status composes to\nDEGRADED."
   - id: golang/server/briefing_repo_context_test.go:TestBriefingRequest_HasNoFilesystemRootField
     file: golang/server/briefing_repo_context_test.go
     symbol: TestBriefingRequest_HasNoFilesystemRootField

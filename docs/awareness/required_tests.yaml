@@ -2175,3 +2175,24 @@ required_tests:
     protects:
       failure_modes:
         - failure.union_default_graph_reads_expose_in_flight_staging_graphs
+  - id: golang/server/briefing_file_status_test.go:TestTheBriefingRPCPopulatesFileStatus
+    title: The Briefing RPC populates the file's own coverage verdict
+    protects:
+      failure_modes:
+        - failure.a_subsystem_s_health_overwrote_the_file_s_own_coverage_verdi
+      files:
+        - golang/server/briefing.go
+  - id: cmd/awg/edit_brief_delivery_test.go:TestPreferFileStatusKeepsTheFileVerdictAndDistrustsAnAbsentField
+    title: An absent file verdict falls back to the wire status, never to its zero value
+    protects:
+      failure_modes:
+        - failure.a_subsystem_s_health_overwrote_the_file_s_own_coverage_verdi
+      files:
+        - golang/server/briefing.go
+  - id: cmd/awg/edit_brief_delivery_test.go:TestOnlyGoverningStatusesInterruptTheEdit
+    title: Only governing statuses interrupt an edit
+    protects:
+      failure_modes:
+        - failure.a_subsystem_s_health_overwrote_the_file_s_own_coverage_verdi
+      files:
+        - golang/server/briefing.go

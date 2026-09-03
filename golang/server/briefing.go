@@ -101,6 +101,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		if len(implPatterns) > 0 || len(matchedIntents) > 0 {
 			statusVal = awarenesspb.BriefingStatus_BRIEFING_STATUS_OK
 		}
+		fileStatus := statusVal // before feedback availability is folded in
 		statusVal = combineBriefingStatus(statusVal, feedback.Projection.Availability)
 		var pb strings.Builder
 		pb.WriteString(composeTaskOnlyBriefingProse(task, implPatterns))
@@ -111,6 +112,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 			GeneratedInMs:          time.Since(start).Milliseconds(),
 			ReferencedIds:          referenced,
 			Status:                 statusVal,
+			FileStatus:             &fileStatus,
 			ImplementationPatterns: implPatterns,
 			Authority:              s.graphAuthorityFor(ctx, requestedDomain),
 			Feedback:               feedback.Wire,
@@ -312,6 +314,14 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 	// base graph status above reflects the graph briefing only; feedback composes separately
 	// so it never lifts a genuinely empty graph briefing except via the frozen table.
 	referenced = append(referenced, feedbackReferencedIDs(feedback.Projection)...)
+	// PRESERVE THE FILE'S OWN VERDICT BEFORE FOLDING IN A SUBSYSTEM'S HEALTH.
+	//
+	// combineBriefingStatus returns DEGRADED whenever feedback is
+	// degraded/unavailable/invalid, whatever this file's coverage was. That is
+	// correct for `status`, which answers "how much should you trust this whole
+	// answer" -- and it destroys the separate fact of whether anything governs
+	// THIS FILE. A caller that needs the second question got the first.
+	fileStatus := statusVal
 	statusVal = combineBriefingStatus(statusVal, feedback.Projection.Availability)
 	referenced = compactReferencedIDsWithCap(referenced, profile.referencedIDs)
 
@@ -348,6 +358,7 @@ func (s *server) Briefing(ctx context.Context, req *awarenesspb.BriefingRequest)
 		GeneratedInMs:          time.Since(start).Milliseconds(),
 		ReferencedIds:          referenced,
 		Status:                 statusVal,
+		FileStatus:             &fileStatus,
 		ImplementationPatterns: implPatterns,
 		Authority:              s.graphAuthorityFor(ctx, requestedDomain),
 		Feedback:               feedback.Wire,

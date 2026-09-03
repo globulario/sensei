@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"io"
 	"os"
 	"path/filepath"
@@ -49,9 +50,9 @@ func TestEditBrief(t *testing.T) {
 
 	t.Run("pushes briefing prose as additionalContext (allow)", func(t *testing.T) {
 		var gotFile, gotDepth string
-		editBriefRPC = func(_ context.Context, _, file, depth, _ string) (string, error) {
+		editBriefRPC = func(_ context.Context, _, file, depth, _ string) (editBriefOutcome, error) {
 			gotFile, gotDepth = file, depth
-			return "INVARIANT payments.paid_state — money truth comes from the processor's confirmation.", nil
+			return okBrief("INVARIANT payments.paid_state — money truth comes from the processor's confirmation."), nil
 		}
 		out := runEditBriefWithStdin(t, []string{"--root", root}, payload(abs))
 		var d hookOut
@@ -77,14 +78,16 @@ func TestEditBrief(t *testing.T) {
 	})
 
 	t.Run("silent when nothing anchors (empty prose)", func(t *testing.T) {
-		editBriefRPC = func(_ context.Context, _, _, _, _ string) (string, error) { return "   \n ", nil }
+		editBriefRPC = func(_ context.Context, _, _, _, _ string) (editBriefOutcome, error) { return okBrief("   \n "), nil }
 		if out := runEditBriefWithStdin(t, []string{"--root", root}, payload(abs)); strings.TrimSpace(out) != "" {
 			t.Errorf("expected no output for empty briefing, got %q", out)
 		}
 	})
 
 	t.Run("silent and fail-open when the server is unreachable", func(t *testing.T) {
-		editBriefRPC = func(_ context.Context, _, _, _, _ string) (string, error) { return "", context.DeadlineExceeded }
+		editBriefRPC = func(_ context.Context, _, _, _, _ string) (editBriefOutcome, error) {
+			return editBriefOutcome{}, context.DeadlineExceeded
+		}
 		if out := runEditBriefWithStdin(t, []string{"--root", root}, payload(abs)); strings.TrimSpace(out) != "" {
 			t.Errorf("expected no stdout when server unreachable, got %q", out)
 		}
@@ -92,10 +95,21 @@ func TestEditBrief(t *testing.T) {
 
 	t.Run("edit outside the project is ignored (no RPC, no output)", func(t *testing.T) {
 		called := false
-		editBriefRPC = func(_ context.Context, _, _, _, _ string) (string, error) { called = true; return "x", nil }
+		editBriefRPC = func(_ context.Context, _, _, _, _ string) (editBriefOutcome, error) {
+			called = true
+			return okBrief("x"), nil
+		}
 		out := runEditBriefWithStdin(t, []string{"--root", root}, payload("/etc/passwd"))
 		if strings.TrimSpace(out) != "" || called {
 			t.Errorf("out-of-project edit should be ignored (out=%q called=%v)", out, called)
 		}
 	})
+}
+
+// okBrief is the pre-status shape these tests were written against: a briefing
+// whose anchors bind THIS file. Keeping them on OK preserves what they assert
+// (prose is pushed, blank prose is not, an RPC error never blocks) and leaves
+// the status-driven delivery policy to its own tests below.
+func okBrief(prose string) editBriefOutcome {
+	return editBriefOutcome{Prose: prose, Status: awarenesspb.BriefingStatus_BRIEFING_STATUS_OK}
 }
