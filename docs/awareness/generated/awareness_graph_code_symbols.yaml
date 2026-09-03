@@ -5781,6 +5781,35 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
+  - id: cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
+    file: cmd/awg/edit_brief_coverage_test.go
+    symbol: TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
+    package: main
+    language: go
+  - id: cmd/awg/edit_brief_coverage_test.go:TestCoverageIsReadableWithoutParsingTheReason
+    file: cmd/awg/edit_brief_coverage_test.go
+    symbol: TestCoverageIsReadableWithoutParsingTheReason
+    package: main
+    language: go
+    doc: "A briefed file and an unbriefed one must be separable WITHOUT parsing prose.\nReason is written for a human; a coverage figure computed by matching\nsubstrings of it would break the first time the wording changed."
+  - id: cmd/awg/edit_brief_coverage_test.go:TestEveryRecordedRowCarriesAKnownCoverage
+    file: cmd/awg/edit_brief_coverage_test.go
+    symbol: TestEveryRecordedRowCarriesAKnownCoverage
+    package: main
+    language: go
+    doc: "Every row this command writes carries a value from the closed set. A future\ncall site that forgets the predicate reintroduces the exact blindness, and an\nempty coverage would be read by a consumer as \"not out-of-project\" — which is\nreading a closed vocabulary by exclusion, and fails open."
+  - id: cmd/awg/edit_brief_coverage_test.go:TestRecordingWithNowhereToWriteIsSilent
+    file: cmd/awg/edit_brief_coverage_test.go
+    symbol: TestRecordingWithNowhereToWriteIsSilent
+    package: main
+    language: go
+    doc: "An empty ledger path is the \"nowhere to write\" case and must stay silent\nrather than erroring or creating a stray file."
+  - id: cmd/awg/edit_brief_coverage_test.go:TestTheNoProjectRowShapeIsWellFormed
+    file: cmd/awg/edit_brief_coverage_test.go
+    symbol: TestTheNoProjectRowShapeIsWellFormed
+    package: main
+    language: go
+    doc: "CoverageNoProject labels the branch taken when resolveProjectRoot itself\nfails, which happens only when the process cannot determine or absolutise a\nworking directory. That is an environment failure and cannot be provoked from\na test without deleting the cwd out from under the test binary.\n\nSo this proves the ROW SHAPE directly and claims nothing more. Stated plainly\nbecause a test named for a branch it does not reach is worse than no test:\nthe branch is recorded so it is not silent, and its integration path is\nUNCOVERED."
   - id: cmd/awg/edit_brief_delivery_test.go:TestABackendDegradationDoesNotPromoteAnUngovernedFile
     file: cmd/awg/edit_brief_delivery_test.go
     symbol: TestABackendDegradationDoesNotPromoteAnUngovernedFile

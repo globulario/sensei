@@ -84,11 +84,32 @@ Flags:
 
 	projectRoot, err := resolveProjectRoot(*root)
 	if err != nil {
+		// No project root means no project-scoped ledger, so only an explicitly
+		// configured one can hold this. Still recorded: an edit WAS observed,
+		// and the denominator of any coverage figure is edits observed.
+		recordEditBrief(editBriefLedgerPath(""), file, "", editBriefOutcome{}, false,
+			evidence.CoverageNoProject, "no Sensei project resolves for this path")
 		return 0
 	}
+	ledger := editBriefLedgerPath(projectRoot)
+	resolvedDomain := strings.TrimSpace(*domain)
+	if resolvedDomain == "" {
+		resolvedDomain = strings.TrimSpace(resolveRepositoryDomain(projectRoot, "").Domain)
+	}
+
 	rel, ok := relWithinRoot(projectRoot, file)
 	if !ok {
-		return 0 // edit outside the Sensei project — not our concern
+		// Edit outside the Sensei project — still not briefed, still not
+		// blocked, still no RPC. But no longer INVISIBLE.
+		//
+		// This return swallowed every edit of an entire campaign: the work ran
+		// in a worktree outside the resolving root, so the ledger held zero
+		// rows, which is the same number it holds when no edit happens at all.
+		// Declining to brief a file is a defensible policy; declining to say so
+		// is what turned an unmeasured campaign into an apparently clean one.
+		recordEditBrief(ledger, file, resolvedDomain, editBriefOutcome{}, false,
+			evidence.CoverageOutsideProject, "file is outside the resolved project root")
+		return 0
 	}
 
 	// THE PROJECT'S CONFIG NAMES THE INSTANCE, NOT THIS COMMAND'S DEFAULT.
@@ -111,12 +132,6 @@ Flags:
 			}
 		}
 	}
-	resolvedDomain := strings.TrimSpace(*domain)
-	if resolvedDomain == "" {
-		resolvedDomain = strings.TrimSpace(resolveRepositoryDomain(projectRoot, "").Domain)
-	}
-
-	ledger := editBriefLedgerPath(projectRoot)
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	out, err := editBriefRPC(ctx, resolvedAddr, rel, *depth, resolvedDomain)
@@ -126,7 +141,7 @@ Flags:
 		// delivery is the measurement's most important row, because it is the
 		// one a delivery count would silently drop.
 		reason := firstLine(err.Error())
-		recordEditBrief(ledger, rel, resolvedDomain, editBriefOutcome{}, false, reason)
+		recordEditBrief(ledger, rel, resolvedDomain, editBriefOutcome{}, false, evidence.CoverageInProject, reason)
 		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing unavailable (allowing edit): %s\n", reason)
 		return 0
 	}
@@ -134,15 +149,15 @@ Flags:
 	prose := strings.TrimSpace(out.Prose)
 	switch {
 	case !deliverableStatuses[out.Status]:
-		recordEditBrief(ledger, rel, resolvedDomain, out, false,
+		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject,
 			"status carries no governing knowledge for this file: "+out.Status.String())
 		return 0
 	case prose == "":
-		recordEditBrief(ledger, rel, resolvedDomain, out, false, "briefing carried no prose")
+		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject, "briefing carried no prose")
 		return 0
 	}
 
-	recordEditBrief(ledger, rel, resolvedDomain, out, true, "")
+	recordEditBrief(ledger, rel, resolvedDomain, out, true, evidence.CoverageInProject, "")
 	emitEditBriefContext(rel, prose)
 	return 0
 }
@@ -171,7 +186,16 @@ func editBriefLedgerPath(root string) string {
 // recordEditBrief appends one delivery attempt. Best-effort by the ledger's own
 // contract: instrumentation must never wedge the tool it measures, and this one
 // must never wedge an edit.
-func recordEditBrief(ledger, rel, domain string, out editBriefOutcome, delivered bool, reason string) {
+//
+// coverage is REQUIRED, not optional: it is the parameter that makes an
+// unbriefed edit countable, and a call site free to omit it would silently
+// restore the blindness. Every caller names one.
+//
+// path is repo-relative for an in-project edit and ABSOLUTE for an edit outside
+// the project, because outside the project there is no repo to be relative to.
+// A reader tells the two apart by Coverage, which is exactly why the row must
+// carry it rather than leave the shape of Files to be guessed.
+func recordEditBrief(ledger, path, domain string, out editBriefOutcome, delivered bool, coverage evidence.CoverageClass, reason string) {
 	if strings.TrimSpace(ledger) == "" {
 		return
 	}
@@ -187,13 +211,14 @@ func recordEditBrief(ledger, rel, domain string, out editBriefOutcome, delivered
 		Tool:            "edit-brief",
 		Repo:            domain,
 		Decision:        evidence.DecisionAllow, // a push never blocks
-		Files:           []string{rel},
+		Files:           []string{path},
 		Status:          status,
 		WireStatus:      wireStatus,
 		Surfaced:        out.Referenced,
 		Delivered:       delivered,
 		GraphGeneration: out.Generation,
 		Reason:          reason,
+		Coverage:        coverage,
 	})
 }
 
