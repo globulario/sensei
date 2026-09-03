@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -62,6 +63,47 @@ func snapshotGraphFreshness(ctx context.Context, s *server) graphFreshnessSnapsh
 	}
 	snap.verification = seedmeta.VerifyLiveStore(ctx, verifier, expected)
 	return snap
+}
+
+// expectedMarkerProvenance names WHERE the expected marker came from, in the
+// words a reader needs to act.
+//
+// A freshness refusal used to name one hash and nothing else:
+//
+//	live store missing expected graph marker f87c6912...
+//
+// True, fail-closed, and nearly useless. The hash appears in neither the store
+// nor the marker file, so the reader has no way to learn that the expectation
+// came from a store-scoped proof set published DAYS EARLIER, possibly by a
+// different project, and that rebuilding cannot help. Measured 2026-09-02:
+// three abandoned attempts and a wrong public diagnosis, on a store whose
+// marker file and contents agreed with each other exactly.
+//
+// The proof set already records PublishedUnix and PublishedDomain. Saying so
+// costs one line and identifies BOTH sides of the comparison instead of one.
+func expectedMarkerProvenance(s *server) string {
+	if s == nil || strings.TrimSpace(s.oxigraphQueryURL) == "" {
+		return ""
+	}
+	dir, err := graphgeneration.Dir(s.oxigraphQueryURL)
+	if err != nil {
+		return ""
+	}
+	set, err := graphgeneration.Load(dir)
+	if err != nil || set == nil || set.Marker.Digest == "" {
+		return ""
+	}
+	when := "an unrecorded time"
+	if set.Generation.PublishedUnix > 0 {
+		when = time.Unix(set.Generation.PublishedUnix, 0).UTC().Format(time.RFC3339)
+	}
+	by := set.Generation.PublishedDomain
+	if strings.TrimSpace(by) == "" {
+		by = "an unnamed domain"
+	}
+	return fmt.Sprintf("expectation comes from the store's published generation at %s, "+
+		"published %s by %s; if that publication is not this project's, rebuilding this "+
+		"project will not change it", dir, when, by)
 }
 
 func expectedGraphMarker(s *server) (seedmeta.Marker, string, bool) {
@@ -148,12 +190,24 @@ func (s *server) requireCurrentGraphAuthority(ctx context.Context, surface strin
 	case seedmeta.FreshnessEmpty:
 		return status.Errorf(codes.FailedPrecondition, "graph freshness empty for %s: %s", surface, snap.verification.Detail)
 	case seedmeta.FreshnessStale:
-		return status.Errorf(codes.FailedPrecondition, "graph freshness stale for %s: %s", surface, snap.verification.Detail)
+		return status.Errorf(codes.FailedPrecondition, "graph freshness stale for %s: %s%s",
+			surface, snap.verification.Detail, detailSuffix(expectedMarkerProvenance(s)))
 	case seedmeta.FreshnessUnknown:
-		return status.Errorf(codes.FailedPrecondition, "graph freshness unknown for %s: %s", surface, snap.verification.Detail)
+		return status.Errorf(codes.FailedPrecondition, "graph freshness unknown for %s: %s%s",
+			surface, snap.verification.Detail, detailSuffix(expectedMarkerProvenance(s)))
 	default:
 		return status.Errorf(codes.FailedPrecondition, "graph freshness unspecified for %s", surface)
 	}
+}
+
+// detailSuffix appends provenance only when there is some. An empty suffix
+// leaves the message exactly as it was, so a deployment with no published
+// generation reads no differently than before.
+func detailSuffix(p string) string {
+	if strings.TrimSpace(p) == "" {
+		return ""
+	}
+	return " — " + p
 }
 
 func graphFreshnessSeedState(ver seedmeta.Verification) awarenesspb.SeedState {

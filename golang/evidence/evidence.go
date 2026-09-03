@@ -44,6 +44,42 @@ type Event struct {
 	Files        []string `json:"files,omitempty"`
 	DiffRange    string   `json:"diff_range,omitempty"`
 	Commit       string   `json:"commit,omitempty"`
+
+	// ---- automatic pre-edit briefing delivery (tool "edit-brief") ----
+	//
+	// These exist so a campaign can measure the capability the program is
+	// actually testing: did knowledge the graph already held reach the agent
+	// BEFORE the governed change was written, without a human asking for it.
+	// Counting deliveries is not enough -- an opportunity that produced no
+	// delivery, and a delivery that carried only weak context, are different
+	// outcomes and are recorded as different rows.
+
+	// Status is the server's own epistemic classification of the briefing,
+	// recorded VERBATIM: BRIEFING_STATUS_OK, _INFERRED_ONLY, _CONTEXT_ONLY,
+	// _EMPTY, _DEGRADED. It is not re-derived here. OK is the only value that
+	// means an anchor binds THIS file; INFERRED_ONLY explicitly says it is not
+	// coverage, and collapsing the two would manufacture the result the
+	// measurement exists to detect.
+	Status string `json:"status,omitempty"`
+	// WireStatus is the combined status the server actually sent, which folds
+	// the feedback subsystem's health in. Recorded beside Status so a campaign
+	// can tell "the file is ungoverned" from "the backend was degraded while we
+	// asked", instead of inferring one from the other.
+	WireStatus string `json:"wire_status,omitempty"`
+	// Surfaced are the governed ids the briefing referenced, as the server
+	// returned them (class-qualified).
+	Surfaced []string `json:"surfaced,omitempty"`
+	// Delivered reports whether the briefing actually reached the agent. A
+	// briefing that was fetched and then withheld as noise is an event, not a
+	// silence.
+	Delivered bool `json:"delivered,omitempty"`
+	// GraphGeneration identifies the knowledge generation that answered, so a
+	// surfaced law can be traced to the publication that held it.
+	GraphGeneration string `json:"graph_generation,omitempty"`
+	// Reason names why nothing reached the agent: a refusal, an unreachable
+	// backend, or a status carrying no governing knowledge. Absent when a
+	// briefing was delivered.
+	Reason string `json:"reason,omitempty"`
 }
 
 // Append writes one event as a JSONL line to path, creating the parent

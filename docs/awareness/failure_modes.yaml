@@ -2189,3 +2189,15 @@ failure_modes:
       - cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgsDoNotEnableUnionReadsWhileStagingGraphsExist
     evidence:
       - 'sensei build PUTs a candidate slice and a SECOND seed marker into urn:sensei:graph-staging:<marker> and promotes it in one transaction (cmd/awg/cmd_build.go). With oxigraph --union-default-graph, an unqualified { ?s ?p ?o } matches every named graph, so concurrent briefing and metadata readers observe the unpublished candidate and a duplicate marker before the promotion commits. Measured: default-only reads see 0 triples and the staged candidate is invisible; union reads see 2 and it leaks.'
+  - id: failure.a_subsystem_s_health_overwrote_the_file_s_own_coverage_verdi
+    title: A subsystem's health overwrote the file's own coverage verdict in one status field
+    severity: high
+    description: 'combineBriefingStatus returns DEGRADED whenever the briefing-feedback subsystem is degraded/unavailable/invalid, whatever the file''s own coverage was, and BriefingResponse carried only that composite. Two orthogonal facts -- ''is this file governed'' (OK|INFERRED_ONLY|CONTEXT_ONLY|EMPTY) and ''could feedback be consulted'' -- were collapsed into one field, and the second always won. Measured 2026-09-02: a server running without --repo-root has no feedback projection, so every briefing returned DEGRADED and an automatic pre-edit briefing could not tell a file governed by a direct anchor from a LICENSE the graph knows nothing about; it interrupted both. The field is additive and optional so absence is distinguishable from a value: BriefingStatus''s zero value is OK, and a plain field would have read ''this server does not report a file verdict'' as ''this file is governed''.'
+    protects:
+      files:
+        - golang/server/briefing.go
+    required_tests:
+      - golang/server/briefing_file_status_test.go:TestTheBriefingRPCPopulatesFileStatus
+    evidence:
+      - with file_status removed from the response the RPC test fails because the field reads as its zero value OK for a file with no anchors; with the presence check removed an absent field is read as governed; live, 4 governed files record OK and 4 ungoverned record EMPTY where all 9 previously recorded DEGRADED
+    contract: A response that answers two independent questions carries two fields. A composite that folds a subsystem's availability into an epistemic verdict may be offered, but never as the only answer, because a consumer needing the second question then receives the first. An additive status field is optional so that absence is distinguishable from its zero value.

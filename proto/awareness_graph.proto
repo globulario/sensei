@@ -244,6 +244,35 @@ message BriefingResponse {
   // keep working. The prose above is rendered only from this same projection;
   // no filesystem repository root ever appears here.
   BriefingFeedbackProjection feedback = 7;
+
+  // What the graph knows about THIS FILE, before the feedback subsystem's
+  // availability is folded in. ADDITIVE — clients that ignore field 8 keep
+  // working, and `status` above keeps its exact meaning.
+  //
+  // WHY BOTH EXIST. `status` answers two questions at once, and when they
+  // disagree the second wins: combineBriefingStatus returns DEGRADED whenever
+  // the feedback subsystem is degraded/unavailable/invalid, whatever the file's
+  // own coverage was. Those are orthogonal facts —
+  //
+  //     is this file governed?            OK | INFERRED_ONLY | CONTEXT_ONLY | EMPTY
+  //     could feedback be consulted?      available | degraded | unavailable
+  //
+  // — and collapsing them means a caller cannot tell a governed file from an
+  // ungoverned one whenever feedback happens to be unavailable. Measured
+  // 2026-09-02: a server running without --repo-root returns DEGRADED for every
+  // file, so an automatic pre-edit briefing could not distinguish the file its
+  // graph governs by one direct anchor from a README it knows nothing about,
+  // and would interrupt both identically.
+  //
+  // file_status is that first question, preserved. It is never DEGRADED.
+  //
+  // OPTIONAL, so absence is distinguishable from a value. The zero value of
+  // BriefingStatus is OK, so a plain field cannot separate "this server does
+  // not know about file_status" from "this file is governed" — and a consumer
+  // forced to guess must take the weaker reading, which makes the OK case
+  // unmeasurable against any older server. An uncaptured field is ABSENT, never
+  // present-and-empty.
+  optional BriefingStatus file_status = 8;
 }
 
 // ─── Briefing feedback (Phase 9.6) ─────────────────────────────────────────
