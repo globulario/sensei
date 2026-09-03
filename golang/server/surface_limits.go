@@ -32,6 +32,14 @@ type briefingSurfaceProfile struct {
 	//
 	// The section is explicitly "NOT about this file". Subordinate material that
 	// outweighs the rest by two orders of magnitude is not subordinate.
+	//
+	// ZERO MEANS EXHAUSTIVE, and exactly one profile may use it. The bounded
+	// section tells a reader to "ask for a deeper briefing to see them", and
+	// that instruction has to be followable: at the deepest depth there is no
+	// deeper one to ask for, so a cap there would promise a recovery path that
+	// does not exist. Found by review on 46b775d9 -- the second-order form of
+	// the defect this bound was added to fix, an omission that lies about how
+	// to recover from it.
 	inferredNodes int
 }
 
@@ -61,7 +69,10 @@ var (
 		codeSymbols:       16,
 		codeSectionItems:  16,
 		patterns:          maxPatternsPerBriefing,
-		inferredNodes:     40,
+		// EXHAUSTIVE. deep is the recovery path the bounded section points at,
+		// so it must actually be one: a cap here would tell a reader to ask for a
+		// deeper briefing that does not exist.
+		inferredNodes: 0,
 	}
 	agentCompactBriefingProfile = briefingSurfaceProfile{
 		impactNodes:       4,

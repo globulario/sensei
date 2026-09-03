@@ -96,3 +96,51 @@ func TestAnUnavailableWalkStillSaysSo(t *testing.T) {
 		t.Fatalf("an unavailable inference walk no longer distinguishes itself from an empty one:\n%s", out)
 	}
 }
+
+// THE DEEPEST BRIEFING OMITS NOTHING, so the instruction to ask for one is
+// followable.
+//
+// Found by independent review on 46b775d9. The bounded section tells a reader
+// to "ask for a deeper briefing to see them" — and at depth=deep there is no
+// deeper depth to ask for, so a cap there promised a recovery path that did not
+// exist. That is the second-order form of the defect this bound was added to
+// fix: an omission that lies about how to recover from it.
+func TestTheDeepestBriefingOmitsNothing(t *testing.T) {
+	const n = 120 // more than any previously-capped value
+	out := composePackageInferenceNote(
+		inferenceOf(n, func(int) string { return "" }), deepBriefingProfile.inferredNodes)
+
+	if got := strings.Count(out, "\n- [invariant"); got != n {
+		t.Fatalf("deep rendered %d of %d inferred entries: the deepest briefing is "+
+			"still bounded, so the recovery path it advertises does not exist", got, n)
+	}
+	if strings.Contains(out, "not shown") {
+		t.Fatalf("deep claimed an omission while omitting nothing:\n%s",
+			out[max(0, len(out)-300):])
+	}
+}
+
+// THE PROMISE ITSELF, not one value of it.
+//
+// Fixing deep alone would leave the same defect available to the next depth
+// anyone adds. The invariant is: any profile that CAN truncate must have a
+// deeper profile that does not, or its truncation notice is false.
+func TestEveryBoundedDepthHasAnExhaustiveDepthToPointAt(t *testing.T) {
+	depths := []string{"agent_compact", "compact", "standard", "deep"}
+	exhaustive := []string{}
+	for _, d := range depths {
+		if briefingProfileForDepth(d).inferredNodes <= 0 {
+			exhaustive = append(exhaustive, d)
+		}
+	}
+	if len(exhaustive) == 0 {
+		t.Fatal("no depth returns the complete package inference, so every truncation " +
+			"notice tells the reader to ask for something that does not exist")
+	}
+	// And the escape hatch must be reachable by name: an unknown depth
+	// normalizes to standard, so it cannot be requested by accident.
+	if briefingProfileForDepth("deep").inferredNodes > 0 {
+		t.Errorf("deep is bounded; the exhaustive depths are %v, and a caller "+
+			"has no documented way to ask for those", exhaustive)
+	}
+}
