@@ -159,6 +159,14 @@ func TestDanglingAndAbsentStayMechanicallyDistinct(t *testing.T) {
 // FALSIFIER 3. The generation changes between the freshness read and the
 // publication read. The authority must refuse to attest a coherent
 // publication rather than pairing generation A with receipt B.
+//
+// THIS IS A PROJECTION FALSIFIER, NOT THE VERDICT CONTROL. Its store offers
+// only the two-read path, so the publication carries no generation witness and
+// certification would refuse on that ground alone -- stability is not the only
+// failing dimension here, and a verdict assertion added to this fixture would
+// pass for a compound reason. The verdict control is
+// TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict, whose fixture
+// is certified on the first read so the race is the only thing left to refuse.
 func TestAGenerationChangeMidCompositionRefusesToAttest(t *testing.T) {
 	healthy := healthyReceipt()
 	var reads int64
@@ -196,9 +204,18 @@ func TestAGenerationChangeMidCompositionRefusesToAttest(t *testing.T) {
 	}
 }
 
-// FALSIFIER 4. The lookup is bounded: it never dumps the graph, it costs
-// exactly two subject reads, and an authority nobody asked a publication
-// question of costs zero.
+// FALSIFIER 4. The lookup is bounded: it never dumps the graph and it costs
+// exactly two subject reads.
+//
+// The second half of this falsifier used to require that an authority nobody
+// asked a publication question of did NO publication work. That was a
+// statement about cost, and the certification conjunct made it a statement
+// about truth: a verdict that did not evaluate certification cannot return
+// AUTHORITATIVE, so an unscoped verdict resolves the publication for its own
+// effective (home) domain and pays for it. What must stay bounded is the SIZE
+// of that work -- still two subject reads, still never a graph dump -- and what
+// must stay unchanged is the PROJECTION rule: the caller asked no publication
+// question, so no receipt is presented as though they had.
 func TestThePublicationLookupIsBounded(t *testing.T) {
 	healthy := healthyReceipt()
 	var describes int64
@@ -216,7 +233,7 @@ func TestThePublicationLookupIsBounded(t *testing.T) {
 		t.Fatalf("the lookup cost %d Describe calls, want exactly 2 (pointer, then receipt)", n)
 	}
 
-	// An RPC that asks no publication question must do no publication work.
+	// An unscoped RPC certifies its home domain, and projects nothing.
 	var idle int64
 	quiet := publicationStore{
 		storedTarget: healthy.IRI(),
@@ -224,12 +241,21 @@ func TestThePublicationLookupIsBounded(t *testing.T) {
 		describes:    &idle,
 		failDump:     true,
 	}
-	a := serverWith(quiet).graphAuthorityFor(context.Background(), "")
+	quietServer := serverWith(quiet)
+	// The home domain is one this store HAS a pointer for, so the resolution
+	// runs to completion and its cost is countable. With a domain the store
+	// knows nothing about, ABSENT short-circuits after the pointer read and
+	// the count would prove nothing about repetition.
+	quietServer.homeDomain = pubTestDomain
+	a := quietServer.graphAuthorityFor(context.Background(), "")
 	if a.GetCurrentPublication().GetResolution() != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED {
-		t.Fatalf("an unasked authority resolved a publication: %v", a.GetCurrentPublication().GetResolution())
+		t.Fatalf("an unasked authority projected a publication: %v", a.GetCurrentPublication().GetResolution())
 	}
-	if n := atomic.LoadInt64(&idle); n != 0 {
-		t.Fatalf("an unasked authority still made %d publication Describe calls", n)
+	// Bounded, and resolved exactly ONCE. A verdict and a projection that each
+	// resolved separately would cost four reads and could describe two worlds.
+	if n := atomic.LoadInt64(&idle); n != 2 {
+		t.Fatalf("the unscoped verdict made %d publication Describe calls, want exactly 2 "+
+			"(one bounded resolution, reused rather than repeated)", n)
 	}
 }
 

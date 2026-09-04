@@ -15,6 +15,15 @@ import (
 	"github.com/globulario/sensei/golang/store"
 )
 
+// DescribeTerms lets the publication question be ASKED. A store that cannot
+// answer it resolves UNREADABLE and fails closed, which is right in production
+// and wrong in a fixture: it would make authority assertions test that refusal
+// rather than what they exist to test. This store holds no publication pointer,
+// so the honest answer is ABSENT -- the legacy world these fixtures model.
+func (runtimeMarkerStore) DescribeTerms(context.Context, string) ([]store.Statement, error) {
+	return nil, nil
+}
+
 type runtimeMarkerStore struct {
 	describeFn func(context.Context, string) ([]store.Triple, error)
 	countFn    func(context.Context) (int64, error)

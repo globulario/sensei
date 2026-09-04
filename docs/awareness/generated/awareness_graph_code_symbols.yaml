@@ -26977,6 +26977,126 @@ test_symbols:
     symbol: TestParseBearer
     package: main
     language: go
+  - id: golang/server/authority_certification_test.go:TestADirtyPublicationDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestADirtyPublicationDoesNotCertify
+    package: main
+    language: go
+    doc: "A DIRTY publication records its revision because that is useful, and the\nreceipt contract says it must never be read as \"produced from that commit\".\nCertifying it would turn an accurately recorded limitation into authority."
+  - id: golang/server/authority_certification_test.go:TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict
+    file: golang/server/authority_certification_test.go
+    symbol: TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict
+    package: main
+    language: go
+    doc: "A GENERATION CHANGE MID-COMPOSITION REVOKES THE VERDICT, not just the\nprojection.\n\nThe stability re-read used to happen after the conclusion and could only\nreplace the projected publication. A world that was fresh, closed and\ncertified on the first read therefore returned AUTHORITATIVE alongside an\nUNREADABLE publication saying the generation had moved -- a composite that\ncontradicts itself, and the half a start gate reads is the confident one."
+  - id: golang/server/authority_certification_test.go:TestALegacyDomainStampNamingNoRepositoriesDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestALegacyDomainStampNamingNoRepositoriesDoesNotCertify
+    package: main
+    language: go
+    doc: "THE SAME LIE INSIDE THE LEGACY TOPOLOGY.\n\nThe domain here IS one the v1 format can speak about, so nothing refuses on\napplicability grounds. What refuses is the stamp itself: it names no\nrepository identity at all, which is what buildTransactionTSV emits whenever\nit cannot resolve its repositories -- including from the wrong working\ndirectory in the very topology the format was written for.\n\nSeed digest and triple count still agree, so evaluateTransactionForGraph\ncalls it certification. It certifies nothing."
+  - id: golang/server/authority_certification_test.go:TestALegacyStampDoesNotCertifyAProjectDomain
+    file: golang/server/authority_certification_test.go
+    symbol: TestALegacyStampDoesNotCertifyAProjectDomain
+    package: main
+    language: go
+    doc: "A stamp from the legacy topology presented for a project domain does not\ncertify it either. The commits are real; they are about other repositories."
+  - id: golang/server/authority_certification_test.go:TestALegacyStampNamingNoServicesIdentityDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestALegacyStampNamingNoServicesIdentityDoesNotCertify
+    package: main
+    language: go
+    doc: "And the services half is checked too, so a stamp cannot pass by naming only\nthe repository the check happens to look at first."
+  - id: golang/server/authority_certification_test.go:TestAReceiptForAnotherDomainDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestAReceiptForAnotherDomainDoesNotCertify
+    package: main
+    language: go
+    doc: "The receipt authenticates and answers for a DIFFERENT domain. A compound\nverdict whose parts describe different referents is not an attestation."
+  - id: golang/server/authority_certification_test.go:TestAReceiptFromAnotherGenerationDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestAReceiptFromAnotherGenerationDoesNotCertify
+    package: main
+    language: go
+    doc: "The receipt authenticates and was read from a different generation than the\none being served. Individually accurate halves, false as a whole."
+  - id: golang/server/authority_certification_test.go:TestARepositoryIdentityIsAFullGitObjectID
+    file: golang/server/authority_certification_test.go
+    symbol: TestARepositoryIdentityIsAFullGitObjectID
+    package: main
+    language: go
+    doc: "The identity shape itself, over the forms the writers actually emit. Both\ncall `git rev-parse HEAD`, so a full object ID is the authored shape -- 40\nhex under SHA-1, 64 under SHA-256 -- and an abbreviation is not one."
+  - id: golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
+    package: main
+    language: go
+    doc: "THE WITNESS FROM THE FIELD, not an invented malformed case.\n\nThis is what buildTransactionTSV actually emits when run for a project repo:\nresolveAGRepo finds no golang/server/embeddata, both repository slots become\n\"missing\", and the seed digest still agrees. Measured on 2026-09-04 against\ngithub.com/globulario/sensei-code.\n\nevaluateTransactionForGraph accepts it, because it reads only the seed digest\nand triple count. It must not certify a project publication."
+  - id: golang/server/authority_certification_test.go:TestAStableGenerationStillCertifies
+    file: golang/server/authority_certification_test.go
+    symbol: TestAStableGenerationStillCertifies
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL for the race: a world that holds still still certifies.\nWithout this the test above passes for a server that refuses every fixture\nwhose freshness is read more than once."
+  - id: golang/server/authority_certification_test.go:TestAVerifiedCleanExactPublicationCertifiesTheGraph
+    file: golang/server/authority_certification_test.go
+    symbol: TestAVerifiedCleanExactPublicationCertifiesTheGraph
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL. A verified, CLEAN_EXACT receipt for the domain being asked\nabout, read from the generation being served, certifies the graph.\n\nWithout this every control below would pass for a server that refuses\neverything, which is the failure mode a certification predicate invites."
+  - id: golang/server/authority_certification_test.go:TestAVerifiedReceiptWithNoGenerationWitnessDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestAVerifiedReceiptWithNoGenerationWitnessDoesNotCertify
+    package: main
+    language: go
+    doc: "VERIFIED ANSWERS ONE QUESTION, AND CERTIFICATION ASKS TWO.\n\n\treceipt identity VERIFIED   !=   receipt certifies the served generation\n\nresolveCurrentPublication returns VERIFIED through its DescribeTerms\ncompatibility path, which carries no snapshot marker at all. Treating a\nmissing generation witness as agreement is reading silence as proof -- and it\nis the one shape where \"bound to the generation\" was never established."
+  - id: golang/server/authority_certification_test.go:TestAnUnknownStatePublicationDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestAnUnknownStatePublicationDoesNotCertify
+    package: main
+    language: go
+    doc: "UNKNOWN is what the publisher DOWNGRADES to when the checkout moved between\ncompilation and publication, or when the consumed bytes could not be proven\nagainst the revision. Certifying it would defeat that downgrade."
+  - id: golang/server/authority_certification_test.go:TestAnUnreadablePublicationIsNotRescuedByAValidLegacyStamp
+    file: golang/server/authority_certification_test.go
+    symbol: TestAnUnreadablePublicationIsNotRescuedByAValidLegacyStamp
+    package: main
+    language: go
+    doc: "ORDERED ADMISSIBILITY, NOT INTERCHANGEABLE EVIDENCE.\n\nThe publication evidence exists and is broken. A legacy stamp that happens to\nmatch must not route around it: that is the weaker mechanism overruling the\nstronger one precisely when the stronger one is reporting a problem.\n\nUNREADABLE and ABSENT are different worlds, and resolveCurrentPublication\ntakes pains not to collapse them. This is that distinction one layer up."
+  - id: golang/server/authority_certification_test.go:TestAnUnscopedCallCertifiesItsHomeDomainAndProjectsNothing
+    file: golang/server/authority_certification_test.go
+    symbol: TestAnUnscopedCallCertifiesItsHomeDomainAndProjectsNothing
+    package: main
+    language: go
+    doc: "The projection rule is unchanged by any of this: a caller who asked no\npublication question is not shown a home-domain receipt as though they had."
+  - id: golang/server/authority_certification_test.go:TestArbitraryProseIsNotARepositoryIdentity
+    file: golang/server/authority_certification_test.go
+    symbol: TestArbitraryProseIsNotARepositoryIdentity
+    package: main
+    language: go
+    doc: "A SENTINEL BLACKLIST IS NOT A VALIDATOR.\n\nRejecting \"\", \"missing\" and \"standalone\" while accepting everything else\nmakes \"potato\" a repository identity, and the legacy admissibility claim --\nthat the stamp names the repositories it certifies -- untrue for any value\nnobody thought to exclude."
+  - id: golang/server/authority_certification_test.go:TestClosureAndCertificationShareOneReferent
+    file: golang/server/authority_certification_test.go
+    symbol: TestClosureAndCertificationShareOneReferent
+    package: main
+    language: go
+    doc: "CLOSURE AND CERTIFICATION MUST SHARE ONE REFERENT.\n\nA verdict whose conjuncts describe different repositories is a compound\nattestation whose parts answer different questions -- the defect\nstoreScopedClosureState was repaired to remove, one layer up.\n\nThis asserts the referent IDENTITY rather than a downstream behaviour. A\nbehavioural proxy here is worth very little: the first version of this test\nrefused for want of a transaction stamp and would have passed with the\nreferents wired to two different domains."
+  - id: golang/server/authority_certification_test.go:TestTheLegacyCrossRepoTopologyStillCertifiesWhenNoPublicationExists
+    file: golang/server/authority_certification_test.go
+    symbol: TestTheLegacyCrossRepoTopologyStillCertifiesWhenNoPublicationExists
+    package: main
+    language: go
+    doc: "THE LEGACY WORLD MUST KEEP WORKING. globulario/sensei publishes no per-domain\nreceipt today, so its publication resolves ABSENT and the v1 stamp is the\ncertification it has. Refusing it would take authority away from a graph\nwhose certification model is the one v1 was authored for."
+  - id: golang/server/authority_certification_test.go:TestTheStandaloneLegacyTopologyStillCertifies
+    file: golang/server/authority_certification_test.go
+    symbol: TestTheStandaloneLegacyTopologyStillCertifies
+    package: main
+    language: go
+    doc: "The standalone self-only build is a legacy topology too: the build script\nwrites \"standalone\" deliberately, and it is a stated fact rather than the\n\"missing\" a writer emits when it could not resolve a repository at all."
+  - id: golang/server/authority_certification_test.go:TestTheUnknownSentinelIsNotARepositoryIdentity
+    file: golang/server/authority_certification_test.go
+    symbol: TestTheUnknownSentinelIsNotARepositoryIdentity
+    package: main
+    language: go
+    doc: "The sentinel the self-only build writes when git cannot be read is not an\nidentity either. It was accepted before, because it is not one of the three\nvalues the old blacklist named -- which is exactly why a blacklist fails."
   - id: golang/server/authority_domains_golden_test.go:TestPreflightGolden_AuthorityDomainsSurfaceForCoveredFiles
     file: golang/server/authority_domains_golden_test.go
     symbol: TestPreflightGolden_AuthorityDomainsSurfaceForCoveredFiles
@@ -27768,7 +27888,7 @@ test_symbols:
     symbol: TestAGenerationChangeMidCompositionRefusesToAttest
     package: main
     language: go
-    doc: "FALSIFIER 3. The generation changes between the freshness read and the\npublication read. The authority must refuse to attest a coherent\npublication rather than pairing generation A with receipt B."
+    doc: "FALSIFIER 3. The generation changes between the freshness read and the\npublication read. The authority must refuse to attest a coherent\npublication rather than pairing generation A with receipt B.\n\nTHIS IS A PROJECTION FALSIFIER, NOT THE VERDICT CONTROL. Its store offers\nonly the two-read path, so the publication carries no generation witness and\ncertification would refuse on that ground alone -- stability is not the only\nfailing dimension here, and a verdict assertion added to this fixture would\npass for a compound reason. The verdict control is\nTestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict, whose fixture\nis certified on the first read so the race is the only thing left to refuse."
   - id: golang/server/domain_publication_test.go:TestAMalformedPointerIsUnreadableRatherThanAbsent
     file: golang/server/domain_publication_test.go
     symbol: TestAMalformedPointerIsUnreadableRatherThanAbsent
@@ -27864,7 +27984,7 @@ test_symbols:
     symbol: TestThePublicationLookupIsBounded
     package: main
     language: go
-    doc: "FALSIFIER 4. The lookup is bounded: it never dumps the graph, it costs\nexactly two subject reads, and an authority nobody asked a publication\nquestion of costs zero."
+    doc: "FALSIFIER 4. The lookup is bounded: it never dumps the graph and it costs\nexactly two subject reads.\n\nThe second half of this falsifier used to require that an authority nobody\nasked a publication question of did NO publication work. That was a\nstatement about cost, and the certification conjunct made it a statement\nabout truth: a verdict that did not evaluate certification cannot return\nAUTHORITATIVE, so an unscoped verdict resolves the publication for its own\neffective (home) domain and pays for it. What must stay bounded is the SIZE\nof that work -- still two subject reads, still never a graph dump -- and what\nmust stay unchanged is the PROJECTION rule: the caller asked no publication\nquestion, so no receipt is presented as though they had."
   - id: golang/server/domain_publication_test.go:TestTheVerdictRefusesAPublicationFromAnotherGeneration
     file: golang/server/domain_publication_test.go
     symbol: TestTheVerdictRefusesAPublicationFromAnotherGeneration

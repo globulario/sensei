@@ -2255,3 +2255,14 @@ failure_modes:
       - cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
     evidence:
       - 'Campaign 001 ran every edit in a git worktree outside the session''s resolving project root. The delivery ledger held 2 rows, both from the campaign''s opening analysis in the main checkout, and 0 for the ~15 edits that followed. Reproduced at 6a087916 by piping a PreToolUse payload naming an out-of-project file: exit 0, no row, no ledger file created at all.'
+  - id: failure.graph_authority_certified_a_domain_publication_with_a_stamp
+    title: Graph authority certified a domain publication with a stamp that names no repository
+    protects:
+      files:
+        - golang/server/graph_authority.go
+    related_invariants:
+      - graph.certified_domain_must_match_published_domain_content
+    required_tests:
+      - golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
+    evidence:
+      - 'Measured 2026-09-04: buildTransactionTSV run for github.com/globulario/sensei-code emits ''repo awareness-graph missing'' and ''repo services missing'' while its seed digest agrees, and evaluateTransactionForGraph -- which reads only the seed digest and triple count -- reports that stamp as certification. The v1 format is authored as a cross-repo awareness-graph/services certification and is hardwired around agRepo/svcRepo, so it can make no true claim about any other domain. Meanwhile an authenticated, generation-bound per-domain publication receipt already rode on the same response and the verdict did not consult it.'

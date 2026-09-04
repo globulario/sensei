@@ -58,6 +58,8 @@ func transactionAuthorityServer(t *testing.T, writeStamp bool) *server {
 			t.Fatalf("write transaction stamp: %v", err)
 		}
 	}
+	// A LEGACY SERVER WITH NOTHING PUBLISHED PER DOMAIN: the v1 stamp is the
+	// certification it has, and the only world where that stamp is admissible.
 	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(_ context.Context, iri string) ([]store.Triple, error) {
 			return []store.Triple{

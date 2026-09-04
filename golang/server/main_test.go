@@ -182,6 +182,21 @@ func (f failingStore) GraphFreshness(_ context.Context) seedmeta.Verification {
 	}
 }
 
+// DescribeTerms lets the publication question be ASKED of a plain fake.
+//
+// A store that cannot answer it at all resolves UNREADABLE, which fails closed
+// -- correct in production, and in a fixture it would make every authority
+// assertion below test that refusal instead of the thing it exists to test. A
+// plain fake holds no publication pointer, so the honest answer is ABSENT.
+//
+// DescribeAuthoritySnapshot is deliberately NOT defined here: publicationStore
+// embeds this type to exercise the two-read path, and a snapshot method
+// inherited from the base would silently retire that path for every falsifier
+// that depends on it.
+func (f fakeStore) DescribeTerms(context.Context, string) ([]store.Statement, error) {
+	return nil, nil
+}
+
 type fakeStore struct {
 	describe        func(ctx context.Context, iri string) ([]store.Triple, error)
 	describeInbound func(ctx context.Context, iri string) ([]store.InboundTriple, error)
@@ -1274,7 +1289,7 @@ func TestMetadata_ExposesEmbeddedSeedMarkerState(t *testing.T) {
 func TestGraphAuthorityCarriesEmbeddedTransactionCertification(t *testing.T) {
 	marker := testEmbeddedSeedMarker()
 	stamp := testEmbeddedTransactionStamp()
-	authority := graphAuthorityFromSnapshot(graphFreshnessSnapshot{
+	authority := graphAuthorityFromSnapshot(context.Background(), graphFreshnessSnapshot{
 		verification: seedmeta.Verification{
 			State:           seedmeta.FreshnessCurrent,
 			Expected:        marker,

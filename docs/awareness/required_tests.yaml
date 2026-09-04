@@ -2229,3 +2229,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.an_edit_the_hook_declined_to_brief_produced_no_row_so_zero_c
+  - id: golang/server/authority_certification_test.go:TestAVerifiedCleanExactPublicationCertifiesTheGraph
+    title: A verified CLEAN_EXACT receipt for this domain and generation certifies the graph
+    protects:
+      failure_modes:
+        - failure.graph_authority_certified_a_domain_publication_with_a_stamp
+  - id: golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
+    title: A v1 stamp whose seed agrees while it names no repository does not certify a project publication
+    protects:
+      failure_modes:
+        - failure.graph_authority_certified_a_domain_publication_with_a_stamp

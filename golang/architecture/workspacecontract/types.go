@@ -107,9 +107,9 @@ type GraphAuthority struct {
 	// Authoritative means "the canonical graph-answer verdict AND the serving
 	// binary's own build stamp" (golang/client/authority.go), which is NOT what
 	// the proto field of the same name means -- that one is the composed
-	// graph-answer verdict alone: freshness AND the closure proof bound to this
-	// publication AND the transaction certification
-	// (golang/server/graph_authority.go).
+	// graph-answer verdict alone: freshness AND semantic closure for the
+	// effective authority domain AND publication certification for that same
+	// domain and generation (golang/server/graph_authority.go).
 	//
 	// Read that against this type's comment above, which promises verbatim
 	// proto names so the receipt can be cross-checked against the .proto
