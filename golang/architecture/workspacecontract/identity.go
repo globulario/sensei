@@ -95,9 +95,22 @@ func ComposeIdentity(in IdentityInputs) Identity {
 func partialCompositionLimitations(id Identity) []Limitation {
 	var out []Limitation
 	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative {
+		// Name the proposition that failed, not the disjunction of everything
+		// that could have.
+		//
+		// "freshness, seed, or build-provenance state is not current" was true
+		// and told a reader nothing: the same sentence whether the graph is
+		// stale, the seed is behind, or the SERVING BINARY simply carries no
+		// link-time source-repo commit. Three conditions with three different
+		// repairs, and the third is not about the graph at all -- it is fixed
+		// by rebuilding the server, not by rebuilding any corpus.
+		//
+		// Derived from fields already on the wire, so no consumer pinned to
+		// this schema's digest sees a shape it does not recognise.
+		scope, reason := failingAuthorityProposition(*id.GraphAuthority)
 		out = append(out, Limitation{
-			Source: "golang/architecture/workspacecontract", Scope: "graph_authority",
-			Reason: "graph_authority is present but not authoritative (freshness, seed, or build-provenance state is not current)", Blocking: true,
+			Source: "golang/architecture/workspacecontract", Scope: scope,
+			Reason: reason, Blocking: true,
 		})
 	}
 	if id.CoverageState != coverageStateSufficient {
@@ -175,3 +188,48 @@ func deriveCompositionState(id Identity) CompositionState {
 	}
 	return CompositionPartial
 }
+
+// failingAuthorityProposition names which half of the combined authority
+// reading did not hold.
+//
+// Two propositions travel under one bool:
+//
+//	graph answer authority        are the answers this graph gives trustworthy
+//	                              in this world?  (freshness, seed)
+//	workspace provenance          can Sensei state the source-provenance chain
+//	readiness                     behind them?    (build provenance)
+//
+// They are independent, and a live instance proves it rather than arguing it:
+// on 2026-09-03 the github.com/globulario/sensei graph answered as the current
+// validated artifact WITH a certified runtime transaction, and still reported
+// build provenance incomplete, because the serving binary carried no link-time
+// source-repo commit.
+//
+// The answer proposition is checked first. Reporting "provenance incomplete"
+// about a stale graph would send a reader to repair the wrong thing.
+func failingAuthorityProposition(a GraphAuthority) (scope, reason string) {
+	fresh := a.GraphFreshnessState == "" || a.GraphFreshnessState == graphFreshnessCurrent
+	seeded := a.SeedState == "" || a.SeedState == seedStateCurrent
+	if !fresh || !seeded {
+		reason = "the graph is not answering as the current validated artifact"
+		if detail := a.GraphFreshnessDetail; detail != "" {
+			reason += ": " + detail
+		}
+		return "graph_answer_authority", reason
+	}
+	if a.BuildProvenanceState != "" && a.BuildProvenanceState != buildProvenanceStamped {
+		return "workspace_provenance_readiness",
+			"the graph answers as the current validated artifact, and Sensei cannot state the source " +
+				"provenance behind it (build_provenance_state " + a.BuildProvenanceState + "), so this " +
+				"workspace is not governance-ready. Build provenance is a property of the SERVING BINARY " +
+				"as well as of the graph: a server compiled without its source-repo commit reports " +
+				"incomplete however the corpus was built"
+	}
+	return "graph_authority", "graph_authority is present but not authoritative"
+}
+
+const (
+	graphFreshnessCurrent  = "GRAPH_FRESHNESS_STATE_CURRENT"
+	seedStateCurrent       = "SEED_STATE_CURRENT"
+	buildProvenanceStamped = "BUILD_PROVENANCE_STATE_STAMPED"
+)

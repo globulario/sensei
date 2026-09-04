@@ -96,12 +96,78 @@ func EffectiveMetadataFreshness(m *awarenesspb.MetadataResponse) awarenesspb.Gra
 	}
 }
 
-func isCurrentMetadataAuthority(m *awarenesspb.MetadataResponse) bool {
-	return EffectiveMetadataFreshness(m) == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT &&
-		m.GetBuildProvenanceState() == awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED &&
+// A MetadataResponse carries TWO propositions, and they are not the same
+// question.
+//
+//	graph answer authority       are the answers this graph gives trustworthy
+//	                             in this world?
+//	workspace provenance         can Sensei state the source-provenance chain
+//	readiness                    behind the facts it is answering with?
+//
+// They were conflated into one bool called Authoritative, which then travelled
+// under the same NAME as the proto field GraphAuthority.Authoritative -- a
+// field the server computes from a different predicate entirely (freshness and
+// semantic closure; see golang/server/graph_authority.go). So one graph
+// published `authoritative: true` on a preflight and `authoritative: false` on
+// a workspace receipt, from identical evidence, and nothing in either document
+// said the two words meant different things.
+//
+// Observed on 2026-09-03 against github.com/globulario/sensei-code: freshness
+// CURRENT, seed CURRENT, build provenance INCOMPLETE, transaction stamp
+// missing. Both readings were correct about their own question. The reader had
+// no way to know there were two questions.
+//
+// Splitting them here rather than at the surfaces is what keeps one answer per
+// proposition: the conjunction below is DERIVED from the two, so a caller that
+// wants the old combined meaning gets exactly the old value and cannot compute
+// a third one.
+type MetadataAuthority struct {
+	// AnswerAuthority reports whether the live graph is the current, validated
+	// artifact and can be trusted to answer. It says nothing about how that
+	// artifact was built.
+	AnswerAuthority bool
+	// ProvenanceReadiness reports whether Sensei can state which source
+	// commits produced the graph it is answering from.
+	//
+	// It is a property of the SERVING BINARY as much as of the graph:
+	// classifyBuildProvenance reads the server's own link-time SourceRepoCommit
+	// and build time, so a binary compiled without those stamps reports
+	// INCOMPLETE no matter how the graph was built or how many runtime
+	// transaction certifications exist beside it.
+	ProvenanceReadiness bool
+	// Reason explains the first proposition that does not hold, or is empty.
+	Reason string
+}
+
+// InterpretMetadataScoped answers both propositions separately.
+func InterpretMetadataScoped(m *awarenesspb.MetadataResponse) MetadataAuthority {
+	if m == nil {
+		return MetadataAuthority{Reason: "metadata unavailable"}
+	}
+	answer := EffectiveMetadataFreshness(m) == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT &&
 		m.GetSeedState() == awarenesspb.SeedState_SEED_STATE_CURRENT &&
 		m.GetLiveStoreContainsEmbeddedSeedMarker() &&
 		m.GetTripleCount() > 0
+	provenance := m.GetBuildProvenanceState() == awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED
+
+	out := MetadataAuthority{AnswerAuthority: answer, ProvenanceReadiness: provenance}
+	switch {
+	case !answer:
+		out.Reason = metadataAuthorityWarning(m, FreshnessLabel(EffectiveMetadataFreshness(m)))
+	case !provenance:
+		out.Reason = "the graph answers as the current validated artifact, and the source provenance behind it " +
+			"is " + strings.ToLower(strings.TrimPrefix(m.GetBuildProvenanceState().String(), "BUILD_PROVENANCE_STATE_")) +
+			": Sensei cannot state which source commits produced it"
+	}
+	return out
+}
+
+// isCurrentMetadataAuthority is the CONJUNCTION of the two, kept because it is
+// what the existing compatibility surface means. It is derived rather than
+// recomputed, so it cannot become a third answer.
+func isCurrentMetadataAuthority(m *awarenesspb.MetadataResponse) bool {
+	scoped := InterpretMetadataScoped(m)
+	return scoped.AnswerAuthority && scoped.ProvenanceReadiness
 }
 
 func metadataAuthorityWarning(m *awarenesspb.MetadataResponse, state string) string {
