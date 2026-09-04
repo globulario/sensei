@@ -94,23 +94,39 @@ func ComposeIdentity(in IdentityInputs) Identity {
 // insufficient graph coverage.
 func partialCompositionLimitations(id Identity) []Limitation {
 	var out []Limitation
-	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative {
-		// Name the proposition that failed, not the disjunction of everything
-		// that could have.
+	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative && !hasAuthorityLimitation(id) {
+		// Nobody classified this before the projection, and it cannot be
+		// classified after it.
 		//
-		// "freshness, seed, or build-provenance state is not current" was true
-		// and told a reader nothing: the same sentence whether the graph is
-		// stale, the seed is behind, or the SERVING BINARY simply carries no
-		// link-time source-repo commit. Three conditions with three different
-		// repairs, and the third is not about the graph at all -- it is fixed
-		// by rebuilding the server, not by rebuilding any corpus.
+		// GraphAuthority.Authoritative is the legacy combined bool: canonical
+		// answer authority AND binary build stamp. The v1 receipt carries
+		// freshness, seed and build_provenance beside it and NOT the closure
+		// proof or the transaction certification -- so a false combined bool
+		// with CURRENT freshness, CURRENT seed and INCOMPLETE provenance is
+		// produced by at least three different worlds:
 		//
-		// Derived from fields already on the wire, so no consumer pinned to
-		// this schema's digest sees a shape it does not recognise.
-		scope, reason := failingAuthorityProposition(*id.GraphAuthority)
+		//	answer refused on the transaction, stamp incomplete
+		//	answer refused on closure,         stamp incomplete
+		//	answer authoritative,              stamp incomplete
+		//
+		// An earlier version of this function inferred "binary_build_stamp"
+		// from those three fields and was wrong in the first two: it reported
+		// that the graph answers authoritatively when the canonical verdict had
+		// refused it. The information to tell them apart was discarded by the
+		// projection, and a guess dressed as a specific cause is worse than the
+		// generic one, because it sends a reader to repair the wrong thing.
+		//
+		// Classification happens BEFORE the projection -- see
+		// cmd/awareness-mcp/workspace_tools.go, which classifies from the whole
+		// MetadataResponse while the canonical verdict still exists and passes
+		// the result in as a supplied limitation. This branch is what remains
+		// for a caller that composes an identity from the v1 projection alone.
 		out = append(out, Limitation{
-			Source: "golang/architecture/workspacecontract", Scope: scope,
-			Reason: reason, Blocking: true,
+			Source: "golang/architecture/workspacecontract", Scope: "graph_authority",
+			Reason: "graph_authority is present but not authoritative; the specific failing proposition " +
+				"cannot be recovered from this v1 projection, which carries neither the closure proof nor " +
+				"the transaction certification the canonical verdict weighs",
+			Blocking: true,
 		})
 	}
 	if id.CoverageState != coverageStateSufficient {
@@ -189,55 +205,19 @@ func deriveCompositionState(id Identity) CompositionState {
 	return CompositionPartial
 }
 
-// failingAuthorityProposition names which half of the combined authority
-// reading did not hold.
+// hasAuthorityLimitation reports whether the caller already classified the
+// authority failure from evidence this receipt no longer carries.
 //
-// Two propositions travel under one bool:
-//
-//	graph answer authority        are the answers this graph gives trustworthy
-//	                              in this world?  (the canonical composed
-//	                              verdict: freshness, closure, transaction)
-//	binary build stamp            was the SERVING BINARY linked with its own
-//	                              source-commit and build-time stamps?
-//
-// They are independent, and a live instance proves it rather than arguing it:
-// on 2026-09-03 the github.com/globulario/sensei graph answered as the current
-// validated artifact WITH a certified runtime transaction, and still reported
-// build provenance incomplete, because the serving binary carried no link-time
-// source-repo commit.
-//
-// The second is deliberately NOT called graph provenance. A server started with
-// -no-seed against an existing store can be rebuilt and restamped today while
-// the store it answers from was published long ago by inputs nobody recorded;
-// restamping the binary would make this read healthy and would establish
-// nothing about the graph.
-//
-// The answer proposition is checked first. Reporting "provenance incomplete"
-// about a stale graph would send a reader to repair the wrong thing.
-func failingAuthorityProposition(a GraphAuthority) (scope, reason string) {
-	fresh := a.GraphFreshnessState == "" || a.GraphFreshnessState == graphFreshnessCurrent
-	seeded := a.SeedState == "" || a.SeedState == seedStateCurrent
-	if !fresh || !seeded {
-		reason = "the graph is not answering as the current validated artifact"
-		if detail := a.GraphFreshnessDetail; detail != "" {
-			reason += ": " + detail
+// A supplied classification is preserved rather than supplemented: adding a
+// second, weaker authority limitation beside an exact one would leave a reader
+// two answers to the same question, and the derived one would be the wrong
+// answer in exactly the cases the exact one exists for.
+func hasAuthorityLimitation(id Identity) bool {
+	for _, l := range id.Limitations {
+		switch l.Scope {
+		case "graph_authority", "graph_answer_authority", "binary_build_stamp":
+			return true
 		}
-		return "graph_answer_authority", reason
 	}
-	if a.BuildProvenanceState != "" && a.BuildProvenanceState != buildProvenanceStamped {
-		return "binary_build_stamp",
-			"the graph answers authoritatively, and the SERVING BINARY carries no complete build stamp " +
-				"(build_provenance_state " + a.BuildProvenanceState + "), so this workspace is not " +
-				"governance-ready. This is a fact about how the server was linked -- its own " +
-				"-X main.SourceCommit and main.BuildTimeUnix -- and says nothing about which commits " +
-				"produced the graph being served. Graph provenance is the publication and transaction " +
-				"evidence bound to the served generation, which the authority verdict already weighs"
-	}
-	return "graph_authority", "graph_authority is present but not authoritative"
+	return false
 }
-
-const (
-	graphFreshnessCurrent  = "GRAPH_FRESHNESS_STATE_CURRENT"
-	seedStateCurrent       = "SEED_STATE_CURRENT"
-	buildProvenanceStamped = "BUILD_PROVENANCE_STATE_STAMPED"
-)

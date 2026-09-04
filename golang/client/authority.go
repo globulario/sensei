@@ -105,17 +105,24 @@ func EffectiveMetadataFreshness(m *awarenesspb.MetadataResponse) awarenesspb.Gra
 //	readiness                    behind the facts it is answering with?
 //
 // They were conflated into one bool called Authoritative, which then travelled
-// under the same NAME as the proto field GraphAuthority.Authoritative -- a
-// field the server computes from a different predicate entirely (freshness and
-// semantic closure; see golang/server/graph_authority.go). So one graph
-// published `authoritative: true` on a preflight and `authoritative: false` on
-// a workspace receipt, from identical evidence, and nothing in either document
-// said the two words meant different things.
+// under the same NAME as the proto field GraphAuthority.Authoritative -- and
+// the server's predicate for that field was itself missing a conjunct the wire
+// contract required. So one graph published `authoritative: true` on a
+// preflight and `authoritative: false` on a workspace receipt, from identical
+// evidence, and nothing in either document said the two words meant different
+// things.
 //
 // Observed on 2026-09-03 against github.com/globulario/sensei-code: freshness
 // CURRENT, seed CURRENT, build provenance INCOMPLETE, transaction stamp
-// missing. Both readings were correct about their own question. The reader had
-// no way to know there were two questions.
+// MISSING. Only the workspace reading was correct. The preflight reading was
+// the missing transaction conjunct in golang/server/graph_authority.go, since
+// repaired -- that graph is not authoritative, and was not on the day it was
+// observed.
+//
+// The propositions really are two, and the coherent specimen is the
+// github.com/globulario/sensei graph of the same day: certified transaction,
+// authoritative answers, and an unstamped serving binary. See
+// authority_scoped_test.go.
 //
 // Splitting them here rather than at the surfaces is what keeps one answer per
 // proposition: the conjunction below is DERIVED from the two, so a caller that

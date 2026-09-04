@@ -11,14 +11,21 @@ import (
 
 // The world this exists for, preserved as a fixture rather than described.
 //
-// Observed on 2026-09-03 against github.com/globulario/sensei-code: the live
-// graph matched its validated artifact exactly, the seed was current, and the
-// serving binary carried no link-time source-repo commit -- so build provenance
-// was INCOMPLETE and the runtime transaction stamp was absent.
+// The specimen is github.com/globulario/sensei on :10121, observed 2026-09-03:
+// the live graph matched its validated artifact, the seed was current, a
+// runtime transaction CERTIFIED that publication -- and build provenance was
+// still INCOMPLETE, because the serving binary carried no link-time
+// source-repo commit.
 //
-// Two Sensei surfaces then published a field called `authoritative` about that
-// one graph, one saying true and one saying false, from identical evidence.
-// Both were right about their own question. Nothing said there were two.
+// That is the legitimate independent-propositions case, and it is coherent:
+// every field agrees, and two different questions get two different answers.
+//
+// It deliberately replaces an earlier fixture built from the sensei-code
+// reading of the same day, which had authoritative=true beside
+// transaction_matches_seed=false. Once the canonical verdict regained its
+// transaction conjunct that combination stopped being a world at all -- it was
+// a response disagreeing with itself, and preserving it would have meant
+// keeping the defect alive as a fixture.
 func divergentWorld() *awarenesspb.MetadataResponse {
 	return &awarenesspb.MetadataResponse{
 		// The canonical verdict, which is what AnswerAuthority consumes. The
@@ -39,25 +46,24 @@ func divergentWorld() *awarenesspb.MetadataResponse {
 		SeedState:                           awarenesspb.SeedState_SEED_STATE_CURRENT,
 		BuildProvenanceState:                awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_INCOMPLETE,
 		LiveStoreContainsEmbeddedSeedMarker: true,
-		TripleCount:                         34619,
-		EmbeddedTransactionStampPresent:     false,
-		EmbeddedTransactionMatchesSeed:      false,
+		TripleCount:                         141543,
+		// Certified, as :10121 is. The graph's publication is signed; the
+		// SERVER's build stamp is what is missing.
+		EmbeddedTransactionStampPresent: true,
+		EmbeddedTransactionMatchesSeed:  true,
+		CertifiedAwarenessGraphCommit:   "58c055fbd9d65ad2f5a8c965f728897012e75f09",
+		CertifiedServicesRepoCommit:     "b98c91eb540a3e5aa9d97e7b3c08005e08cb1897",
 	}
 }
 
 // fullyProvenanced is the same world with the provenance chain stated.
 func fullyProvenanced() *awarenesspb.MetadataResponse {
 	m := divergentWorld()
-	// A SERVICES commit, semantically distinct from the awareness-graph SHA
-	// above: they are different repositories, and a fixture that reuses one
-	// value for both would pass while proving nothing about which field
-	// carries which.
+	// A SERVICES commit, semantically distinct from the awareness-graph SHA:
+	// they are different repositories, and a fixture that reuses one value for
+	// both would pass while proving nothing about which field carries which.
 	m.SourceRepoCommit = "b98c91eb540a3e5aa9d97e7b3c08005e08cb1897"
 	m.BuildProvenanceState = awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED
-	m.EmbeddedTransactionStampPresent = true
-	m.EmbeddedTransactionMatchesSeed = true
-	m.CertifiedAwarenessGraphCommit = "58c055fbd9d65ad2f5a8c965f728897012e75f09"
-	m.CertifiedServicesRepoCommit = "b98c91eb540a3e5aa9d97e7b3c08005e08cb1897"
 	m.Authority.BuildProvenanceState = awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED
 	return m
 }
@@ -65,12 +71,17 @@ func fullyProvenanced() *awarenesspb.MetadataResponse {
 // The divergent state is COHERENT, not contradictory. Asserting both halves in
 // one test is the point: a reader who sees only one of them learns the wrong
 // thing.
-func TestAGraphCanAnswerWellAndStateNoProvenance(t *testing.T) {
+func TestAGraphCanAnswerAuthoritativelyWithAnUnstampedBinary(t *testing.T) {
 	scoped := InterpretMetadataScoped(divergentWorld())
 
 	if !scoped.AnswerAuthority {
-		t.Fatal("a graph matching its validated artifact, seed current, marker present, non-empty " +
-			"was reported as unable to answer")
+		t.Fatalf("a graph whose canonical verdict is AUTHORITATIVE was reported as unable to answer: %q",
+			scoped.Reason)
+	}
+	// The fixture is coherent: the publication IS certified. What is missing is
+	// the serving binary's own build stamp.
+	if !divergentWorld().GetEmbeddedTransactionMatchesSeed() {
+		t.Fatal("the fixture is back to a response that disagrees with itself")
 	}
 	if scoped.BinaryBuildStampComplete {
 		t.Fatal("a serving binary with no source-repo commit reported that it can state its provenance")
