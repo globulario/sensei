@@ -92,7 +92,13 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	// counts scoped to the caller's. Every other surface -- query, resolve,
 	// briefing, impact -- passes the requested domain through. Metadata is the
 	// one that did not, and it is the surface an agent reaches for first.
-	resp.Authority = graphAuthorityFromSnapshotFor(freshness, s, requestedDomain)
+	// The publication resolved for the verdict is deliberately DISCARDED here.
+	// Metadata does not project current_publication, and attaching a
+	// home-domain receipt to an unscoped call would answer a question the
+	// caller did not ask -- the rule graphAuthorityFor keeps for the same
+	// reason. The verdict is certified against it; the projection is not
+	// widened by it.
+	resp.Authority, _ = graphAuthorityFromSnapshotFor(ctx, freshness, s, requestedDomain)
 	if resp.GetGovernancePackState() == awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_CURRENT &&
 		freshness.verification.State != seedmeta.FreshnessCurrent {
 		resp.GovernancePackState = awarenesspb.GovernancePackState_GOVERNANCE_PACK_STATE_STALE

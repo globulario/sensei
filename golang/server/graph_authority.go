@@ -23,7 +23,11 @@ func (s *server) graphAuthority(ctx context.Context) *awarenesspb.GraphAuthority
 // rather than reading the answer to a different question.
 func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string) *awarenesspb.GraphAuthority {
 	snap := snapshotGraphFreshness(ctx, s)
-	a := graphAuthorityFromSnapshotFor(snap, s, publicationDomain)
+	// ONE RESOLUTION. The verdict and the projection describe the same read of
+	// the same publication: resolving twice would let a publication landing
+	// between them produce a response whose conclusion and whose evidence
+	// describe different worlds.
+	a, pub := graphAuthorityFromSnapshotFor(ctx, snap, s, publicationDomain)
 	// RESOLVED ONLY WHEN ASKED.
 	//
 	// This projection exists for start gates. Attaching it to every RPC that
@@ -42,8 +46,6 @@ func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string
 		}
 		return a
 	}
-	pub := resolveCurrentPublication(ctx, s, publicationDomain)
-
 	// ONE GENERATION, OR NEITHER CLAIM.
 	//
 	// Freshness and the publication are two separate reads, and an earlier
@@ -95,11 +97,33 @@ func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string
 	return a
 }
 
-func graphAuthorityFromSnapshot(snap graphFreshnessSnapshot, s *server) *awarenesspb.GraphAuthority {
-	return graphAuthorityFromSnapshotFor(snap, s, "")
+func graphAuthorityFromSnapshot(ctx context.Context, snap graphFreshnessSnapshot, s *server) *awarenesspb.GraphAuthority {
+	a, _ := graphAuthorityFromSnapshotFor(ctx, snap, s, "")
+	return a
 }
 
-func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closureDomain string) *awarenesspb.GraphAuthority {
+// effectiveAuthorityDomain is the ONE referent an authority verdict concerns.
+//
+// It answers "what domain does this server's authority verdict concern", which
+// is a different question from "what publication did the caller ask me to
+// show". Both conjuncts that have a referent -- the closure proof and the
+// publication certification -- take this exact value, and neither carries a
+// fallback of its own. Two evaluators each resolving their own domain is how a
+// verdict becomes a compound attestation whose halves describe different
+// repositories: the defect storeScopedClosureState was repaired to remove, made
+// structurally impossible here rather than warned about there.
+func effectiveAuthorityDomain(requested, home string) string {
+	if d := strings.TrimSpace(requested); d != "" {
+		return d
+	}
+	return strings.TrimSpace(home)
+}
+
+// graphAuthorityFromSnapshotFor composes the verdict and returns the
+// publication it was certified against, so a caller that also projects the
+// publication shows the same read the conclusion rests on.
+func graphAuthorityFromSnapshotFor(ctx context.Context, snap graphFreshnessSnapshot, s *server, requestedDomain string) (*awarenesspb.GraphAuthority, *awarenesspb.DomainPublication) {
+	effectiveDomain := effectiveAuthorityDomain(requestedDomain, serverHomeDomain(s))
 	stamp, txMode, txPath, txReadErr := transactionStampForGraph(s)
 	transactionMatchesSeed, transactionDetail := evaluateTransactionForGraph(
 		snap.verification.Expected,
@@ -124,15 +148,10 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 	// publication. The evaluator is the shared one in golang/closure that
 	// `sensei domain-closure` uses — one canonical implementation, not two that
 	// can drift apart.
-	semanticState, semanticDetail := graphClosureStateFor(s, snap, closureDomain)
+	semanticState, semanticDetail := graphClosureStateFor(s, snap, effectiveDomain)
 	freshnessCurrent := snap.verification.State == seedmeta.FreshnessCurrent
 
 	detail := snap.verification.Detail
-	if freshnessCurrent && semanticState == closure.SemanticClosureProven && !transactionMatchesSeed {
-		// Fresh and closed and uncertified: without this the refusal renders as
-		// the freshness detail, which says the graph is fine.
-		detail = "transaction certification: " + transactionDetail + " | freshness: " + snap.verification.Detail
-	}
 	if semanticState != closure.SemanticClosureProven {
 		// Say WHY, and keep the freshness detail: "fresh but not closed" is the
 		// distinction that was impossible to express before.
@@ -166,9 +185,32 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 	// was on the wire and the conclusion ignored it, which is the same shape as
 	// the #176 defect this function was written to close: a cheap surface
 	// reading green while the fact it rests on says otherwise.
+	// AND THE CERTIFICATION IS THE PUBLICATION'S, NOT A PROXY FOR IT.
+	//
+	// transactionMatchesSeed does not mean "this domain publication is
+	// certified". The v1 stamp is authored as a CROSS-REPO certification --
+	// certified_awareness_graph_commit, certified_services_repo_commit, and a
+	// writer hardwired around agRepo/svcRepo -- and evaluateTransactionForGraph
+	// reads only the seed digest and triple count. Run for a project domain the
+	// writer emits both repository identities as "missing" while the seed still
+	// agrees, so the conjunct would be satisfied by a stamp certifying nothing.
+	// Measured on 2026-09-04 against github.com/globulario/sensei-code.
+	//
+	// The stronger record already existed and the conclusion did not consult
+	// it: a per-domain receipt, authenticated by recomputing its identity, and
+	// bound to the served generation by being CONTAINED IN it. That is the same
+	// shape as the conjunct #342 restored, one owner farther upstream.
+	certified, certificationDetail, pub := certifyPublication(
+		ctx, s, effectiveDomain, snap, stamp, transactionMatchesSeed, transactionDetail)
+	if freshnessCurrent && semanticState == closure.SemanticClosureProven && !certified {
+		// Otherwise the refusal renders as the freshness detail, which says the
+		// graph is fine.
+		detail = "publication certification: " + certificationDetail + " | freshness: " + snap.verification.Detail
+	}
+
 	authoritative := freshnessCurrent &&
 		semanticState == closure.SemanticClosureProven &&
-		transactionMatchesSeed
+		certified
 	verdict := awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE
 	if authoritative {
 		verdict = awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE
@@ -192,7 +234,7 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 		CertifiedServicesRepoCommit:     stamp.ServicesCommit,
 		EmbeddedTransactionMatchesSeed:  transactionMatchesSeed,
 		EmbeddedTransactionDetail:       transactionDetail,
-	}
+	}, pub
 }
 
 // graphClosureState resolves the semantic verdict for the live publication.
@@ -201,13 +243,16 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 // cannot locate a closure report at all, and "I could not check" must never be
 // reported as "it passed" — that is the precise shape of the defect this whole
 // change exists to remove.
-// closureDomain is the domain the closure verdict is ABOUT. Empty means the
-// server's own home domain.
+// authorityDomain is the referent the verdict is ABOUT, already resolved by
+// effectiveAuthorityDomain. It is no longer merely a closure parameter: the
+// certification conjunct takes the same value, so this evaluator must not
+// resolve a domain of its own. An empty value here means the server declares no
+// domain at all, which is a refusal rather than an invitation to pick one.
 func graphClosureState(s *server, snap graphFreshnessSnapshot) (closure.SemanticState, string) {
-	return graphClosureStateFor(s, snap, "")
+	return graphClosureStateFor(s, snap, serverHomeDomain(s))
 }
 
-func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain string) (closure.SemanticState, string) {
+func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, authorityDomain string) (closure.SemanticState, string) {
 	// Injectable at the same seam the fake store injects freshness: a fixture
 	// that declares its synthetic publication current must be able to declare it
 	// closed too. The DEFAULT (nil) is the real file-based evaluator, so
@@ -215,7 +260,7 @@ func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain 
 	if s != nil && s.closureEval != nil {
 		// The hook carries the SAME referent the verdict is about, so a test
 		// can prove the requested domain reached the closure evaluation.
-		return s.closureEval(closureDomain)
+		return s.closureEval(authorityDomain)
 	}
 	if s == nil {
 		return closure.SemanticClosureUnproven, "no server context, so no closure report can be located"
@@ -224,7 +269,7 @@ func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain 
 	// publication that is actually live. It holds one proof per registered
 	// domain, so a rebuild of some OTHER domain no longer takes authority away
 	// from this one.
-	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest, closureDomain); ok {
+	if state, detail, ok := storeScopedClosureState(s, snap.verification.Live.Digest, authorityDomain); ok {
 		return state, detail
 	}
 	// Fall back to this repository's own copy. Reached when the proof set has
@@ -248,7 +293,7 @@ func graphClosureStateFor(s *server, snap graphFreshnessSnapshot, closureDomain 
 // including when the answer is that this domain is unproven: a set that covers
 // the live generation and does not vouch for this domain is a real negative,
 // not a reason to go looking for a more agreeable file elsewhere.
-func storeScopedClosureState(s *server, liveDigest, closureDomain string) (closure.SemanticState, string, bool) {
+func storeScopedClosureState(s *server, liveDigest, authorityDomain string) (closure.SemanticState, string, bool) {
 	if s.oxigraphQueryURL == "" || strings.TrimSpace(liveDigest) == "" {
 		return "", "", false
 	}
@@ -272,10 +317,10 @@ func storeScopedClosureState(s *server, liveDigest, closureDomain string) (closu
 	// receipt for a foreign domain that has no proof at all. A compound
 	// attestation whose parts describe different referents is not an
 	// attestation.
-	domain := strings.TrimSpace(closureDomain)
-	if domain == "" {
-		domain = strings.TrimSpace(s.homeDomain)
-	}
+	// NO INDEPENDENT FALLBACK. The referent arrives already resolved; an
+	// evaluator that reached for the home domain on its own is how the two
+	// conjuncts came to be able to describe different repositories.
+	domain := strings.TrimSpace(authorityDomain)
 	if domain == "" {
 		return closure.SemanticClosureUnproven,
 			"the store's proof set covers this publication but this server declares no domain, so none of its proofs can be claimed", true
