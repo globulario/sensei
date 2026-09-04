@@ -23114,6 +23114,18 @@ test_symbols:
     package: client
     language: go
     doc: "The divergent state is COHERENT, not contradictory. Asserting both halves in\none test is the point: a reader who sees only one of them learns the wrong\nthing."
+  - id: golang/client/authority_scoped_test.go:TestAHealthyWorldCarriesNoWarning
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAHealthyWorldCarriesNoWarning
+    package: client
+    language: go
+    doc: "And a healthy world is still authoritative, with no warning at all."
+  - id: golang/client/authority_scoped_test.go:TestAStampRefusalIsExplainedAsTheStamp
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAStampRefusalIsExplainedAsTheStamp
+    package: client
+    language: go
+    doc: "A refusal on the binary build stamp is explained as that, not as a graph\nproblem. Without this the test above would pass for a version that always\nreports the answer-authority reason."
   - id: golang/client/authority_scoped_test.go:TestAnUnusableGraphFailsTheAnswerPropositionFirst
     file: golang/client/authority_scoped_test.go
     symbol: TestAnUnusableGraphFailsTheAnswerPropositionFirst
@@ -23132,6 +23144,12 @@ test_symbols:
     package: client
     language: go
     doc: "The combined reading is DERIVED from the two, never computed again. A third\nanswer is exactly what this whole repair exists to prevent."
+  - id: golang/client/authority_scoped_test.go:TestTheRefusalCarriesTheCanonicalReasonNotARecomputedOne
+    file: golang/client/authority_scoped_test.go
+    symbol: TestTheRefusalCarriesTheCanonicalReasonNotARecomputedOne
+    package: client
+    language: go
+    doc: "The verdict and its explanation must come from the same evaluation.\n\nInterpretMetadataAuthority took the BOOLEAN from the repaired path and then\nrecomputed the WHY from the old top-level metadata fields. Those fields carry\nneither the closure proof nor the transaction certification, so a graph the\ncanonical verdict refuses for a missing transaction was explained as \"graph\nmetadata is not authoritative (current)\" -- a sentence that names the state\nthe reader can already see and none of the reason they need.\n\nThis type's own doc calls it the single source of truth for \"can I trust this\nanswer, and if not why\". Half of that was true."
   - id: golang/client/client_test.go:TestAllRPCs
     file: golang/client/client_test.go
     symbol: TestAllRPCs

@@ -58,10 +58,20 @@ func InterpretMetadataAuthority(m *awarenesspb.MetadataResponse) AuthorityVerdic
 		return AuthorityVerdict{Verdict: "non_authoritative", State: "unknown", Warning: "metadata unavailable"}
 	}
 	state := FreshnessLabel(EffectiveMetadataFreshness(m))
-	if isCurrentMetadataAuthority(m) {
+
+	// One evaluation, one reason. The verdict took its BOOLEAN from the scoped
+	// reading and then recomputed its WHY from the top-level fields, which carry
+	// neither the closure proof nor the transaction certification the canonical
+	// verdict weighs. A graph refused for a missing transaction was explained as
+	// "graph metadata is not authoritative (current)" -- a sentence naming the
+	// state the reader can already see and none of the reason they need. This
+	// type promises to be the single source of truth for "can I trust this
+	// answer, and if not why"; half of that was true.
+	scoped := InterpretMetadataScoped(m)
+	if scoped.AnswerAuthority && scoped.BinaryBuildStampComplete {
 		return AuthorityVerdict{Authoritative: true, Verdict: "authoritative", State: state}
 	}
-	return AuthorityVerdict{Verdict: "non_authoritative", State: state, Warning: metadataAuthorityWarning(m, state)}
+	return AuthorityVerdict{Verdict: "non_authoritative", State: state, Warning: scoped.Reason}
 }
 
 // FreshnessLabel renders a GraphFreshnessState as a short lowercase token
@@ -216,14 +226,6 @@ func InterpretMetadataScoped(m *awarenesspb.MetadataResponse) MetadataAuthority 
 			"without its own source stamp"
 	}
 	return out
-}
-
-// isCurrentMetadataAuthority is the CONJUNCTION of the two, kept because it is
-// what the existing compatibility surface means. It is derived rather than
-// recomputed, so it cannot become a third answer.
-func isCurrentMetadataAuthority(m *awarenesspb.MetadataResponse) bool {
-	scoped := InterpretMetadataScoped(m)
-	return scoped.AnswerAuthority && scoped.BinaryBuildStampComplete
 }
 
 func metadataAuthorityWarning(m *awarenesspb.MetadataResponse, state string) string {

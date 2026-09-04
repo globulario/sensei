@@ -161,9 +161,10 @@ const CoverageStateSufficient = coverageStateSufficient
 //
 // Authority and coverage are deliberately kept as two separate dimensions,
 // never merged into one another: GraphAuthority.Authoritative answers "is
-// this genuinely the live, current, provenance-stamped graph" (freshness,
-// seed state, build provenance -- see golang/client/authority.go's
-// isCurrentMetadataAuthority, which this field's value already reflects),
+// this genuinely the live, current, certified graph" (the canonical verdict
+// -- freshness, closure and transaction certification -- conjoined with the
+// serving binary's build stamp; see golang/client/authority.go's
+// InterpretMetadataAuthority, which this field's value already reflects),
 // while CoverageState answers "does that graph actually know enough about
 // this repository to ground a governed operation." A graph can be
 // authoritative in the first sense while still being COVERAGE_STATE_THIN or

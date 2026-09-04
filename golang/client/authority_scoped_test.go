@@ -185,3 +185,76 @@ func TestTheCombinedReadingIsTheConjunctionAndNotAThirdAnswer(t *testing.T) {
 		}
 	}
 }
+
+// The verdict and its explanation must come from the same evaluation.
+//
+// InterpretMetadataAuthority took the BOOLEAN from the repaired path and then
+// recomputed the WHY from the old top-level metadata fields. Those fields carry
+// neither the closure proof nor the transaction certification, so a graph the
+// canonical verdict refuses for a missing transaction was explained as "graph
+// metadata is not authoritative (current)" -- a sentence that names the state
+// the reader can already see and none of the reason they need.
+//
+// This type's own doc calls it the single source of truth for "can I trust this
+// answer, and if not why". Half of that was true.
+func TestTheRefusalCarriesTheCanonicalReasonNotARecomputedOne(t *testing.T) {
+	m := fullyProvenanced()
+	m.Authority.Verdict = awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE
+	m.Authority.Authoritative = false
+	m.Authority.EmbeddedTransactionMatchesSeed = false
+	m.Authority.GraphFreshnessDetail = "transaction certification: runtime transaction stamp missing | freshness: live store matches expected validated graph artifact"
+	// Every top-level field a recomputed explanation would read still looks
+	// healthy, which is what makes the recomputation produce the wrong reason
+	// rather than no reason.
+	if m.GetGraphFreshnessState() != awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT ||
+		m.GetSeedState() != awarenesspb.SeedState_SEED_STATE_CURRENT ||
+		m.GetBuildProvenanceState() != awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED {
+		t.Fatal("this fixture is only meaningful while the top-level fields look healthy")
+	}
+
+	v := InterpretMetadataAuthority(m)
+	if v.Authoritative {
+		t.Fatal("a canonical refusal was reported as authoritative")
+	}
+	if !strings.Contains(v.Warning, "transaction") {
+		t.Fatalf("the refusal does not carry the canonical reason: %q", v.Warning)
+	}
+	if strings.Contains(v.Warning, "graph metadata is not authoritative") {
+		t.Fatalf("the refusal recomputed a reason from the top-level fields: %q", v.Warning)
+	}
+	// The verdict and the scoped reading must be the same evaluation, not two
+	// that happen to agree.
+	if scoped := InterpretMetadataScoped(m); v.Warning != scoped.Reason {
+		t.Fatalf("the combined verdict explains itself differently from the scoped reading:\n got %q\nwant %q",
+			v.Warning, scoped.Reason)
+	}
+}
+
+// A refusal on the binary build stamp is explained as that, not as a graph
+// problem. Without this the test above would pass for a version that always
+// reports the answer-authority reason.
+func TestAStampRefusalIsExplainedAsTheStamp(t *testing.T) {
+	v := InterpretMetadataAuthority(divergentWorld())
+
+	if v.Authoritative {
+		t.Fatal("an incomplete build stamp was reported as authoritative")
+	}
+	if !strings.Contains(v.Warning, "build stamp") {
+		t.Fatalf("the refusal does not name the build stamp: %q", v.Warning)
+	}
+	if !strings.Contains(v.Warning, "says nothing about which commits produced the graph") {
+		t.Fatalf("the refusal overclaims what a build stamp proves: %q", v.Warning)
+	}
+}
+
+// And a healthy world is still authoritative, with no warning at all.
+func TestAHealthyWorldCarriesNoWarning(t *testing.T) {
+	v := InterpretMetadataAuthority(fullyProvenanced())
+
+	if !v.Authoritative || v.Verdict != "authoritative" {
+		t.Fatalf("authoritative=%v verdict=%q warning=%q", v.Authoritative, v.Verdict, v.Warning)
+	}
+	if v.Warning != "" {
+		t.Fatalf("a healthy world carried a warning: %q", v.Warning)
+	}
+}
