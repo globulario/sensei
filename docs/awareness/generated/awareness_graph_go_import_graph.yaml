@@ -2995,6 +2995,7 @@ components:
     assertion: inferred
     source_files:
       - golang/server/auth.go
+      - golang/server/authority_certification.go
       - golang/server/authority_domains.go
       - golang/server/blast_radius.go
       - golang/server/briefing.go
