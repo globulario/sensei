@@ -482,3 +482,180 @@ func TestTheStandaloneLegacyTopologyStillCertifies(t *testing.T) {
 		t.Fatalf("the standalone legacy topology lost its authority: %s", a.GetGraphFreshnessDetail())
 	}
 }
+
+// ------------------------------------------------- the generation witness --
+
+// VERIFIED ANSWERS ONE QUESTION, AND CERTIFICATION ASKS TWO.
+//
+//	receipt identity VERIFIED   !=   receipt certifies the served generation
+//
+// resolveCurrentPublication returns VERIFIED through its DescribeTerms
+// compatibility path, which carries no snapshot marker at all. Treating a
+// missing generation witness as agreement is reading silence as proof -- and it
+// is the one shape where "bound to the generation" was never established.
+func TestAVerifiedReceiptWithNoGenerationWitnessDoesNotCertify(t *testing.T) {
+	generation := strings.Repeat("a", 64)
+	healthy := healthyReceipt()
+	// The two-read path: this store offers DescribeTerms and no authority
+	// snapshot, so nothing reports which generation the receipt was read from.
+	st := publicationStore{
+		fakeStore:    fakeStore{graphFreshness: pinnedFreshness(generation)},
+		storedTarget: healthy.IRI(),
+		body:         receiptTriples(healthy),
+	}
+	s := freshClosedServer(t, st)
+
+	a := verdictFor(t, s, pubTestDomain)
+
+	// The receipt really did authenticate. That is not downgraded, because it
+	// is true: what is missing is the binding, not the identity.
+	if got := a.GetCurrentPublication().GetResolution(); got != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+		t.Fatalf("the receipt resolution was downgraded to %v; its identity verified", got)
+	}
+	if a.GetCurrentPublication().GetSnapshotGeneration() != "" {
+		t.Fatalf("fixture premise broken: this path must carry no generation witness, got %q",
+			a.GetCurrentPublication().GetSnapshotGeneration())
+	}
+	if a.GetVerdict() != awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE {
+		t.Fatal("a receipt with no generation witness certified the served generation; " +
+			"nothing bound the two together")
+	}
+	if !strings.Contains(a.GetGraphFreshnessDetail(), "no generation witness") {
+		t.Fatalf("the refusal does not name what was missing: %q", a.GetGraphFreshnessDetail())
+	}
+}
+
+// ------------------------------------------------------ generation races --
+
+// racingFreshness reports one generation on the first read and another on every
+// read after it: a publication landing mid-composition.
+func racingFreshness(first, rest string) func(context.Context) seedmeta.Verification {
+	var calls int
+	return func(ctx context.Context) seedmeta.Verification {
+		calls++
+		if calls == 1 {
+			return pinnedFreshness(first)(ctx)
+		}
+		return pinnedFreshness(rest)(ctx)
+	}
+}
+
+// A GENERATION CHANGE MID-COMPOSITION REVOKES THE VERDICT, not just the
+// projection.
+//
+// The stability re-read used to happen after the conclusion and could only
+// replace the projected publication. A world that was fresh, closed and
+// certified on the first read therefore returned AUTHORITATIVE alongside an
+// UNREADABLE publication saying the generation had moved -- a composite that
+// contradicts itself, and the half a start gate reads is the confident one.
+func TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict(t *testing.T) {
+	a1, b := strings.Repeat("a", 64), strings.Repeat("b", 64)
+	st := snapshotStore{
+		fakeStore: fakeStore{graphFreshness: racingFreshness(a1, b)},
+		receipt:   healthyReceipt(),
+		marker:    a1, // the publication was read from the world the verdict started in
+	}
+	s := freshClosedServer(t, st)
+
+	a := verdictFor(t, s, pubTestDomain)
+
+	if got := a.GetCurrentPublication().GetResolution(); got != awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE {
+		t.Fatalf("the publication resolution is %v; the world moved underneath it", got)
+	}
+	if a.GetVerdict() != awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE {
+		t.Fatal("AUTHORITATIVE was returned beside an UNREADABLE publication reporting a " +
+			"generation change: the two halves of this response contradict each other")
+	}
+	if a.GetAuthoritative() {
+		t.Fatal("the compatibility bool disagreed with the verdict")
+	}
+	if !strings.Contains(a.GetGraphFreshnessDetail(), "changed while this authority was being composed") {
+		t.Fatalf("the refusal does not say the world moved: %q", a.GetGraphFreshnessDetail())
+	}
+}
+
+// POSITIVE CONTROL for the race: a world that holds still still certifies.
+// Without this the test above passes for a server that refuses every fixture
+// whose freshness is read more than once.
+func TestAStableGenerationStillCertifies(t *testing.T) {
+	a1 := strings.Repeat("a", 64)
+	st := snapshotStore{
+		fakeStore: fakeStore{graphFreshness: racingFreshness(a1, a1)}, // A -> A
+		receipt:   healthyReceipt(),
+		marker:    a1,
+	}
+	s := freshClosedServer(t, st)
+
+	a := verdictFor(t, s, pubTestDomain)
+
+	if a.GetVerdict() != awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE {
+		t.Fatalf("a world that held still was refused: %s", a.GetGraphFreshnessDetail())
+	}
+}
+
+// ------------------------------------------- what counts as an identity --
+
+// A SENTINEL BLACKLIST IS NOT A VALIDATOR.
+//
+// Rejecting "", "missing" and "standalone" while accepting everything else
+// makes "potato" a repository identity, and the legacy admissibility claim --
+// that the stamp names the repositories it certifies -- untrue for any value
+// nobody thought to exclude.
+func TestArbitraryProseIsNotARepositoryIdentity(t *testing.T) {
+	generation := strings.Repeat("a", 64)
+	st := absentPublicationStore{fakeStore: fakeStore{graphFreshness: pinnedFreshness(generation)}}
+	s := freshClosedServer(t, st) // the legacy domain: nothing else refuses
+	writeStamp(t, s, generation, "potato", "banana")
+
+	a := verdictFor(t, s, legacyHomeDomain)
+
+	if !a.GetEmbeddedTransactionMatchesSeed() {
+		t.Fatalf("fixture premise broken: the seed must agree: %s", a.GetEmbeddedTransactionDetail())
+	}
+	if a.GetVerdict() != awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE {
+		t.Fatal("arbitrary prose was accepted as two repository identities")
+	}
+}
+
+// The sentinel the self-only build writes when git cannot be read is not an
+// identity either. It was accepted before, because it is not one of the three
+// values the old blacklist named -- which is exactly why a blacklist fails.
+func TestTheUnknownSentinelIsNotARepositoryIdentity(t *testing.T) {
+	generation := strings.Repeat("a", 64)
+	st := absentPublicationStore{fakeStore: fakeStore{graphFreshness: pinnedFreshness(generation)}}
+	s := freshClosedServer(t, st)
+	writeStamp(t, s, generation, "unknown", "standalone")
+
+	a := verdictFor(t, s, legacyHomeDomain)
+
+	if a.GetVerdict() != awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE {
+		t.Fatal("the 'unknown' git fallback was accepted as an awareness-graph identity")
+	}
+}
+
+// The identity shape itself, over the forms the writers actually emit. Both
+// call `git rev-parse HEAD`, so a full object ID is the authored shape -- 40
+// hex under SHA-1, 64 under SHA-256 -- and an abbreviation is not one.
+func TestARepositoryIdentityIsAFullGitObjectID(t *testing.T) {
+	for value, want := range map[string]bool{
+		"58c055fbd9d65ad2f5a8c965f728897012e75f09":  true,  // real SHA-1 head
+		"61605175f42aa178b1fd256c240faa53b07d3a5e":  true,  // real SHA-1 head
+		strings.Repeat("a", 64):                     true,  // SHA-256 repositories
+		"58c055fbd9d6":                              false, // abbreviated
+		"58c055fbd9d65ad2f5a8c965f728897012e75f0":   false, // 39
+		"58c055fbd9d65ad2f5a8c965f728897012e75f090": false, // 41
+		"58c055fbd9d65ad2f5a8c965f728897012e75zzz":  false, // not hex
+		"potato":     false,
+		"unknown":    false,
+		"missing":    false,
+		"standalone": false,
+		"":           false,
+		"  58c055fbd9d65ad2f5a8c965f728897012e75f09  ": true, // surrounding space is not content
+		"HEAD":            false,
+		"refs/heads/main": false,
+	} {
+		if got := namesRepository(value); got != want {
+			t.Fatalf("namesRepository(%q) = %v, want %v", value, got, want)
+		}
+	}
+}

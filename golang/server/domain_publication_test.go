@@ -159,6 +159,14 @@ func TestDanglingAndAbsentStayMechanicallyDistinct(t *testing.T) {
 // FALSIFIER 3. The generation changes between the freshness read and the
 // publication read. The authority must refuse to attest a coherent
 // publication rather than pairing generation A with receipt B.
+//
+// THIS IS A PROJECTION FALSIFIER, NOT THE VERDICT CONTROL. Its store offers
+// only the two-read path, so the publication carries no generation witness and
+// certification would refuse on that ground alone -- stability is not the only
+// failing dimension here, and a verdict assertion added to this fixture would
+// pass for a compound reason. The verdict control is
+// TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict, whose fixture
+// is certified on the first read so the race is the only thing left to refuse.
 func TestAGenerationChangeMidCompositionRefusesToAttest(t *testing.T) {
 	healthy := healthyReceipt()
 	var reads int64

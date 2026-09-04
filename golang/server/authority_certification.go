@@ -81,10 +81,56 @@ func certifyPublication(
 	}
 
 	pub := resolveCurrentPublication(ctx, s, domain)
+	certified, why, pub := admitPublication(pub, domain, snap, stamp, transactionMatchesSeed, transactionDetail)
+
+	// GENERATION STABILITY IS AUTHORITY EVIDENCE, so it participates in this
+	// conclusion rather than decorating the projection after it.
+	//
+	// Freshness and the publication are separate reads. A publication landing
+	// between them yields a composite whose freshness describes generation A
+	// while its receipt describes B: individually accurate in both halves,
+	// false as a whole, and precisely the composition a start gate relies on.
+	// Re-read and require the world to have held still.
+	//
+	// A change is not resolved in favour of either read. What this call
+	// observed was two worlds, so it attests to neither -- which is why this
+	// runs whatever the branch above concluded: an observation made across two
+	// worlds cannot be attributed to one of them, and that is a more
+	// fundamental fact than whichever dimension the branch happened to name.
+	after := snapshotGraphFreshness(ctx, s)
+	if before, now := strings.TrimSpace(snap.verification.Live.Digest),
+		strings.TrimSpace(after.verification.Live.Digest); before != now {
+		race := "the served generation changed while this authority was being composed (" +
+			shortDigest(before) + " -> " + shortDigest(now) + ")"
+		// A receipt that authenticated is no longer presentable as attesting to
+		// one generation. An ABSENT or already-refused publication keeps its
+		// own answer, which stays true: nothing was published either way.
+		if pub.GetResolution() == awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED {
+			pub = &awarenesspb.DomainPublication{
+				Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+				RequestedDomain: domain,
+				Domain:          domain,
+				Detail: race + ", so its freshness and its publication receipt would describe " +
+					"different worlds",
+			}
+		}
+		return false, race, pub
+	}
+	return certified, why, pub
+}
+
+// admitPublication is the ordered admissibility itself, over one observation.
+func admitPublication(
+	pub *awarenesspb.DomainPublication,
+	domain string,
+	snap graphFreshnessSnapshot,
+	stamp seedmeta.TransactionStamp,
+	transactionMatchesSeed bool,
+	transactionDetail string,
+) (bool, string, *awarenesspb.DomainPublication) {
 	switch pub.GetResolution() {
 	case awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_VERIFIED:
-		ok, why := certifiesThisGeneration(pub, domain, snap)
-		return ok, why, pub
+		return certifiesThisGeneration(pub, domain, snap)
 
 	case awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_ABSENT:
 		// Nothing was published for this domain, so there is no stronger record
@@ -115,7 +161,7 @@ func certifyPublication(
 // certifiesThisGeneration checks what a VERIFIED receipt still has to satisfy:
 // it must answer for this referent, describe this generation, and be entitled
 // to claim its revision.
-func certifiesThisGeneration(pub *awarenesspb.DomainPublication, domain string, snap graphFreshnessSnapshot) (bool, string) {
+func certifiesThisGeneration(pub *awarenesspb.DomainPublication, domain string, snap graphFreshnessSnapshot) (bool, string, *awarenesspb.DomainPublication) {
 	// THE DOMAIN IS NOT RE-CHECKED HERE, ON PURPOSE.
 	//
 	// resolveCurrentPublication already refuses a pointer that resolves to a
@@ -126,10 +172,35 @@ func certifiesThisGeneration(pub *awarenesspb.DomainPublication, domain string, 
 	// effectiveDomain, computed once. A duplicate check would read as diligence
 	// while being unreachable, which is how an invariant quietly acquires two
 	// homes and then two behaviours.
-	if got := strings.TrimSpace(pub.GetSnapshotGeneration()); got != "" &&
-		!strings.EqualFold(got, strings.TrimSpace(snap.verification.Live.Digest)) {
+	// TWO SEPARATE PROPOSITIONS: "this receipt authenticates" and "this receipt
+	// certifies the generation being served". A VERIFIED resolution is the
+	// first one only.
+	//
+	// The generation witness must be PRESENT, not merely non-contradictory.
+	// resolveCurrentPublication can legitimately return VERIFIED through its
+	// DescribeTerms compatibility path, which carries no snapshot marker at
+	// all -- and treating a missing witness as agreement is reading silence as
+	// proof. The receipt stays VERIFIED, because its identity really did
+	// authenticate; certification is what refuses.
+	got := strings.TrimSpace(pub.GetSnapshotGeneration())
+	if got == "" {
+		return false, "the current publication carries no generation witness, " +
+			"so nothing binds it to the generation being served", pub
+	}
+	if !strings.EqualFold(got, strings.TrimSpace(snap.verification.Live.Digest)) {
+		// Here the halves actively disagree, which is a broken composite rather
+		// than an absent binding: the projection says so too.
 		return false, "the publication was read from generation " + shortDigest(got) +
-			" while this verdict describes " + shortDigest(snap.verification.Live.Digest)
+				" while this verdict describes " + shortDigest(snap.verification.Live.Digest),
+			&awarenesspb.DomainPublication{
+				Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
+				RequestedDomain:    domain,
+				Domain:             domain,
+				SnapshotGeneration: got,
+				Detail: "the publication was read from generation " + shortDigest(got) +
+					" while this authority describes " + shortDigest(snap.verification.Live.Digest) +
+					", so the two halves of this response describe different graphs",
+			}
 	}
 	// ONLY CLEAN_EXACT MAY CLAIM ITS REVISION.
 	//
@@ -142,9 +213,9 @@ func certifiesThisGeneration(pub *awarenesspb.DomainPublication, domain string, 
 	// would defeat a downgrade the publisher applied on purpose.
 	if state := strings.TrimSpace(pub.GetSourceState()); state != string(publication.CleanExact) {
 		return false, "the current publication is " + state +
-			", and only CLEAN_EXACT may be read as produced from exactly its named revision"
+			", and only CLEAN_EXACT may be read as produced from exactly its named revision", pub
 	}
-	return true, "the current publication receipt certifies this generation"
+	return true, "the current publication receipt certifies this generation", pub
 }
 
 // legacyTransactionApplies reports whether the v1 stamp can make a true claim
@@ -166,12 +237,31 @@ func legacyTransactionApplies(domain string, stamp seedmeta.TransactionStamp) (b
 	return true, ""
 }
 
-// namesRepository reads the closed set of non-identities by membership, so a
-// sentinel nobody anticipated is not silently accepted as a commit.
+// namesRepository reports whether a v1 repository slot carries an actual
+// repository identity.
+//
+// A BLACKLIST OF SENTINELS IS NOT A VALIDATOR. Rejecting "", "missing" and
+// "standalone" while accepting everything else means "potato" is a repository
+// identity, which makes the legacy admissibility claim -- that the stamp names
+// the repositories it certifies -- untrue for any value nobody thought to
+// exclude. Sentinels also grow: the self-only build script falls back to
+// "unknown" when git cannot be read, and that was already accepted.
+//
+// So the AUTHORED SHAPE is validated instead. Both writers emit
+// `git rev-parse HEAD`, which is a full git object ID: 40 hex digits under
+// SHA-1 and 64 under SHA-256. Anything that is not one of those is not an
+// identity, whatever it spells.
 func namesRepository(v string) bool {
-	switch strings.TrimSpace(v) {
-	case "", missingRepository, standaloneRepository:
+	v = strings.TrimSpace(v)
+	if len(v) != 40 && len(v) != 64 {
 		return false
+	}
+	for _, r := range v {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
 	}
 	return true
 }

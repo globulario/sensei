@@ -46,53 +46,10 @@ func (s *server) graphAuthorityFor(ctx context.Context, publicationDomain string
 		}
 		return a
 	}
-	// ONE GENERATION, OR NEITHER CLAIM.
-	//
-	// Freshness and the publication are two separate reads, and an earlier
-	// version of this function merely ASSERTED in a comment that they described
-	// the same store. A publication landing between them yields a composite
-	// whose graph digest describes generation A while its receipt describes
-	// generation B -- individually accurate in both halves, false as a whole,
-	// and precisely the composition a start gate would rely on.
-	//
-	// So the generation is re-read afterwards and required to be the one the
-	// freshness verdict describes. A change is not resolved in favour of either
-	// read: what this call observed was two worlds, so it reports that it
-	// cannot attest to one.
-	// BIND THE VERDICT TO THE SNAPSHOT'S OWN GENERATION.
-	//
-	// The publication now reports the world it was read from. If that differs
-	// from the world the freshness verdict describes, the two halves of this
-	// response describe different graphs and the composite must refuse --
-	// including the A -> B -> A case, which no amount of endpoint comparison
-	// can detect.
-	if got := pub.GetSnapshotGeneration(); got != "" && got != snap.verification.Live.Digest {
-		pub = &awarenesspb.DomainPublication{
-			Resolution:         awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
-			RequestedDomain:    publicationDomain,
-			Domain:             publicationDomain,
-			SnapshotGeneration: got,
-			Detail: fmt.Sprintf(
-				"the publication was read from generation %s while this authority describes %s, "+
-					"so the two halves of this response describe different graphs",
-				shortDigest(got), shortDigest(snap.verification.Live.Digest)),
-		}
-		a.CurrentPublication = pub
-		return a
-	}
-
-	after := snapshotGraphFreshness(ctx, s)
-	if before, now := snap.verification.Live.Digest, after.verification.Live.Digest; before != now {
-		pub = &awarenesspb.DomainPublication{
-			Resolution:      awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNREADABLE,
-			RequestedDomain: publicationDomain,
-			Domain:          publicationDomain,
-			Detail: fmt.Sprintf(
-				"the served generation changed while this authority was being composed (%s -> %s), "+
-					"so its freshness and its publication receipt would describe different worlds",
-				shortDigest(before), shortDigest(now)),
-		}
-	}
+	// The generation binding and the mid-composition stability re-read used to
+	// live HERE, after the conclusion, and could only decorate the projection
+	// with a warning the verdict did not share. Both are authority evidence, so
+	// both now participate in the one conclusion -- see certifyPublication.
 	a.CurrentPublication = pub
 	return a
 }

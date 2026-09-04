@@ -26983,6 +26983,12 @@ test_symbols:
     package: main
     language: go
     doc: "A DIRTY publication records its revision because that is useful, and the\nreceipt contract says it must never be read as \"produced from that commit\".\nCertifying it would turn an accurately recorded limitation into authority."
+  - id: golang/server/authority_certification_test.go:TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict
+    file: golang/server/authority_certification_test.go
+    symbol: TestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict
+    package: main
+    language: go
+    doc: "A GENERATION CHANGE MID-COMPOSITION REVOKES THE VERDICT, not just the\nprojection.\n\nThe stability re-read used to happen after the conclusion and could only\nreplace the projected publication. A world that was fresh, closed and\ncertified on the first read therefore returned AUTHORITATIVE alongside an\nUNREADABLE publication saying the generation had moved -- a composite that\ncontradicts itself, and the half a start gate reads is the confident one."
   - id: golang/server/authority_certification_test.go:TestALegacyDomainStampNamingNoRepositoriesDoesNotCertify
     file: golang/server/authority_certification_test.go
     symbol: TestALegacyDomainStampNamingNoRepositoriesDoesNotCertify
@@ -27013,18 +27019,36 @@ test_symbols:
     package: main
     language: go
     doc: "The receipt authenticates and was read from a different generation than the\none being served. Individually accurate halves, false as a whole."
+  - id: golang/server/authority_certification_test.go:TestARepositoryIdentityIsAFullGitObjectID
+    file: golang/server/authority_certification_test.go
+    symbol: TestARepositoryIdentityIsAFullGitObjectID
+    package: main
+    language: go
+    doc: "The identity shape itself, over the forms the writers actually emit. Both\ncall `git rev-parse HEAD`, so a full object ID is the authored shape -- 40\nhex under SHA-1, 64 under SHA-256 -- and an abbreviation is not one."
   - id: golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
     file: golang/server/authority_certification_test.go
     symbol: TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
     package: main
     language: go
     doc: "THE WITNESS FROM THE FIELD, not an invented malformed case.\n\nThis is what buildTransactionTSV actually emits when run for a project repo:\nresolveAGRepo finds no golang/server/embeddata, both repository slots become\n\"missing\", and the seed digest still agrees. Measured on 2026-09-04 against\ngithub.com/globulario/sensei-code.\n\nevaluateTransactionForGraph accepts it, because it reads only the seed digest\nand triple count. It must not certify a project publication."
+  - id: golang/server/authority_certification_test.go:TestAStableGenerationStillCertifies
+    file: golang/server/authority_certification_test.go
+    symbol: TestAStableGenerationStillCertifies
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL for the race: a world that holds still still certifies.\nWithout this the test above passes for a server that refuses every fixture\nwhose freshness is read more than once."
   - id: golang/server/authority_certification_test.go:TestAVerifiedCleanExactPublicationCertifiesTheGraph
     file: golang/server/authority_certification_test.go
     symbol: TestAVerifiedCleanExactPublicationCertifiesTheGraph
     package: main
     language: go
     doc: "POSITIVE CONTROL. A verified, CLEAN_EXACT receipt for the domain being asked\nabout, read from the generation being served, certifies the graph.\n\nWithout this every control below would pass for a server that refuses\neverything, which is the failure mode a certification predicate invites."
+  - id: golang/server/authority_certification_test.go:TestAVerifiedReceiptWithNoGenerationWitnessDoesNotCertify
+    file: golang/server/authority_certification_test.go
+    symbol: TestAVerifiedReceiptWithNoGenerationWitnessDoesNotCertify
+    package: main
+    language: go
+    doc: "VERIFIED ANSWERS ONE QUESTION, AND CERTIFICATION ASKS TWO.\n\n\treceipt identity VERIFIED   !=   receipt certifies the served generation\n\nresolveCurrentPublication returns VERIFIED through its DescribeTerms\ncompatibility path, which carries no snapshot marker at all. Treating a\nmissing generation witness as agreement is reading silence as proof -- and it\nis the one shape where \"bound to the generation\" was never established."
   - id: golang/server/authority_certification_test.go:TestAnUnknownStatePublicationDoesNotCertify
     file: golang/server/authority_certification_test.go
     symbol: TestAnUnknownStatePublicationDoesNotCertify
@@ -27043,6 +27067,12 @@ test_symbols:
     package: main
     language: go
     doc: "The projection rule is unchanged by any of this: a caller who asked no\npublication question is not shown a home-domain receipt as though they had."
+  - id: golang/server/authority_certification_test.go:TestArbitraryProseIsNotARepositoryIdentity
+    file: golang/server/authority_certification_test.go
+    symbol: TestArbitraryProseIsNotARepositoryIdentity
+    package: main
+    language: go
+    doc: "A SENTINEL BLACKLIST IS NOT A VALIDATOR.\n\nRejecting \"\", \"missing\" and \"standalone\" while accepting everything else\nmakes \"potato\" a repository identity, and the legacy admissibility claim --\nthat the stamp names the repositories it certifies -- untrue for any value\nnobody thought to exclude."
   - id: golang/server/authority_certification_test.go:TestClosureAndCertificationShareOneReferent
     file: golang/server/authority_certification_test.go
     symbol: TestClosureAndCertificationShareOneReferent
@@ -27061,6 +27091,12 @@ test_symbols:
     package: main
     language: go
     doc: "The standalone self-only build is a legacy topology too: the build script\nwrites \"standalone\" deliberately, and it is a stated fact rather than the\n\"missing\" a writer emits when it could not resolve a repository at all."
+  - id: golang/server/authority_certification_test.go:TestTheUnknownSentinelIsNotARepositoryIdentity
+    file: golang/server/authority_certification_test.go
+    symbol: TestTheUnknownSentinelIsNotARepositoryIdentity
+    package: main
+    language: go
+    doc: "The sentinel the self-only build writes when git cannot be read is not an\nidentity either. It was accepted before, because it is not one of the three\nvalues the old blacklist named -- which is exactly why a blacklist fails."
   - id: golang/server/authority_domains_golden_test.go:TestPreflightGolden_AuthorityDomainsSurfaceForCoveredFiles
     file: golang/server/authority_domains_golden_test.go
     symbol: TestPreflightGolden_AuthorityDomainsSurfaceForCoveredFiles
@@ -27852,7 +27888,7 @@ test_symbols:
     symbol: TestAGenerationChangeMidCompositionRefusesToAttest
     package: main
     language: go
-    doc: "FALSIFIER 3. The generation changes between the freshness read and the\npublication read. The authority must refuse to attest a coherent\npublication rather than pairing generation A with receipt B."
+    doc: "FALSIFIER 3. The generation changes between the freshness read and the\npublication read. The authority must refuse to attest a coherent\npublication rather than pairing generation A with receipt B.\n\nTHIS IS A PROJECTION FALSIFIER, NOT THE VERDICT CONTROL. Its store offers\nonly the two-read path, so the publication carries no generation witness and\ncertification would refuse on that ground alone -- stability is not the only\nfailing dimension here, and a verdict assertion added to this fixture would\npass for a compound reason. The verdict control is\nTestAGenerationChangeMidCompositionRevokesTheAuthorityVerdict, whose fixture\nis certified on the first read so the race is the only thing left to refuse."
   - id: golang/server/domain_publication_test.go:TestAMalformedPointerIsUnreadableRatherThanAbsent
     file: golang/server/domain_publication_test.go
     symbol: TestAMalformedPointerIsUnreadableRatherThanAbsent
