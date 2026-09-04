@@ -42,19 +42,21 @@ func TestThePartialReceiptNamesThePropositionThatFailed(t *testing.T) {
 	}
 	var named bool
 	for _, l := range id.Limitations {
-		if l.Scope == "workspace_provenance_readiness" {
+		if l.Scope == "binary_build_stamp" {
 			named = true
-			if !strings.Contains(l.Reason, "answers as the current validated artifact") {
+			if !strings.Contains(l.Reason, "answers authoritatively") {
 				t.Fatalf("the limitation does not say the graph is usable: %q", l.Reason)
 			}
-			if !strings.Contains(l.Reason, "source provenance") {
-				t.Fatalf("the limitation does not say what is missing: %q", l.Reason)
-			}
-			// And it says where the repair is, which is the fact that took
-			// longest to find: build provenance is a property of the serving
-			// binary, so rebuilding the corpus would not have moved it.
+			// It says where the repair is: a property of the serving binary,
+			// so rebuilding the corpus would not have moved it.
 			if !strings.Contains(l.Reason, "SERVING BINARY") {
 				t.Fatalf("the limitation does not say where the repair is: %q", l.Reason)
+			}
+			// And it must NOT claim to be about the graph's provenance. A
+			// restamped binary establishes nothing about a store published
+			// long ago by inputs nobody recorded.
+			if !strings.Contains(l.Reason, "says nothing about which commits produced the graph") {
+				t.Fatalf("the limitation overclaims what a build stamp proves: %q", l.Reason)
 			}
 			if !l.Blocking {
 				t.Fatal("an unstatable provenance chain was reported as non-blocking")
@@ -83,8 +85,8 @@ func TestAnUnusableGraphIsReportedAsSuchRatherThanAsProvenance(t *testing.T) {
 		GraphAuthority:         in.GraphAuthority,
 	})
 	for _, l := range id.Limitations {
-		if l.Scope == "workspace_provenance_readiness" {
-			t.Fatalf("a graph that cannot answer was reported as a provenance problem: %q", l.Reason)
+		if l.Scope == "binary_build_stamp" {
+			t.Fatalf("a graph that cannot answer was reported as a build-stamp problem: %q", l.Reason)
 		}
 	}
 }

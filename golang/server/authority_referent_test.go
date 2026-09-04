@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"path/filepath"
 	"strconv"
 	"testing"
@@ -32,6 +33,25 @@ func authorityReferentServer(t *testing.T) (*server, *[]string) {
 	markerPath := filepath.Join(t.TempDir(), "graph-authority.json")
 	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
 		t.Fatalf("write marker file: %v", err)
+	}
+	// AND CERTIFIED BY A MATCHING TRANSACTION, for exactly the reason stated
+	// above about freshness: authority requires all three conjuncts, so a
+	// fixture missing one can never reach AUTHORITATIVE and every positive
+	// assertion below becomes unreachable. The transaction conjunct was absent
+	// from the implementation until 2026-09-04 while the wire contract had
+	// always required it; adding it to the verdict made that unreachability
+	// real here, which is the fixture doing its job rather than a regression.
+	//
+	// The two repository commits are deliberately different values: they are
+	// different repositories, and a fixture reusing one SHA for both would pass
+	// while proving nothing about which field carries which.
+	if err := os.WriteFile(seedmeta.RuntimeTransactionPath(markerPath), []byte(
+		"format\tv1\n"+
+			"seed\tdigest_sha256\t"+marker.Digest+"\n"+
+			"seed\ttriple_count\t"+strconv.FormatInt(marker.TripleCount, 10)+"\n"+
+			"repo\tawareness-graph\t58c055fbd9d65ad2f5a8c965f728897012e75f09\n"+
+			"repo\tservices\tb98c91eb540a3e5aa9d97e7b3c08005e08cb1897\n"), 0o644); err != nil {
+		t.Fatalf("write transaction stamp: %v", err)
 	}
 	s := newTestServer(runtimeMarkerStore{
 		describeFn: func(_ context.Context, iri string) ([]store.Triple, error) {

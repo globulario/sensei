@@ -23072,6 +23072,12 @@ test_symbols:
     symbol: TestTokenFromEnvLegacyFallback
     package: client
     language: go
+  - id: golang/client/authority_scoped_test.go:TestACanonicalRefusalIsNotOverriddenByHealthyLookingFields
+    file: golang/client/authority_scoped_test.go
+    symbol: TestACanonicalRefusalIsNotOverriddenByHealthyLookingFields
+    package: client
+    language: go
+    doc: "The false-green case this repair exists to remove: the canonical verdict\nrefuses, and every top-level field a private reconstruction would have read\nlooks healthy.\n\nA scoped reading that rebuilt the answer from freshness/seed/marker/count\nwould say \"usable\" here, because those fields say nothing about the closure\nproof or the transaction certification the canonical verdict weighs."
   - id: golang/client/authority_scoped_test.go:TestAGraphCanAnswerWellAndStateNoProvenance
     file: golang/client/authority_scoped_test.go
     symbol: TestAGraphCanAnswerWellAndStateNoProvenance
@@ -28008,6 +28014,24 @@ test_symbols:
     package: main
     language: go
     doc: "A proof set that does not describe the live publication must not be used.\nThe server falls back to the legacy path, which is fail-closed when there is\nno marker file either."
+  - id: golang/server/graph_authority_transaction_test.go:TestACertifiedPublicationIsAuthoritative
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestACertifiedPublicationIsAuthoritative
+    package: main
+    language: go
+    doc: "The same world WITH a stamp certifying this publication is authoritative.\nWithout this, the test above would pass for a server that refuses everything."
+  - id: golang/server/graph_authority_transaction_test.go:TestAStampForAnotherPublicationDoesNotCertifyThisOne
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestAStampForAnotherPublicationDoesNotCertifyThisOne
+    package: main
+    language: go
+    doc: "A stamp that certifies a DIFFERENT publication is not certification of this\none. This is the case the conjunct exists for: a stamp is present, so a\npresence check would pass, and it vouches for other bytes."
+  - id: golang/server/graph_authority_transaction_test.go:TestAnUncertifiedPublicationIsNotAuthoritative
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestAnUncertifiedPublicationIsNotAuthoritative
+    package: main
+    language: go
+    doc: "Fresh, closed, and NOT certified by any transaction: the wire contract says\nthat is not authoritative."
   - id: golang/server/graph_authority_verdict_test.go:TestAuthorityVerdictAndBoolNeverDisagree
     file: golang/server/graph_authority_verdict_test.go
     symbol: TestAuthorityVerdictAndBoolNeverDisagree

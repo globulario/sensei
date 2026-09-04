@@ -195,15 +195,22 @@ func deriveCompositionState(id Identity) CompositionState {
 // Two propositions travel under one bool:
 //
 //	graph answer authority        are the answers this graph gives trustworthy
-//	                              in this world?  (freshness, seed)
-//	workspace provenance          can Sensei state the source-provenance chain
-//	readiness                     behind them?    (build provenance)
+//	                              in this world?  (the canonical composed
+//	                              verdict: freshness, closure, transaction)
+//	binary build stamp            was the SERVING BINARY linked with its own
+//	                              source-commit and build-time stamps?
 //
 // They are independent, and a live instance proves it rather than arguing it:
 // on 2026-09-03 the github.com/globulario/sensei graph answered as the current
 // validated artifact WITH a certified runtime transaction, and still reported
 // build provenance incomplete, because the serving binary carried no link-time
 // source-repo commit.
+//
+// The second is deliberately NOT called graph provenance. A server started with
+// -no-seed against an existing store can be rebuilt and restamped today while
+// the store it answers from was published long ago by inputs nobody recorded;
+// restamping the binary would make this read healthy and would establish
+// nothing about the graph.
 //
 // The answer proposition is checked first. Reporting "provenance incomplete"
 // about a stale graph would send a reader to repair the wrong thing.
@@ -218,12 +225,13 @@ func failingAuthorityProposition(a GraphAuthority) (scope, reason string) {
 		return "graph_answer_authority", reason
 	}
 	if a.BuildProvenanceState != "" && a.BuildProvenanceState != buildProvenanceStamped {
-		return "workspace_provenance_readiness",
-			"the graph answers as the current validated artifact, and Sensei cannot state the source " +
-				"provenance behind it (build_provenance_state " + a.BuildProvenanceState + "), so this " +
-				"workspace is not governance-ready. Build provenance is a property of the SERVING BINARY " +
-				"as well as of the graph: a server compiled without its source-repo commit reports " +
-				"incomplete however the corpus was built"
+		return "binary_build_stamp",
+			"the graph answers authoritatively, and the SERVING BINARY carries no complete build stamp " +
+				"(build_provenance_state " + a.BuildProvenanceState + "), so this workspace is not " +
+				"governance-ready. This is a fact about how the server was linked -- its own " +
+				"-X main.SourceCommit and main.BuildTimeUnix -- and says nothing about which commits " +
+				"produced the graph being served. Graph provenance is the publication and transaction " +
+				"evidence bound to the served generation, which the authority verdict already weighs"
 	}
 	return "graph_authority", "graph_authority is present but not authoritative"
 }

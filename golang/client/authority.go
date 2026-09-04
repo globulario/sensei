@@ -122,19 +122,39 @@ func EffectiveMetadataFreshness(m *awarenesspb.MetadataResponse) awarenesspb.Gra
 // wants the old combined meaning gets exactly the old value and cannot compute
 // a third one.
 type MetadataAuthority struct {
-	// AnswerAuthority reports whether the live graph is the current, validated
-	// artifact and can be trusted to answer. It says nothing about how that
-	// artifact was built.
-	AnswerAuthority bool
-	// ProvenanceReadiness reports whether Sensei can state which source
-	// commits produced the graph it is answering from.
+	// AnswerAuthority is the CANONICAL graph-answer verdict, consumed rather
+	// than reconstructed.
 	//
-	// It is a property of the SERVING BINARY as much as of the graph:
-	// classifyBuildProvenance reads the server's own link-time SourceRepoCommit
-	// and build time, so a binary compiled without those stamps reports
-	// INCOMPLETE no matter how the graph was built or how many runtime
-	// transaction certifications exist beside it.
-	ProvenanceReadiness bool
+	// An earlier version of this type rebuilt it from the response's top-level
+	// freshness/seed/marker/count fields. That was a second authority
+	// evaluation living beside the canonical one, and it was WEAKER: it omitted
+	// the closure proof and the transaction certification, so a graph the
+	// canonical verdict refuses could have read healthy here while every
+	// top-level field looked fine. That is the precise false-green shape this
+	// whole repair exists to remove, reintroduced by the repair.
+	//
+	// InterpretAuthority is documented as the single source of truth for
+	// whether a graph-backed answer is authoritative. This consumes it.
+	AnswerAuthority bool
+	// BinaryBuildStampComplete reports whether the SERVING BINARY carries the
+	// link-time stamps classifyBuildProvenance requires.
+	//
+	// Named for exactly what it proves, which is less than it sounds like. It
+	// is BUILD_PROVENANCE_STATE == STAMPED, and that state is computed from the
+	// server's own -X main.SourceCommit / main.BuildTimeUnix, set when the
+	// BINARY was linked. It does not establish that those commits produced the
+	// graph now being served: a server started with -no-seed against an
+	// existing store can be rebuilt and restamped today while the store it
+	// answers from was published long ago by inputs nobody recorded.
+	//
+	// It was called ProvenanceReadiness and described as "can Sensei state
+	// which source commits produced the graph it is answering from". It cannot.
+	// The proto is clearer than that name was: graph_build_commit,
+	// graph_build_time_unix and source_repo_commit are documented as facts
+	// about when awareness.nt was GENERATED. Graph provenance lives in the
+	// publication and transaction evidence bound to the served generation --
+	// which is now a conjunct of AnswerAuthority above, where it belongs.
+	BinaryBuildStampComplete bool
 	// Reason explains the first proposition that does not hold, or is empty.
 	Reason string
 }
@@ -144,20 +164,49 @@ func InterpretMetadataScoped(m *awarenesspb.MetadataResponse) MetadataAuthority 
 	if m == nil {
 		return MetadataAuthority{Reason: "metadata unavailable"}
 	}
-	answer := EffectiveMetadataFreshness(m) == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT &&
-		m.GetSeedState() == awarenesspb.SeedState_SEED_STATE_CURRENT &&
-		m.GetLiveStoreContainsEmbeddedSeedMarker() &&
-		m.GetTripleCount() > 0
-	provenance := m.GetBuildProvenanceState() == awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED
+	stamped := m.GetBuildProvenanceState() == awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED
 
-	out := MetadataAuthority{AnswerAuthority: answer, ProvenanceReadiness: provenance}
+	// The canonical verdict decides whenever there IS one. A present refusal is
+	// never overridden by healthy-looking top-level fields, which is the whole
+	// point: those fields carry neither the closure proof nor the transaction
+	// certification the composed verdict weighs.
+	answer := false
+	reason := ""
+	if m.GetAuthority() != nil {
+		canonical := InterpretAuthority(m.GetAuthority())
+		answer = canonical.Authoritative
+		reason = canonical.Warning
+		if !answer && reason == "" {
+			reason = "the graph-backed answer is not authoritative (" + canonical.State + ")"
+		}
+	} else {
+		// No composed verdict on the wire. Servers have carried one since
+		// aa0e757d (#176), so this is the compatibility path for an older one,
+		// and it is a FALLBACK rather than a second opinion: it is consulted
+		// only when there is nothing to consume. It infers from the same
+		// top-level signals EffectiveMetadataFreshness already derives from,
+		// and it is weaker by construction -- it can see neither the closure
+		// proof nor the transaction certification. A response that carries a
+		// verdict never reaches it.
+		answer = EffectiveMetadataFreshness(m) == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT &&
+			m.GetSeedState() == awarenesspb.SeedState_SEED_STATE_CURRENT &&
+			m.GetLiveStoreContainsEmbeddedSeedMarker() &&
+			m.GetTripleCount() > 0
+		if !answer {
+			reason = metadataAuthorityWarning(m, FreshnessLabel(EffectiveMetadataFreshness(m)))
+		}
+	}
+
+	out := MetadataAuthority{AnswerAuthority: answer, BinaryBuildStampComplete: stamped}
 	switch {
 	case !answer:
-		out.Reason = metadataAuthorityWarning(m, FreshnessLabel(EffectiveMetadataFreshness(m)))
-	case !provenance:
-		out.Reason = "the graph answers as the current validated artifact, and the source provenance behind it " +
-			"is " + strings.ToLower(strings.TrimPrefix(m.GetBuildProvenanceState().String(), "BUILD_PROVENANCE_STATE_")) +
-			": Sensei cannot state which source commits produced it"
+		out.Reason = reason
+	case !stamped:
+		out.Reason = "the graph answers authoritatively, and the serving binary carries no complete build " +
+			"stamp (build_provenance_state " +
+			strings.ToLower(strings.TrimPrefix(m.GetBuildProvenanceState().String(), "BUILD_PROVENANCE_STATE_")) +
+			"): this says nothing about which commits produced the graph, only that the SERVER was linked " +
+			"without its own source stamp"
 	}
 	return out
 }
@@ -167,7 +216,7 @@ func InterpretMetadataScoped(m *awarenesspb.MetadataResponse) MetadataAuthority 
 // recomputed, so it cannot become a third answer.
 func isCurrentMetadataAuthority(m *awarenesspb.MetadataResponse) bool {
 	scoped := InterpretMetadataScoped(m)
-	return scoped.AnswerAuthority && scoped.ProvenanceReadiness
+	return scoped.AnswerAuthority && scoped.BinaryBuildStampComplete
 }
 
 func metadataAuthorityWarning(m *awarenesspb.MetadataResponse, state string) string {
