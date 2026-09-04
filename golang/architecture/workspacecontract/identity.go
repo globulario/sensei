@@ -94,10 +94,39 @@ func ComposeIdentity(in IdentityInputs) Identity {
 // insufficient graph coverage.
 func partialCompositionLimitations(id Identity) []Limitation {
 	var out []Limitation
-	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative {
+	if id.GraphAuthority != nil && !id.GraphAuthority.Authoritative && !hasAuthorityLimitation(id) {
+		// Nobody classified this before the projection, and it cannot be
+		// classified after it.
+		//
+		// GraphAuthority.Authoritative is the legacy combined bool: canonical
+		// answer authority AND binary build stamp. The v1 receipt carries
+		// freshness, seed and build_provenance beside it and NOT the closure
+		// proof or the transaction certification -- so a false combined bool
+		// with CURRENT freshness, CURRENT seed and INCOMPLETE provenance is
+		// produced by at least three different worlds:
+		//
+		//	answer refused on the transaction, stamp incomplete
+		//	answer refused on closure,         stamp incomplete
+		//	answer authoritative,              stamp incomplete
+		//
+		// An earlier version of this function inferred "binary_build_stamp"
+		// from those three fields and was wrong in the first two: it reported
+		// that the graph answers authoritatively when the canonical verdict had
+		// refused it. The information to tell them apart was discarded by the
+		// projection, and a guess dressed as a specific cause is worse than the
+		// generic one, because it sends a reader to repair the wrong thing.
+		//
+		// Classification happens BEFORE the projection -- see
+		// cmd/awareness-mcp/workspace_tools.go, which classifies from the whole
+		// MetadataResponse while the canonical verdict still exists and passes
+		// the result in as a supplied limitation. This branch is what remains
+		// for a caller that composes an identity from the v1 projection alone.
 		out = append(out, Limitation{
 			Source: "golang/architecture/workspacecontract", Scope: "graph_authority",
-			Reason: "graph_authority is present but not authoritative (freshness, seed, or build-provenance state is not current)", Blocking: true,
+			Reason: "graph_authority is present but not authoritative; the specific failing proposition " +
+				"cannot be recovered from this v1 projection, which carries neither the closure proof nor " +
+				"the transaction certification the canonical verdict weighs",
+			Blocking: true,
 		})
 	}
 	if id.CoverageState != coverageStateSufficient {
@@ -132,9 +161,10 @@ const CoverageStateSufficient = coverageStateSufficient
 //
 // Authority and coverage are deliberately kept as two separate dimensions,
 // never merged into one another: GraphAuthority.Authoritative answers "is
-// this genuinely the live, current, provenance-stamped graph" (freshness,
-// seed state, build provenance -- see golang/client/authority.go's
-// isCurrentMetadataAuthority, which this field's value already reflects),
+// this genuinely the live, current, certified graph" (the canonical verdict
+// -- freshness, closure and transaction certification -- conjoined with the
+// serving binary's build stamp; see golang/client/authority.go's
+// InterpretMetadataAuthority, which this field's value already reflects),
 // while CoverageState answers "does that graph actually know enough about
 // this repository to ground a governed operation." A graph can be
 // authoritative in the first sense while still being COVERAGE_STATE_THIN or
@@ -174,4 +204,21 @@ func deriveCompositionState(id Identity) CompositionState {
 		return CompositionComplete
 	}
 	return CompositionPartial
+}
+
+// hasAuthorityLimitation reports whether the caller already classified the
+// authority failure from evidence this receipt no longer carries.
+//
+// A supplied classification is preserved rather than supplemented: adding a
+// second, weaker authority limitation beside an exact one would leave a reader
+// two answers to the same question, and the derived one would be the wrong
+// answer in exactly the cases the exact one exists for.
+func hasAuthorityLimitation(id Identity) bool {
+	for _, l := range id.Limitations {
+		switch l.Scope {
+		case "graph_authority", "graph_answer_authority", "binary_build_stamp":
+			return true
+		}
+	}
+	return false
 }

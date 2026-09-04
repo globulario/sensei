@@ -166,6 +166,30 @@ func composeWorkspaceIdentity(ctx context.Context, client awarenessClient, absRe
 		})
 	} else {
 		mv := awarenessclient.InterpretMetadataAuthority(metaResp)
+		// Classified HERE, from the whole MetadataResponse, while the canonical
+		// verdict still exists.
+		//
+		// The v1 receipt carries freshness, seed and build_provenance beside a
+		// combined bool, and NOT the closure proof or the transaction
+		// certification. So after this projection there is no way to tell an
+		// answer refused on the transaction from a graph that answers fine with
+		// an unstamped binary -- and a classifier downstream that tried would
+		// report "the graph answers authoritatively" about a graph the
+		// canonical verdict had refused. Projection may preserve an answer; it
+		// may not reconstruct one it discarded.
+		scoped := awarenessclient.InterpretMetadataScoped(metaResp)
+		switch {
+		case !scoped.AnswerAuthority:
+			limitations = append(limitations, workspacecontract.Limitation{
+				Source: "golang/client authority", Scope: "graph_answer_authority",
+				Reason: "the graph-backed answer is not authoritative: " + scoped.Reason, Blocking: true,
+			})
+		case !scoped.BinaryBuildStampComplete:
+			limitations = append(limitations, workspacecontract.Limitation{
+				Source: "golang/client authority", Scope: "binary_build_stamp",
+				Reason: scoped.Reason, Blocking: true,
+			})
+		}
 		graphAuthority = &workspacecontract.GraphAuthority{
 			Authoritative:                   mv.Authoritative,
 			GraphFreshnessState:             awarenessclient.EffectiveMetadataFreshness(metaResp).String(),

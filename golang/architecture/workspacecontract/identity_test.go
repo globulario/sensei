@@ -106,14 +106,21 @@ func TestComposeIdentity_PartialAlwaysNamesALimitation(t *testing.T) {
 	if len(id.Limitations) == 0 {
 		t.Fatal("non-authoritative partial identity carries zero limitations; the reason for partial is unexplained")
 	}
+	// The scope now NAMES which authority proposition failed rather than
+	// reporting the family. That is the point of the change this assertion was
+	// migrated for: "freshness, seed, or build-provenance is not current" was
+	// the same sentence for three conditions with three different repairs. The
+	// property this test guards -- a partial identity always says why -- is
+	// unchanged and is now more specific.
 	foundAuthority := false
 	for _, l := range id.Limitations {
-		if l.Scope == "graph_authority" {
+		switch l.Scope {
+		case "graph_authority", "graph_answer_authority", "workspace_provenance_readiness":
 			foundAuthority = true
 		}
 	}
 	if !foundAuthority {
-		t.Fatalf("expected a graph_authority limitation, got %+v", id.Limitations)
+		t.Fatalf("expected an authority limitation, got %+v", id.Limitations)
 	}
 }
 

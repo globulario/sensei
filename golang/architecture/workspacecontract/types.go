@@ -104,6 +104,31 @@ type Binding struct {
 // names and enum spellings are verbatim proto names (awareness_graph.proto)
 // so this receipt can be cross-checked directly against the wire schema.
 type GraphAuthority struct {
+	// Authoritative means "the canonical graph-answer verdict AND the serving
+	// binary's own build stamp" (golang/client/authority.go), which is NOT what
+	// the proto field of the same name means -- that one is the composed
+	// graph-answer verdict alone: freshness AND the closure proof bound to this
+	// publication AND the transaction certification
+	// (golang/server/graph_authority.go).
+	//
+	// Read that against this type's comment above, which promises verbatim
+	// proto names so the receipt can be cross-checked against the .proto
+	// source. Every other field here keeps that promise; this one has never
+	// kept it, and on 2026-09-03 one graph published `authoritative: true` on a
+	// preflight and `authoritative: false` here from identical evidence -- a
+	// divergence that was partly this naming collision and partly a conjunct
+	// the server's own predicate had dropped, since repaired.
+	//
+	// It is left exactly as it is. Consumers gate on it, the schema is a
+	// digest-pinned external contract, and schema_version is a const rather
+	// than a range -- so reinterpreting the field or adding scoped ones beside
+	// it is a v2 decision, not a repair to make in passing.
+	//
+	// What IS repaired is that the receipt no longer merely says this bool is
+	// false. The limitation names which proposition failed -- classified by the
+	// caller that still holds the whole MetadataResponse, because this
+	// projection carries neither the closure proof nor the transaction
+	// certification and therefore cannot recover it. See identity.go.
 	Authoritative                   bool   `json:"authoritative"`
 	GraphFreshnessState             string `json:"graph_freshness_state"`
 	GraphFreshnessDetail            string `json:"graph_freshness_detail"`

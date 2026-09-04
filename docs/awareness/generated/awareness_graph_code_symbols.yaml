@@ -964,6 +964,30 @@ test_symbols:
     package: main
     language: go
     doc: "Clients that read only content[].text must see it too.\n\nReachability was added to the structured map alone, so a client ignoring\nstructuredContent — which the response assembly explicitly still supports —\nkept seeing \"authority: authoritative (current)\". The false-green closed for\nstructured readers and left open for the older ones the text block exists for."
+  - id: cmd/awareness-mcp/workspace_authority_classification_test.go:TestAClosureRefusalIsNotReportedAsABuildStampProblem
+    file: cmd/awareness-mcp/workspace_authority_classification_test.go
+    symbol: TestAClosureRefusalIsNotReportedAsABuildStampProblem
+    package: main
+    language: go
+    doc: "2. The canonical verdict refuses on CLOSURE, the transaction is fine, and the\n    binary stamp is incomplete. Same requirement, different refused conjunct:\n    the projected fields are identical to case 1 and the answer is not."
+  - id: cmd/awareness-mcp/workspace_authority_classification_test.go:TestATransactionRefusalIsNotReportedAsABuildStampProblem
+    file: cmd/awareness-mcp/workspace_authority_classification_test.go
+    symbol: TestATransactionRefusalIsNotReportedAsABuildStampProblem
+    package: main
+    language: go
+    doc: "1. The canonical verdict refuses on the TRANSACTION, and the binary stamp is\n    also incomplete. The receipt must not say the graph answers."
+  - id: cmd/awareness-mcp/workspace_authority_classification_test.go:TestAnAuthoritativeGraphWithAnUnstampedBinaryIsNamedAsSuch
+    file: cmd/awareness-mcp/workspace_authority_classification_test.go
+    symbol: TestAnAuthoritativeGraphWithAnUnstampedBinaryIsNamedAsSuch
+    package: main
+    language: go
+    doc: "3. The positive control, and the one that proves the two propositions really\n    are independent: the canonical verdict is AUTHORITATIVE with a certifying\n    transaction, and only the serving binary's stamp is missing."
+  - id: cmd/awareness-mcp/workspace_authority_classification_test.go:TestTheThreeWorldsAreIndistinguishableAfterProjection
+    file: cmd/awareness-mcp/workspace_authority_classification_test.go
+    symbol: TestTheThreeWorldsAreIndistinguishableAfterProjection
+    package: main
+    language: go
+    doc: "The three worlds are indistinguishable in the projected v1 fields. This is\nwhat makes classification-after-projection unsound, asserted rather than\nargued."
   - id: cmd/awareness-mcp/workspace_tools_test.go:TestMCPExistingAdmissionToolsBehaviorUnchanged
     file: cmd/awareness-mcp/workspace_tools_test.go
     symbol: TestMCPExistingAdmissionToolsBehaviorUnchanged
@@ -22937,6 +22961,30 @@ test_symbols:
     package: workspacecontract
     language: go
     doc: "TestComposeIdentity_SufficientCoverageIsComplete is the positive control:\nevery existing condition true, plus sufficient coverage, is still\ncomplete."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestAHealthyReceiptComposesComplete
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestAHealthyReceiptComposesComplete
+    package: workspacecontract
+    language: go
+    doc: "Both dimensions healthy composes complete. Without this the tests above would\npass for a receipt that is never complete."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestASuppliedClassificationIsPreservedAndNotSupplemented
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestASuppliedClassificationIsPreservedAndNotSupplemented
+    package: workspacecontract
+    language: go
+    doc: "A classification made before the loss is preserved, and not supplemented.\n\nTwo authority limitations would leave a reader two answers to one question,\nand the derived one would be the wrong answer in exactly the cases the exact\none exists for."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestCoverageIsStillNarratedSeparately
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestCoverageIsStillNarratedSeparately
+    package: workspacecontract
+    language: go
+    doc: "Coverage remains its own dimension, narrated independently."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestTheV1ProjectionAdmitsItCannotRecoverTheCause
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestTheV1ProjectionAdmitsItCannotRecoverTheCause
+    package: workspacecontract
+    language: go
+    doc: "Given only the projection, the receipt says it cannot recover the cause\nrather than guessing one.\n\nAn earlier version of this file inferred \"binary_build_stamp\" from the three\nprojected fields. That is wrong whenever the canonical verdict refused the\ngraph -- on the transaction, or on closure -- because it then reports that the\ngraph answers authoritatively. A guess dressed as a specific cause is worse\nthan the generic one: it sends a reader to repair the wrong thing."
   - id: golang/architecture/workspacecontract/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
     file: golang/architecture/workspacecontract/schema_test.go
     symbol: TestEmbeddedSchemasMatchCanonicalSource
@@ -23054,6 +23102,54 @@ test_symbols:
     symbol: TestTokenFromEnvLegacyFallback
     package: client
     language: go
+  - id: golang/client/authority_scoped_test.go:TestACanonicalRefusalIsNotOverriddenByHealthyLookingFields
+    file: golang/client/authority_scoped_test.go
+    symbol: TestACanonicalRefusalIsNotOverriddenByHealthyLookingFields
+    package: client
+    language: go
+    doc: "The false-green case this repair exists to remove: the canonical verdict\nrefuses, and every top-level field a private reconstruction would have read\nlooks healthy.\n\nA scoped reading that rebuilt the answer from freshness/seed/marker/count\nwould say \"usable\" here, because those fields say nothing about the closure\nproof or the transaction certification the canonical verdict weighs."
+  - id: golang/client/authority_scoped_test.go:TestAGraphCanAnswerAuthoritativelyWithAnUnstampedBinary
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAGraphCanAnswerAuthoritativelyWithAnUnstampedBinary
+    package: client
+    language: go
+    doc: "The divergent state is COHERENT, not contradictory. Asserting both halves in\none test is the point: a reader who sees only one of them learns the wrong\nthing."
+  - id: golang/client/authority_scoped_test.go:TestAHealthyWorldCarriesNoWarning
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAHealthyWorldCarriesNoWarning
+    package: client
+    language: go
+    doc: "And a healthy world is still authoritative, with no warning at all."
+  - id: golang/client/authority_scoped_test.go:TestAStampRefusalIsExplainedAsTheStamp
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAStampRefusalIsExplainedAsTheStamp
+    package: client
+    language: go
+    doc: "A refusal on the binary build stamp is explained as that, not as a graph\nproblem. Without this the test above would pass for a version that always\nreports the answer-authority reason."
+  - id: golang/client/authority_scoped_test.go:TestAnUnusableGraphFailsTheAnswerPropositionFirst
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAnUnusableGraphFailsTheAnswerPropositionFirst
+    package: client
+    language: go
+    doc: "A graph that cannot answer fails the answer proposition first, whatever its\nprovenance says. The order matters: reporting \"provenance incomplete\" about a\nstale graph would send a reader to repair the wrong thing."
+  - id: golang/client/authority_scoped_test.go:TestStatingTheProvenanceChainMakesBothPropositionsHealthy
+    file: golang/client/authority_scoped_test.go
+    symbol: TestStatingTheProvenanceChainMakesBothPropositionsHealthy
+    package: client
+    language: go
+    doc: "The full-provenance case makes both propositions healthy, and only then does\nthe combined reading turn."
+  - id: golang/client/authority_scoped_test.go:TestTheCombinedReadingIsTheConjunctionAndNotAThirdAnswer
+    file: golang/client/authority_scoped_test.go
+    symbol: TestTheCombinedReadingIsTheConjunctionAndNotAThirdAnswer
+    package: client
+    language: go
+    doc: "The combined reading is DERIVED from the two, never computed again. A third\nanswer is exactly what this whole repair exists to prevent."
+  - id: golang/client/authority_scoped_test.go:TestTheRefusalCarriesTheCanonicalReasonNotARecomputedOne
+    file: golang/client/authority_scoped_test.go
+    symbol: TestTheRefusalCarriesTheCanonicalReasonNotARecomputedOne
+    package: client
+    language: go
+    doc: "The verdict and its explanation must come from the same evaluation.\n\nInterpretMetadataAuthority took the BOOLEAN from the repaired path and then\nrecomputed the WHY from the old top-level metadata fields. Those fields carry\nneither the closure proof nor the transaction certification, so a graph the\ncanonical verdict refuses for a missing transaction was explained as \"graph\nmetadata is not authoritative (current)\" -- a sentence that names the state\nthe reader can already see and none of the reason they need.\n\nThis type's own doc calls it the single source of truth for \"can I trust this\nanswer, and if not why\". Half of that was true."
   - id: golang/client/client_test.go:TestAllRPCs
     file: golang/client/client_test.go
     symbol: TestAllRPCs
@@ -27966,6 +28062,24 @@ test_symbols:
     package: main
     language: go
     doc: "A proof set that does not describe the live publication must not be used.\nThe server falls back to the legacy path, which is fail-closed when there is\nno marker file either."
+  - id: golang/server/graph_authority_transaction_test.go:TestACertifiedPublicationIsAuthoritative
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestACertifiedPublicationIsAuthoritative
+    package: main
+    language: go
+    doc: "The same world WITH a stamp certifying this publication is authoritative.\nWithout this, the test above would pass for a server that refuses everything."
+  - id: golang/server/graph_authority_transaction_test.go:TestAStampForAnotherPublicationDoesNotCertifyThisOne
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestAStampForAnotherPublicationDoesNotCertifyThisOne
+    package: main
+    language: go
+    doc: "A stamp that certifies a DIFFERENT publication is not certification of this\none. This is the case the conjunct exists for: a stamp is present, so a\npresence check would pass, and it vouches for other bytes."
+  - id: golang/server/graph_authority_transaction_test.go:TestAnUncertifiedPublicationIsNotAuthoritative
+    file: golang/server/graph_authority_transaction_test.go
+    symbol: TestAnUncertifiedPublicationIsNotAuthoritative
+    package: main
+    language: go
+    doc: "Fresh, closed, and NOT certified by any transaction: the wire contract says\nthat is not authoritative."
   - id: golang/server/graph_authority_verdict_test.go:TestAuthorityVerdictAndBoolNeverDisagree
     file: golang/server/graph_authority_verdict_test.go
     symbol: TestAuthorityVerdictAndBoolNeverDisagree

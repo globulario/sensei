@@ -128,6 +128,11 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 	freshnessCurrent := snap.verification.State == seedmeta.FreshnessCurrent
 
 	detail := snap.verification.Detail
+	if freshnessCurrent && semanticState == closure.SemanticClosureProven && !transactionMatchesSeed {
+		// Fresh and closed and uncertified: without this the refusal renders as
+		// the freshness detail, which says the graph is fine.
+		detail = "transaction certification: " + transactionDetail + " | freshness: " + snap.verification.Detail
+	}
 	if semanticState != closure.SemanticClosureProven {
 		// Say WHY, and keep the freshness detail: "fresh but not closed" is the
 		// distinction that was impossible to express before.
@@ -139,7 +144,31 @@ func graphAuthorityFromSnapshotFor(snap graphFreshnessSnapshot, s *server, closu
 	// value here so the two can never disagree. Deriving the bool from the
 	// verdict (rather than computing it twice) is what makes that structural
 	// instead of a convention someone must remember.
-	authoritative := freshnessCurrent && semanticState == closure.SemanticClosureProven
+	//
+	// THREE conjuncts, and the third was missing for three weeks.
+	//
+	// transactionMatchesSeed was computed above, returned as an evidence field,
+	// and left out of the conclusion. The wire contract has said otherwise the
+	// whole time -- proto/awareness_graph.proto, MetadataResponse.authority:
+	// "freshness AND the closure proof bound to this publication AND the
+	// transaction certification -- not freshness alone" -- and so did the
+	// commit that authored it (aa0e757d, #176) and the test fixture comment
+	// beside it. Three authored statements, one implementation, and they
+	// disagreed.
+	//
+	// The gap permitted exactly this, observed live on 2026-09-03 against
+	// github.com/globulario/sensei-code:
+	//
+	//	authoritative                      true
+	//	embedded_transaction_matches_seed  false
+	//
+	// A publication no transaction certifies is one nobody signed. The evidence
+	// was on the wire and the conclusion ignored it, which is the same shape as
+	// the #176 defect this function was written to close: a cheap surface
+	// reading green while the fact it rests on says otherwise.
+	authoritative := freshnessCurrent &&
+		semanticState == closure.SemanticClosureProven &&
+		transactionMatchesSeed
 	verdict := awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_NOT_AUTHORITATIVE
 	if authoritative {
 		verdict = awarenesspb.AuthorityVerdict_AUTHORITY_VERDICT_AUTHORITATIVE
