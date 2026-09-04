@@ -214,7 +214,23 @@ func classifyBuildProvenance(resp *awarenesspb.MetadataResponse) awarenesspb.Bui
 	if resp.GetServerVersion() == "0.0.0-dev" || strings.TrimSpace(resp.GetGraphBuildCommit()) == "" {
 		return awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_DEV
 	}
-	if strings.TrimSpace(resp.GetSourceRepoCommit()) == "" || resp.GetGraphBuildTimeUnix() == 0 {
+	// SOURCE_REPO_COMMIT IS NOT PART OF THIS PREDICATE.
+	//
+	// It is the SERVICES repo commit -- the proto says so, and the canonical
+	// recipe fills it from `git -C ../services`. Requiring it made the stamp
+	// unachievable for any topology without a services checkout, however
+	// honestly that binary was built: :10121 and :10122 both read INCOMPLETE
+	// for a field neither has a true value for.
+	//
+	// Three propositions, and this one answers only the middle:
+	//
+	//	graph provenance   the publication receipt certifying the generation
+	//	binary provenance  which Sensei build is serving, and when it was linked
+	//	services commit    optional legacy evidence for the embedded-graph world
+	//
+	// The third was masquerading as part of the second. #343 made the first
+	// authoritative in its own right, so it no longer has to.
+	if resp.GetGraphBuildTimeUnix() == 0 {
 		return awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_INCOMPLETE
 	}
 	return awarenesspb.BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED

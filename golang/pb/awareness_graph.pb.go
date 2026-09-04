@@ -479,13 +479,28 @@ func (QueryClass) EnumDescriptor() ([]byte, []int) {
 	return file_awareness_graph_proto_rawDescGZIP(), []int{5}
 }
 
+// BuildProvenanceState describes the SERVING BINARY, and nothing else.
+//
+// It is not graph provenance: which revision produced the served knowledge is
+// answered by the per-domain publication receipt (see GraphAuthority.
+// current_publication), and a -no-seed server can be relinked today while
+// answering from a generation published long ago.
+//
+// STAMPED means a non-dev version AND a build commit AND a link time.
+// source_repo_commit is the SERVICES repo commit -- optional legacy evidence
+// for the embedded-graph topology -- and is deliberately NOT required: a server
+// built without a services checkout has no true value for it, and demanding one
+// made the stamp unachievable however honestly that binary was built.
 type BuildProvenanceState int32
 
 const (
 	BuildProvenanceState_BUILD_PROVENANCE_STATE_UNSPECIFIED BuildProvenanceState = 0
-	BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED     BuildProvenanceState = 1
-	BuildProvenanceState_BUILD_PROVENANCE_STATE_DEV         BuildProvenanceState = 2
-	BuildProvenanceState_BUILD_PROVENANCE_STATE_INCOMPLETE  BuildProvenanceState = 3
+	// Non-dev version, build commit and link time all present.
+	BuildProvenanceState_BUILD_PROVENANCE_STATE_STAMPED BuildProvenanceState = 1
+	// Built without ldflags: the 0.0.0-dev sentinel, or no build commit at all.
+	BuildProvenanceState_BUILD_PROVENANCE_STATE_DEV BuildProvenanceState = 2
+	// Released build that does not say when it was linked.
+	BuildProvenanceState_BUILD_PROVENANCE_STATE_INCOMPLETE BuildProvenanceState = 3
 )
 
 // Enum value maps for BuildProvenanceState.
