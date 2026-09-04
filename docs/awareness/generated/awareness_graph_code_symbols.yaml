@@ -22937,6 +22937,24 @@ test_symbols:
     package: workspacecontract
     language: go
     doc: "TestComposeIdentity_SufficientCoverageIsComplete is the positive control:\nevery existing condition true, plus sufficient coverage, is still\ncomplete."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestAnUnusableGraphIsReportedAsSuchRatherThanAsProvenance
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestAnUnusableGraphIsReportedAsSuchRatherThanAsProvenance
+    package: workspacecontract
+    language: go
+    doc: "A graph that cannot answer is a different limitation with a different repair."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestBothPropositionsHealthyComposesComplete
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestBothPropositionsHealthyComposesComplete
+    package: workspacecontract
+    language: go
+    doc: "Both propositions healthy composes complete. Without this the test above\nwould pass for a receipt that is never complete."
+  - id: golang/architecture/workspacecontract/provenance_readiness_test.go:TestThePartialReceiptNamesThePropositionThatFailed
+    file: golang/architecture/workspacecontract/provenance_readiness_test.go
+    symbol: TestThePartialReceiptNamesThePropositionThatFailed
+    package: workspacecontract
+    language: go
+    doc: "The pair is coherent and the receipt says so: the graph answers, the\nworkspace is not governance-ready, and the limitation names which."
   - id: golang/architecture/workspacecontract/schema_test.go:TestEmbeddedSchemasMatchCanonicalSource
     file: golang/architecture/workspacecontract/schema_test.go
     symbol: TestEmbeddedSchemasMatchCanonicalSource
@@ -23054,6 +23072,30 @@ test_symbols:
     symbol: TestTokenFromEnvLegacyFallback
     package: client
     language: go
+  - id: golang/client/authority_scoped_test.go:TestAGraphCanAnswerWellAndStateNoProvenance
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAGraphCanAnswerWellAndStateNoProvenance
+    package: client
+    language: go
+    doc: "The divergent state is COHERENT, not contradictory. Asserting both halves in\none test is the point: a reader who sees only one of them learns the wrong\nthing."
+  - id: golang/client/authority_scoped_test.go:TestAnUnusableGraphFailsTheAnswerPropositionFirst
+    file: golang/client/authority_scoped_test.go
+    symbol: TestAnUnusableGraphFailsTheAnswerPropositionFirst
+    package: client
+    language: go
+    doc: "A graph that cannot answer fails the answer proposition first, whatever its\nprovenance says. The order matters: reporting \"provenance incomplete\" about a\nstale graph would send a reader to repair the wrong thing."
+  - id: golang/client/authority_scoped_test.go:TestStatingTheProvenanceChainMakesBothPropositionsHealthy
+    file: golang/client/authority_scoped_test.go
+    symbol: TestStatingTheProvenanceChainMakesBothPropositionsHealthy
+    package: client
+    language: go
+    doc: "The full-provenance case makes both propositions healthy, and only then does\nthe combined reading turn."
+  - id: golang/client/authority_scoped_test.go:TestTheCombinedReadingIsTheConjunctionAndNotAThirdAnswer
+    file: golang/client/authority_scoped_test.go
+    symbol: TestTheCombinedReadingIsTheConjunctionAndNotAThirdAnswer
+    package: client
+    language: go
+    doc: "The combined reading is DERIVED from the two, never computed again. A third\nanswer is exactly what this whole repair exists to prevent."
   - id: golang/client/client_test.go:TestAllRPCs
     file: golang/client/client_test.go
     symbol: TestAllRPCs
