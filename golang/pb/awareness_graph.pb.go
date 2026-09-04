@@ -4041,8 +4041,17 @@ func (x *MetadataRequest) GetDomain() string {
 
 type GraphAuthority struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// True only when the live store was proven to match the expected embedded/
-	// generated artifact digest exactly.
+	// True only when the COMPOSED verdict holds: freshness AND semantic closure
+	// for the effective authority domain AND publication certification for that
+	// domain and generation. See MetadataResponse.authority for the full
+	// statement.
+	//
+	// This once read "true only when the live store was proven to match the
+	// expected artifact digest exactly", which described freshness alone. That
+	// became incomplete when closure joined the verdict and wrong when
+	// certification did. A compatibility field may keep its NAME and its wire
+	// number; it may not keep a description of a predicate the server stopped
+	// computing.
 	//
 	// DEPRECATED as the machine-readable surface: prefer `verdict`. This field is
 	// retained for compatibility and is derived from the same predicate, so it
@@ -4062,6 +4071,22 @@ type GraphAuthority struct {
 	LiveStoreGraphDigestSha256 string `protobuf:"bytes,10,opt,name=live_store_graph_digest_sha256,json=liveStoreGraphDigestSha256,proto3" json:"live_store_graph_digest_sha256,omitempty"`
 	LiveStoreGraphTripleCount  int64  `protobuf:"varint,11,opt,name=live_store_graph_triple_count,json=liveStoreGraphTripleCount,proto3" json:"live_store_graph_triple_count,omitempty"`
 	// Embedded cross-repo transaction certification for the expected seed.
+	//
+	// LEGACY EVIDENCE, NOT UNIVERSALLY A CONJUNCT OF `authoritative`. This stamp
+	// certifies the awareness-graph/services pair its format was authored around:
+	// the two commit fields below are the whole of its repository identity, and
+	// its writer is built around those two checkouts. For any other domain it
+	// records no repository at all while its seed digest still agrees, so
+	// `embedded_transaction_matches_seed` cannot mean "this domain publication is
+	// certified".
+	//
+	// It certifies only where no per-domain publication receipt exists AND the
+	// served domain is one this format can describe. A project publication with
+	//
+	//	embedded_transaction_matches_seed = false
+	//	verdict                           = AUTHORITY_VERDICT_AUTHORITATIVE
+	//
+	// is therefore a legitimate world: its certification comes from the receipt.
 	EmbeddedTransactionStampPresent bool   `protobuf:"varint,12,opt,name=embedded_transaction_stamp_present,json=embeddedTransactionStampPresent,proto3" json:"embedded_transaction_stamp_present,omitempty"`
 	CertifiedAwarenessGraphCommit   string `protobuf:"bytes,13,opt,name=certified_awareness_graph_commit,json=certifiedAwarenessGraphCommit,proto3" json:"certified_awareness_graph_commit,omitempty"`
 	CertifiedServicesRepoCommit     string `protobuf:"bytes,14,opt,name=certified_services_repo_commit,json=certifiedServicesRepoCommit,proto3" json:"certified_services_repo_commit,omitempty"`
@@ -4509,8 +4534,13 @@ type MetadataResponse struct {
 	// Empty when the stamp is absent or incomplete.
 	CertifiedServicesRepoCommit string `protobuf:"bytes,52,opt,name=certified_services_repo_commit,json=certifiedServicesRepoCommit,proto3" json:"certified_services_repo_commit,omitempty"`
 	// True when the embedded transaction stamp certifies the same seed digest as
-	// the embedded awareness.nt marker. False means the binary carries a stale or
-	// mismatched transaction stamp and must not present it as authoritative.
+	// the embedded awareness.nt marker.
+	//
+	// A consumer MUST NOT read this as the certification conjunct of the composed
+	// verdict. It is legacy cross-repo evidence: false means this stamp does not
+	// certify these bytes, which matters only where the stamp is the applicable
+	// certification at all. A domain publication certified by its receipt reads
+	// false here and is authoritative. Read `verdict`.
 	EmbeddedTransactionMatchesSeed bool `protobuf:"varint,53,opt,name=embedded_transaction_matches_seed,json=embeddedTransactionMatchesSeed,proto3" json:"embedded_transaction_matches_seed,omitempty"`
 	// Short explanatory detail for the embedded transaction verdict.
 	EmbeddedTransactionDetail string `protobuf:"bytes,54,opt,name=embedded_transaction_detail,json=embeddedTransactionDetail,proto3" json:"embedded_transaction_detail,omitempty"`
@@ -4547,8 +4577,32 @@ type MetadataResponse struct {
 	// readiness, freshness, risk, or governed-architecture verdicts.
 	EvidenceProbeCount int64 `protobuf:"varint,66,opt,name=evidence_probe_count,json=evidenceProbeCount,proto3" json:"evidence_probe_count,omitempty"`
 	// The SAME composed authority verdict every graph-backed surface returns:
-	// freshness AND the closure proof bound to this publication AND the
-	// transaction certification — not freshness alone.
+	//
+	//	freshness
+	//	AND semantic closure for the effective authority domain
+	//	AND publication certification for that same domain and generation
+	//
+	// — not freshness alone, and not any one of the three alone.
+	//
+	// PUBLICATION CERTIFICATION IS ORDERED, not a choice between equals:
+	//
+	//	VERIFIED    a per-domain publication receipt that is CLEAN_EXACT and
+	//	            carries a generation witness matching the served generation
+	//	            is the general certification. It never falls back.
+	//	ABSENT      only when no per-domain publication exists may the legacy
+	//	            cross-repo transaction certify, and only for a topology that
+	//	            format was authored to describe.
+	//	UNREADABLE  publication evidence that exists and cannot be verified is a
+	//	            refusal. Nothing weaker stands in for it.
+	//
+	// The effective authority domain is the requested domain, or this server's
+	// home domain when none was requested. Closure and certification take that
+	// one value: a verdict whose conjuncts describe different domains is a
+	// compound attestation whose parts answer different questions.
+	//
+	// The verdict is also bound to ONE observation of the store. The generation
+	// is re-read after the publication and required to be unchanged; a call that
+	// observed two worlds attests to neither.
 	//
 	// Metadata used to report freshness only, and freshness alone reads
 	// "authoritative, CURRENT" for a store whose closure report vouches for a

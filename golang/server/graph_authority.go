@@ -124,13 +124,19 @@ func graphAuthorityFromSnapshotFor(ctx context.Context, snap graphFreshnessSnaps
 	// THREE conjuncts, and the third was missing for three weeks.
 	//
 	// transactionMatchesSeed was computed above, returned as an evidence field,
-	// and left out of the conclusion. The wire contract has said otherwise the
-	// whole time -- proto/awareness_graph.proto, MetadataResponse.authority:
-	// "freshness AND the closure proof bound to this publication AND the
-	// transaction certification -- not freshness alone" -- and so did the
-	// commit that authored it (aa0e757d, #176) and the test fixture comment
-	// beside it. Three authored statements, one implementation, and they
-	// disagreed.
+	// and left out of the conclusion. The wire contract had said otherwise the
+	// whole time -- MetadataResponse.authority then read "freshness AND the
+	// closure proof bound to this publication AND the transaction certification
+	// -- not freshness alone" -- and so did the commit that authored it
+	// (aa0e757d, #176) and the test fixture comment beside it. Three authored
+	// statements, one implementation, and they disagreed.
+	//
+	// That proto text is quoted in the PAST TENSE because it no longer stands:
+	// the third conjunct is now publication certification, of which the legacy
+	// transaction is one ordered case. When the implementation changed owners
+	// the contract was restated to match, rather than being left to describe a
+	// predicate the server had stopped computing -- which is the same defect
+	// this comment is about, and would have been a poor way to close it.
 	//
 	// The gap permitted exactly this, observed live on 2026-09-03 against
 	// github.com/globulario/sensei-code:
