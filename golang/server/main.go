@@ -84,9 +84,13 @@ func authTokenFromEnv() string {
 
 // Build-time provenance stamps. Set via ldflags:
 //
-//	-X main.BuildCommit=<awareness-graph SHA>
-//	-X main.SourceCommit=<services repo SHA>
-//	-X main.BuildTimeUnix=<unix seconds>
+//	-X main.BuildCommit=<awareness-graph SHA>     required for STAMPED
+//	-X main.BuildTimeUnix=<unix seconds>          required for STAMPED
+//	-X main.SourceCommit=<services repo SHA>      OPTIONAL, legacy topology
+//
+// SourceCommit is the SERVICES repo commit and is not part of build-stamp
+// completeness: a server built without a services checkout is fully stamped by
+// naming its own build and link time. See classifyBuildProvenance.
 //
 // Empty / zero values are valid and reported as-is — agents disambiguate
 // "stamped but old" from "never stamped" by checking for empty.

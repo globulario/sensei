@@ -157,9 +157,12 @@ type MetadataAuthority struct {
 	// link-time stamps classifyBuildProvenance requires.
 	//
 	// Named for exactly what it proves, which is less than it sounds like. It
-	// is BUILD_PROVENANCE_STATE == STAMPED, and that state is computed from the
-	// server's own -X main.SourceCommit / main.BuildTimeUnix, set when the
-	// BINARY was linked. It does not establish that those commits produced the
+	// is BUILD_PROVENANCE_STATE == STAMPED, computed from the server's own
+	// -X main.Version / main.BuildCommit / main.BuildTimeUnix, set when the
+	// BINARY was linked. It deliberately does NOT require main.SourceCommit:
+	// that is the SERVICES repo commit, optional legacy evidence for the
+	// embedded-graph topology, and requiring it made the stamp unachievable for
+	// any server built without a services checkout. It does not establish that those commits produced the
 	// graph now being served: a server started with -no-seed against an
 	// existing store can be rebuilt and restamped today while the store it
 	// answers from was published long ago by inputs nobody recorded.
@@ -223,7 +226,7 @@ func InterpretMetadataScoped(m *awarenesspb.MetadataResponse) MetadataAuthority 
 			"stamp (build_provenance_state " +
 			strings.ToLower(strings.TrimPrefix(m.GetBuildProvenanceState().String(), "BUILD_PROVENANCE_STATE_")) +
 			"): this says nothing about which commits produced the graph, only that the SERVER was linked " +
-			"without its own source stamp"
+			"without naming its own build or the time it was made"
 	}
 	return out
 }

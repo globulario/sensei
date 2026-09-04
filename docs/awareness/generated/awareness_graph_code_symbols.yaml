@@ -27532,6 +27532,30 @@ test_symbols:
     symbol: TestInScopePatterns_NoForeignLeak
     package: main
     language: go
+  - id: golang/server/build_provenance_test.go:TestAServingBinaryWithNoServicesCheckoutIsStamped
+    file: golang/server/build_provenance_test.go
+    symbol: TestAServingBinaryWithNoServicesCheckoutIsStamped
+    package: main
+    language: go
+    doc: "The world this repair exists for: a Sensei server serving a project domain\nfrom an existing store, built from the Sensei checkout alone."
+  - id: golang/server/build_provenance_test.go:TestAnUnidentifiedOrUndatedBinaryIsNotStamped
+    file: golang/server/build_provenance_test.go
+    symbol: TestAnUnidentifiedOrUndatedBinaryIsNotStamped
+    package: main
+    language: go
+    doc: "What the predicate still refuses. Without these, dropping the services\nrequirement would look identical to dropping the predicate."
+  - id: golang/server/build_provenance_test.go:TestTheLegacyTopologyWithAServicesCommitIsStillStamped
+    file: golang/server/build_provenance_test.go
+    symbol: TestTheLegacyTopologyWithAServicesCommitIsStillStamped
+    package: main
+    language: go
+    doc: "The legacy world keeps working, and keeps carrying the extra evidence. This\nis the control that stops the test above from passing for a predicate that\nsimply ignores everything."
+  - id: golang/server/build_provenance_test.go:TestTheTwoRefusalsRemainDistinct
+    file: golang/server/build_provenance_test.go
+    symbol: TestTheTwoRefusalsRemainDistinct
+    package: main
+    language: go
+    doc: "The two refusals stay DISTINGUISHABLE. \"Built without ldflags at all\" and\n\"stamped but missing its link time\" are different worlds, and an operator\nfixes them differently."
   - id: golang/server/change_impact_test.go:TestALiveContractIsExaminedButDoesNotNameAnOwner
     file: golang/server/change_impact_test.go
     symbol: TestALiveContractIsExaminedButDoesNotNameAnOwner
