@@ -134,10 +134,24 @@ server:
 	go run ./golang/server -addr $(SERVER_ADDR) -oxigraph-url $(OXIGRAPH_URL)
 
 # Build awareness-graph server binary for service packaging/install flows.
+#
+# A commit identity, when published, is the CANONICAL 40-character object id.
+# These were stamped with --short=12, and an abbreviated id is a different kind
+# of fact: it names a commit only probabilistically, and it cannot be compared
+# for equality with one that was written out in full. Consumers that bind a
+# graph generation to a commit -- sensei-code's ArchitectureBinding requires
+# ^[0-9a-f]{40}$ -- were therefore handed a value that could never satisfy them,
+# and the failure surfaced as "no graph identity" rather than as "abbreviated".
+#
+# SRC_COMMIT follows the same rule when the services checkout is available. It
+# stays empty when it is not, which is the accepted state since #344: the
+# serving binary's stamp is about the serving binary, and a Sensei built without
+# a services checkout has no true value for that field. Empty is honest;
+# abbreviated is not.
 service-build:
-	@BUILD_COMMIT="$$(git rev-parse --short=12 HEAD 2>/dev/null || echo '')"; \
+	@BUILD_COMMIT="$$(git rev-parse HEAD 2>/dev/null || echo '')"; \
 	BUILD_TIME="$$(date -u +%s)"; \
-	SRC_COMMIT="$$(git -C $${SERVICES_REPO:-../services} rev-parse --short=12 HEAD 2>/dev/null || echo '')"; \
+	SRC_COMMIT="$$(git -C $${SERVICES_REPO:-../services} rev-parse HEAD 2>/dev/null || echo '')"; \
 	go build \
 	  -ldflags "-X main.Version=$(SERVICE_VERSION) -X main.BuildCommit=$$BUILD_COMMIT -X main.BuildTimeUnix=$$BUILD_TIME -X main.SourceCommit=$$SRC_COMMIT" \
 	  -o ./bin/awareness-graph ./golang/server
