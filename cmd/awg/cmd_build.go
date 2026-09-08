@@ -275,6 +275,8 @@ Flags:
 		} else {
 			fmt.Fprintf(os.Stderr, "  transaction file: %s\n", txPath)
 		}
+	} else {
+		reportUncertifiedTransaction()
 	}
 
 	// Publish the closure proof LAST and bind it to this exact marker digest.
@@ -745,6 +747,8 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		} else {
 			fmt.Fprintf(os.Stderr, "  transaction file: %s\n", txPath)
 		}
+	} else {
+		reportUncertifiedTransaction()
 	}
 
 	// Closure proof, written LAST and bound to this marker digest.
@@ -1030,4 +1034,26 @@ func writePublicationReceipt(markerPath string, r publication.Receipt, m seedmet
 func publicationReceiptPath(markerPath string) string {
 	dir := filepath.Dir(markerPath)
 	return filepath.Join(dir, "graph-publication-receipt.json")
+}
+
+// reportUncertifiedTransaction says why no runtime transaction was written.
+//
+// SILENCE HERE WAS THE DEFECT (#347). Certification is optional by design, so an
+// unresolved awareness-graph checkout is not a build failure -- but a step that
+// was attempted and could not complete has to appear on the build's own report.
+//
+// Without this the build printed `Build complete.` and exited 0 having written
+// no stamp and said nothing. The operator learned about it later, from a
+// different tool, in a message about a MISSING FILE -- whose natural reading is
+// "something deleted the stamp", not "the build never wrote one". Measured
+// 2026-09-08: a graph served uncertified for over a day that way.
+//
+// Every other outcome of this step already reports itself; only the one where
+// txPath was never set was mute, because the block that reports is the block
+// that is skipped.
+func reportUncertifiedTransaction() {
+	fmt.Fprintln(os.Stderr, "  runtime transaction: NOT certified -- no awareness-graph checkout resolved")
+	fmt.Fprintln(os.Stderr, "       looked for: --ag-repo, then upward from the working directory for")
+	fmt.Fprintln(os.Stderr, "                   golang/server/embeddata, then a sibling named awareness-graph")
+	fmt.Fprintln(os.Stderr, "       to certify: pass --ag-repo <path> (and --services-repo <path>)")
 }
