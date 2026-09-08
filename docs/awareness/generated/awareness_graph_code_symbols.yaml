@@ -29756,6 +29756,23 @@ test_symbols:
     symbol: TestBriefing_ImportedSkillSignalQuality
     package: main
     language: go
+  - id: golang/server/stamped_commit_identity_test.go:TestAPublishedSourceRepoCommitIsCanonicalOrAbsent
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestAPublishedSourceRepoCommitIsCanonicalOrAbsent
+    package: main
+    language: go
+    doc: "The same rule for the services commit, WITHOUT inventing a value for it.\n\nEmpty is the accepted state since #344 -- a Sensei built with no services\ncheckout has no true value for that field, and the serving binary's stamp is\nabout the serving binary. What is not accepted is an abbreviation: if the\nfield is published at all, it is published as an object id."
+  - id: golang/server/stamped_commit_identity_test.go:TestAnAbbreviatedCommitIsNotACanonicalIdentity
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestAnAbbreviatedCommitIsNotACanonicalIdentity
+    package: main
+    language: go
+    doc: "The predicate the abbreviation defeated, stated here so the two halves of the\ncontract live next to each other: a consumer requiring a canonical object id\nmust reject the abbreviated form outright rather than accepting a prefix."
+  - id: golang/server/stamped_commit_identity_test.go:TestTheStampedBinaryPublishesACanonicalGraphBuildCommit
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestTheStampedBinaryPublishesACanonicalGraphBuildCommit
+    package: main
+    language: go
   - id: golang/server/structural_impact_scope_test.go:TestStructuralImpact_ComponentMembershipAndDependency
     file: golang/server/structural_impact_scope_test.go
     symbol: TestStructuralImpact_ComponentMembershipAndDependency
