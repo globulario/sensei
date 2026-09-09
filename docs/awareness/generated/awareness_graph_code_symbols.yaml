@@ -25607,6 +25607,12 @@ test_symbols:
     package: extractor_test
     language: go
     doc: "TestImportFixture_VocabularyV01Migration is the regression guard for\nPatch 1's vocabulary corrections. If anyone re-introduces aw:source or\naw:relatedInvariant — accidentally or via a partial revert — this test\nfails. Symmetrically, it asserts the v0.1 predicates ARE present.\n\nSpecifically:\n  - aw:authoredIn MUST appear (replaces v0.0 aw:source).\n  - aw:source MUST NOT appear.\n  - aw:relatedInvariant MUST NOT appear (v0.0 ontology mistake).\n  - aw:affects MUST appear for the FM→Invariant case\n    (related_invariants on failure_modes.yaml moved from\n    aw:relatedInvariant to aw:affects in v0.1)."
+  - id: golang/gitobject/objectid_test.go:TestOnlyGitsTwoObjectFormatsAreObjectIDs
+    file: golang/gitobject/objectid_test.go
+    symbol: TestOnlyGitsTwoObjectFormatsAreObjectIDs
+    package: gitobject
+    language: go
+    doc: "Both of Git's object formats, and nothing else.\n\nThe 40-only reading is what this package exists to end: `git init\n--object-format=sha256` is documented and supported, and its `git rev-parse\nHEAD` returns 64 hex. Refusing that is refusing a valid identity.\n\nThe other direction matters just as much: anything shorter is an\nABBREVIATION, which names a commit probabilistically and cannot be compared\nfor equality with one written out in full. A predicate that accepted \"hex of\nany length\" would admit both, which is why the widths are enumerated rather\nthan bounded."
   - id: golang/governancepack/governancepack_test.go:TestActiveRecordValidateAndRead
     file: golang/governancepack/governancepack_test.go
     symbol: TestActiveRecordValidateAndRead
@@ -26441,12 +26447,24 @@ test_symbols:
     package: reachability
     language: go
     doc: "A receipt describing a generation the store no longer serves resolves\nNOTHING. Returning its revision anyway would answer confidently about a\ngeneration that has been replaced -- a stale answer is worse than Unknown,\nbecause Unknown is a member of the state set and a wrong revision is not."
+  - id: golang/reachability/receipt_test.go:TestASHA256ReceiptResolvesThroughTheProductionCaller
+    file: golang/reachability/receipt_test.go
+    symbol: TestASHA256ReceiptResolvesThroughTheProductionCaller
+    package: reachability
+    language: go
+    doc: "The PRODUCTION CALLER, at SHA-256 width.\n\nNot the predicate in isolation: PublishedCorpusRevisionFromRepo is what the\nbriefing path actually calls, and the defect it carried was invisible from\ninside gitobject -- a valid 64-hex receipt resolved NOTHING, so reachability\nreported Unknown. A false Unknown in the mechanism built to stop false\nverdicts is worse than the verdict it replaced, because it looks like caution."
   - id: golang/reachability/receipt_test.go:TestAnAbbreviatedOrMalformedRevisionIsRefused
     file: golang/reachability/receipt_test.go
     symbol: TestAnAbbreviatedOrMalformedRevisionIsRefused
     package: reachability
     language: go
     doc: "An abbreviation names a commit probabilistically and cannot be compared for\nequality with one written out in full. It is refused rather than accepted as\na prefix -- the rule #345 established at the producer, applied at the reader."
+  - id: golang/reachability/receipt_test.go:TestAnAbbreviationIsStillRefusedThroughTheProductionCaller
+    file: golang/reachability/receipt_test.go
+    symbol: TestAnAbbreviationIsStillRefusedThroughTheProductionCaller
+    package: reachability
+    language: go
+    doc: "And the width that is still refused, through the same caller: an\nabbreviation is not an identity at either format."
   - id: golang/reachability/receipt_test.go:TestAnUpperCaseRevisionIsNormalizedNotRefused
     file: golang/reachability/receipt_test.go
     symbol: TestAnUpperCaseRevisionIsNormalizedNotRefused
@@ -28942,6 +28960,12 @@ test_symbols:
     symbol: TestCollectLocalMetadataFromRoot_SingleDocumentCandidateCountsAsPresent
     package: main
     language: go
+  - id: golang/server/names_repository_test.go:TestNamesRepositoryAcceptsBothObjectFormats
+    file: golang/server/names_repository_test.go
+    symbol: TestNamesRepositoryAcceptsBothObjectFormats
+    package: main
+    language: go
+    doc: "namesRepository was the ONE validator of six that had the widths right, and\nit must keep them after being delegated to the shared predicate.\n\nThis is the behaviour-preservation half of that change. It is asserted\ndirectly on namesRepository rather than only on gitobject.IsObjectID, because\nwhat a caller depends on is this function, and \"the helper is right\" and\n\"this function still calls the helper\" are two different claims."
   - id: golang/server/package_inference_test.go:TestPackageInference_DirectAnchorsAreNotDuplicated
     file: golang/server/package_inference_test.go
     symbol: TestPackageInference_DirectAnchorsAreNotDuplicated
@@ -29814,6 +29838,23 @@ test_symbols:
   - id: golang/server/skill_signal_quality_test.go:TestBriefing_ImportedSkillSignalQuality
     file: golang/server/skill_signal_quality_test.go
     symbol: TestBriefing_ImportedSkillSignalQuality
+    package: main
+    language: go
+  - id: golang/server/stamped_commit_identity_test.go:TestAPublishedSourceRepoCommitIsCanonicalOrAbsent
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestAPublishedSourceRepoCommitIsCanonicalOrAbsent
+    package: main
+    language: go
+    doc: "The same rule for the services commit, WITHOUT inventing a value for it.\n\nEmpty is the accepted state since #344 -- a Sensei built with no services\ncheckout has no true value for that field, and the serving binary's stamp is\nabout the serving binary. What is not accepted is an abbreviation: if the\nfield is published at all, it is published as an object id."
+  - id: golang/server/stamped_commit_identity_test.go:TestAnAbbreviatedCommitIsNotACanonicalIdentity
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestAnAbbreviatedCommitIsNotACanonicalIdentity
+    package: main
+    language: go
+    doc: "The predicate the abbreviation defeated, stated here so the two halves of the\ncontract live next to each other: a consumer requiring a canonical object id\nmust reject the abbreviated form outright rather than accepting a prefix."
+  - id: golang/server/stamped_commit_identity_test.go:TestTheStampedBinaryPublishesACanonicalGraphBuildCommit
+    file: golang/server/stamped_commit_identity_test.go
+    symbol: TestTheStampedBinaryPublishesACanonicalGraphBuildCommit
     package: main
     language: go
   - id: golang/server/structural_impact_scope_test.go:TestStructuralImpact_ComponentMembershipAndDependency
