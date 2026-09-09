@@ -10669,6 +10669,72 @@ test_symbols:
     symbol: TestUnsupportedOperationIsTypedData
     package: commandprovider
     language: go
+  - id: golang/architecture/completion/abandon_test.go:TestACompletedTaskCannotBeAbandoned
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestACompletedTaskCannotBeAbandoned
+    package: completion
+    language: go
+    doc: "TestACompletedTaskCannotBeAbandoned: abandonment may not weaken a stronger\nterminal. This is a refusal, not a replay."
+  - id: golang/architecture/completion/abandon_test.go:TestAStaleExpectedHeadIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAStaleExpectedHeadIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestAStaleExpectedHeadIsRefusedWithoutMutation is the stale-binding refusal."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentRecordsNoResult
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentRecordsNoResult
+    package: completion
+    language: go
+    doc: "TestAbandonmentRecordsNoResult is the claim the whole transition exists to make.\n\nA task that stopped without producing anything must not end up with a record\nthat a later reader can mistake for completion. The receipt has no field for a\nresult, and it states the absence rather than leaving it to be inferred."
+  - id: golang/architecture/completion/abandon_test.go:TestAnEmptyReasonIsRefused
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnEmptyReasonIsRefused
+    package: completion
+    language: go
+    doc: "TestAnEmptyReasonIsRefused: a terminal state with no stated cause is not a record."
+  - id: golang/architecture/completion/abandon_test.go:TestAnInterruptedAbandonmentIsResumable
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnInterruptedAbandonmentIsResumable
+    package: completion
+    language: go
+    doc: "TestAnInterruptedAbandonmentIsResumable is the crash-recovery requirement.\n\nThe residue the ordering deliberately produces -- terminal record written,\npointer still set -- must be finishable by rerunning the same command, not by a\nseparate repair nobody would think to invoke."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnenrolledActorIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnenrolledActorIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestAnUnenrolledActorIsRefusedWithoutMutation is the authority requirement."
+  - id: golang/architecture/completion/abandon_test.go:TestClearingAnAbsentPointerSucceeds
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestClearingAnAbsentPointerSucceeds
+    package: completion
+    language: go
+    doc: "TestClearingAnAbsentPointerSucceeds: absence is the goal state, so the resume\npath must not fail on a pointer somebody else already retired."
+  - id: golang/architecture/completion/abandon_test.go:TestClearingRefusesAnotherTasksPointer
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestClearingRefusesAnotherTasksPointer
+    package: completion
+    language: go
+    doc: "TestClearingRefusesAnotherTasksPointer: the transition that abandoned task A\nmust not retire task B's pointer."
+  - id: golang/architecture/completion/abandon_test.go:TestRepeatedAbandonmentIsIdempotent
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestRepeatedAbandonmentIsIdempotent
+    package: completion
+    language: go
+    doc: "TestRepeatedAbandonmentIsIdempotent covers the ordinary replay, with no\ninterruption involved."
+  - id: golang/architecture/completion/abandon_test.go:TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
+    package: completion
+    language: go
+    doc: "TestTheDurableRecordIsWrittenBeforeThePointerIsCleared pins the ordering.\n\nIt is proved by making the SECOND step fail: if the pointer cannot be retired\nand the terminal record is nonetheless durable, the record cannot have been\nwritten after it. The reverse ordering would leave nothing behind here."
+  - id: golang/architecture/completion/abandon_test.go:TestWrongRepositoryIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestWrongRepositoryIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestWrongRepositoryIsRefusedWithoutMutation: the root and the task must name one\nworld, or authority is resolved against one and the ledger written in another."
   - id: golang/architecture/completion/assess_test.go:TestAssessClosureAndProofSubsumed
     file: golang/architecture/completion/assess_test.go
     symbol: TestAssessClosureAndProofSubsumed
