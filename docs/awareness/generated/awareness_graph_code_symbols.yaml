@@ -6682,6 +6682,12 @@ test_symbols:
     package: main
     language: go
     doc: "A reason with no code is a defect in this vocabulary, and must fail loudly\nrather than borrow a typed world's code and misreport which state occurred."
+  - id: cmd/awg/uncertified_transaction_test.go:TestABuildThatCannotCertifyItsTransactionSaysSo
+    file: cmd/awg/uncertified_transaction_test.go
+    symbol: TestABuildThatCannotCertifyItsTransactionSaysSo
+    package: main
+    language: go
+    doc: "A certification step that could not run must SAY SO on the build's own\nreport.\n\n#347: when no awareness-graph checkout resolved and no --graph-transaction-file\nwas given, txPath was never set, so the whole block -- including every branch\nthat reports a failure -- was skipped. The build printed `Build complete.`,\nexited 0, wrote no stamp, and said nothing. The operator found out later from\na different tool, in a message about a missing file.\n\nCertification is optional by design, so this must not fail the build. The\nassertion is only that the outcome is visible."
   - id: cmd/awg/wb3_loop_test.go:TestWriteBackLoop_EndToEnd
     file: cmd/awg/wb3_loop_test.go
     symbol: TestWriteBackLoop_EndToEnd
