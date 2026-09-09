@@ -144,35 +144,39 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 		return refuseAbandon(OutcomeLedgerInvalid, "task ledger chain unavailable")
 	}
 	task := chain.Entries[len(chain.Entries)-1].Entry.Task
+	tf := classifyTerminalFacts(chain)
 
-	// Already terminal? Two cases, and they are not the same answer.
+	// ORDER OF REFUSALS, and every one of them precedes any mutation.
 	//
-	// Already ABANDONED is a replay: the durable record stands, and the only thing
-	// left to do is the pointer, which may still be set if a previous attempt was
-	// interrupted between the two steps. That is the recovery path, and it runs
-	// here rather than in a separate repair command nobody would think to invoke.
-	if prior, ok := latestAbandonment(taskDir, chain); ok {
-		cleared, cerr := clearPointer(root, task.ID)
-		if cerr != nil {
-			return refuseAbandon(OutcomeIntegrityFailure, "task is abandoned but its active pointer was not retired: %v", cerr)
-		}
-		return AbandonResult{
-			Outcome:              OutcomeExactReplay,
-			Detail:               "task was already abandoned; the durable record stands",
-			Receipt:              prior,
-			ActivePointerCleared: cleared,
-		}, nil
-	}
-	// Already COMPLETED or REVOKED is a refusal, not a replay. Abandoning a task
-	// that finished would overwrite a stronger terminal with a weaker one, and no
-	// reason string makes that honest.
-	if terminal, kind := hasStrongerTerminal(chain); terminal {
+	// The replay branch used to sit at the top and retire the governed pointer
+	// before freshness and authority were checked at all, so a caller with an
+	// arbitrary head and no enrolled identity could finish the mutation on any
+	// interrupted task simply by naming it. Cleanup is a governed write; it is
+	// gated exactly like the write that precedes it.
+
+	// A stronger terminal may never be weakened.
+	if tf.completedCount > 0 || tf.revokedCount > 0 {
 		return refuseAbandon(OutcomeConflictingCompletion,
-			"task already reached terminal state %q; abandonment would weaken a stronger terminal and is refused", kind)
+			"the task already reached a stronger terminal state (completed=%d revoked=%d); abandonment is refused",
+			tf.completedCount, tf.revokedCount)
+	}
+	if tf.abandonedCount > 1 {
+		return refuseAbandon(OutcomeConflictingCompletion,
+			"multiple abandonment facts on the ledger — terminal history is not unique")
 	}
 
-	// Freshness before authority work: the caller's view must be current, or it is
-	// deciding about a task that has moved.
+	// A session that PRODUCED something may not record that it produced nothing.
+	// This is the receipt's single claim, and a result transition on the ledger
+	// contradicts it outright. Checked against the durable chain rather than a
+	// caller assertion, and checked for the replay path too: an abandonment that
+	// should never have been written is not made true by being repeated.
+	if _, hasResult := latestResultBinding(chain); hasResult {
+		return refuseAbandon(OutcomeConflictingCompletion,
+			"this session recorded a result transition, so it did not stop without producing a result; "+
+				"abandonment would write a receipt claiming otherwise")
+	}
+
+	// Freshness: the caller's view must be current before any authority work.
 	if expected != report.HeadDigestSHA256 {
 		return refuseAbandon(OutcomeStaleExpectedHead, "expected head %s, current %s", short(expected), short(report.HeadDigestSHA256))
 	}
@@ -194,6 +198,34 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	}
 	if _, _, resErr := resolveCompletionAuthority(ctx, index, binding, verified, now, taskDir); resErr != nil {
 		return refuseAbandon(OutcomeAuthorityRefusal, "%v", resErr)
+	}
+
+	// ONLY NOW may an interrupted abandonment be finished. The durable record
+	// already stands; what remains is the pointer, and reaching it required the
+	// same freshness and authority the original write required.
+	if tf.abandonedCount == 1 {
+		prior, _, rerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
+		if rerr != nil {
+			// The event is terminal and its receipt is broken. Retiring the pointer
+			// would remove the default route back to a task whose reason and actor
+			// can no longer be reconstructed, and blessing the damage as a clean
+			// replay would hide it.
+			return AbandonResult{
+				Outcome: OutcomeIntegrityFailure,
+				Detail: fmt.Sprintf("the task is abandoned but its receipt is not usable (%v); "+
+					"the active pointer is left in place deliberately", rerr),
+			}, nil
+		}
+		cleared, cerr := clearPointer(root, task.ID)
+		if cerr != nil {
+			return refuseAbandon(OutcomeIntegrityFailure, "task is abandoned but its active pointer was not retired: %v", cerr)
+		}
+		return AbandonResult{
+			Outcome:              OutcomeExactReplay,
+			Detail:               "task was already abandoned; the durable record stands",
+			Receipt:              &prior,
+			ActivePointerCleared: cleared,
+		}, nil
 	}
 
 	// The base binding comes from the recorded authority, the same owner
@@ -297,14 +329,26 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 // clearPointer retires the active pointer when it names this task, and reports
 // whether it actually removed one.
 //
+// ONLY A NOT-EXIST FILE MEANS "NOTHING TO RETIRE". LoadActivePointer fails for
+// absence and equally for a malformed, inaccessible or unsafe-path file, and
+// collapsing those into absence reported the abandonment committed while the
+// pointer survived to break active-task resolution afterwards. An unreadable
+// pointer is a failure to propagate, not a goal state reached.
+//
 // A pointer naming a DIFFERENT task is left alone and is not an error: this task
 // is terminal either way, and another task's pointer is not this transition's to
 // retire.
 func clearPointer(root, taskID string) (bool, error) {
+	path := filepath.Join(root, ".sensei", "tasks", "active.yaml")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("active task pointer is inaccessible: %w", err)
+	}
 	ptr, err := tasksession.LoadActivePointer(root)
 	if err != nil {
-		// No readable pointer: nothing to retire. Absence is the goal state.
-		return false, nil
+		return false, fmt.Errorf("active task pointer exists but could not be read: %w", err)
 	}
 	if strings.TrimSpace(ptr.TaskID) != strings.TrimSpace(taskID) {
 		return false, nil
@@ -315,54 +359,41 @@ func clearPointer(root, taskID string) (bool, error) {
 	return true, nil
 }
 
-// latestAbandonment returns the abandonment receipt recorded for this task, if any.
+// loadAbandonmentReceipt reads and validates the receipt an abandoned event
+// references.
 //
-// The bool reports whether an abandonment EVENT exists, independently of whether
-// its receipt could be read back. Those are different facts: an event whose
-// artifact is missing or corrupt still means the task is terminal, and reporting
-// "not abandoned" because the receipt would not parse would let a damaged record
-// be silently overwritten by a fresh one.
-func latestAbandonment(taskDir string, chain ledger.VerifiedChain) (*closureprotocol.AbandonmentReceipt, bool) {
-	for i := len(chain.Entries) - 1; i >= 0; i-- {
-		e := chain.Entries[i]
-		if e.Entry.EventType != closureprotocol.LedgerEventAbandoned {
-			continue
-		}
-		data, err := ledger.ReadVerifiedPayload(e)
-		if err != nil {
-			return nil, true
-		}
-		payload, perr := ledger.ParseTaskEventPayload(data)
-		if perr != nil {
-			return nil, true
-		}
-		ref, ok := payload.Artifacts[abandonmentArtifactKey]
-		if !ok {
-			return nil, true
-		}
-		raw, rerr := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
-		if rerr != nil || sha256Hex(raw) != ref.DigestSHA256 {
-			return nil, true
-		}
-		var receipt closureprotocol.AbandonmentReceipt
-		if uerr := json.Unmarshal(raw, &receipt); uerr != nil {
-			return nil, true
-		}
-		return &receipt, true
+// An error here is an INTEGRITY FAILURE, never "no abandonment". The event is a
+// terminal fact whichever way its artifact reads; what a broken artifact costs is
+// the reason and the actor, which are the only things the receipt exists to
+// carry. Reporting "not abandoned" would let a fresh abandonment overwrite a
+// damaged one, and reporting "replayed" would bless the damage as terminal.
+func loadAbandonmentReceipt(taskDir string, entry ledger.VerifiedEntry) (closureprotocol.AbandonmentReceipt, closureprotocol.LedgerPayloadRef, error) {
+	var zero closureprotocol.AbandonmentReceipt
+	data, err := ledger.ReadVerifiedPayload(entry)
+	if err != nil {
+		return zero, closureprotocol.LedgerPayloadRef{}, fmt.Errorf("abandoned payload unreadable: %w", err)
 	}
-	return nil, false
-}
-
-// hasStrongerTerminal reports a completed or revoked fact, which abandonment may
-// never overwrite.
-func hasStrongerTerminal(chain ledger.VerifiedChain) (bool, string) {
-	for _, e := range chain.Entries {
-		switch e.Entry.EventType {
-		case closureprotocol.LedgerEventCompleted:
-			return true, string(closureprotocol.TerminalCompleted)
-		case closureprotocol.LedgerEventRevoked:
-			return true, string(closureprotocol.TerminalRevoked)
-		}
+	payload, perr := ledger.ParseTaskEventPayload(data)
+	if perr != nil {
+		return zero, closureprotocol.LedgerPayloadRef{}, fmt.Errorf("abandoned payload malformed: %w", perr)
 	}
-	return false, ""
+	ref, ok := payload.Artifacts[abandonmentArtifactKey]
+	if !ok {
+		return zero, closureprotocol.LedgerPayloadRef{}, errors.New("abandoned event has no abandonment_receipt artifact")
+	}
+	raw, rerr := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
+	if rerr != nil {
+		return zero, ref, fmt.Errorf("abandonment receipt artifact unreadable: %w", rerr)
+	}
+	if sha256Hex(raw) != ref.DigestSHA256 {
+		return zero, ref, errors.New("abandonment receipt artifact digest mismatch")
+	}
+	var receipt closureprotocol.AbandonmentReceipt
+	if uerr := json.Unmarshal(raw, &receipt); uerr != nil {
+		return zero, ref, fmt.Errorf("abandonment receipt unparseable: %w", uerr)
+	}
+	if verr := closureprotocol.ValidateAbandonmentReceipt(receipt); verr != nil {
+		return zero, ref, fmt.Errorf("abandonment receipt invalid: %w", verr)
+	}
+	return receipt, ref, nil
 }

@@ -24,8 +24,15 @@ const inspectSchemaVersion = "completion.terminal_state/v1"
 type TerminalState string
 
 const (
-	// TerminalNotCompleted: no completed event and no receipt residue.
+	// TerminalNotCompleted: no completed event, no abandonment, and no receipt
+	// residue.
 	TerminalNotCompleted TerminalState = "not_completed"
+	// TerminalAbandoned: the task stopped without producing a result, recorded by
+	// exactly one abandoned event with its valid matching receipt. It is a
+	// terminal state in its own right and must never reconstruct as
+	// not_completed, which is what the task looked like before anything happened
+	// to it.
+	TerminalAbandoned TerminalState = "abandoned"
 	// TerminalCommitted: exactly one completed event, its valid matching receipt,
 	// zero revoked facts, bindings intact, and derived projections current.
 	TerminalCommitted TerminalState = "committed"
@@ -133,9 +140,14 @@ func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssess
 	a.RevokedCount = tf.revokedCount
 
 	switch {
-	case tf.revokedCount > 0 || tf.completedCount > 1:
+	case tf.revokedCount > 0 || tf.completedCount > 1 || tf.abandonedCount > 1,
+		tf.abandonedCount > 0 && tf.completedCount > 0:
+		// Two terminals on one ledger are contradictory whichever two they are.
 		a.State = TerminalContradictoryHistory
-		a.Detail = fmt.Sprintf("completed=%d revoked=%d: terminal history is contradictory", tf.completedCount, tf.revokedCount)
+		a.Detail = fmt.Sprintf("completed=%d revoked=%d abandoned=%d: terminal history is contradictory",
+			tf.completedCount, tf.revokedCount, tf.abandonedCount)
+	case tf.abandonedCount == 1:
+		classifyAbandoned(taskDir, tf, &a)
 	case tf.completedCount == 0:
 		if hasOrphanTerminalReceipt(taskDir) {
 			a.State = TerminalReceiptWithoutEvent
@@ -147,6 +159,24 @@ func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssess
 		classifyUniqueCompleted(taskDir, tf, currentRB, haveRB, governedManifest, report.ProjectionState, &a)
 	}
 	return stampInspect(a), nil
+}
+
+// classifyAbandoned classifies the exactly-one-abandoned case.
+//
+// The event alone is not the terminal: its receipt carries the reason and the
+// actor, and without them the record cannot say why the task stopped or who
+// stopped it. An event whose receipt is missing or broken is reported as an
+// integrity failure rather than as a clean abandonment, for the same reason a
+// completed event with a broken receipt is.
+func classifyAbandoned(taskDir string, tf terminalFacts, a *TerminalStateAssessment) {
+	receipt, _, err := loadAbandonmentReceipt(taskDir, tf.abandoned)
+	if err != nil {
+		a.State = TerminalIntegrityFailure
+		a.Detail = err.Error()
+		return
+	}
+	a.State = TerminalAbandoned
+	a.Detail = "the task stopped without producing a result: " + receipt.Reason
 }
 
 // classifyUniqueCompleted classifies the exactly-one-completed case.
