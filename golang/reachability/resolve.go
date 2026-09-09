@@ -75,9 +75,6 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 	}
 	bases = append(bases,
 		append([]string{"log", "-1", "--format=%H", "origin/main", "--"}, CorpusPaths...),
-		// Local HEAD LAST, and only when no admission branch exists at all --
-		// a solo checkout legitimately has none.
-		append([]string{"log", "-1", "--format=%H", "--"}, CorpusPaths...),
 	)
 	// A ROOT THAT DOES NOT OWN THE CORPUS ANSWERS NOTHING, and that is enforced
 	// here rather than by a separate guard.
@@ -105,6 +102,30 @@ func ResolveFromGit(ctx context.Context, repoRoot, publishedCommit string) Asses
 	resolved := []string{}
 	for _, base := range bases {
 		if v, ok := git(base...); ok && v != "" {
+			resolved = append(resolved, v)
+		}
+	}
+	// LOCAL HEAD IS NOT AN ADMISSION BASE, and it is kept out of the list above
+	// rather than placed last in it.
+	//
+	// Last-in-the-list was not last-in-effect. The selection below takes the
+	// first candidate ORDERED against the published revision, and local HEAD is
+	// trivially ordered against itself -- so whenever the real admission base
+	// was unorderable (a branch cut from an older main, which is the ordinary
+	// state of a pull request), the loop fell through to HEAD and counted the
+	// branch's own unmerged corpus edit as admitted. That is precisely the
+	// false staleness the admitted-base preference exists to prevent, produced
+	// by the preference itself.
+	//
+	// Measured 2026-09-08 on globulario/sensei PR #345: the branch predated
+	// origin/main, TestTheCorpusRevisionComesFromTheAdmittedBase failed, and
+	// the resolved corpus was the branch's own tip.
+	//
+	// A solo checkout with no admission branch at all legitimately has only
+	// HEAD, and that case is served below -- but only when nothing else
+	// resolved, never as a fallback from an unorderable base.
+	if len(resolved) == 0 {
+		if v, ok := git(append([]string{"log", "-1", "--format=%H", "--"}, CorpusPaths...)...); ok && v != "" {
 			resolved = append(resolved, v)
 		}
 	}
