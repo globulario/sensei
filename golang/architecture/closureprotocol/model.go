@@ -294,6 +294,37 @@ type CompletionReceipt struct {
 	ReceiptDigestSHA256               string             `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
 }
 
+// AbandonmentReceipt is the durable record that a task stopped WITHOUT a result.
+//
+// It is a separate shape from CompletionReceipt rather than that struct with a
+// different TerminalStatus, and the reason is structural: ValidateCompletionReceipt
+// requires a non-empty ResultBinding and a CertificationDigestSHA256. An abandoned
+// task has neither, by definition. Reusing the completion shape would have forced
+// one of two lies -- a fabricated result binding, or a validator relaxed for every
+// caller including real completions.
+//
+// There is deliberately NO ResultBinding field. Absence here is not an omission
+// that a later writer might fill in; it is the claim. A reader asking "what did
+// this session produce?" gets no field to misread.
+type AbandonmentReceipt struct {
+	Task           TaskBinding        `json:"task" yaml:"task"`
+	TerminalStatus TaskTerminalStatus `json:"terminal_status" yaml:"terminal_status"`
+	BaseBinding    BaseBinding        `json:"base_binding" yaml:"base_binding"`
+	// Reason is why the task was abandoned, supplied by the caller and required.
+	// A terminal state with no stated cause is the thing this record exists to
+	// prevent: it would let "we stopped" stand in for "we finished".
+	Reason string `json:"reason" yaml:"reason"`
+	// NoResultProduced is always true and is written explicitly rather than
+	// inferred from the missing field. A reader consuming this receipt through a
+	// projection, a diff, or another language's decoder sees the claim stated,
+	// not implied by an absence it might not notice.
+	NoResultProduced    bool   `json:"no_result_produced" yaml:"no_result_produced"`
+	AbandonmentPolicy   string `json:"abandonment_policy" yaml:"abandonment_policy"`
+	AbandonedAt         string `json:"abandoned_at" yaml:"abandoned_at"`
+	AbandoningActor     string `json:"abandoning_actor" yaml:"abandoning_actor"`
+	ReceiptDigestSHA256 string `json:"receipt_digest_sha256,omitempty" yaml:"receipt_digest_sha256,omitempty"`
+}
+
 type LedgerPayloadRef struct {
 	Path         string `json:"path" yaml:"path"`
 	MediaType    string `json:"media_type" yaml:"media_type"`

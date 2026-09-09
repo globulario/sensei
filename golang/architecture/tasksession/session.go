@@ -713,6 +713,48 @@ func WriteActivePointer(repoRoot string, ptr ActivePointer) error {
 	return writeFileAtomic(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml"), data)
 }
 
+// ClearActivePointer removes the active-task pointer for exactly one task.
+//
+// It lives here because this package is the pointer's only writer. A caller that
+// deleted .sensei/tasks/active.yaml itself would be a second writer with no
+// knowledge of the file's shape, and the check that reports a stale binding
+// already says that discarding governed state from outside is the move this
+// repository refuses.
+//
+// expectedTaskID is required and must match what the pointer currently names.
+// Clearing "whatever is active" would let a transition that authorized the
+// abandonment of task A retire task B, which a caller racing another task cannot
+// otherwise detect.
+//
+// Absence is success, not an error: the pointer is already clear, and a caller
+// resuming after an interruption between the durable terminal record and this
+// call must be able to finish without a special case. That idempotence is what
+// makes the two-step ordering recoverable rather than merely ordered.
+func ClearActivePointer(repoRoot, expectedTaskID string) error {
+	want := strings.TrimSpace(expectedTaskID)
+	if want == "" {
+		return errors.New("expected task id is required to clear the active pointer")
+	}
+	path := filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	ptr, err := LoadActivePointer(repoRoot)
+	if err != nil {
+		// A pointer that cannot be read is not a pointer this function may remove:
+		// "unreadable" and "names another task" are different facts and only one of
+		// them is safe to act on.
+		return fmt.Errorf("active task pointer is unreadable, so it was not cleared: %w", err)
+	}
+	if ptr.TaskID != want {
+		return fmt.Errorf("active task pointer names %q, not %q; refusing to clear another task's pointer", ptr.TaskID, want)
+	}
+	return os.Remove(path)
+}
+
 func stableTaskSessionID(taskID string) string {
 	sum := sha1.Sum([]byte(strings.TrimSpace(taskID)))
 	return "session." + hex.EncodeToString(sum[:])[:12]
