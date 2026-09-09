@@ -10681,12 +10681,24 @@ test_symbols:
     package: completion
     language: go
     doc: "TestAStaleExpectedHeadIsRefusedWithoutMutation is the stale-binding refusal."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentIsRefusedWhenTheSessionProducedAResult
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentIsRefusedWhenTheSessionProducedAResult
+    package: completion
+    language: go
+    doc: "F1. TestAbandonmentIsRefusedWhenTheSessionProducedAResult\n\nA task that recorded a result transition HAS produced something. Stamping\nNoResultProduced on it writes a durable receipt that is simply false, and the\nfalsehood is the one claim the receipt exists to make."
   - id: golang/architecture/completion/abandon_test.go:TestAbandonmentRecordsNoResult
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAbandonmentRecordsNoResult
     package: completion
     language: go
     doc: "TestAbandonmentRecordsNoResult is the claim the whole transition exists to make.\n\nA task that stopped without producing anything must not end up with a record\nthat a later reader can mistake for completion. The receipt has no field for a\nresult, and it states the absence rather than leaving it to be inferred."
+  - id: golang/architecture/completion/abandon_test.go:TestAnAbandonedLedgerReconstructsAsAbandoned
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnAbandonedLedgerReconstructsAsAbandoned
+    package: completion
+    language: go
+    doc: "F2. TestAnAbandonedLedgerReconstructsAsAbandoned\n\nclassifyTerminalFacts counted only completed and revoked, so InspectTerminalState\nreported a successfully abandoned task as not_completed -- the state it had\nbefore anything happened to it."
   - id: golang/architecture/completion/abandon_test.go:TestAnEmptyReasonIsRefused
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAnEmptyReasonIsRefused
@@ -10699,12 +10711,24 @@ test_symbols:
     package: completion
     language: go
     doc: "TestAnInterruptedAbandonmentIsResumable is the crash-recovery requirement.\n\nThe residue the ordering deliberately produces -- terminal record written,\npointer still set -- must be finishable by rerunning the same command, not by a\nseparate repair nobody would think to invoke."
+  - id: golang/architecture/completion/abandon_test.go:TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure
+    package: completion
+    language: go
+    doc: "F4. TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure\n\nA missing, unparseable or digest-mismatched receipt cannot reconstruct the\nreason or the actor. Reporting exact_replay and clearing the pointer blesses a\nbroken event as terminal and removes the default route back to the task."
   - id: golang/architecture/completion/abandon_test.go:TestAnUnenrolledActorIsRefusedWithoutMutation
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAnUnenrolledActorIsRefusedWithoutMutation
     package: completion
     language: go
     doc: "TestAnUnenrolledActorIsRefusedWithoutMutation is the authority requirement."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnreadableActivePointerIsNotAbsence
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnreadableActivePointerIsNotAbsence
+    package: completion
+    language: go
+    doc: "F5. TestAnUnreadableActivePointerIsNotAbsence\n\nLoadActivePointer fails for absence AND for malformed, inaccessible or\nunsafe-path files. Treating every error as \"nothing to retire\" reports the\nabandonment committed while leaving a pointer that breaks active-task\nresolution afterwards."
   - id: golang/architecture/completion/abandon_test.go:TestClearingAnAbsentPointerSucceeds
     file: golang/architecture/completion/abandon_test.go
     symbol: TestClearingAnAbsentPointerSucceeds
@@ -10717,12 +10741,24 @@ test_symbols:
     package: completion
     language: go
     doc: "TestClearingRefusesAnotherTasksPointer: the transition that abandoned task A\nmust not retire task B's pointer."
+  - id: golang/architecture/completion/abandon_test.go:TestCompleteRefusesAnAbandonedTask
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestCompleteRefusesAnAbandonedTask
+    package: completion
+    language: go
+    doc: "F2b. TestCompleteRefusesAnAbandonedTask\n\nPhaseAbandoned has no outgoing transitions. Completion that does not recognise\nthe event would append a second, contradictory terminal."
   - id: golang/architecture/completion/abandon_test.go:TestRepeatedAbandonmentIsIdempotent
     file: golang/architecture/completion/abandon_test.go
     symbol: TestRepeatedAbandonmentIsIdempotent
     package: completion
     language: go
     doc: "TestRepeatedAbandonmentIsIdempotent covers the ordinary replay, with no\ninterruption involved."
+  - id: golang/architecture/completion/abandon_test.go:TestReplayCleanupRequiresFreshnessAndAuthority
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestReplayCleanupRequiresFreshnessAndAuthority
+    package: completion
+    language: go
+    doc: "F3. TestReplayCleanupRequiresFreshnessAndAuthority\n\nThe replay branch cleared the governed pointer before the expected-head check\nand before actor verification, so an unenrolled caller with an arbitrary head\ncould finish the mutation on any interrupted task."
   - id: golang/architecture/completion/abandon_test.go:TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
     file: golang/architecture/completion/abandon_test.go
     symbol: TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
