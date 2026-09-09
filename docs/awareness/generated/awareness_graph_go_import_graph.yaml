@@ -2904,6 +2904,7 @@ components:
     assertion: inferred
     source_files:
       - golang/reachability/reachability.go
+      - golang/reachability/receipt.go
       - golang/reachability/resolve.go
     uml:
       kind: Component

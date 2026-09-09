@@ -70,8 +70,19 @@ func printGraphAuthority(authority *awarenesspb.GraphAuthority) {
 	// the reader most needs it, and the case measured live on 2026-09-01. The
 	// block then showed "authoritative (current)" with nothing beside it, which
 	// is the pre-#321 output this line was added to replace.
-	a := reachability.ResolveFromGit(context.Background(), reachabilityRepoRoot(),
-		authority.GetGraphBuildCommit())
+	// The PUBLISHED CORPUS REVISION, not graph_build_commit.
+	//
+	// graph_build_commit is the awareness-graph binary's own vcs revision, so
+	// comparing it to this repository's corpus compared two different
+	// repositories where they differ, and measured the age of the BINARY where
+	// they did not. Neither answers "is the knowledge I am deciding from the
+	// knowledge that has been admitted?". The publication receipt records the
+	// corpus revision the live generation was compiled from, in this history.
+	// Absent or generation-mismatched, it resolves nothing and the line reports
+	// Unknown rather than a confident wrong answer.
+	root := reachabilityRepoRoot()
+	published, _ := reachability.PublishedCorpusRevisionFromRepo(root)
+	a := reachability.ResolveFromGit(context.Background(), root, published)
 	fmt.Printf("  %s\n", a.Line())
 	if commit := authority.GetCertifiedAwarenessGraphCommit(); commit != "" {
 		fmt.Printf("  Tx awg:       %s\n", commit)
