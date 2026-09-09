@@ -2419,6 +2419,7 @@ components:
       - golang/architecture/tasksession/briefing_promotion.go
       - golang/architecture/tasksession/control.go
       - golang/architecture/tasksession/governance.go
+      - golang/architecture/tasksession/pointerlock.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
     depends_on:
