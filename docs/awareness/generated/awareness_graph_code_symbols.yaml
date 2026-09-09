@@ -6217,6 +6217,12 @@ test_symbols:
     package: main
     language: go
     doc: "THE HUMAN BLOCK NAMES REACHABILITY EVEN WHEN THE GRAPH NAMES NO REVISION.\n\nThe reachability line was printed only when GetGraphBuildCommit() was\nnon-empty. An empty build commit is not a missing question -- it is the\nFIRST Unknown case in reachability.Assess -- so the guard removed the line\nfrom exactly the graph that cannot account for itself, and printed\n\"Authority: authoritative (current)\" with nothing beside it.\n\nThat output is the pre-#321 block this line exists to replace, reproduced by\nthe condition #321 was written for. Measured live on 2026-09-01."
+  - id: cmd/awg/reachability_wiring_test.go:TestReachabilityIsNotAskedWithTheBinaryRevision
+    file: cmd/awg/reachability_wiring_test.go
+    symbol: TestReachabilityIsNotAskedWithTheBinaryRevision
+    package: main
+    language: go
+    doc: "The published side of the reachability comparison must be the corpus\nrevision, never the tool binary's own revision.\n\nA SOURCE check, because the defect it guards is a wiring mistake rather than\na logic one. reachability.Assess is pure and answers exactly what it is\nasked; the failure was that the caller asked with graph_build_commit, which\nis the awareness-graph BINARY's vcs revision. Every unit test of Assess kept\npassing while the verdict measured the wrong thing -- so the assertion has to\nbe about which value reaches the call.\n\nMeasured 2026-09-08: graph_build_commit equalled `go version -m <serving\nbinary>` on two live instances. Against a governed repo that is not the tool\nrepo the comparison was permanently Unknown; against the tool repo it\nreported a count that was the age of the BINARY, and rebuilding the binary\nalone would have reported `current` with the store untouched."
   - id: cmd/awg/rename_unsupported_test.go:TestObserveChangePreservesRenameEndpoints
     file: cmd/awg/rename_unsupported_test.go
     symbol: TestObserveChangePreservesRenameEndpoints
@@ -26375,6 +26381,18 @@ test_symbols:
     package: rdf
     language: go
     doc: "A v1 identity is reported as v1 and never guessed into a repository:\nsourceFile/README.md can mean any of N repositories, so inventing one\nwould manufacture exactly the false continuity the migration decision\nforbids."
+  - id: golang/reachability/admitted_base_test.go:TestASoloCheckoutStillResolvesItsOwnCorpus
+    file: golang/reachability/admitted_base_test.go
+    symbol: TestASoloCheckoutStillResolvesItsOwnCorpus
+    package: reachability
+    language: go
+    doc: "The solo checkout is the case the local-HEAD fallback legitimately serves: no\nremote, no admission branch, so HEAD is the only corpus there is. Removing\nthe fallback entirely would break this, which is why it is kept -- but only\nwhen nothing else resolved, never as a fall-through from an unorderable base."
+  - id: golang/reachability/admitted_base_test.go:TestAnUnmergedCorpusEditIsNotCountedAsAdmitted
+    file: golang/reachability/admitted_base_test.go
+    symbol: TestAnUnmergedCorpusEditIsNotCountedAsAdmitted
+    package: reachability
+    language: go
+    doc: "A branch cut from an older main must NOT have its own unmerged corpus edit\ncounted as admitted.\n\nHERMETIC, and it has to be. The repository-local version of this assertion\npasses on any branch that happens to be up to date with main -- which is most\nof them -- so it could not fail for the mutation that reintroduces the bug.\nIt caught the real thing only by accident, on globulario/sensei PR #345,\nwhose branch predated main.\n\nThe shape that breaks it: local HEAD is trivially ordered against itself, so\na selection that prefers \"the first candidate ordered against the published\nrevision\" picks HEAD whenever the true admission base is unorderable. That is\nthe false staleness the admitted-base preference exists to prevent, produced\nby the preference itself."
   - id: golang/reachability/reachability_test.go:TestABuildNewerThanTheLastCorpusChangeIsCurrent
     file: golang/reachability/reachability_test.go
     symbol: TestABuildNewerThanTheLastCorpusChangeIsCurrent
@@ -26411,6 +26429,42 @@ test_symbols:
     package: reachability
     language: go
     doc: "Code movement is not knowledge movement. Counting every commit would cry wolf\nuntil the signal was ignored, which is how a real staleness signal dies."
+  - id: golang/reachability/receipt_test.go:TestAMissingReceiptOrMarkerResolvesNothing
+    file: golang/reachability/receipt_test.go
+    symbol: TestAMissingReceiptOrMarkerResolvesNothing
+    package: reachability
+    language: go
+    doc: "Absence is Unknown, never a guess."
+  - id: golang/reachability/receipt_test.go:TestAReceiptForAnotherGenerationResolvesNothing
+    file: golang/reachability/receipt_test.go
+    symbol: TestAReceiptForAnotherGenerationResolvesNothing
+    package: reachability
+    language: go
+    doc: "A receipt describing a generation the store no longer serves resolves\nNOTHING. Returning its revision anyway would answer confidently about a\ngeneration that has been replaced -- a stale answer is worse than Unknown,\nbecause Unknown is a member of the state set and a wrong revision is not."
+  - id: golang/reachability/receipt_test.go:TestAnAbbreviatedOrMalformedRevisionIsRefused
+    file: golang/reachability/receipt_test.go
+    symbol: TestAnAbbreviatedOrMalformedRevisionIsRefused
+    package: reachability
+    language: go
+    doc: "An abbreviation names a commit probabilistically and cannot be compared for\nequality with one written out in full. It is refused rather than accepted as\na prefix -- the rule #345 established at the producer, applied at the reader."
+  - id: golang/reachability/receipt_test.go:TestAnUpperCaseRevisionIsNormalizedNotRefused
+    file: golang/reachability/receipt_test.go
+    symbol: TestAnUpperCaseRevisionIsNormalizedNotRefused
+    package: reachability
+    language: go
+    doc: "Case is PRESENTATION, not ambiguity. Upper-case hex names the same object\nexactly, so it is normalized rather than refused -- unlike an abbreviation,\nwhich names a commit only probabilistically. Refusing it would reject a valid\nidentity for the way it was written down."
+  - id: golang/reachability/receipt_test.go:TestMalformedReceiptOrMarkerResolvesNothing
+    file: golang/reachability/receipt_test.go
+    symbol: TestMalformedReceiptOrMarkerResolvesNothing
+    package: reachability
+    language: go
+    doc: "Malformed files resolve nothing rather than panicking or half-reading."
+  - id: golang/reachability/receipt_test.go:TestThePublishedRevisionComesFromTheReceipt
+    file: golang/reachability/receipt_test.go
+    symbol: TestThePublishedRevisionComesFromTheReceipt
+    package: reachability
+    language: go
+    doc: "The published side of the comparison is the corpus revision the live\ngeneration was compiled from."
   - id: golang/reachability/resolve_test.go:TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository
     file: golang/reachability/resolve_test.go
     symbol: TestAGraphBuiltFromHeadIsCurrentAgainstThisRepository

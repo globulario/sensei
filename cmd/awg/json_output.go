@@ -5,10 +5,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"strings"
 
 	"fmt"
-	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/reachability"
 	"os"
 
@@ -61,12 +59,15 @@ func emitProtoJSON(m proto.Message) int {
 // generation could not be established. Only the second is true, and only the
 // second stops the caller from treating a missing rule as an absent rule.
 func withReachability(encoded []byte, m proto.Message) []byte {
-	commit := strings.TrimSpace(authorityBuildCommit(m))
 	var obj map[string]interface{}
 	if err := json.Unmarshal(encoded, &obj); err != nil {
 		return encoded
 	}
-	a := reachability.ResolveFromGit(context.Background(), reachabilityRepoRoot(), commit)
+	// See authority_output.go: the published side is the corpus revision the
+	// live generation was compiled from, never the tool binary's revision.
+	root := reachabilityRepoRoot()
+	published, _ := reachability.PublishedCorpusRevisionFromRepo(root)
+	a := reachability.ResolveFromGit(context.Background(), root, published)
 	obj["reachability"] = map[string]interface{}{
 		"state":           string(a.State),
 		"reachable":       a.Reachable(),
@@ -79,18 +80,4 @@ func withReachability(encoded []byte, m proto.Message) []byte {
 		return encoded
 	}
 	return out
-}
-
-// authorityBuildCommit pulls the build commit out of whatever governed response
-// this is, without the CLI needing to know which one it is.
-func authorityBuildCommit(m proto.Message) string {
-	type withAuthority interface {
-		GetAuthority() *awarenesspb.GraphAuthority
-	}
-	if wa, ok := m.(withAuthority); ok {
-		if a := wa.GetAuthority(); a != nil {
-			return a.GetGraphBuildCommit()
-		}
-	}
-	return ""
 }

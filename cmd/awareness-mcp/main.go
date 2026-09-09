@@ -2756,7 +2756,14 @@ func reachabilityMap(ctx context.Context, buildCommit string) map[string]interfa
 	// here. A guard at this level, however careful, is this file deciding a
 	// question reachability.Assess already answers -- the fourth reading of one
 	// state that the single-owner rule exists to prevent.
-	r := reachability.ResolveFromGit(ctx, mcpCorpusRoot(), strings.TrimSpace(buildCommit))
+	// buildCommit is graph_build_commit, which is the awareness-graph BINARY's
+	// revision rather than the corpus the generation was built from. It is
+	// accepted here only so every caller keeps its shape; the value compared is
+	// the publication receipt's revision, bound to the marker beside it.
+	_ = buildCommit
+	root := mcpCorpusRoot()
+	published, _ := reachability.PublishedCorpusRevisionFromRepo(root)
+	r := reachability.ResolveFromGit(ctx, root, published)
 	return map[string]interface{}{
 		"state":           string(r.State),
 		"reachable":       r.Reachable(),
