@@ -710,6 +710,14 @@ func WriteActivePointer(repoRoot string, ptr ActivePointer) error {
 	if err != nil {
 		return err
 	}
+	// Participates in the pointer lock, so a writer cannot land between another
+	// operation's identity check and its unlink. writeFileAtomic already makes
+	// the replacement atomic for a READER; it does nothing for a checker.
+	release, lerr := acquirePointerLock(repoRoot)
+	if lerr != nil {
+		return lerr
+	}
+	defer release()
 	return writeFileAtomic(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml"), data)
 }
 
@@ -735,6 +743,14 @@ func ClearActivePointer(repoRoot, expectedTaskID string) error {
 	if want == "" {
 		return errors.New("expected task id is required to clear the active pointer")
 	}
+	// The whole read-check-unlink runs under the pointer lock. Any writer that
+	// respects the lock is excluded for its duration, so the identity this
+	// function checked is still the identity it deletes.
+	release, lerr := acquirePointerLock(repoRoot)
+	if lerr != nil {
+		return lerr
+	}
+	defer release()
 	path := filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -751,6 +767,9 @@ func ClearActivePointer(repoRoot, expectedTaskID string) error {
 	}
 	if ptr.TaskID != want {
 		return fmt.Errorf("active task pointer names %q, not %q; refusing to clear another task's pointer", ptr.TaskID, want)
+	}
+	if afterPointerIdentityCheck != nil {
+		afterPointerIdentityCheck()
 	}
 	return os.Remove(path)
 }

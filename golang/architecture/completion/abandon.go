@@ -167,13 +167,30 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 
 	// A session that PRODUCED something may not record that it produced nothing.
 	// This is the receipt's single claim, and a result transition on the ledger
-	// contradicts it outright. Checked against the durable chain rather than a
-	// caller assertion, and checked for the replay path too: an abandonment that
-	// should never have been written is not made true by being repeated.
-	if _, hasResult := latestResultBinding(chain); hasResult {
+	// contradicts it outright.
+	//
+	// TRI-STATE, because the first repair asked the wrong question. It asked
+	// latestResultBinding -- "is there a current result binding" -- and a
+	// recorded transition whose payload carries no resolvable binding answers
+	// no. That is not evidence that nothing was produced; it is evidence that
+	// the record cannot be read. Absence of a readable binding and absence of a
+	// transition are different facts and only the second permits abandonment.
+	_, hasBinding := latestResultBinding(chain)
+	switch {
+	case tf.resultTransitionCount > 0 && hasBinding:
 		return refuseAbandon(OutcomeConflictingCompletion,
 			"this session recorded a result transition, so it did not stop without producing a result; "+
 				"abandonment would write a receipt claiming otherwise")
+	case tf.resultTransitionCount > 0:
+		return refuseAbandon(OutcomeIntegrityFailure,
+			"this session recorded %d result transition(s) whose current binding cannot be resolved; "+
+				"an unreadable result record is not evidence that no result was produced",
+			tf.resultTransitionCount)
+	case hasBinding:
+		// A binding with no transition event is itself incoherent; refuse rather
+		// than choose which half to believe.
+		return refuseAbandon(OutcomeIntegrityFailure,
+			"a current result binding exists with no recorded result transition; the terminal history is not readable")
 	}
 
 	// Freshness: the caller's view must be current before any authority work.
@@ -254,15 +271,20 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	if rverr := closureprotocol.ValidateAbandonmentReceipt(receipt); rverr != nil {
 		return refuseAbandon(OutcomeIntegrityFailure, "abandonment receipt invalid: %v", rverr)
 	}
-	receiptBytes, berr := closureprotocol.CanonicalJSON(receipt)
-	if berr != nil {
-		return refuseAbandon(OutcomeIntegrityFailure, "canonical receipt: %v", berr)
-	}
-	dig, derr := closureprotocol.SemanticDigest(receipt)
+	// Stamp BEFORE serialising, the order completion already uses. Serialising
+	// first stored an artifact that did not contain its own identity, so every
+	// replay reconstructed a receipt with an empty digest while a fresh success
+	// reported one -- the same receipt described two different ways depending on
+	// which path produced it.
+	dig, derr := AbandonmentReceiptDigest(receipt)
 	if derr != nil {
 		return refuseAbandon(OutcomeIntegrityFailure, "receipt digest: %v", derr)
 	}
 	receipt.ReceiptDigestSHA256 = dig
+	receiptBytes, berr := closureprotocol.CanonicalJSON(receipt)
+	if berr != nil {
+		return refuseAbandon(OutcomeIntegrityFailure, "canonical receipt: %v", berr)
+	}
 
 	ref, srerr := store.StoreArtifactBytes(receiptBytes, "application/json")
 	if srerr != nil {
@@ -395,5 +417,49 @@ func loadAbandonmentReceipt(taskDir string, entry ledger.VerifiedEntry) (closure
 	if verr := closureprotocol.ValidateAbandonmentReceipt(receipt); verr != nil {
 		return zero, ref, fmt.Errorf("abandonment receipt invalid: %w", verr)
 	}
+	// The stored artifact must carry its own identity and that identity must
+	// recompute. A receipt whose digest is absent or wrong is not this receipt.
+	if strings.TrimSpace(receipt.ReceiptDigestSHA256) == "" {
+		return zero, ref, errors.New("abandonment receipt carries no digest")
+	}
+	recomputed, rderr := AbandonmentReceiptDigest(receipt)
+	if rderr != nil {
+		return zero, ref, fmt.Errorf("recompute receipt digest: %w", rderr)
+	}
+	if recomputed != receipt.ReceiptDigestSHA256 {
+		return zero, ref, errors.New("abandonment receipt digest does not recompute")
+	}
+	// And it must belong to the event that references it. A structurally valid
+	// receipt from another task is still a valid receipt -- for a different
+	// task. completedEventMatches makes exactly this check for completion, and
+	// omitting it here let one task be reported cleanly abandoned on another
+	// task's record, and let a replay retire the wrong task's pointer.
+	if merr := abandonedEventMatches(entry, receipt, ref); merr != nil {
+		return zero, ref, merr
+	}
 	return receipt, ref, nil
+}
+
+// AbandonmentReceiptDigest is the self-excluding identity of an abandonment
+// receipt, computed the way TerminalReceiptDigest computes completion's.
+func AbandonmentReceiptDigest(in closureprotocol.AbandonmentReceipt) (string, error) {
+	in.ReceiptDigestSHA256 = ""
+	return closureprotocol.SemanticDigest(in)
+}
+
+// abandonedEventMatches binds a receipt to the abandoned event referencing it.
+//
+// Modelled on completedEventMatches. The completion analogue additionally
+// compares result bindings; abandonment has none by construction, so the
+// conjunction here is task, session, and a referenced digest that is actually
+// present.
+func abandonedEventMatches(entry ledger.VerifiedEntry, receipt closureprotocol.AbandonmentReceipt, ref closureprotocol.LedgerPayloadRef) error {
+	if entry.Entry.Task.ID != receipt.Task.ID || entry.Entry.Task.SessionID != receipt.Task.SessionID {
+		return fmt.Errorf("abandoned event task %s/%s does not match the receipt task %s/%s",
+			entry.Entry.Task.ID, entry.Entry.Task.SessionID, receipt.Task.ID, receipt.Task.SessionID)
+	}
+	if strings.TrimSpace(ref.DigestSHA256) == "" {
+		return errors.New("abandoned event references no receipt digest")
+	}
+	return nil
 }

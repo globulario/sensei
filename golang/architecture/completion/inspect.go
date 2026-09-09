@@ -278,7 +278,7 @@ func stampInspect(a TerminalStateAssessment) TerminalStateAssessment {
 // (used by callers and tests that enumerate the vocabulary).
 func AssessmentBoundStates() []TerminalState {
 	out := []TerminalState{
-		TerminalNotCompleted, TerminalCommitted, TerminalReceiptWithoutEvent,
+		TerminalNotCompleted, TerminalAbandoned, TerminalCommitted, TerminalReceiptWithoutEvent,
 		TerminalEventWithoutValidReceipt, TerminalContradictoryHistory, TerminalWrongBinding,
 		TerminalIntegrityFailure, TerminalProjectionStaleOrMissing, TerminalUnsupported,
 	}

@@ -621,3 +621,202 @@ func mustChain(t *testing.T, taskDir string) ledger.VerifiedChain {
 	}
 	return chain
 }
+
+// ---------------------------------------------------------------------------
+// Reproductions of the five Codex findings on 29a12987. Round two: three of the
+// five are consequences of the round-one repairs, which is the useful part.
+// ---------------------------------------------------------------------------
+
+// R2-F1. An unreadable result transition is not evidence of no result.
+//
+// The round-one repair asked latestResultBinding, which answers "is there a
+// current result binding". A result_transition_recorded event whose payload
+// carries no binding makes that false while the durable transition fact stands,
+// so the receipt claims the session produced nothing on a chain that records it
+// producing something.
+func TestAnUnreadableResultTransitionIsNotNoResult(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	w.appendEmptyResultTransition(t)
+
+	res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if res.Outcome == OutcomeCommitted || res.Outcome == OutcomeExactReplay {
+		t.Fatalf("outcome = %q: a recorded result transition whose binding cannot be read "+
+			"was treated as proof that no result was produced", res.Outcome)
+	}
+	if res.Outcome != OutcomeIntegrityFailure {
+		t.Fatalf("outcome = %q, want integrity_failure: the transition fact exists and cannot be resolved", res.Outcome)
+	}
+	if n := abandonedEvents(t, w.TaskDir); n != 0 {
+		t.Fatalf("abandoned events = %d, want 0", n)
+	}
+	if !pointerExists(t, w.Repo) {
+		t.Fatal("the refusal retired the active pointer")
+	}
+}
+
+// R2-F2. The canonical projection vocabulary must contain the state.
+//
+// Teaching the classifier a new terminal without adding it to the bound set left
+// every abandoned task's projection failing its own canonical contract.
+func TestAbandonedIsInTheCanonicalProjectionVocabulary(t *testing.T) {
+	found := false
+	for _, s := range AssessmentBoundStates() {
+		if s == TerminalAbandoned {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("AssessmentBoundStates() omits %q, so every abandoned projection is rejected as off-vocabulary: %v",
+			TerminalAbandoned, AssessmentBoundStates())
+	}
+	if !validCompletionTerminalState(TerminalAbandoned) {
+		t.Fatalf("validCompletionTerminalState(%q) = false", TerminalAbandoned)
+	}
+}
+
+// R2-F2b. The real projection path, not just the intermediate classifier.
+func TestAnAbandonedProjectionValidates(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	if res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned); res.Outcome != OutcomeCommitted {
+		t.Fatalf("setup: %q (%s)", res.Outcome, res.Detail)
+	}
+	a, err := InspectTerminalState(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if err != nil {
+		t.Fatalf("inspect: %v", err)
+	}
+	// Built through the real producer, not hand-assembled: the point is that the
+	// path task-status actually takes accepts an abandoned task.
+	p, perr := BuildCompletionProjection(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if perr != nil {
+		t.Fatalf("build projection: %v", perr)
+	}
+	if p.TerminalState != TerminalAbandoned {
+		t.Fatalf("projection terminal state = %q, want %q", p.TerminalState, TerminalAbandoned)
+	}
+	if verr := ValidateCanonicalCompletionProjection(p); verr != nil {
+		t.Fatalf("an abandoned task's canonical projection does not validate: %v", verr)
+	}
+	_ = a
+}
+
+// R2-F4. The stored receipt must carry its own digest.
+//
+// CanonicalJSON ran before ReceiptDigestSHA256 was assigned, so the durable
+// artifact never contained the identity, and every replay reconstructed a
+// receipt whose digest was empty while a fresh success reported one.
+func TestTheStoredAbandonmentReceiptCarriesItsDigest(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	id := taskID(t, w.TaskDir)
+	setActivePointer(t, w, id)
+
+	fresh := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if fresh.Outcome != OutcomeCommitted || fresh.Receipt == nil {
+		t.Fatalf("setup: %q (%s)", fresh.Outcome, fresh.Detail)
+	}
+	if strings.TrimSpace(fresh.Receipt.ReceiptDigestSHA256) == "" {
+		t.Fatal("the fresh receipt reports no digest")
+	}
+	setActivePointer(t, w, id)
+	replay := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if replay.Outcome != OutcomeExactReplay || replay.Receipt == nil {
+		t.Fatalf("replay: %q (%s)", replay.Outcome, replay.Detail)
+	}
+	if got := strings.TrimSpace(replay.Receipt.ReceiptDigestSHA256); got == "" {
+		t.Fatal("the replayed receipt has an empty digest: the stored artifact never carried its identity")
+	}
+	if replay.Receipt.ReceiptDigestSHA256 != fresh.Receipt.ReceiptDigestSHA256 {
+		t.Fatalf("replay digest %q != fresh digest %q", replay.Receipt.ReceiptDigestSHA256, fresh.Receipt.ReceiptDigestSHA256)
+	}
+}
+
+// R2-F5a. Substituted receipt bytes are refused by the content-addressed ref.
+//
+// This is what the end-to-end path actually enforces, and it is worth pinning
+// separately: overwriting the artifact changes its sha256, and the ledger's
+// payload ref no longer matches. It does NOT exercise the event/receipt binding
+// -- see the unit test below, and the reply on that thread.
+func TestSubstitutedAbandonmentReceiptBytesAreRefused(t *testing.T) {
+	victim := seedWorldWithoutResult(t)
+	other := seedWorldWithoutResult(t)
+	vid := taskID(t, victim.TaskDir)
+	setActivePointer(t, victim, vid)
+	setActivePointer(t, other, taskID(t, other.TaskDir))
+
+	v := abandon(t, victim, currentHead(t, victim.TaskDir), whyAbandoned)
+	o := abandon(t, other, currentHead(t, other.TaskDir), "a different task stopped for its own reasons")
+	if v.Outcome != OutcomeCommitted || o.Outcome != OutcomeCommitted {
+		t.Fatalf("setup: victim=%q other=%q", v.Outcome, o.Outcome)
+	}
+	otherBytes, err := os.ReadFile(filepath.Join(other.TaskDir, filepath.FromSlash(o.ReceiptPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(victim.TaskDir, filepath.FromSlash(v.ReceiptPath)), otherBytes, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	setActivePointer(t, victim, vid)
+
+	res := abandon(t, victim, currentHead(t, victim.TaskDir), whyAbandoned)
+	if res.Outcome != OutcomeIntegrityFailure {
+		t.Fatalf("outcome = %q, want integrity_failure for substituted receipt bytes", res.Outcome)
+	}
+	if res.ActivePointerCleared || !pointerExists(t, victim.Repo) {
+		t.Fatal("substituted receipt bytes caused this task's pointer to be retired")
+	}
+	a, ierr := InspectTerminalState(context.Background(), Request{RepositoryRoot: victim.Repo, TaskDirectory: victim.TaskDir})
+	if ierr != nil {
+		t.Fatalf("inspect: %v", ierr)
+	}
+	if a.State == TerminalAbandoned {
+		t.Fatal("InspectTerminalState reports a clean abandonment on substituted bytes")
+	}
+}
+
+// R2-F5b. The event/receipt binding itself, tested where it is reachable.
+//
+// The end-to-end substitution above is stopped earlier, by the content-addressed
+// ref. That makes the binding check defence-in-depth rather than the only guard
+// -- so it is tested directly, because a guard whose failure mode is unreachable
+// through the caller is exactly the kind that rots unnoticed.
+func TestAbandonedEventMatchesRefusesAnotherTasksReceipt(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	if res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned); res.Outcome != OutcomeCommitted {
+		t.Fatalf("setup: %q", res.Outcome)
+	}
+	chain := mustChain(t, w.TaskDir)
+	tf := classifyTerminalFacts(chain)
+	if tf.abandonedCount != 1 {
+		t.Fatalf("abandoned events = %d", tf.abandonedCount)
+	}
+	receipt, ref, err := loadAbandonmentReceipt(w.TaskDir, tf.abandoned)
+	if err != nil {
+		t.Fatalf("the honest receipt does not load: %v", err)
+	}
+	if merr := abandonedEventMatches(tf.abandoned, receipt, ref); merr != nil {
+		t.Fatalf("the matching receipt was refused: %v", merr)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(r *closureprotocol.AbandonmentReceipt)
+	}{
+		{"another task", func(r *closureprotocol.AbandonmentReceipt) { r.Task.ID = "task.defect.someone-else" }},
+		{"another session", func(r *closureprotocol.AbandonmentReceipt) { r.Task.SessionID = "session.elsewhere" }},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			foreign := receipt
+			tc.mutate(&foreign)
+			if merr := abandonedEventMatches(tf.abandoned, foreign, ref); merr == nil {
+				t.Fatalf("a receipt for %s was accepted for this event", tc.name)
+			}
+		})
+	}
+	t.Run("no referenced digest", func(t *testing.T) {
+		if merr := abandonedEventMatches(tf.abandoned, receipt, closureprotocol.LedgerPayloadRef{Path: ref.Path}); merr == nil {
+			t.Fatal("an event referencing no receipt digest was accepted")
+		}
+	})
+}
