@@ -8,6 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+
+	"github.com/globulario/sensei/golang/gitobject"
 	"strings"
 	"testing"
 	"time"
@@ -17,7 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// A PUBLISHED COMMIT IDENTITY IS THE CANONICAL 40-CHARACTER OBJECT ID.
+// A PUBLISHED COMMIT IDENTITY IS A FULL-WIDTH GIT OBJECT ID.
 //
 // service-build stamped BUILD_COMMIT and SRC_COMMIT with `git rev-parse
 // --short=12`, so every consumer of Metadata received a 12-character
@@ -26,7 +28,7 @@ import (
 // equality against one written out in full.
 //
 // Downstream, sensei-code binds an architecture turn to {task, objective
-// digest, base, graph build commit} and requires ^[0-9a-f]{40}$ of the last.
+// digest, base, graph build commit} and requires a full object id of the last.
 // The abbreviated stamp could never satisfy it, and the failure presented as
 // "this graph has no identity" rather than as "this identity is abbreviated" --
 // which is the expensive kind of wrong, because it points at the wrong repo.
@@ -37,10 +39,16 @@ import (
 // it runs the real target, starts the real binary, and asks the real Metadata
 // RPC.
 
-var canonicalObjectID = regexp.MustCompile(`^[0-9a-f]{40}$`)
-
 // abbreviatedObjectID is what the defect looked like: hex, lowercase, and far
 // too short to be an identity.
+//
+// WIDTH IS NOT PINNED TO 40 HERE. These tests asserted `^[0-9a-f]{40}$`, which
+// rejects the exact value the Makefile publishes in a repository initialized
+// with `git init --object-format=sha256` -- a documented, supported format
+// whose `git rev-parse HEAD` returns 64 hex. It also contradicted
+// namesRepository, which already accepted both widths, so one value was valid
+// evidence in one function and malformed in the next. Both now ask
+// gitobject.IsObjectID, which is the single place that answers this.
 var abbreviatedObjectID = regexp.MustCompile(`^[0-9a-f]{4,39}$`)
 
 func repoRootForStampTest(t *testing.T) string {
@@ -147,11 +155,11 @@ func TestTheStampedBinaryPublishesACanonicalGraphBuildCommit(t *testing.T) {
 	}
 	if abbreviatedObjectID.MatchString(got) {
 		t.Fatalf("graph_build_commit %q is an abbreviated object id (%d chars); "+
-			"a published commit identity is the canonical 40-character form, "+
+			"a published commit identity is the full-width form, "+
 			"and an abbreviation cannot be compared for equality with one", got, len(got))
 	}
-	if !canonicalObjectID.MatchString(got) {
-		t.Fatalf("graph_build_commit %q is not 40 lowercase hex", got)
+	if !gitobject.IsObjectID(got) {
+		t.Fatalf("graph_build_commit %q is not a full-width git object id (%d chars)", got, len(got))
 	}
 
 	// And it is THIS commit, not merely a well-shaped one.
@@ -179,8 +187,8 @@ func TestAPublishedSourceRepoCommitIsCanonicalOrAbsent(t *testing.T) {
 	if abbreviatedObjectID.MatchString(got) {
 		t.Fatalf("source_repo_commit %q is an abbreviated object id (%d chars)", got, len(got))
 	}
-	if !canonicalObjectID.MatchString(got) {
-		t.Fatalf("source_repo_commit %q is not 40 lowercase hex", got)
+	if !gitobject.IsObjectID(got) {
+		t.Fatalf("source_repo_commit %q is not a full-width git object id (%d chars)", got, len(got))
 	}
 }
 
@@ -191,10 +199,10 @@ func TestAnAbbreviatedCommitIsNotACanonicalIdentity(t *testing.T) {
 	full := "9004725eb6c0a77830fea592adb0839ce0d86ec1"
 	short := full[:12]
 
-	if !canonicalObjectID.MatchString(full) {
+	if !gitobject.IsObjectID(full) {
 		t.Fatal("a 40-character object id is not being recognized as canonical")
 	}
-	if canonicalObjectID.MatchString(short) {
+	if gitobject.IsObjectID(short) {
 		t.Fatal("a 12-character prefix is being accepted as a canonical identity")
 	}
 	if !abbreviatedObjectID.MatchString(short) {

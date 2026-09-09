@@ -4,21 +4,14 @@ package reachability
 
 import (
 	"encoding/json"
+	"github.com/globulario/sensei/golang/gitobject"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 )
 
 // ReceiptPath is where a publication receipt sits, beside the graph marker.
 const ReceiptPath = ".sensei/graph-publication-receipt.json"
-
-// canonicalCommit is the only shape a commit identity may take here.
-//
-// An abbreviation names a commit probabilistically and cannot be compared for
-// equality with one written out in full, so it is refused rather than accepted
-// as a prefix.
-var canonicalCommit = regexp.MustCompile(`^[0-9a-f]{40}$`)
 
 // publicationReceipt is the subset of the receipt this package reads.
 type publicationReceipt struct {
@@ -79,11 +72,16 @@ func PublishedCorpusRevision(repoRoot, liveGeneration string) (string, bool) {
 	if !strings.EqualFold(strings.TrimSpace(r.GraphGeneration), liveGeneration) {
 		return "", false
 	}
-	rev := strings.ToLower(strings.TrimSpace(r.Receipt.Revision))
-	if !canonicalCommit.MatchString(rev) {
+	// VALIDATE, then normalize. gitobject.IsObjectID accepts both of Git's
+	// object formats, so a SHA-256 repository's receipt is readable here. This
+	// accepted only 40 hex before, which rejected every id such a repository
+	// produces and resolved nothing -- a FALSE Unknown, in the mechanism built
+	// to stop false verdicts.
+	rev := strings.TrimSpace(r.Receipt.Revision)
+	if !gitobject.IsObjectID(rev) {
 		return "", false
 	}
-	return rev, true
+	return strings.ToLower(rev), true
 }
 
 // MarkerPath is the verified live graph identity written after a store load.

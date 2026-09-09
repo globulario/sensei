@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"github.com/globulario/sensei/golang/gitobject"
 	"strings"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
@@ -252,18 +253,9 @@ func legacyTransactionApplies(domain string, stamp seedmeta.TransactionStamp) (b
 // SHA-1 and 64 under SHA-256. Anything that is not one of those is not an
 // identity, whatever it spells.
 func namesRepository(v string) bool {
-	v = strings.TrimSpace(v)
-	if len(v) != 40 && len(v) != 64 {
-		return false
-	}
-	for _, r := range v {
-		switch {
-		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
-		default:
-			return false
-		}
-	}
-	return true
+	// Delegated, not reimplemented. This function was the only one of six that
+	// had the widths right; the others drifted because each held its own copy.
+	return gitobject.IsObjectID(v)
 }
 
 // serverHomeDomain is the server's own declared domain, or empty.

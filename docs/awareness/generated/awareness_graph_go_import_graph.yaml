@@ -2796,6 +2796,17 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.gitobject
+    name: gitobject
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/gitobject/objectid.go
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.governancepack
     name: governancepack
     kind: module
@@ -2906,6 +2917,8 @@ components:
       - golang/reachability/reachability.go
       - golang/reachability/receipt.go
       - golang/reachability/resolve.go
+    depends_on:
+      - component.golang.gitobject
     uml:
       kind: Component
       stereotype: module
@@ -3053,6 +3066,7 @@ components:
       - component.golang.architecture.tasksession
       - component.golang.closure
       - component.golang.coverage
+      - component.golang.gitobject
       - component.golang.governancepack
       - component.golang.graphgeneration
       - component.golang.netcfg

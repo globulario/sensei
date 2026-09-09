@@ -152,3 +152,40 @@ func TestAnUpperCaseRevisionIsNormalizedNotRefused(t *testing.T) {
 		t.Fatalf("normalized to %q, want %q", got, testRevision)
 	}
 }
+
+// The PRODUCTION CALLER, at SHA-256 width.
+//
+// Not the predicate in isolation: PublishedCorpusRevisionFromRepo is what the
+// briefing path actually calls, and the defect it carried was invisible from
+// inside gitobject -- a valid 64-hex receipt resolved NOTHING, so reachability
+// reported Unknown. A false Unknown in the mechanism built to stop false
+// verdicts is worse than the verdict it replaced, because it looks like caution.
+func TestASHA256ReceiptResolvesThroughTheProductionCaller(t *testing.T) {
+	const (
+		sha256Revision   = "9f1c0b2ad4e6f8a1c3d5e7f9b1d3f5a7c9e1b3d5f7a9c1e3b5d7f9a1c3e5b7d9"
+		sha256Generation = "fc45da2905b4f41d982b1d2c20b954b090713bc274be4be426210389004c5121"
+	)
+	root := t.TempDir()
+	writeReceipt(t, root, sha256Revision, sha256Generation)
+	writeMarker(t, root, sha256Generation)
+
+	got, ok := PublishedCorpusRevisionFromRepo(root)
+	if !ok {
+		t.Fatal("a SHA-256 repository's receipt resolved nothing; reachability would report a false Unknown")
+	}
+	if got != sha256Revision {
+		t.Fatalf("resolved %q, want %q", got, sha256Revision)
+	}
+}
+
+// And the width that is still refused, through the same caller: an
+// abbreviation is not an identity at either format.
+func TestAnAbbreviationIsStillRefusedThroughTheProductionCaller(t *testing.T) {
+	root := t.TempDir()
+	writeReceipt(t, root, "9f1c0b2ad4e6", testGeneration)
+	writeMarker(t, root, testGeneration)
+
+	if got, ok := PublishedCorpusRevisionFromRepo(root); ok {
+		t.Fatalf("an abbreviation resolved as %q", got)
+	}
+}
