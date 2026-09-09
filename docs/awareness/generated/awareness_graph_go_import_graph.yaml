@@ -61,6 +61,7 @@ components:
       - cmd/awg/boundary_extract.go
       - cmd/awg/build_transaction.go
       - cmd/awg/builtin_skills.go
+      - cmd/awg/cmd_abandon_task.go
       - cmd/awg/cmd_admission_v2.go
       - cmd/awg/cmd_admit_change.go
       - cmd/awg/cmd_advance_convergence.go
@@ -1029,6 +1030,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/completion/abandon.go
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go
@@ -1052,6 +1054,7 @@ components:
       - component.golang.architecture.identity
       - component.golang.architecture.ledger
       - component.golang.architecture.questionresolution
+      - component.golang.architecture.tasksession
     uml:
       kind: Component
       stereotype: module
