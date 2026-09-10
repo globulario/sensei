@@ -86,6 +86,23 @@ integrity error, never an ordinary spend. `CapabilityConsumed` selects
 reconciliation and never an unconditional mutation: a process may have applied
 and crashed before recording, and that recovery question belongs to the bridge.
 
+## Semantic limitation: one shape, two meanings
+
+`taskcontrol.TaskControlState` represents **both** a persisted receipt
+(`control/latest.yaml`) and a refreshed response returned to a caller. The active
+pointer identifies the artifact that actually exists on disk; the response's
+`ReceiptDigestSHA256` identifies the evaluation being returned. After a replay
+these are legitimately different values, and neither is wrong.
+
+**Consumers must not infer persistence from a response's digest alone.** A
+digest returned by `ControlStatus` or `AdvanceTask` says "this is the state I am
+giving you", not "these bytes are stored". Aligning them by writing a new
+generation would falsely report a publication that did not happen, so the
+divergence is deliberate.
+
+Whether that distinction is sufficiently explicit — in the type, the field names,
+or only in this note — is an open review question.
+
 ## What this repair deliberately does NOT do
 
 It does not connect task-ledger admission to the file-protocol application chain.

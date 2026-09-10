@@ -256,13 +256,26 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 			// re-asserts whatever permission and action were true when it was
 			// written -- so a capability consumed since then still reads as
 			// admitted, and both the CLI and MCP print this directly.
-			existing, loadErr = refreshCachedEvaluation(taskDir, existing)
-			if loadErr != nil {
-				return AdvanceTaskResult{}, loadErr
+			//
+			// PERSISTED IDENTITY AND CURRENT EVALUATION ARE DIFFERENT THINGS.
+			// The active pointer identifies the control artifact actually stored
+			// in control/latest.yaml, and verifySession compares the two; a
+			// refreshed in-memory digest would make the pointer name bytes that
+			// were never written, reporting task_control_digest_mismatch
+			// immediately after a SUCCESSFUL replay. So the pointer keeps the
+			// PERSISTED digest, and the refreshed evaluation is returned to the
+			// caller separately. No artifact is written here: a replay published
+			// no new generation, and writing one solely to make a digest
+			// comparison pass would invent a publication that did not happen.
+			persistedDigest := existing.ReceiptDigestSHA256
+			current, refreshErr := refreshCachedEvaluation(taskDir, existing)
+			if refreshErr != nil {
+				return AdvanceTaskResult{}, refreshErr
 			}
-			if err := updateActiveControlPointer(repoRoot, ptr, existing.ReceiptDigestSHA256, nil); err != nil {
+			if err := updateActiveControlPointer(repoRoot, ptr, persistedDigest, nil); err != nil {
 				return AdvanceTaskResult{}, err
 			}
+			existing = current
 			return AdvanceTaskResult{Disposition: AdvanceReplay, TaskDir: taskDir, Generation: previousDigest, Control: existing, Probe: batch.Metrics, Convergence: conv.Report}, nil
 		}
 	}

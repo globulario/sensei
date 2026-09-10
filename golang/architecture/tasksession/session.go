@@ -1529,6 +1529,23 @@ func primaryNext(req TaskRequest, conv convergence.StatusReport, decision admiss
 	return NextAction{Action: NextCompleteProof, Summary: "external proof is still required; correctness is not certified"}
 }
 
+// governedNextAction is the action that belongs with a typed task's permission,
+// taken from the same governance evaluation that produced it. It mirrors
+// applyGovernedDisposition, which has always selected consumption before the
+// mutation and verification after it.
+func governedNextAction(perm MutationPermission, s Session) NextAction {
+	switch {
+	case perm.GovernedMutation.CapabilityAvailable:
+		return NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}
+	case perm.GovernedMutation.CapabilityConsumed:
+		return NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}
+	default:
+		// Governed, nothing granted or consumed: admission is unresolved, so the
+		// task advances toward it. Never NextPerformEdit -- no capability exists.
+		return NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+	}
+}
+
 func resultFromSession(repoRoot, taskRoot string, s Session, disposition string) PrepareResult {
 	rel, _ := filepath.Rel(repoRoot, taskRoot)
 	// PrepareResult.Modify is PUBLISHED AS CURRENT PERMISSION -- printed by
@@ -1542,12 +1559,26 @@ func resultFromSession(repoRoot, taskRoot string, s Session, disposition string)
 	// renamed or removed: it has no consumer outside this package, and the
 	// public field is left in place for auditability.
 	modify := s.MutationCapability
+	next := firstNext(s)
 	if decision, err := loadCurrentAdmissionDecision(taskRoot); err == nil {
-		if perm, permErr := resolveMutationPermission(taskRoot, decision, time.Now().UTC()); permErr == nil {
-			modify = perm.Capability
-		} else {
-			// Governance cannot be verified: never publish a grant.
+		perm, permErr := resolveMutationPermission(taskRoot, decision, time.Now().UTC())
+		switch {
+		case permErr != nil:
+			// Governance cannot be verified: publish no grant, and do not
+			// instruct a mutation either.
 			modify = admission.CapabilityWaiting
+			next = NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+		case perm.LedgerDerived:
+			// TYPED task: Modify and Next come from the SAME evaluation. Taking
+			// only Modify from it published "no consumable capability" beside a
+			// Next that still instructed the edit.
+			modify = perm.Capability
+			next = governedNextAction(perm, s)
+		default:
+			// FILE PROTOCOL: established behaviour, unchanged. Downgrading here
+			// crossed the compatibility boundary -- a task with no typed
+			// authority had its published Modify changed out from under the
+			// protocol that owns it.
 		}
 	}
 	return PrepareResult{
@@ -1561,7 +1592,7 @@ func resultFromSession(repoRoot, taskRoot string, s Session, disposition string)
 		WaitingOn:      s.WaitingOn,
 		ReadEnvelope:   s.ReadEnvelope,
 		ModifyEnvelope: s.ModifyEnvelope,
-		Next:           firstNext(s),
+		Next:           next,
 		Session:        s,
 		Disposition:    disposition,
 	}

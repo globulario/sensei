@@ -328,6 +328,35 @@ func consumptionBinds(c closureprotocol.CapabilityConsumption, dec closureprotoc
 	if strings.TrimSpace(rec.Base.Task.SessionID) != "" && c.Task.SessionID != rec.Base.Task.SessionID {
 		return fail(fmt.Sprintf("capability_consumption binds session %q, but this task's session is %q", c.Task.SessionID, rec.Base.Task.SessionID))
 	}
+	// Relation: it may spend ONLY operations this decision admitted.
+	//
+	// admission.ConsumeCapability already refuses to CREATE such a receipt
+	// (capability.go:47-55, via admittedOperationSet). A receipt appended or
+	// imported by any other route bypasses that producer, and without this the
+	// reader believes it: the legitimate capability reads as spent while the
+	// receipt names an operation the decision never admitted.
+	//
+	// This is a SUBSET check, not coverage. A consumption spends a non-empty
+	// subset of the admitted operations and is not required to spend all of
+	// them; requiring that would invent whole-capability consumption, which is
+	// not the protocol's rule.
+	//
+	// Only operation IDENTITY is checked here. Whether those operations' targets
+	// and kinds correspond to a candidate's actual changes needs ChangePlan
+	// resolution and belongs to the application bridge.
+	admitted := map[string]bool{}
+	for _, v := range dec.OperationVerdicts {
+		if v.Verdict == admission.AdmissionVerdictAdmitted {
+			admitted[v.OperationID] = true
+		}
+	}
+	if len(admitted) > 0 {
+		for _, op := range c.ConsumedOperationIDs {
+			if !admitted[op] {
+				return fail(fmt.Sprintf("capability_consumption spends operation %q, which the current decision does not admit", op))
+			}
+		}
+	}
 	return nil
 }
 

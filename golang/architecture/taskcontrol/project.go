@@ -598,9 +598,16 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 			// a process may have applied and crashed before recording. Point at
 			// the step that reconciles and records rather than asserting either.
 			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to record the observed change and verify scope for the consumed operation"}
+		default:
+			// EXPLICIT FALLBACK, granting nothing. A governed task with no
+			// decision, a refused one, or an unreadable disposition has both
+			// flags false -- and falling through to the ordinary selection let
+			// it reach ActionCompleteTask, telling consumers a task awaiting
+			// admission was finished and hiding it from singleNonCompletedTask.
+			// Missing decision and false capability flags cannot establish
+			// completion; completion needs its own positive evidence.
+			return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
 		}
-		// Governed but neither available nor consumed (no decision yet, refused,
-		// or already past mutation): fall through to the ordinary selection.
 	} else {
 		// File protocol: established behaviour, unchanged.
 		if strings.Contains(state.Permission.Modify, "admitted") {
