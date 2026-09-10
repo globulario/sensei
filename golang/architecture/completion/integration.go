@@ -33,6 +33,12 @@ const (
 	// ClosureUnsupported: the current result world could not be established, or the
 	// ledger did not verify.
 	ClosureUnsupported ClosureVerdict = "unsupported"
+	// ClosureAbandoned: the task reached the abandoned terminal, with its event
+	// and receipt intact. It is a KNOWN terminal, not an uncertainty: unsupported
+	// is documented for a result world that cannot be established or a ledger
+	// that cannot be verified, and reporting a clean abandonment that way tells a
+	// reader the system does not know what happened when it does.
+	ClosureAbandoned ClosureVerdict = "abandoned"
 )
 
 // ComponentVerification is one owner's re-verification result in the composition.
@@ -94,6 +100,12 @@ func VerifyCompletionClosure(ctx context.Context, req Request) (CompletionClosur
 		a.Verdict = ClosureNotCompleted
 	case TerminalUnsupported:
 		a.Verdict = ClosureUnsupported
+	case TerminalAbandoned:
+		// A known terminal, classified as itself. Falling through to
+		// ClosureUnsupported rendered every cleanly abandoned task as
+		// "state=abandoned verdict=unsupported", which tells a reader the system
+		// could not establish what happened when it established exactly that.
+		a.Verdict = ClosureAbandoned
 	case TerminalCommitted, TerminalProjectionStaleOrMissing:
 		// A valid durable conjunction exists; re-verify each bound owner end-to-end.
 		comps, drift := reverifyOwners(ctx, root, taskDir, terminal)

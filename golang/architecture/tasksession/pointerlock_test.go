@@ -97,3 +97,74 @@ func TestTheLockIsReleasedSoNormalSequencingStillWorks(t *testing.T) {
 		t.Fatalf("pointer = %q, want task.defect.bbbb", loaded.TaskID)
 	}
 }
+
+// TestAMismatchDecisionIsMadeUnderTheLock is the round-three finding.
+//
+// The caller used to read the pointer itself, decide "this names another task,
+// nothing to do", and return -- all outside the lock. A writer arriving after
+// that read could make the pointer name the task being abandoned, so the
+// transition reported committed while its own pointer survived. The read, the
+// match/mismatch decision and the optional unlink have to be one critical
+// section, and the owner has to report what it did.
+func TestAMismatchDecisionIsMadeUnderTheLock(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Dir(activePath(repo)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// The pointer names task B while task A is being retired.
+	if err := WriteActivePointer(repo, ptr("task.defect.bbbb")); err != nil {
+		t.Fatal(err)
+	}
+
+	var writeErr error
+	var fired bool
+	afterPointerIdentityCheck = func() {
+		fired = true
+		// A lock-respecting writer trying to make the pointer name A, in the
+		// window where the mismatch decision has just been taken.
+		writeErr = WriteActivePointer(repo, ptr("task.defect.aaaa"))
+	}
+	t.Cleanup(func() { afterPointerIdentityCheck = nil })
+
+	removed, err := RetireActivePointer(repo, "task.defect.aaaa")
+	if err != nil {
+		t.Fatalf("retire: %v", err)
+	}
+	if !fired {
+		t.Fatal("the mismatch decision never reached the seam, so it is not inside the lock")
+	}
+	if writeErr == nil {
+		t.Fatal("a writer completed inside the mismatch window; the decision is not under the lock")
+	}
+	if removed {
+		t.Fatal("a pointer naming another task was reported as retired")
+	}
+	loaded, lerr := LoadActivePointer(repo)
+	if lerr != nil {
+		t.Fatal(lerr)
+	}
+	if loaded.TaskID != "task.defect.bbbb" {
+		t.Fatalf("pointer = %q, want the untouched task.defect.bbbb", loaded.TaskID)
+	}
+}
+
+// TestRetireReportsWhatItDid: the owner, not the caller, says whether a pointer
+// was removed -- the caller cannot know without re-reading, which is the race.
+func TestRetireReportsWhatItDid(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Dir(activePath(repo)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := RetireActivePointer(repo, "task.defect.aaaa"); err != nil || removed {
+		t.Fatalf("absent pointer: removed=%v err=%v, want false/nil", removed, err)
+	}
+	if err := WriteActivePointer(repo, ptr("task.defect.aaaa")); err != nil {
+		t.Fatal(err)
+	}
+	if removed, err := RetireActivePointer(repo, "task.defect.aaaa"); err != nil || !removed {
+		t.Fatalf("matching pointer: removed=%v err=%v, want true/nil", removed, err)
+	}
+	if removed, err := RetireActivePointer(repo, "task.defect.aaaa"); err != nil || removed {
+		t.Fatalf("second retire: removed=%v err=%v, want false/nil", removed, err)
+	}
+}

@@ -213,7 +213,7 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	if verifyErr != nil || verified.Status != closureprotocol.ReceiptValid {
 		return refuseAbandon(OutcomeAuthorityRefusal, "abandoning actor not verified")
 	}
-	if _, _, resErr := resolveCompletionAuthority(ctx, index, binding, verified, now, taskDir); resErr != nil {
+	if _, _, resErr := resolveAbandonmentAuthority(ctx, index, binding, verified, now, taskDir); resErr != nil {
 		return refuseAbandon(OutcomeAuthorityRefusal, "%v", resErr)
 	}
 
@@ -221,7 +221,7 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	// already stands; what remains is the pointer, and reaching it required the
 	// same freshness and authority the original write required.
 	if tf.abandonedCount == 1 {
-		prior, _, rerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
+		prior, priorRef, rerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
 		if rerr != nil {
 			// The event is terminal and its receipt is broken. Retiring the pointer
 			// would remove the default route back to a task whose reason and actor
@@ -241,8 +241,27 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 			Outcome:              OutcomeExactReplay,
 			Detail:               "task was already abandoned; the durable record stands",
 			Receipt:              &prior,
+			ReceiptPath:          priorRef.Path,
 			ActivePointerCleared: cleared,
 		}, nil
+	}
+
+	// The lifecycle transition must be legal, and this guard sits AFTER the replay
+	// branch on purpose. A task that is already abandoned reads PhaseAbandoned,
+	// which has no outgoing transition -- so running this first would refuse the
+	// idempotent replay the interruption contract depends on. The guard is about
+	// the transition this call is about to WRITE, so it belongs immediately
+	// before the write and nowhere earlier. A task already folded to refused,
+	// stale or uncertifiable carries no completed, revoked, abandoned or
+	// result-transition event, so every guard above passes -- and
+	// AllowedTaskTransitions gives those phases NO outgoing transition. Appending
+	// here would move an already-final task to abandoned and have terminal
+	// inspection report it as a clean stop.
+	if from, ok := latestTaskPhase(chain); ok {
+		if terr := closureprotocol.ValidateTaskTransition(from, closureprotocol.PhaseAbandoned); terr != nil {
+			return refuseAbandon(OutcomeConflictingCompletion,
+				"%v: the task is already in a terminal phase and abandonment would overwrite it", terr)
+		}
 	}
 
 	// The base binding comes from the recorded authority, the same owner
@@ -348,37 +367,34 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	}, nil
 }
 
-// clearPointer retires the active pointer when it names this task, and reports
-// whether it actually removed one.
+// clearPointer delegates the whole decision to the pointer's owner.
 //
-// ONLY A NOT-EXIST FILE MEANS "NOTHING TO RETIRE". LoadActivePointer fails for
-// absence and equally for a malformed, inaccessible or unsafe-path file, and
-// collapsing those into absence reported the abandonment committed while the
-// pointer survived to break active-task resolution afterwards. An unreadable
-// pointer is a failure to propagate, not a goal state reached.
-//
-// A pointer naming a DIFFERENT task is left alone and is not an error: this task
-// is terminal either way, and another task's pointer is not this transition's to
-// retire.
+// It deliberately does NOT read the pointer, compare it, and decide here. That
+// sequence was racy however carefully written: a writer arriving after the read
+// could make the pointer name the task being retired, and this function would
+// have already returned "nothing to do". The owner performs read, decision and
+// unlink under one lock and reports what it did, because a caller cannot learn
+// that afterwards without re-reading -- and re-reading is the race.
 func clearPointer(root, taskID string) (bool, error) {
-	path := filepath.Join(root, ".sensei", "tasks", "active.yaml")
-	if _, err := os.Stat(path); err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
+	return tasksession.RetireActivePointer(root, taskID)
+}
+
+// latestTaskPhase returns the most recent lifecycle phase recorded on the chain.
+func latestTaskPhase(chain ledger.VerifiedChain) (closureprotocol.TaskPhase, bool) {
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		data, err := ledger.ReadVerifiedPayload(chain.Entries[i])
+		if err != nil {
+			continue
 		}
-		return false, fmt.Errorf("active task pointer is inaccessible: %w", err)
+		payload, perr := ledger.ParseTaskEventPayload(data)
+		if perr != nil {
+			continue
+		}
+		if strings.TrimSpace(string(payload.TaskPhase)) != "" {
+			return payload.TaskPhase, true
+		}
 	}
-	ptr, err := tasksession.LoadActivePointer(root)
-	if err != nil {
-		return false, fmt.Errorf("active task pointer exists but could not be read: %w", err)
-	}
-	if strings.TrimSpace(ptr.TaskID) != strings.TrimSpace(taskID) {
-		return false, nil
-	}
-	if cerr := tasksession.ClearActivePointer(root, taskID); cerr != nil {
-		return false, cerr
-	}
-	return true, nil
+	return "", false
 }
 
 // loadAbandonmentReceipt reads and validates the receipt an abandoned event

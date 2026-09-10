@@ -721,57 +721,91 @@ func WriteActivePointer(repoRoot string, ptr ActivePointer) error {
 	return writeFileAtomic(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml"), data)
 }
 
-// ClearActivePointer removes the active-task pointer for exactly one task.
+// RetireActivePointer removes the active-task pointer when, and only when, it
+// names the given task, and reports whether it removed one.
 //
-// It lives here because this package is the pointer's only writer. A caller that
-// deleted .sensei/tasks/active.yaml itself would be a second writer with no
-// knowledge of the file's shape, and the check that reports a stale binding
-// already says that discarding governed state from outside is the move this
-// repository refuses.
+// THE WHOLE DECISION IS THE CRITICAL SECTION. Read, compare, and unlink happen
+// under one lock, and the owner returns the outcome. A caller that read the
+// pointer itself, decided "this names another task, nothing to do", and returned
+// would be acting on a fact that a writer can invalidate immediately after the
+// read -- reporting the transition complete while the pointer it was supposed to
+// retire has just come into existence. The mismatch branch is exactly as racy as
+// the match branch and is protected identically.
 //
-// expectedTaskID is required and must match what the pointer currently names.
-// Clearing "whatever is active" would let a transition that authorized the
-// abandonment of task A retire task B, which a caller racing another task cannot
-// otherwise detect.
+// The bool is the point of the signature. A caller cannot learn what happened by
+// looking afterwards without re-reading, and re-reading is the race.
 //
-// Absence is success, not an error: the pointer is already clear, and a caller
+// Absence is success, not an error: the pointer is already retired, and a caller
 // resuming after an interruption between the durable terminal record and this
-// call must be able to finish without a special case. That idempotence is what
-// makes the two-step ordering recoverable rather than merely ordered.
-func ClearActivePointer(repoRoot, expectedTaskID string) error {
+// call must be able to finish without a special case.
+//
+// A pointer naming a DIFFERENT task is left alone and is not an error. The task
+// being retired is terminal either way, and another task's pointer is not this
+// operation's to remove.
+func RetireActivePointer(repoRoot, expectedTaskID string) (bool, error) {
 	want := strings.TrimSpace(expectedTaskID)
 	if want == "" {
-		return errors.New("expected task id is required to clear the active pointer")
+		return false, errors.New("expected task id is required to retire the active pointer")
 	}
-	// The whole read-check-unlink runs under the pointer lock. Any writer that
-	// respects the lock is excluded for its duration, so the identity this
-	// function checked is still the identity it deletes.
 	release, lerr := acquirePointerLock(repoRoot)
 	if lerr != nil {
-		return lerr
+		return false, lerr
 	}
 	defer release()
+
 	path := filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			return nil
+			return false, nil
 		}
-		return err
+		return false, fmt.Errorf("active task pointer is inaccessible: %w", err)
 	}
 	ptr, err := LoadActivePointer(repoRoot)
 	if err != nil {
-		// A pointer that cannot be read is not a pointer this function may remove:
-		// "unreadable" and "names another task" are different facts and only one of
-		// them is safe to act on.
-		return fmt.Errorf("active task pointer is unreadable, so it was not cleared: %w", err)
-	}
-	if ptr.TaskID != want {
-		return fmt.Errorf("active task pointer names %q, not %q; refusing to clear another task's pointer", ptr.TaskID, want)
+		// "Unreadable" and "names another task" are different facts and only one
+		// of them is safe to act on.
+		return false, fmt.Errorf("active task pointer exists but could not be read: %w", err)
 	}
 	if afterPointerIdentityCheck != nil {
 		afterPointerIdentityCheck()
 	}
-	return os.Remove(path)
+	if ptr.TaskID != want {
+		return false, nil
+	}
+	if rerr := os.Remove(path); rerr != nil {
+		return false, rerr
+	}
+	return true, nil
+}
+
+// ClearActivePointer retires the pointer for exactly one task, refusing when it
+// names another. Retained as the strict form for callers that treat a mismatch
+// as an error; RetireActivePointer is the form a terminal transition wants,
+// because for it a mismatch is simply nothing to do.
+func ClearActivePointer(repoRoot, expectedTaskID string) error {
+	removed, err := RetireActivePointer(repoRoot, expectedTaskID)
+	if err != nil {
+		return err
+	}
+	if !removed {
+		// Distinguish "already gone" from "names someone else" for this caller,
+		// under the lock, rather than leaving it to infer.
+		release, lerr := acquirePointerLock(repoRoot)
+		if lerr != nil {
+			return lerr
+		}
+		defer release()
+		if _, serr := os.Stat(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")); os.IsNotExist(serr) {
+			return nil
+		}
+		ptr, perr := LoadActivePointer(repoRoot)
+		if perr != nil {
+			return fmt.Errorf("active task pointer exists but could not be read: %w", perr)
+		}
+		return fmt.Errorf("active task pointer names %q, not %q; refusing to clear another task's pointer",
+			ptr.TaskID, strings.TrimSpace(expectedTaskID))
+	}
+	return nil
 }
 
 func stableTaskSessionID(taskID string) string {

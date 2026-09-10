@@ -8,7 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/authority"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/identity"
 	"github.com/globulario/sensei/golang/architecture/ledger"
@@ -673,6 +676,14 @@ func TestAbandonedIsInTheCanonicalProjectionVocabulary(t *testing.T) {
 	if !validCompletionTerminalState(TerminalAbandoned) {
 		t.Fatalf("validCompletionTerminalState(%q) = false", TerminalAbandoned)
 	}
+	// The CLOSURE verdict vocabulary too. Round two caught the terminal state
+	// missing from its bound set; adding ClosureAbandoned without adding it here
+	// reproduced the identical defect one layer over -- a projection carrying a
+	// verdict its own validator rejects. Both closed sets are pinned so the next
+	// extension cannot repeat it a third time.
+	if !validClosureVerdict(ClosureAbandoned) {
+		t.Fatalf("validClosureVerdict(%q) = false: the verdict exists and its validator rejects it", ClosureAbandoned)
+	}
 }
 
 // R2-F2b. The real projection path, not just the intermediate classifier.
@@ -819,4 +830,236 @@ func TestAbandonedEventMatchesRefusesAnotherTasksReceipt(t *testing.T) {
 			t.Fatal("an event referencing no receipt digest was accepted")
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Reproductions of the five Codex findings on b804a1e9. Round three: the
+// transition is correct in isolation and wrong at four boundaries it crosses --
+// policy, lifecycle phase, the pointer owner's API, and the closure verdict.
+// ---------------------------------------------------------------------------
+
+// appendPhase folds the task to a phase without any terminal event, the way a
+// refusal or a staleness fold does.
+func (w world) appendPhase(t *testing.T, phase closureprotocol.TaskPhase) {
+	t.Helper()
+	store := ledger.NewStore(w.TaskDir)
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	ra, err := admission.LoadRecordedAuthority(w.TaskDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	task := ra.Base.Task
+	if _, err := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID: task.ID, SessionID: task.SessionID,
+		ExpectedHeadDigestSHA256: report.HeadDigestSHA256,
+		EventType:                closureprotocol.LedgerEventTaskMarkedStale,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventTaskMarkedStale,
+			TaskID:        task.ID, SessionID: task.SessionID,
+			TaskPhase: phase,
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "test",
+		ProducedAt:       time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("append phase %s: %v", phase, err)
+	}
+}
+
+// R3-F2. An already-terminal phase has no outgoing transition.
+func TestAbandonmentIsRefusedFromAnAlreadyTerminalPhase(t *testing.T) {
+	for _, phase := range []closureprotocol.TaskPhase{
+		closureprotocol.PhaseRefused, closureprotocol.PhaseStale, closureprotocol.PhaseUncertifiable,
+	} {
+		t.Run(string(phase), func(t *testing.T) {
+			w := seedWorldWithoutResult(t)
+			setActivePointer(t, w, taskID(t, w.TaskDir))
+			w.appendPhase(t, phase)
+
+			res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+			if res.Outcome == OutcomeCommitted || res.Outcome == OutcomeExactReplay {
+				t.Fatalf("outcome = %q: a task already folded to %s was moved to abandoned, "+
+					"though AllowedTaskTransitions gives that phase no outgoing transition",
+					res.Outcome, phase)
+			}
+			if n := abandonedEvents(t, w.TaskDir); n != 0 {
+				t.Fatalf("abandoned events = %d, want 0", n)
+			}
+			if !pointerExists(t, w.Repo) {
+				t.Fatal("the refusal retired the active pointer")
+			}
+		})
+	}
+}
+
+// R3-F4. A valid abandonment is a known terminal, not an unsupported world.
+func TestClosureClassifiesAbandonment(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	if res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned); res.Outcome != OutcomeCommitted {
+		t.Fatalf("setup: %q (%s)", res.Outcome, res.Detail)
+	}
+	c, err := VerifyCompletionClosure(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if err != nil {
+		t.Fatalf("verify closure: %v", err)
+	}
+	if c.Verdict == ClosureUnsupported {
+		t.Fatalf("verdict = %q for a cleanly abandoned task; unsupported is documented for an "+
+			"unestablishable result world or unverifiable ledger, which this is not", c.Verdict)
+	}
+	if c.Verdict != ClosureAbandoned {
+		t.Fatalf("verdict = %q, want %q", c.Verdict, ClosureAbandoned)
+	}
+	p, perr := BuildCompletionProjection(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if perr != nil {
+		t.Fatalf("projection: %v", perr)
+	}
+	if p.ClosureVerdict != ClosureAbandoned || p.TerminalState != TerminalAbandoned {
+		t.Fatalf("task-status would render state=%s verdict=%s", p.TerminalState, p.ClosureVerdict)
+	}
+	if p.AuthoritativeCompletion {
+		t.Fatal("an abandoned task is reported as an authoritative completion")
+	}
+}
+
+// R3-F5. A replay must be able to name the artifact it replayed.
+func TestReplayReturnsTheReceiptPath(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	id := taskID(t, w.TaskDir)
+	setActivePointer(t, w, id)
+	fresh := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if fresh.Outcome != OutcomeCommitted || fresh.ReceiptPath == "" {
+		t.Fatalf("setup: %q path=%q", fresh.Outcome, fresh.ReceiptPath)
+	}
+	setActivePointer(t, w, id)
+	replay := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if replay.Outcome != OutcomeExactReplay {
+		t.Fatalf("replay: %q", replay.Outcome)
+	}
+	if replay.ReceiptPath == "" {
+		t.Fatal("the replay reports a receipt with no path: callers cannot locate the durable artifact")
+	}
+	if replay.ReceiptPath != fresh.ReceiptPath {
+		t.Fatalf("replay path %q != fresh path %q", replay.ReceiptPath, fresh.ReceiptPath)
+	}
+}
+
+// R3-F1. Abandonment must be its own governed operation.
+//
+// It resolved authority through resolveCompletionAuthority, which builds
+// op.complete.task against grant.sensei.terminal_completion. So an actor
+// authorized only to COMPLETE tasks could write the distinct abandoned terminal,
+// and policy had no way to deny abandonment without also denying completion.
+func TestAbandonmentRequiresItsOwnGrant(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+
+	// Remove ONLY the abandonment grant, leaving completion's intact. If
+	// abandonment is its own governed operation this must refuse; if it borrows
+	// completion's, it will proceed.
+	grants := filepath.Join(w.Repo, "docs", "awareness", "authority_grants.yaml")
+	body, err := os.ReadFile(grants)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripped, removed := removeGrant(string(body), "grant.sensei.terminal_abandonment")
+	if !removed {
+		t.Fatal("no abandonment grant exists to remove: abandonment has no governed operation of its own")
+	}
+	if err := os.WriteFile(grants, []byte(stripped), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if res.Outcome != OutcomeAuthorityRefusal {
+		t.Fatalf("outcome = %q with the abandonment grant removed and completion's intact; "+
+			"policy cannot deny abandonment independently", res.Outcome)
+	}
+	if n := abandonedEvents(t, w.TaskDir); n != 0 {
+		t.Fatalf("abandoned events = %d, want 0", n)
+	}
+}
+
+// removeGrant drops one grant block from an authority_grants.yaml body.
+func removeGrant(body, id string) (string, bool) {
+	lines := strings.Split(body, "\n")
+	start := -1
+	for i, l := range lines {
+		if strings.TrimSpace(l) == "- id: "+id {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return body, false
+	}
+	end := len(lines)
+	for i := start + 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "  - id: ") {
+			end = i
+			break
+		}
+	}
+	return strings.Join(append(append([]string{}, lines[:start]...), lines[end:]...), "\n"), true
+}
+
+// TestAbandonmentSucceedsWithItsOwnGrant is the positive control for the above:
+// the refusal must come from the missing grant, not from the test's edit.
+func TestAbandonmentSucceedsWithItsOwnGrant(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	if res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned); res.Outcome != OutcomeCommitted {
+		t.Fatalf("outcome = %q (%s), want committed with the governed grant present", res.Outcome, res.Detail)
+	}
+}
+
+// TestTheAbandonmentGrantReachesTheIntendedRole closes the gap the negative test
+// leaves open.
+//
+// TestAbandonmentRequiresItsOwnGrant proves abandonment STOPS without its grant.
+// It does not prove the grant is reachable by the role that is supposed to hold
+// it -- a grant nobody can be resolved into would pass that test and fail every
+// real run. So: resolve the real authority and assert which grant and which role
+// answered.
+func TestTheAbandonmentGrantReachesTheIntendedRole(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	index, err := authority.LoadPolicyIndex(w.Repo)
+	if err != nil {
+		t.Fatalf("policy index: %v", err)
+	}
+	id, enrolled, lerr := identity.LoadManifest(w.IdentityRoot)
+	if lerr != nil || !enrolled {
+		t.Fatalf("identity: %v enrolled=%v", lerr, enrolled)
+	}
+	binding := id.ActorBinding()
+	now := time.Now().UTC()
+	verified, verr := authority.VerifyActorBinding(binding, identity.Resolver(w.IdentityRoot), index, now)
+	if verr != nil || verified.Status != closureprotocol.ReceiptValid {
+		t.Fatalf("verify actor: %v status=%v", verr, verified.Status)
+	}
+
+	grant, role, rerr := resolveAbandonmentAuthority(context.Background(), index, binding, verified, now, w.TaskDir)
+	if rerr != nil {
+		t.Fatalf("the intended role cannot resolve abandonment authority: %v", rerr)
+	}
+	if grant != GrantTerminalAbandonment {
+		t.Fatalf("grant = %q, want %q: abandonment is being authorized by something else", grant, GrantTerminalAbandonment)
+	}
+	if role == "" {
+		t.Fatal("no verified role authorizes abandonment: the grant exists and nobody holds it")
+	}
+
+	// And the two authorities are genuinely distinct, not the same grant under
+	// two names.
+	cGrant, _, cerr := resolveCompletionAuthority(context.Background(), index, binding, verified, now, w.TaskDir)
+	if cerr != nil {
+		t.Fatalf("completion authority: %v", cerr)
+	}
+	if cGrant == grant {
+		t.Fatalf("completion and abandonment resolve to the same grant %q; policy cannot deny one without the other", grant)
+	}
 }

@@ -48,3 +48,9 @@ mutation_paths:
     mechanism_kind: governed_workflow
     target_kinds:
       - task_completion
+  - id: mutation_path.terminal_abandonment
+    label: Governed terminal task abandonment
+    status: active
+    mechanism_kind: governed_workflow
+    target_kinds:
+      - task_abandonment
