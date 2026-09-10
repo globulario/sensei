@@ -21923,6 +21923,24 @@ test_symbols:
     symbol: TestUndisposedQuestionStillDemandsEvidence
     package: taskcontrol
     language: go
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestConsumeCapabilityIsAPersistableActionThatMovesTheDigest
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestConsumeCapabilityIsAPersistableActionThatMovesTheDigest
+    package: taskcontrol
+    language: go
+    doc: "The ratified vocabulary extension is COMPATIBLE but not inert: it widens the\npersisted NextAction vocabulary and changes StateDigest whenever it is\nselected. This proves serializers accept it, it survives a round trip, and the\ndigest is sensitive to it -- so a stale digest cannot silently describe it."
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestF4a_AdmittedMustNotSelectPerformEditBeforeConsumption
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestF4a_AdmittedMustNotSelectPerformEditBeforeConsumption
+    package: taskcontrol
+    language: go
+    doc: "F4a. A recorded typed decision whose capability is UNCONSUMED resolves to\n\"admitted\". The selector turns that into \"perform only the admitted edit\",\ninstructing a mutation before `sensei consume-admission` has ever run --\nwhich architectural-closure-v1 requires first."
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestF4b_SpentCapabilityMustNotSelectRequestAdmission
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestF4b_SpentCapabilityMustNotSelectRequestAdmission
+    package: taskcontrol
+    language: go
+    doc: "F4b. After consumption the owner resolves \"waiting\" -- meaning no NEW\ncapability. The selector reads that as \"request mutation admission\", asking\nfor an admission that was just spent."
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -22293,6 +22311,42 @@ test_symbols:
     symbol: TestGovernedDispositionsSkipsTheLedgerWithoutQuestions
     package: tasksession
     language: go
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestCachePathReturnsOneCoherentEvaluation
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestCachePathReturnsOneCoherentEvaluation
+    package: tasksession
+    language: go
+    doc: "Constraint 1: action and digest must describe the SAME evaluation as the\npermission, on the cache path."
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestF1_AdvanceTaskReplayMustNotServeASpentGrant
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestF1_AdvanceTaskReplayMustNotServeASpentGrant
+    package: tasksession
+    language: go
+    doc: "F1 (P1). AdvanceTask's replay early return at control.go:253-258 serves the\ncached control state without recomputing permission, so a spent capability\ncan still be reported as admitted."
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestF2_ForeignConsumptionMustNotReadAsAnOrdinarySpend
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestF2_ForeignConsumptionMustNotReadAsAnOrdinarySpend
+    package: tasksession
+    language: go
+    doc: "F2 (P1). foldGovernance decodes capability_consumption and never reads a\nfield of it (governance.go:162-167), so a receipt bound to a FOREIGN decision\nis projected as an ordinary spend -- withholding the legitimate current grant\nand hiding an integrity failure behind a normal-looking \"waiting\"."
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestF3_PrepareAndStatusMustNotPublishARawSessionPermission
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestF3_PrepareAndStatusMustNotPublishARawSessionPermission
+    package: tasksession
+    language: go
+    doc: "F3 (P1). Prepare publishes PrepareResult.Modify and persists\nSession.MutationCapability straight from the file decision\n(session.go:1479,1541), bypassing the sole owner."
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestF5_CacheOverlayMustNotLeaveActionAndDigestStale
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestF5_CacheOverlayMustNotLeaveActionAndDigestStale
+    package: tasksession
+    language: go
+    doc: "F5 (P1). The cache overlay refreshes Permission only; NextAction and\nReceiptDigestSHA256 still describe the superseded state."
+  - id: golang/architecture/tasksession/g3_review_repro_test.go:TestGovernanceDispositionReachesTheSelector
+    file: golang/architecture/tasksession/g3_review_repro_test.go
+    symbol: TestGovernanceDispositionReachesTheSelector
+    package: tasksession
+    language: go
+    doc: "Constraint 5: a correct selector with incorrect wiring must not survive. This\nasserts tasksession actually passes the governance disposition through, by\nchecking the ACTION the public projection returns -- not the selector in\nisolation."
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant
