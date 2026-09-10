@@ -455,6 +455,24 @@ func ValidateAbandonmentReceipt(in AbandonmentReceipt) error {
 	if strings.TrimSpace(in.Task.ID) == "" {
 		return errors.New("task id is required")
 	}
+	// EVERY DUPLICATED IDENTITY MUST AGREE WITH ITSELF.
+	//
+	// The receipt carries the task twice: once at the top level and once inside
+	// BaseBinding. Validating each independently let a receipt keep the abandoned
+	// event's task where a consumer reads it while binding a different world
+	// underneath -- and abandonedEventMatches reads only the top-level field, so
+	// the substitution survived event matching and terminal inspection reported
+	// the wrong bound world as a clean abandonment.
+	//
+	// A duplicated field is a consistency obligation, not two independent facts.
+	if in.Task.ID != in.BaseBinding.Task.ID {
+		return fmt.Errorf("receipt task id %q does not match its base binding task id %q",
+			in.Task.ID, in.BaseBinding.Task.ID)
+	}
+	if in.Task.SessionID != in.BaseBinding.Task.SessionID {
+		return fmt.Errorf("receipt session id %q does not match its base binding session id %q",
+			in.Task.SessionID, in.BaseBinding.Task.SessionID)
+	}
 	if strings.TrimSpace(in.Reason) == "" {
 		return errors.New("reason is required: a terminal state with no stated cause is not a record")
 	}

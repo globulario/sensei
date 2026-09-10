@@ -92,7 +92,33 @@ func refuseAbandon(o Outcome, format string, a ...any) (AbandonResult, error) {
 	return AbandonResult{Outcome: o, Detail: fmt.Sprintf(format, a...)}, nil
 }
 
+// abandonDependencies is what AbandonTask needs from its environment and what a
+// test may substitute. It is unexported and travels as a parameter, NOT as a
+// field on AbandonRequest.
+//
+// The field version was wrong in a way a keyed-construction compile check does
+// not reveal: adding a slice makes AbandonRequest non-comparable, and adding an
+// unexported field makes external positional literals illegal. Both are public
+// API breaks, and neither shows up when a test constructs the struct with named
+// fields. The request contract is left byte-for-byte as it was.
+type abandonDependencies struct {
+	// ledgerOptions are handed to the task ledger store. Empty in production.
+	ledgerOptions []ledger.StoreOption
+}
+
+func defaultAbandonDependencies() abandonDependencies { return abandonDependencies{} }
+
 // AbandonTask records a task as abandoned and then retires its active pointer.
+//
+// The public entry point. It delegates to abandonTask with production defaults;
+// the split exists so this package's own tests can drive the same implementation
+// with a one-shot ledger fault armed, without that seam appearing anywhere in
+// the public request contract.
+func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
+	return abandonTask(ctx, req, defaultAbandonDependencies())
+}
+
+// abandonTask is the implementation. AbandonTask is its production caller.
 //
 // THE ORDER IS THE CONTRACT, and it is durable-first for a reason that survives a
 // crash. Clearing the pointer first would, on interruption, leave a task with no
@@ -100,12 +126,12 @@ func refuseAbandon(o Outcome, format string, a ...any) (AbandonResult, error) {
 // it and unreachable by the transition that would retire it, which is a worse
 // state than the stale binding this repairs. Recording first leaves the opposite
 // residue -- a terminal record with a pointer still naming it -- and that residue
-// is repairable by rerunning this function, because the append is idempotent and
+// is repairable by rerunning the transition, because the append is idempotent and
 // the clear is reached again.
 //
 // So an interruption between the two steps is not an error state. It is the
 // expected intermediate, and TestAnInterruptedAbandonmentIsResumable pins it.
-func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
+func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependencies) (AbandonResult, error) {
 	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
@@ -134,7 +160,7 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	}
 	defer release()
 
-	store := ledger.NewStore(taskDir)
+	store := ledger.NewStore(taskDir, deps.ledgerOptions...)
 	report, verr := store.VerifyCtx(ctx)
 	if verr != nil || !report.Valid || report.EntryCount == 0 {
 		return refuseAbandon(OutcomeLedgerInvalid, "task ledger did not verify")
@@ -257,7 +283,13 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	// AllowedTaskTransitions gives those phases NO outgoing transition. Appending
 	// here would move an already-final task to abandoned and have terminal
 	// inspection report it as a clean stop.
-	if from, ok := latestTaskPhase(chain); ok {
+	from, haveFrom, phaseErr := latestTaskPhase(chain)
+	if phaseErr != nil {
+		return refuseAbandon(OutcomeIntegrityFailure,
+			"the task's current lifecycle phase cannot be established: %v; "+
+				"an unreadable lifecycle record is not evidence that no phase was reached", phaseErr)
+	}
+	if haveFrom {
 		if terr := closureprotocol.ValidateTaskTransition(from, closureprotocol.PhaseAbandoned); terr != nil {
 			return refuseAbandon(OutcomeConflictingCompletion,
 				"%v: the task is already in a terminal phase and abandonment would overwrite it", terr)
@@ -332,10 +364,35 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 		ProducedAt:       producedAt,
 	}); appErr != nil {
 		var stale ledger.ErrStaleHead
-		if errors.As(appErr, &stale) {
+		var durable ledger.ErrEntryDurable
+		switch {
+		case errors.As(appErr, &durable):
+			// POST-COMMIT. The entry is durable and only the HEAD write failed,
+			// so the abandoned terminal exists whatever this call returns.
+			// Reporting ledger_invalid and stopping left the fact committed, the
+			// projection unrebuilt and the pointer live -- and a retry with the
+			// original expected head then reported stale, because verification
+			// derives the new durable head. The caller was told the write failed
+			// and then that it was too late to try again.
+			//
+			// Read the exact durable event back and verify it before continuing.
+			// Verification, not the error's word, is what licenses the rest.
+			if verr := verifyDurableAbandonment(ctx, taskDir, task.ID, receipt); verr != nil {
+				return AbandonResult{
+					Outcome: OutcomeIntegrityFailure,
+					Detail: fmt.Sprintf("the abandoned entry is durable but could not be verified (%v); "+
+						"the active pointer is left in place deliberately", verr),
+					Receipt:     &receipt,
+					ReceiptPath: ref.Path,
+				}, nil
+			}
+			// Verified: fall through to projection rebuild and pointer retirement,
+			// which is the resumable cleanup path this condition interrupted.
+		case errors.As(appErr, &stale):
 			return refuseAbandon(OutcomeStaleExpectedHead, "ledger head advanced during abandonment")
+		default:
+			return refuseAbandon(OutcomeLedgerInvalid, "append abandoned: %v", appErr)
 		}
-		return refuseAbandon(OutcomeLedgerInvalid, "append abandoned: %v", appErr)
 	}
 	if _, prerr := ledger.RebuildProjections(taskDir, nil); prerr != nil {
 		return refuseAbandon(OutcomeLedgerInvalid, "rebuild projections: %v", prerr)
@@ -367,6 +424,36 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 	}, nil
 }
 
+// verifyDurableAbandonment re-reads the ledger and proves the exact abandoned
+// event is present and carries this receipt.
+//
+// Called when Append reported the entry durable but HEAD unwritten. The error
+// says the entry is committed; this establishes it independently, because a
+// caller that continued on the error's word alone would rebuild projections and
+// retire a pointer on the strength of a claim it never checked.
+func verifyDurableAbandonment(ctx context.Context, taskDir, taskID string, want closureprotocol.AbandonmentReceipt) error {
+	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
+	if err != nil {
+		return fmt.Errorf("chain unverifiable after durable append: %w", err)
+	}
+	tf := classifyTerminalFacts(chain)
+	if tf.abandonedCount != 1 {
+		return fmt.Errorf("expected exactly one abandoned event after a durable append, found %d", tf.abandonedCount)
+	}
+	got, _, lerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
+	if lerr != nil {
+		return lerr
+	}
+	if got.Task.ID != taskID {
+		return fmt.Errorf("the durable abandoned event names task %s, not %s", got.Task.ID, taskID)
+	}
+	if got.ReceiptDigestSHA256 != want.ReceiptDigestSHA256 {
+		return fmt.Errorf("the durable abandoned event carries a different receipt (%s, wanted %s)",
+			short(got.ReceiptDigestSHA256), short(want.ReceiptDigestSHA256))
+	}
+	return nil
+}
+
 // clearPointer delegates the whole decision to the pointer's owner.
 //
 // It deliberately does NOT read the pointer, compare it, and decide here. That
@@ -380,21 +467,33 @@ func clearPointer(root, taskID string) (bool, error) {
 }
 
 // latestTaskPhase returns the most recent lifecycle phase recorded on the chain.
-func latestTaskPhase(chain ledger.VerifiedChain) (closureprotocol.TaskPhase, bool) {
+//
+// AN UNREADABLE ENTRY IS AN ERROR, NEVER A SKIP. The previous walk continued
+// past anything it could not parse, so an unreadable task_marked_stale head fell
+// through to an earlier non-terminal phase and the caller happily transitioned a
+// task that had already folded. "This entry says nothing about the phase" and
+// "this entry could not be read" are different facts, and the second one is not
+// evidence for the first.
+//
+// The store used here attaches no payload validator, so a semantically invalid
+// payload can sit in a chain that verifies. That is exactly the case this must
+// refuse rather than walk past.
+func latestTaskPhase(chain ledger.VerifiedChain) (closureprotocol.TaskPhase, bool, error) {
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
-		data, err := ledger.ReadVerifiedPayload(chain.Entries[i])
+		entry := chain.Entries[i]
+		data, err := ledger.ReadVerifiedPayload(entry)
 		if err != nil {
-			continue
+			return "", false, fmt.Errorf("lifecycle event %s payload unreadable: %w", entry.Entry.EventType, err)
 		}
 		payload, perr := ledger.ParseTaskEventPayload(data)
 		if perr != nil {
-			continue
+			return "", false, fmt.Errorf("lifecycle event %s payload malformed: %w", entry.Entry.EventType, perr)
 		}
 		if strings.TrimSpace(string(payload.TaskPhase)) != "" {
-			return payload.TaskPhase, true
+			return payload.TaskPhase, true, nil
 		}
 	}
-	return "", false
+	return "", false, nil
 }
 
 // loadAbandonmentReceipt reads and validates the receipt an abandoned event

@@ -4,6 +4,7 @@ package completion
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1061,5 +1062,190 @@ func TestTheAbandonmentGrantReachesTheIntendedRole(t *testing.T) {
 	}
 	if cGrant == grant {
 		t.Fatalf("completion and abandonment resolve to the same grant %q; policy cannot deny one without the other", grant)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Reproductions of the four Codex findings on 25f3869b.
+// ---------------------------------------------------------------------------
+
+// R4-F2. A malformed lifecycle payload is an integrity failure, not absence.
+//
+// latestTaskPhase skipped anything it could not parse and kept walking back, so
+// an unreadable task_marked_stale head fell through to an earlier non-terminal
+// phase and abandonment proceeded over a terminal stale fact. "Unreadable" and
+// "not there" are different facts and only one of them permits the write.
+//
+// TESTED AT THE FUNCTION, because the end-to-end path is guarded earlier: a
+// chain carrying a semantically invalid payload also fails
+// admission.LoadRecordedAuthorityCtx, so AbandonTask refuses with
+// authority_refusal before the phase is ever derived. That earlier guard is real
+// and is not what this finding is about -- and a test routed through it would
+// pass with this defect fully intact, which is the trap round two's finding 5
+// already sprang once.
+func TestLatestTaskPhaseFailsClosedOnAnUnreadablePayload(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	w.appendPhase(t, closureprotocol.PhaseStale)
+	good := mustChain(t, w.TaskDir)
+	phase, ok, err := latestTaskPhase(good)
+	if err != nil || !ok || phase != closureprotocol.PhaseStale {
+		t.Fatalf("readable chain: phase=%q ok=%v err=%v, want stale/true/nil", phase, ok, err)
+	}
+
+	// The unreadable case, driven at the function. The head entry's payload is
+	// made unreachable; everything before it still carries a usable phase, so a
+	// walk that skips failures returns one and a walk that fails closed does not.
+	broken := good
+	broken.Entries = append([]ledger.VerifiedEntry(nil), good.Entries...)
+	last := len(broken.Entries) - 1
+	broken.Entries[last].Entry.Payload.Path = "ledger/payloads/does-not-exist.yaml"
+	broken.Entries[last].PayloadPath = filepath.Join(w.TaskDir, "ledger", "payloads", "does-not-exist.yaml")
+
+	phase, ok, err = latestTaskPhase(broken)
+	if err == nil {
+		t.Fatalf("an unreadable lifecycle event yielded phase=%q ok=%v with no error; "+
+			"the walk fell back to an earlier phase instead of failing closed", phase, ok)
+	}
+	if ok {
+		t.Fatal("an unreadable lifecycle event reported a usable phase")
+	}
+}
+
+// R4-F3. Every duplicated identity inside the receipt must agree.
+//
+// The validator checked in.Task and in.BaseBinding.Task independently and never
+// required them equal, so a receipt could carry the abandoned event's task at
+// the top level -- which is all abandonedEventMatches reads -- while binding a
+// different world underneath.
+func TestAReceiptWithInconsistentInternalIdentityIsRefused(t *testing.T) {
+	base := closureprotocol.BaseBinding{
+		Task: closureprotocol.TaskBinding{ID: "task.defect.aaaa", SessionID: "session.aaaa"},
+		Repository: closureprotocol.RepositorySnapshot{
+			Domain: "github.com/globulario/sensei", Revision: strings.Repeat("a", 40),
+			RevisionStatus: "resolved", TreeDigestSHA256: strings.Repeat("b", 64),
+		},
+		Graph: closureprotocol.GraphSnapshot{DigestSHA256: strings.Repeat("c", 64), DigestStatus: "resolved"},
+		Policies: closureprotocol.PolicyBinding{
+			Admission: "policy.admission.v1", Certification: "policy.certification.v1",
+			Completion: "policy.completion.v1", Revocation: "policy.revocation.v1",
+			Ledger: "policy.ledger.v1", Canonicalization: "policy.canonicalization.v1",
+		},
+	}
+	good := closureprotocol.AbandonmentReceipt{
+		Task:              base.Task,
+		TerminalStatus:    closureprotocol.TerminalAbandoned,
+		BaseBinding:       base,
+		Reason:            whyAbandoned,
+		NoResultProduced:  true,
+		AbandonmentPolicy: AbandonmentPolicyID,
+		AbandonedAt:       "2026-09-09T00:00:00Z",
+		AbandoningActor:   "principal.test",
+	}
+	if err := closureprotocol.ValidateAbandonmentReceipt(good); err != nil {
+		t.Fatalf("the consistent receipt was refused: %v", err)
+	}
+
+	for _, tc := range []struct {
+		name   string
+		mutate func(r *closureprotocol.AbandonmentReceipt)
+	}{
+		{"task id differs from base binding", func(r *closureprotocol.AbandonmentReceipt) {
+			r.BaseBinding.Task.ID = "task.defect.elsewhere"
+		}},
+		{"session id differs from base binding", func(r *closureprotocol.AbandonmentReceipt) {
+			r.BaseBinding.Task.SessionID = "session.elsewhere"
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			bad := good
+			tc.mutate(&bad)
+			if err := closureprotocol.ValidateAbandonmentReceipt(bad); err == nil {
+				t.Fatalf("a receipt whose %s was accepted; the top-level field alone is what "+
+					"abandonedEventMatches reads, so the bound world can be substituted underneath", tc.name)
+			}
+		})
+	}
+}
+
+// R4-F4. A durable entry whose HEAD write failed is post-commit, not a failure.
+//
+// Store.Append returns ErrEntryDurable to say the terminal fact IS committed and
+// only HEAD.yaml is unwritten. Treating it as an ordinary append failure left the
+// fact committed, the projection unrebuilt and the pointer live -- and a retry
+// with the original expected head then reported stale, because verification
+// derives the new durable head. The caller was told the write failed, then that
+// it was too late to try again.
+//
+// Driven through AbandonTask with a one-shot fault armed at the exact boundary,
+// so this proves the BRANCH runs, not merely that the verifier it calls works.
+func TestADurableAppendCompletesTheRecoveryPath(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	id := taskID(t, w.TaskDir)
+	setActivePointer(t, w, id)
+	before := currentHead(t, w.TaskDir)
+
+	res, err := abandonTask(context.Background(), AbandonRequest{
+		RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir, IdentityRoot: w.IdentityRoot,
+		ExpectedLedgerHeadDigestSHA256: before, Reason: whyAbandoned,
+	}, abandonDependencies{
+		ledgerOptions: []ledger.StoreOption{
+			ledger.WithHeadPublicationFault(errors.New("injected: HEAD publication failed")),
+		},
+	})
+	if err != nil {
+		t.Fatalf("abandon: %v", err)
+	}
+
+	// The event is durable despite the failed publication -- that is what makes
+	// this post-commit rather than a failed append.
+	if n := abandonedEvents(t, w.TaskDir); n != 1 {
+		t.Fatalf("abandoned events = %d, want 1: the injected fault must fire AFTER the entry is durable", n)
+	}
+	// The branch ran and completed the cleanup rather than stranding the fact.
+	if res.Outcome != OutcomeCommitted {
+		t.Fatalf("outcome = %q (%s): a durable entry was not carried through the recovery path",
+			res.Outcome, res.Detail)
+	}
+	if res.Receipt == nil || res.ReceiptPath == "" {
+		t.Fatalf("recovery returned receipt=%v path=%q; both are returned on the ordinary path",
+			res.Receipt != nil, res.ReceiptPath)
+	}
+	if !res.ActivePointerCleared || pointerExists(t, w.Repo) {
+		t.Fatal("the pointer was not retired after a durable append")
+	}
+	// Projection recovery completed: the task reconstructs as abandoned.
+	a, ierr := InspectTerminalState(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
+	if ierr != nil || a.State != TerminalAbandoned {
+		t.Fatalf("terminal state = %q err=%v, want abandoned", a.State, ierr)
+	}
+
+	// A retry is idempotent, and the fault is one-shot so this takes the real path.
+	retry := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if retry.Outcome != OutcomeExactReplay {
+		t.Fatalf("retry = %q (%s), want exact_replay", retry.Outcome, retry.Detail)
+	}
+	if n := abandonedEvents(t, w.TaskDir); n != 1 {
+		t.Fatalf("abandoned events = %d after retry, want exactly 1", n)
+	}
+}
+
+// TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath is the negative control.
+//
+// Without it, a branch that treated EVERY append error as post-commit would pass
+// the test above.
+func TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+
+	// A stale expected head is a pre-commit refusal, not a durable append.
+	res := abandon(t, w, strings.Repeat("c", 64), whyAbandoned)
+	if res.Outcome != OutcomeStaleExpectedHead {
+		t.Fatalf("outcome = %q, want stale_expected_head: an ordinary failure took another path", res.Outcome)
+	}
+	if n := abandonedEvents(t, w.TaskDir); n != 0 {
+		t.Fatalf("abandoned events = %d, want 0: nothing is durable after a pre-commit refusal", n)
+	}
+	if !pointerExists(t, w.Repo) {
+		t.Fatal("a pre-commit refusal retired the pointer")
 	}
 }

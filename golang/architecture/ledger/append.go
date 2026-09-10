@@ -105,7 +105,16 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 	// The entry is now durable. A HEAD write failure is a POST-commit condition,
 	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
 	// entry identity so the caller reconciles instead of assuming no append.
-	if err := writeHead(s.headPath(), head); err != nil {
+	// The injected fault, if armed, stands exactly here: after writeEntry made
+	// the entry durable and before HEAD is published. One-shot, so the retry that
+	// follows takes the real path.
+	headErr := error(nil)
+	if s.headFault != nil {
+		headErr, s.headFault = s.headFault, nil
+	} else {
+		headErr = writeHead(s.headPath(), head)
+	}
+	if err := headErr; err != nil {
 		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
 			ErrEntryDurable{Entry: entry, Head: head, Detail: err.Error()}
 	}

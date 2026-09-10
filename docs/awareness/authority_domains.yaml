@@ -181,9 +181,9 @@ authority_domains:
       - role.repository_maintainer
       - role.repository_repair_agent
     must_mutate_via:
-      - governed terminal completion
+      - governed terminal abandonment
     must_mutate_via_ids:
-      - mutation_path.terminal_completion
+      - mutation_path.terminal_abandonment
     must_read_via:
       - bound repository read
     must_read_via_ids:
