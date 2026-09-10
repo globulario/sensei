@@ -1531,6 +1531,25 @@ func primaryNext(req TaskRequest, conv convergence.StatusReport, decision admiss
 
 func resultFromSession(repoRoot, taskRoot string, s Session, disposition string) PrepareResult {
 	rel, _ := filepath.Rel(repoRoot, taskRoot)
+	// PrepareResult.Modify is PUBLISHED AS CURRENT PERMISSION -- printed by
+	// `sensei prepare-change` and read by the MCP briefing -- so it comes from
+	// the sole owner, not from the session's own recorded field.
+	//
+	// s.MutationCapability is deliberately left as written. It is the session's
+	// historical record of what the file decision said when the task was
+	// prepared, receipts/prepare-change.yaml preserves it, and a receipt that
+	// disagrees with the present is evidence rather than drift. It is not
+	// renamed or removed: it has no consumer outside this package, and the
+	// public field is left in place for auditability.
+	modify := s.MutationCapability
+	if decision, err := loadCurrentAdmissionDecision(taskRoot); err == nil {
+		if perm, permErr := resolveMutationPermission(taskRoot, decision, time.Now().UTC()); permErr == nil {
+			modify = perm.Capability
+		} else {
+			// Governance cannot be verified: never publish a grant.
+			modify = admission.CapabilityWaiting
+		}
+	}
 	return PrepareResult{
 		TaskID:         s.TaskID,
 		TaskDir:        filepath.ToSlash(rel),
@@ -1538,7 +1557,7 @@ func resultFromSession(repoRoot, taskRoot string, s Session, disposition string)
 		Closure:        s.ClosureVerdict,
 		Convergence:    s.ConvergenceStatus,
 		Inspect:        s.InspectionCapability,
-		Modify:         s.MutationCapability,
+		Modify:         modify,
 		WaitingOn:      s.WaitingOn,
 		ReadEnvelope:   s.ReadEnvelope,
 		ModifyEnvelope: s.ModifyEnvelope,

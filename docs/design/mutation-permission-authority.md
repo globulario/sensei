@@ -45,6 +45,47 @@ projections asserted `modify: admitted` for chains carrying no authority
 resolution at all. The permission is therefore always re-derived; only the rest
 of the projection is reused.
 
+## Compatible semantic vocabulary extension
+
+`taskcontrol.ActionConsumeCapability = "consume_capability"` names the step
+between an admitted capability and any edit. The old vocabulary could not express
+it, which is why the selector reached for `perform_admitted_edit` and instructed
+agents to mutate before consuming. The token matches
+`tasksession.AdvanceNextConsumeCapability`, already used for the same step.
+
+**This is compatible, not inert.** It widens the persisted `NextAction`
+vocabulary and changes `StateDigest` whenever the action is selected. Audited at
+`739133dc`: no validator, no exhaustive switch and no JSON schema constrains the
+action vocabulary; the only consumer is one equality comparison against
+`ActionCompleteTask` (`control.go:821`), which is unaffected. Serialization,
+round trip and digest sensitivity are proven by
+`TestConsumeCapabilityIsAPersistableActionThatMovesTheDigest`.
+
+The governance disposition reaches the selector as a *parameter*, not as a field
+on `TaskControlState`, so no persisted struct or schema version changes.
+
+## One evaluation per response
+
+Permission, governance disposition, next action and receipt digest are derived
+from a single evaluation and refreshed together. Refreshing only the permission
+was its own defect: the cached action still described the superseded permission,
+and the digest identified a state that was never returned. Both the replay path
+and the cache path route through `refreshCachedEvaluation`.
+
+## Valid consumption versus governance unavailable
+
+| Verified condition | Permission | Action |
+|---|---|---|
+| capability available (unconsumed) | `admitted` | consume the capability |
+| capability validly consumed | `waiting` | reconcile and record (`verify-admission`) |
+| governance cannot be verified | none | `GovernanceError`; never consume or apply |
+| typed authority proven absent | file protocol, unchanged | file protocol, unchanged |
+
+A mismatched consumption receipt is a `GovernanceCodeConsumptionUnbound`
+integrity error, never an ordinary spend. `CapabilityConsumed` selects
+reconciliation and never an unconditional mutation: a process may have applied
+and crashed before recording, and that recovery question belongs to the bridge.
+
 ## What this repair deliberately does NOT do
 
 It does not connect task-ledger admission to the file-protocol application chain.

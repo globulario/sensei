@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 )
 
 // GovernanceError is a typed governance-integrity failure: recorded history that
@@ -33,6 +34,11 @@ const (
 	GovernanceCodeChainUnverifiable = "tasksession.governance_chain_unverifiable"
 	GovernanceCodeRecordUnreadable  = "tasksession.governance_record_unreadable"
 	GovernanceCodeArtifactDrifted   = "tasksession.governance_artifact_drifted"
+	// GovernanceCodeConsumptionUnbound is a consumption receipt that decodes but
+	// does not belong to this task's current decision. It is an integrity
+	// failure, never an ordinary spend: reading it as "consumed" would withhold
+	// the legitimate current grant while looking exactly like normal waiting.
+	GovernanceCodeConsumptionUnbound = "tasksession.governance_consumption_unbound"
 )
 
 func governanceValidator(et closureprotocol.LedgerEventType, _ string, data []byte) error {
@@ -164,6 +170,13 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 		if err := decodeGovernedArtifact(taskDir, consVE, "capability_consumption", &c); err != nil {
 			return governanceState{}, err
 		}
+		// Decoding is not binding. A receipt that parses but belongs to another
+		// decision, capability or task is an INTEGRITY FAILURE, not a spend --
+		// and the difference is invisible downstream, because both would project
+		// the same ordinary "waiting". Validate before believing it.
+		if err := consumptionBinds(c, dec, rec); err != nil {
+			return governanceState{}, err
+		}
 		return governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusAdmitted, Resolved: true}, nil
 	}
 	return governanceState{
@@ -272,6 +285,62 @@ func applyGovernedDisposition(res *StatusResult, disp governanceState, legacySta
 	}
 }
 
+// consumptionBinds checks a decoded consumption against the contract it claims
+// to satisfy and against the records it claims to bind: the current typed
+// decision, and this task and session.
+//
+// Every failure here is a GovernanceError rather than a disposition, because a
+// mismatched receipt says the record is untrustworthy -- not that a capability
+// was legitimately spent. Callers must be able to tell "validly consumed" from
+// "governance cannot be verified"; collapsing them onto waiting is the defect
+// this exists to prevent.
+func consumptionBinds(c closureprotocol.CapabilityConsumption, dec closureprotocol.AdmissionDecision, rec admission.RecordedAuthority) error {
+	fail := func(detail string) error {
+		return &GovernanceError{Code: GovernanceCodeConsumptionUnbound, Detail: detail}
+	}
+	// Contract: the fields that make a consumption a consumption at all.
+	if strings.TrimSpace(c.CapabilityID) == "" {
+		return fail("capability_consumption carries no capability_id")
+	}
+	if strings.TrimSpace(c.ConsumedAt) == "" {
+		return fail("capability_consumption carries no consumed_at")
+	}
+	if len(c.ConsumedOperationIDs) == 0 {
+		return fail("capability_consumption spends no operation")
+	}
+	// Relation: it must bind THIS decision, by the same digest ConsumeCapability
+	// stamps (closureprotocol.SemanticDigest of the decision).
+	want, digestErr := closureprotocol.SemanticDigest(dec)
+	if digestErr != nil {
+		return fail("the current typed decision has no computable semantic digest: " + digestErr.Error())
+	}
+	if got := strings.TrimSpace(c.DecisionDigestSHA256); got != want {
+		return fail(fmt.Sprintf("capability_consumption binds decision %s, but the current typed decision is %s", short12(got), short12(want)))
+	}
+	// Relation: it must spend THIS decision's capability.
+	if wantCap := strings.TrimSpace(dec.CapabilityID); wantCap != "" && strings.TrimSpace(c.CapabilityID) != wantCap {
+		return fail(fmt.Sprintf("capability_consumption spends capability %q, but the current decision issued %q", c.CapabilityID, wantCap))
+	}
+	// Relation: it must bind THIS task and session.
+	if c.Task.ID != rec.Base.Task.ID {
+		return fail(fmt.Sprintf("capability_consumption binds task %q, but this task is %q", c.Task.ID, rec.Base.Task.ID))
+	}
+	if strings.TrimSpace(rec.Base.Task.SessionID) != "" && c.Task.SessionID != rec.Base.Task.SessionID {
+		return fail(fmt.Sprintf("capability_consumption binds session %q, but this task's session is %q", c.Task.SessionID, rec.Base.Task.SessionID))
+	}
+	return nil
+}
+
+func short12(s string) string {
+	if len(s) >= 12 {
+		return s[:12]
+	}
+	if s == "" {
+		return "(none)"
+	}
+	return s
+}
+
 func changePlanTargets(plan closureprotocol.ChangePlan) []string {
 	out := make([]string, 0, len(plan.Operations))
 	for _, op := range plan.Operations {
@@ -304,6 +373,9 @@ type MutationPermission struct {
 	// LedgerDerived reports that a typed governed chain decided this, rather
 	// than the file protocol. It is what the protocol boundary turns on.
 	LedgerDerived bool
+	// GovernedMutation is this same fold expressed for taskcontrol's selector, so
+	// permission and next action can never be computed from different folds.
+	GovernedMutation taskcontrol.GovernedMutationDisposition
 	// Disposition is the governance fold this permission was derived from. It is
 	// carried so a caller that also needs the disposition reuses THIS fold rather
 	// than folding a second time -- one authoritative world per call, which is
@@ -334,15 +406,21 @@ func resolveMutationPermission(taskDir string, decision admission.Decision, now 
 		// the reducer withholds it, and no read may reopen it.
 		if gov.GrantModify {
 			return MutationPermission{
-				Capability:    admission.CapabilityAdmitted,
-				Scope:         append([]string{}, gov.ModifyPaths...),
-				LedgerDerived: true,
-				Disposition:   gov,
+				Capability:       admission.CapabilityAdmitted,
+				Scope:            append([]string{}, gov.ModifyPaths...),
+				LedgerDerived:    true,
+				Disposition:      gov,
+				GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityAvailable: true},
 			}, nil
 		}
 		// No NEW capability. Deliberately not Refused: a consumed capability is
 		// spent, not repudiated.
-		return MutationPermission{Capability: admission.CapabilityWaiting, LedgerDerived: true, Disposition: gov}, nil
+		return MutationPermission{
+			Capability:       admission.CapabilityWaiting,
+			LedgerDerived:    true,
+			Disposition:      gov,
+			GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityConsumed: gov.Status == StatusAdmitted},
+		}, nil
 	}
 	capability := decision.MutationCapability
 	if capability == admission.CapabilityAdmitted || capability == admission.CapabilityAdmittedWithConditions {
