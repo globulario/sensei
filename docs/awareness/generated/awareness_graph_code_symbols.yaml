@@ -22375,6 +22375,30 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLedgerOrdersAuthorityBeforeAdmission proves the typed authority resolution\nis ledgered before any admission decision and that preparation records no\nplaceholder admission_decided event — the decision is produced later, by\nadmit-change (regression #8, #9)."
+  - id: golang/architecture/tasksession/mutation_permission_test.go:TestAStalePersistedProjectionCannotReAssertAGrant
+    file: golang/architecture/tasksession/mutation_permission_test.go
+    symbol: TestAStalePersistedProjectionCannotReAssertAGrant
+    package: tasksession
+    language: go
+    doc: "A persisted projection must never re-assert a grant the ledger has withdrawn.\nThis is the measured production defect: seven control/latest.yaml files\nasserting modify=admitted for chains carrying no authority resolution."
+  - id: golang/architecture/tasksession/mutation_permission_test.go:TestAfterConsumptionReadersReportNoNewCapabilityRatherThanRefusal
+    file: golang/architecture/tasksession/mutation_permission_test.go
+    symbol: TestAfterConsumptionReadersReportNoNewCapabilityRatherThanRefusal
+    package: tasksession
+    language: go
+    doc: "G3-3. After consumption the answer is \"no NEW consumable capability\". It must\nNOT be Refused: that would assert the application already made was\nunauthorized, which is a different and false claim."
+  - id: golang/architecture/tasksession/mutation_permission_test.go:TestNoTypedDecisionMeansNoReaderGrantsMutation
+    file: golang/architecture/tasksession/mutation_permission_test.go
+    symbol: TestNoTypedDecisionMeansNoReaderGrantsMutation
+    package: tasksession
+    language: go
+    doc: "G3-1. Authority is resolved but no typed decision binds, so the ledger grants\nnothing -- while the decision FILE says admitted. Every public reader must\nwithhold. This is the over-authorization direction."
+  - id: golang/architecture/tasksession/mutation_permission_test.go:TestTypedGrantIsReportedByEveryReader
+    file: golang/architecture/tasksession/mutation_permission_test.go
+    symbol: TestTypedGrantIsReportedByEveryReader
+    package: tasksession
+    language: go
+    doc: "G3-2. A typed decision binds and its capability is unconsumed, so the ledger\ngrants mutation -- while the decision FILE still says waiting. Every public\nreader must report the ledger-derived grant. This is the under-reporting\ndirection, and it is the case a file-first reader gets wrong in the other way."
   - id: golang/architecture/tasksession/no_task_session_test.go:TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
     file: golang/architecture/tasksession/no_task_session_test.go
     symbol: TestEmptyTasksDirectoryIsTheSameAnswerAsAbsent
