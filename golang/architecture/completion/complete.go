@@ -380,9 +380,12 @@ func completedEventMatches(completed ledger.VerifiedEntry, receipt TerminalCompl
 
 // terminalFacts is the classification of a task ledger's terminal history.
 type terminalFacts struct {
-	completedCount int
-	revokedCount   int
-	completed      ledger.VerifiedEntry // the completed entry when completedCount == 1
+	completedCount        int
+	revokedCount          int
+	abandonedCount        int
+	resultTransitionCount int
+	completed             ledger.VerifiedEntry // the completed entry when completedCount == 1
+	abandoned             ledger.VerifiedEntry // the abandoned entry when abandonedCount == 1
 }
 
 // classifyTerminalFacts counts the completed and revoked events across the whole
@@ -397,6 +400,21 @@ func classifyTerminalFacts(chain ledger.VerifiedChain) terminalFacts {
 			tf.completed = ve
 		case closureprotocol.LedgerEventRevoked:
 			tf.revokedCount++
+		case closureprotocol.LedgerEventResultTransitionRecorded:
+			// Counted as a FACT, independently of whether its binding can be
+			// resolved. "No current result binding" and "no result transition
+			// ever happened" are different claims, and only the second licenses
+			// an abandonment.
+			tf.resultTransitionCount++
+		case closureprotocol.LedgerEventAbandoned:
+			// Abandonment is a terminal fact and is counted here rather than only
+			// where it is written. A classifier that knows two of the three
+			// terminals reports the third as "nothing happened": before this,
+			// InspectTerminalState reconstructed every abandoned ledger as
+			// not_completed, and CompleteTask would append a second terminal over
+			// it.
+			tf.abandonedCount++
+			tf.abandoned = ve
 		}
 	}
 	return tf
@@ -413,6 +431,12 @@ func terminalStateDecision(taskDir string, chain ledger.VerifiedChain, expected 
 	switch {
 	case tf.revokedCount > 0:
 		r, _ := refuse(OutcomeConflictingCompletion, "a revocation fact exists — contradictory terminal history")
+		return r, true
+	case tf.abandonedCount > 0:
+		// PhaseAbandoned has no outgoing transitions. Completing an abandoned task
+		// would weaken one terminal with another, which no readiness conjunction
+		// makes honest.
+		r, _ := refuse(OutcomeConflictingCompletion, "the task was abandoned — a terminal state completion may not overwrite")
 		return r, true
 	case tf.completedCount > 1:
 		r, _ := refuse(OutcomeConflictingCompletion, "multiple completed facts on the ledger — terminal history is not unique")

@@ -18,9 +18,16 @@ const (
 
 	// Isolated completion authority triple (declared in docs/awareness/*.yaml).
 	DomainTerminalCompletion = "authority.sensei_terminal_completion"
-	GrantTerminalCompletion  = "grant.sensei.terminal_completion"
-	MechanismPathCompletion  = "mutation_path.terminal_completion"
-	TargetKindTaskCompletion = "task_completion"
+	// DomainTerminalAbandonment is the authority domain for the abandoned
+	// terminal. Separate from completion's so policy can deny one without the
+	// other.
+	DomainTerminalAbandonment = "authority.sensei_terminal_abandonment"
+	GrantTerminalCompletion   = "grant.sensei.terminal_completion"
+	GrantTerminalAbandonment  = "grant.sensei.terminal_abandonment"
+	MechanismPathCompletion   = "mutation_path.terminal_completion"
+	MechanismPathAbandonment  = "mutation_path.terminal_abandonment"
+	TargetKindTaskCompletion  = "task_completion"
+	TargetKindTaskAbandonment = "task_abandonment"
 
 	completionOperationID = "op.complete.task"
 	completionRiskClass   = "architecture_sensitive"

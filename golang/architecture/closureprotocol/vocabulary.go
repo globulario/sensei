@@ -135,10 +135,17 @@ const (
 	LedgerEventProofDischarged             LedgerEventType = "proof_discharged"
 	LedgerEventCertified                   LedgerEventType = "certified"
 	LedgerEventCompleted                   LedgerEventType = "completed"
-	LedgerEventRevoked                     LedgerEventType = "revoked"
-	LedgerEventMigrationExecuted           LedgerEventType = "migration_executed"
-	LedgerEventTaskControlProjected        LedgerEventType = "task_control_projected"
-	LedgerEventTaskMarkedStale             LedgerEventType = "task_marked_stale"
+	// LedgerEventAbandoned records that a task reached TerminalAbandoned: it
+	// stopped without producing a result. It is deliberately NOT
+	// LedgerEventCompleted with a different status -- a completed event carries a
+	// ResultBinding, and the whole point of abandonment is that there is none to
+	// carry. TerminalAbandoned and PhaseAbandoned already existed here with no
+	// event able to write them; this is the missing producer, not a new concept.
+	LedgerEventAbandoned            LedgerEventType = "abandoned"
+	LedgerEventRevoked              LedgerEventType = "revoked"
+	LedgerEventMigrationExecuted    LedgerEventType = "migration_executed"
+	LedgerEventTaskControlProjected LedgerEventType = "task_control_projected"
+	LedgerEventTaskMarkedStale      LedgerEventType = "task_marked_stale"
 )
 
 var (
@@ -200,6 +207,7 @@ var (
 		LedgerEventProofDischarged,
 		LedgerEventCertified,
 		LedgerEventCompleted,
+		LedgerEventAbandoned,
 		LedgerEventRevoked,
 		LedgerEventMigrationExecuted,
 		LedgerEventTaskControlProjected,

@@ -8602,6 +8602,12 @@ test_symbols:
     symbol: TestCheckDelegationVerdicts
     package: authority
     language: go
+  - id: golang/architecture/authority/policy_consistency_test.go:TestEveryGrantCoversItsDomainsRequiredMutationPath
+    file: golang/architecture/authority/policy_consistency_test.go
+    symbol: TestEveryGrantCoversItsDomainsRequiredMutationPath
+    package: authority
+    language: go
+    doc: "TestEveryGrantCoversItsDomainsRequiredMutationPath is a WHOLE-POLICY\ninvariant, deliberately not three pinned identifiers.\n\nA grant names the domains it authorizes and the mechanisms it permits. A\ndomain names the mechanisms a mutation MUST travel through. If a grant\nauthorizes a domain but permits none of that domain's required paths, the pair\nis unsatisfiable: the resolver in use today does not reject it, so it passes\nsilently, while any consumer that enforces the requirement rejects every\noperation on that domain.\n\nThat is how the abandonment domain shipped requiring\nmutation_path.terminal_completion while its own grant permitted only\nmutation_path.terminal_abandonment: the domain block was cloned from\ncompletion and its id renamed, and nothing compared the two halves.\n\nPinning the three abandonment identifiers would have caught that instance and\nno other. This closes the contract for every pair in the policy, including\npairs added later."
   - id: golang/architecture/authority/resolve_test.go:TestResolveAllowsNarrowDelegation
     file: golang/architecture/authority/resolve_test.go
     symbol: TestResolveAllowsNarrowDelegation
@@ -10669,6 +10675,216 @@ test_symbols:
     symbol: TestUnsupportedOperationIsTypedData
     package: commandprovider
     language: go
+  - id: golang/architecture/completion/abandon_api_test.go:TestAbandonRequestKeepsItsPublicContract
+    file: golang/architecture/completion/abandon_api_test.go
+    symbol: TestAbandonRequestKeepsItsPublicContract
+    package: completion_test
+    language: go
+    doc: "TestAbandonRequestKeepsItsPublicContract pins three properties that an\nin-package test cannot see, and that a keyed-literal check does not reveal.\n\nAn earlier attempt at the fault seam put an unexported []ledger.StoreOption\nfield on AbandonRequest. Keyed construction still compiled, so it looked\nharmless. It was not: a slice makes the struct non-comparable, and an\nunexported field makes external positional literals illegal. Both are breaking\nchanges to callers, and both are invisible from inside the package.\n\nThis file is the check that would have caught it."
+  - id: golang/architecture/completion/abandon_api_test.go:TestAbandonTaskIsReachableWithProductionDefaults
+    file: golang/architecture/completion/abandon_api_test.go
+    symbol: TestAbandonTaskIsReachableWithProductionDefaults
+    package: completion_test
+    language: go
+    doc: "TestAbandonTaskIsReachableWithProductionDefaults proves the public wrapper\ndelegates and runs the real implementation.\n\nThe recovery-path test drives the unexported helper so it can arm a ledger\nfault. That would be worth little if the exported function had drifted away\nfrom it, so this exercises AbandonTask itself: it must reach the same\nimplementation, refuse this obviously-invalid request through the same typed\noutcome, and return no error value."
+  - id: golang/architecture/completion/abandon_test.go:TestACompletedTaskCannotBeAbandoned
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestACompletedTaskCannotBeAbandoned
+    package: completion
+    language: go
+    doc: "TestACompletedTaskCannotBeAbandoned: abandonment may not weaken a stronger\nterminal. This is a refusal, not a replay."
+  - id: golang/architecture/completion/abandon_test.go:TestADurableAppendCompletesTheRecoveryPath
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestADurableAppendCompletesTheRecoveryPath
+    package: completion
+    language: go
+    doc: "R4-F4. A durable entry whose HEAD write failed is post-commit, not a failure.\n\nStore.Append returns ErrEntryDurable to say the terminal fact IS committed and\nonly HEAD.yaml is unwritten. Treating it as an ordinary append failure left the\nfact committed, the projection unrebuilt and the pointer live -- and a retry\nwith the original expected head then reported stale, because verification\nderives the new durable head. The caller was told the write failed, then that\nit was too late to try again.\n\nDriven through AbandonTask with a one-shot fault armed at the exact boundary,\nso this proves the BRANCH runs, not merely that the verifier it calls works."
+  - id: golang/architecture/completion/abandon_test.go:TestAReceiptWithInconsistentInternalIdentityIsRefused
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAReceiptWithInconsistentInternalIdentityIsRefused
+    package: completion
+    language: go
+    doc: "R4-F3. Every duplicated identity inside the receipt must agree.\n\nThe validator checked in.Task and in.BaseBinding.Task independently and never\nrequired them equal, so a receipt could carry the abandoned event's task at\nthe top level -- which is all abandonedEventMatches reads -- while binding a\ndifferent world underneath."
+  - id: golang/architecture/completion/abandon_test.go:TestAStaleExpectedHeadIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAStaleExpectedHeadIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestAStaleExpectedHeadIsRefusedWithoutMutation is the stale-binding refusal."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonedEventMatchesRefusesAnotherTasksReceipt
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonedEventMatchesRefusesAnotherTasksReceipt
+    package: completion
+    language: go
+    doc: "R2-F5b. The event/receipt binding itself, tested where it is reachable.\n\nThe end-to-end substitution above is stopped earlier, by the content-addressed\nref. That makes the binding check defence-in-depth rather than the only guard\n-- so it is tested directly, because a guard whose failure mode is unreachable\nthrough the caller is exactly the kind that rots unnoticed."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonedIsInTheCanonicalProjectionVocabulary
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonedIsInTheCanonicalProjectionVocabulary
+    package: completion
+    language: go
+    doc: "R2-F2. The canonical projection vocabulary must contain the state.\n\nTeaching the classifier a new terminal without adding it to the bound set left\nevery abandoned task's projection failing its own canonical contract."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentIsRefusedFromAnAlreadyTerminalPhase
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentIsRefusedFromAnAlreadyTerminalPhase
+    package: completion
+    language: go
+    doc: "R3-F2. An already-terminal phase has no outgoing transition."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentIsRefusedWhenTheSessionProducedAResult
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentIsRefusedWhenTheSessionProducedAResult
+    package: completion
+    language: go
+    doc: "F1. TestAbandonmentIsRefusedWhenTheSessionProducedAResult\n\nA task that recorded a result transition HAS produced something. Stamping\nNoResultProduced on it writes a durable receipt that is simply false, and the\nfalsehood is the one claim the receipt exists to make."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentRecordsNoResult
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentRecordsNoResult
+    package: completion
+    language: go
+    doc: "TestAbandonmentRecordsNoResult is the claim the whole transition exists to make.\n\nA task that stopped without producing anything must not end up with a record\nthat a later reader can mistake for completion. The receipt has no field for a\nresult, and it states the absence rather than leaving it to be inferred."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentRequiresItsOwnGrant
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentRequiresItsOwnGrant
+    package: completion
+    language: go
+    doc: "R3-F1. Abandonment must be its own governed operation.\n\nIt resolved authority through resolveCompletionAuthority, which builds\nop.complete.task against grant.sensei.terminal_completion. So an actor\nauthorized only to COMPLETE tasks could write the distinct abandoned terminal,\nand policy had no way to deny abandonment without also denying completion."
+  - id: golang/architecture/completion/abandon_test.go:TestAbandonmentSucceedsWithItsOwnGrant
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAbandonmentSucceedsWithItsOwnGrant
+    package: completion
+    language: go
+    doc: "TestAbandonmentSucceedsWithItsOwnGrant is the positive control for the above:\nthe refusal must come from the missing grant, not from the test's edit."
+  - id: golang/architecture/completion/abandon_test.go:TestAnAbandonedLedgerReconstructsAsAbandoned
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnAbandonedLedgerReconstructsAsAbandoned
+    package: completion
+    language: go
+    doc: "F2. TestAnAbandonedLedgerReconstructsAsAbandoned\n\nclassifyTerminalFacts counted only completed and revoked, so InspectTerminalState\nreported a successfully abandoned task as not_completed -- the state it had\nbefore anything happened to it."
+  - id: golang/architecture/completion/abandon_test.go:TestAnAbandonedProjectionValidates
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnAbandonedProjectionValidates
+    package: completion
+    language: go
+    doc: "R2-F2b. The real projection path, not just the intermediate classifier."
+  - id: golang/architecture/completion/abandon_test.go:TestAnEmptyReasonIsRefused
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnEmptyReasonIsRefused
+    package: completion
+    language: go
+    doc: "TestAnEmptyReasonIsRefused: a terminal state with no stated cause is not a record."
+  - id: golang/architecture/completion/abandon_test.go:TestAnInterruptedAbandonmentIsResumable
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnInterruptedAbandonmentIsResumable
+    package: completion
+    language: go
+    doc: "TestAnInterruptedAbandonmentIsResumable is the crash-recovery requirement.\n\nThe residue the ordering deliberately produces -- terminal record written,\npointer still set -- must be finishable by rerunning the same command, not by a\nseparate repair nobody would think to invoke."
+  - id: golang/architecture/completion/abandon_test.go:TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure
+    package: completion
+    language: go
+    doc: "F4. TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure\n\nA missing, unparseable or digest-mismatched receipt cannot reconstruct the\nreason or the actor. Reporting exact_replay and clearing the pointer blesses a\nbroken event as terminal and removes the default route back to the task."
+  - id: golang/architecture/completion/abandon_test.go:TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath
+    package: completion
+    language: go
+    doc: "TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath is the negative control.\n\nWithout it, a branch that treated EVERY append error as post-commit would pass\nthe test above."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnenrolledActorIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnenrolledActorIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestAnUnenrolledActorIsRefusedWithoutMutation is the authority requirement."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnreadableActivePointerIsNotAbsence
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnreadableActivePointerIsNotAbsence
+    package: completion
+    language: go
+    doc: "F5. TestAnUnreadableActivePointerIsNotAbsence\n\nLoadActivePointer fails for absence AND for malformed, inaccessible or\nunsafe-path files. Treating every error as \"nothing to retire\" reports the\nabandonment committed while leaving a pointer that breaks active-task\nresolution afterwards."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnreadableResultTransitionIsNotNoResult
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnreadableResultTransitionIsNotNoResult
+    package: completion
+    language: go
+    doc: "R2-F1. An unreadable result transition is not evidence of no result.\n\nThe round-one repair asked latestResultBinding, which answers \"is there a\ncurrent result binding\". A result_transition_recorded event whose payload\ncarries no binding makes that false while the durable transition fact stands,\nso the receipt claims the session produced nothing on a chain that records it\nproducing something."
+  - id: golang/architecture/completion/abandon_test.go:TestClearingAnAbsentPointerSucceeds
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestClearingAnAbsentPointerSucceeds
+    package: completion
+    language: go
+    doc: "TestClearingAnAbsentPointerSucceeds: absence is the goal state, so the resume\npath must not fail on a pointer somebody else already retired."
+  - id: golang/architecture/completion/abandon_test.go:TestClearingRefusesAnotherTasksPointer
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestClearingRefusesAnotherTasksPointer
+    package: completion
+    language: go
+    doc: "TestClearingRefusesAnotherTasksPointer: the transition that abandoned task A\nmust not retire task B's pointer."
+  - id: golang/architecture/completion/abandon_test.go:TestClosureClassifiesAbandonment
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestClosureClassifiesAbandonment
+    package: completion
+    language: go
+    doc: "R3-F4. A valid abandonment is a known terminal, not an unsupported world."
+  - id: golang/architecture/completion/abandon_test.go:TestCompleteRefusesAnAbandonedTask
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestCompleteRefusesAnAbandonedTask
+    package: completion
+    language: go
+    doc: "F2b. TestCompleteRefusesAnAbandonedTask\n\nPhaseAbandoned has no outgoing transitions. Completion that does not recognise\nthe event would append a second, contradictory terminal."
+  - id: golang/architecture/completion/abandon_test.go:TestLatestTaskPhaseFailsClosedOnAnUnreadablePayload
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestLatestTaskPhaseFailsClosedOnAnUnreadablePayload
+    package: completion
+    language: go
+    doc: "R4-F2. A malformed lifecycle payload is an integrity failure, not absence.\n\nlatestTaskPhase skipped anything it could not parse and kept walking back, so\nan unreadable task_marked_stale head fell through to an earlier non-terminal\nphase and abandonment proceeded over a terminal stale fact. \"Unreadable\" and\n\"not there\" are different facts and only one of them permits the write.\n\nTESTED AT THE FUNCTION, because the end-to-end path is guarded earlier: a\nchain carrying a semantically invalid payload also fails\nadmission.LoadRecordedAuthorityCtx, so AbandonTask refuses with\nauthority_refusal before the phase is ever derived. That earlier guard is real\nand is not what this finding is about -- and a test routed through it would\npass with this defect fully intact, which is the trap round two's finding 5\nalready sprang once."
+  - id: golang/architecture/completion/abandon_test.go:TestRepeatedAbandonmentIsIdempotent
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestRepeatedAbandonmentIsIdempotent
+    package: completion
+    language: go
+    doc: "TestRepeatedAbandonmentIsIdempotent covers the ordinary replay, with no\ninterruption involved."
+  - id: golang/architecture/completion/abandon_test.go:TestReplayCleanupRequiresFreshnessAndAuthority
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestReplayCleanupRequiresFreshnessAndAuthority
+    package: completion
+    language: go
+    doc: "F3. TestReplayCleanupRequiresFreshnessAndAuthority\n\nThe replay branch cleared the governed pointer before the expected-head check\nand before actor verification, so an unenrolled caller with an arbitrary head\ncould finish the mutation on any interrupted task."
+  - id: golang/architecture/completion/abandon_test.go:TestReplayReturnsTheReceiptPath
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestReplayReturnsTheReceiptPath
+    package: completion
+    language: go
+    doc: "R3-F5. A replay must be able to name the artifact it replayed."
+  - id: golang/architecture/completion/abandon_test.go:TestSubstitutedAbandonmentReceiptBytesAreRefused
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestSubstitutedAbandonmentReceiptBytesAreRefused
+    package: completion
+    language: go
+    doc: "R2-F5a. Substituted receipt bytes are refused by the content-addressed ref.\n\nThis is what the end-to-end path actually enforces, and it is worth pinning\nseparately: overwriting the artifact changes its sha256, and the ledger's\npayload ref no longer matches. It does NOT exercise the event/receipt binding\n-- see the unit test below, and the reply on that thread."
+  - id: golang/architecture/completion/abandon_test.go:TestTheAbandonmentGrantReachesTheIntendedRole
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestTheAbandonmentGrantReachesTheIntendedRole
+    package: completion
+    language: go
+    doc: "TestTheAbandonmentGrantReachesTheIntendedRole closes the gap the negative test\nleaves open.\n\nTestAbandonmentRequiresItsOwnGrant proves abandonment STOPS without its grant.\nIt does not prove the grant is reachable by the role that is supposed to hold\nit -- a grant nobody can be resolved into would pass that test and fail every\nreal run. So: resolve the real authority and assert which grant and which role\nanswered."
+  - id: golang/architecture/completion/abandon_test.go:TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestTheDurableRecordIsWrittenBeforeThePointerIsCleared
+    package: completion
+    language: go
+    doc: "TestTheDurableRecordIsWrittenBeforeThePointerIsCleared pins the ordering.\n\nIt is proved by making the SECOND step fail: if the pointer cannot be retired\nand the terminal record is nonetheless durable, the record cannot have been\nwritten after it. The reverse ordering would leave nothing behind here."
+  - id: golang/architecture/completion/abandon_test.go:TestTheStoredAbandonmentReceiptCarriesItsDigest
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestTheStoredAbandonmentReceiptCarriesItsDigest
+    package: completion
+    language: go
+    doc: "R2-F4. The stored receipt must carry its own digest.\n\nCanonicalJSON ran before ReceiptDigestSHA256 was assigned, so the durable\nartifact never contained the identity, and every replay reconstructed a\nreceipt whose digest was empty while a fresh success reported one."
+  - id: golang/architecture/completion/abandon_test.go:TestWrongRepositoryIsRefusedWithoutMutation
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestWrongRepositoryIsRefusedWithoutMutation
+    package: completion
+    language: go
+    doc: "TestWrongRepositoryIsRefusedWithoutMutation: the root and the task must name one\nworld, or authority is resolved against one and the ledger written in another."
   - id: golang/architecture/completion/assess_test.go:TestAssessClosureAndProofSubsumed
     file: golang/architecture/completion/assess_test.go
     symbol: TestAssessClosureAndProofSubsumed
@@ -22399,6 +22615,30 @@ test_symbols:
     package: tasksession
     language: go
     doc: "The distinction that must survive: a directory that EXISTS and cannot be read\nis a real error. We were unable to look, which is not the same as having\nlooked and found nothing. Collapsing the two would let a permissions fault\nmasquerade as \"this repo has no tasks\"."
+  - id: golang/architecture/tasksession/pointerlock_test.go:TestAMismatchDecisionIsMadeUnderTheLock
+    file: golang/architecture/tasksession/pointerlock_test.go
+    symbol: TestAMismatchDecisionIsMadeUnderTheLock
+    package: tasksession
+    language: go
+    doc: "TestAMismatchDecisionIsMadeUnderTheLock is the round-three finding.\n\nThe caller used to read the pointer itself, decide \"this names another task,\nnothing to do\", and return -- all outside the lock. A writer arriving after\nthat read could make the pointer name the task being abandoned, so the\ntransition reported committed while its own pointer survived. The read, the\nmatch/mismatch decision and the optional unlink have to be one critical\nsection, and the owner has to report what it did."
+  - id: golang/architecture/tasksession/pointerlock_test.go:TestAnotherTasksPointerSurvivesAWriteDuringTheIdentityWindow
+    file: golang/architecture/tasksession/pointerlock_test.go
+    symbol: TestAnotherTasksPointerSurvivesAWriteDuringTheIdentityWindow
+    package: tasksession
+    language: go
+    doc: "TestAnotherTasksPointerSurvivesAWriteDuringTheIdentityWindow is the race the\nreview named, driven deterministically rather than hoped for.\n\nTask A's pointer is checked, then task B activates in the window between the\ncheck and the unlink. Before the repair, A's clear deleted B's pointer: the\nidentity check was real and its conclusion was stale by the time it was acted\non. After the repair, a lock-respecting writer cannot act inside that window\nat all, which is what the hook now proves by being refused."
+  - id: golang/architecture/tasksession/pointerlock_test.go:TestRetireReportsWhatItDid
+    file: golang/architecture/tasksession/pointerlock_test.go
+    symbol: TestRetireReportsWhatItDid
+    package: tasksession
+    language: go
+    doc: "TestRetireReportsWhatItDid: the owner, not the caller, says whether a pointer\nwas removed -- the caller cannot know without re-reading, which is the race."
+  - id: golang/architecture/tasksession/pointerlock_test.go:TestTheLockIsReleasedSoNormalSequencingStillWorks
+    file: golang/architecture/tasksession/pointerlock_test.go
+    symbol: TestTheLockIsReleasedSoNormalSequencingStillWorks
+    package: tasksession
+    language: go
+    doc: "TestTheLockIsReleasedSoNormalSequencingStillWorks: the exclusion must be a\nwindow, not a wall."
   - id: golang/architecture/tasksession/rename_synthesis_test.go:TestChangePlanFromScopeNeverEmitsRename
     file: golang/architecture/tasksession/rename_synthesis_test.go
     symbol: TestChangePlanFromScopeNeverEmitsRename

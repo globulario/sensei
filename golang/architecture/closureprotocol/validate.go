@@ -438,6 +438,56 @@ func ValidateCompletionReceipt(in CompletionReceipt) error {
 	return nil
 }
 
+// ValidateAbandonmentReceipt refuses anything that would let an abandonment read
+// as a completion.
+//
+// The status must be exactly TerminalAbandoned -- not merely a member of the
+// terminal vocabulary. A receipt of this shape carrying "completed" would assert
+// completion through a struct that cannot hold a result, which is precisely the
+// substitution the separate shape exists to prevent.
+func ValidateAbandonmentReceipt(in AbandonmentReceipt) error {
+	if in.TerminalStatus != TerminalAbandoned {
+		return errors.New("terminal_status must be abandoned on an abandonment receipt")
+	}
+	if err := ValidateBaseBinding(in.BaseBinding); err != nil {
+		return err
+	}
+	if strings.TrimSpace(in.Task.ID) == "" {
+		return errors.New("task id is required")
+	}
+	// EVERY DUPLICATED IDENTITY MUST AGREE WITH ITSELF.
+	//
+	// The receipt carries the task twice: once at the top level and once inside
+	// BaseBinding. Validating each independently let a receipt keep the abandoned
+	// event's task where a consumer reads it while binding a different world
+	// underneath -- and abandonedEventMatches reads only the top-level field, so
+	// the substitution survived event matching and terminal inspection reported
+	// the wrong bound world as a clean abandonment.
+	//
+	// A duplicated field is a consistency obligation, not two independent facts.
+	if in.Task.ID != in.BaseBinding.Task.ID {
+		return fmt.Errorf("receipt task id %q does not match its base binding task id %q",
+			in.Task.ID, in.BaseBinding.Task.ID)
+	}
+	if in.Task.SessionID != in.BaseBinding.Task.SessionID {
+		return fmt.Errorf("receipt session id %q does not match its base binding session id %q",
+			in.Task.SessionID, in.BaseBinding.Task.SessionID)
+	}
+	if strings.TrimSpace(in.Reason) == "" {
+		return errors.New("reason is required: a terminal state with no stated cause is not a record")
+	}
+	if !in.NoResultProduced {
+		return errors.New("no_result_produced must be true on an abandonment receipt")
+	}
+	if strings.TrimSpace(in.AbandonmentPolicy) == "" || strings.TrimSpace(in.AbandoningActor) == "" {
+		return errors.New("abandonment policy and abandoning actor are required")
+	}
+	if _, err := time.Parse(time.RFC3339, in.AbandonedAt); err != nil {
+		return errors.New("abandoned_at must be RFC3339")
+	}
+	return nil
+}
+
 func ValidateRevocationReceipt(in RevocationReceipt) error {
 	if in.RevocationID == "" || in.RevokedTargetID == "" || in.PriorDigestSHA256 == "" || in.PolicyID == "" || in.ActorID == "" {
 		return errors.New("revocation receipt is incomplete")

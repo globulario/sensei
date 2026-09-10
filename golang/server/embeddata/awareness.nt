@@ -101,6 +101,27 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_repository_mutation> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_repository_mutation> <https://globular.io/awareness#ownerService> "service.sensei.repository_governance" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_repository_mutation> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task abandonment" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "cmd/awg/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "docs/awareness/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/architecture/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/extractor/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/rdf/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "abandonment binds the exact task, the pre-abandonment ledger head, the stated reason and the abandoning actor by digest under one lock; it binds no result, because there is none" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#hasTruthLayer> "task" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayRead> "repository maintainer" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayReadRoleId> "role.repository_maintainer" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayReadRoleId> "role.repository_repair_agent" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayWrite> "repository repair agent" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayWriteRoleId> "role.repository_repair_agent" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustMutateVia> "governed terminal abandonment" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustMutateViaId> "mutation_path.terminal_abandonment" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustReadVia> "bound repository read" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#ownerService> "service.sensei.completion" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task completion" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
@@ -174,6 +195,18 @@
 <https://globular.io/awareness#authorityGrant/grant.sensei.repository_repair> <https://globular.io/awareness#targetKind> "governed_source" .
 <https://globular.io/awareness#authorityGrant/grant.sensei.repository_repair> <https://globular.io/awareness#targetKind> "source_file" .
 <https://globular.io/awareness#authorityGrant/grant.sensei.repository_repair> <https://globular.io/awareness#validFrom> "2026-07-15T00:00:00Z" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityGrant> .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task abandonment grant" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#actorRoleId> "role.repository_repair_agent" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#allowedAction> "dispose" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_grants.yaml" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#authorityDomainId> "authority.sensei_terminal_abandonment" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#delegable> "false" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#maximumRiskClass> "architecture_sensitive" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#requiredMechanismId> "mutation_path.terminal_abandonment" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#targetKind> "task_abandonment" .
+<https://globular.io/awareness#authorityGrant/grant.sensei.terminal_abandonment> <https://globular.io/awareness#validFrom> "2026-07-15T00:00:00Z" .
 <https://globular.io/awareness#authorityGrant/grant.sensei.terminal_completion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityGrant> .
 <https://globular.io/awareness#authorityGrant/grant.sensei.terminal_completion> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task completion grant" .
 <https://globular.io/awareness#authorityGrant/grant.sensei.terminal_completion> <https://globular.io/awareness#actorRoleId> "role.repository_repair_agent" .
@@ -6182,6 +6215,12 @@
 <https://globular.io/awareness#mutationPath/mutation_path.repository_edit> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#mutationPath/mutation_path.repository_edit> <https://globular.io/awareness#targetKind> "governed_source" .
 <https://globular.io/awareness#mutationPath/mutation_path.repository_edit> <https://globular.io/awareness#targetKind> "source_file" .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MutationPath> .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <http://www.w3.org/2000/01/rdf-schema#label> "Governed terminal task abandonment" .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <https://globular.io/awareness#authoredIn> "docs/awareness/mutation_paths.yaml" .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <https://globular.io/awareness#mechanismKind> "governed_workflow" .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <https://globular.io/awareness#status> "active" .
+<https://globular.io/awareness#mutationPath/mutation_path.terminal_abandonment> <https://globular.io/awareness#targetKind> "task_abandonment" .
 <https://globular.io/awareness#mutationPath/mutation_path.terminal_completion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#MutationPath> .
 <https://globular.io/awareness#mutationPath/mutation_path.terminal_completion> <http://www.w3.org/2000/01/rdf-schema#label> "Governed terminal task completion" .
 <https://globular.io/awareness#mutationPath/mutation_path.terminal_completion> <https://globular.io/awareness#authoredIn> "docs/awareness/mutation_paths.yaml" .
@@ -9730,9 +9769,9 @@
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject> .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fsubjectstate%2Fsubjectstate.go> .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 206f35224700" .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <https://globular.io/awareness#seedDigestSha256> "206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507" .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <https://globular.io/awareness#seedTripleCount> "9738" .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-206f352247007cd203b82568defa5c31e028fd9f065d1161964749a9a36e9507> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 3e8a5de68ffd" .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <https://globular.io/awareness#seedDigestSha256> "3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3" .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <https://globular.io/awareness#seedTripleCount> "9777" .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-3e8a5de68ffd5a6292bfcee42d0a75bc17556e6eef63b7d4c69db0ab453057c3> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
