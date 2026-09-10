@@ -94,3 +94,26 @@ func TestConsumeCapabilityIsAPersistableActionThatMovesTheDigest(t *testing.T) {
 		})
 	}
 }
+
+// N2 (3981430709). A governed task with typed authority resolved but no
+// admission_decided has Governed=true and both capability flags false. The typed
+// branch matches neither case and falls through to the ordinary selection, which
+// with no blockers reaches ActionCompleteTask -- telling consumers a task
+// awaiting admission is complete, and causing singleNonCompletedTask to filter
+// it out of discovery entirely.
+func TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion(t *testing.T) {
+	// ready_for_admission: governed, nothing granted, nothing consumed.
+	got := selectNextAction(cleanState("waiting"), true, GovernedMutationDisposition{Governed: true})
+	if got.Kind == ActionCompleteTask {
+		t.Fatalf("N2: a governed task awaiting admission selected %q; missing decision and false capability flags cannot establish completion",
+			got.Kind)
+	}
+	if got.Kind != ActionRequestMutation {
+		t.Fatalf("N2: a governed task awaiting admission selected %q, want %q", got.Kind, ActionRequestMutation)
+	}
+}
+
+// A governance-integrity failure never reaches the selector: it fails the call
+// closed with an error, so no state is produced at all. That is the stronger
+// property, and it is asserted in tasksession where the error originates
+// (TestGovernanceErrorProducesNoStateAtAll).
