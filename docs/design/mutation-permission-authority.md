@@ -1,0 +1,66 @@
+# Mutation permission: one owner, and the bridge that is not built here
+
+**Status:** design record for the G3 repair. Scope-limited on purpose.
+
+## What `permission.modify` means
+
+**Permission to consume a NEW mutation capability.**
+
+It does **not** mean permission to apply an operation whose capability was
+already consumed. The two are different questions with different ledger
+preconditions, and one string cannot answer both. After consumption the correct
+answer is "no new capability" — projected as `waiting`, never as `refused`,
+because a spent capability is not a repudiated one and `refused` would assert
+that an authorized application was unauthorized.
+
+## The one owner
+
+`tasksession.resolveMutationPermission` is the sole producer of this predicate.
+`AdvanceTask`, `projectControlStatusAndClosure` (behind `ControlStatus`,
+`ResolveControlAndClosure` and `BuildTaskBriefing`) and the persisted-projection
+path all route through it. None re-derives it, and none reads
+`decision.MutationCapability` directly.
+
+It returns the governance fold it used, so a caller needing the disposition
+reuses that fold rather than folding a second time.
+
+## The protocol boundary
+
+| Chain state | Authority | Behaviour |
+|---|---|---|
+| typed authority resolved (`gov.Resolved`) | **the verified ledger** | grant only while a typed decision binds and its capability is unconsumed |
+| not resolved | the file protocol | preserved, with the rule `AdvanceTask` already applied: the legacy path may not hand out a positive mutation capability on its own |
+| governance-integrity error | — | **fail closed**; grant nothing |
+
+Established file-protocol workflows keep working under their own contract. A task
+that has resolved typed governance cannot fall back to file authority through any
+reader.
+
+## The cache carries the projection, never the permission
+
+A persisted `control/latest.yaml` records what governance said when
+`advance-task` last ran. Serving it re-asserts a grant the ledger may since have
+withdrawn. Measured on real records before this repair: seven persisted
+projections asserted `modify: admitted` for chains carrying no authority
+resolution at all. The permission is therefore always re-derived; only the rest
+of the projection is reused.
+
+## What this repair deliberately does NOT do
+
+It does not connect task-ledger admission to the file-protocol application chain.
+That bridge is a separate design, and when it is built:
+
+- **Durable receipt identities:** `TaskBinding` and
+  `CapabilityConsumptionDigestSHA256`. Today `candidateapply` carries neither —
+  an application joins to a decision by digest, but to no task and to no
+  consumption.
+- **Runtime authorization comes from a verified ledger snapshot**, not from a
+  receipt read in isolation.
+- **Consumed operation IDs resolve through the admitted `ChangePlan`** before
+  their targets are compared with applied paths. The IDs are not paths, and
+  comparing them directly would be a category error.
+
+Recovery for that bridge must distinguish authorization-available,
+application-in-progress, applied-but-unrecorded, and verified — returning
+unknown when the evidence cannot separate them, and never letting an absent
+observation select "not attempted".
