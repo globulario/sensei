@@ -21941,6 +21941,12 @@ test_symbols:
     package: taskcontrol
     language: go
     doc: "F4b. After consumption the owner resolves \"waiting\" -- meaning no NEW\ncapability. The selector reads that as \"request mutation admission\", asking\nfor an admission that was just spent."
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion
+    package: taskcontrol
+    language: go
+    doc: "N2 (3981430709). A governed task with typed authority resolved but no\nadmission_decided has Governed=true and both capability flags false. The typed\nbranch matches neither case and falls through to the ordinary selection, which\nwith no blockers reaches ActionCompleteTask -- telling consumers a task\nawaiting admission is complete, and causing singleNonCompletedTask to filter\nit out of discovery entirely."
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -22347,6 +22353,42 @@ test_symbols:
     package: tasksession
     language: go
     doc: "Constraint 5: a correct selector with incorrect wiring must not survive. This\nasserts tasksession actually passes the governance disposition through, by\nchecking the ACTION the public projection returns -- not the selector in\nisolation."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestConsumptionMembershipSubsetRule
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestConsumptionMembershipSubsetRule
+    package: tasksession
+    language: go
+    doc: "consumptionBinds is pure, so the three membership cases are tested directly --\nincluding the one the seeded fixture cannot produce, which would otherwise\nSKIP, and a skipped check is not a check."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestGovernanceErrorProducesNoStateAtAll
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestGovernanceErrorProducesNoStateAtAll
+    package: tasksession
+    language: go
+    doc: "A governance-integrity failure fails the call closed: no state is produced at\nall, so it never reaches the selector."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestN1_ReplayMustLeaveTheTaskVerifiable
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestN1_ReplayMustLeaveTheTaskVerifiable
+    package: tasksession
+    language: go
+    doc: "N1 (3981430697). A replay refreshes ReceiptDigestSHA256 in memory, then\nupdateActiveControlPointer writes that digest into active.yaml while\ncontrol/latest.yaml still holds the old bytes. verifySession then compares the\npointer against the persisted artifact and reports a digest mismatch, leaving\nthe task stale immediately after a SUCCESSFUL replay.\n\nThe decisive shape is sequential, per the repair contract: replay, then a\nfresh public call must still verify."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestN3_ConsumptionMustSpendOnlyAdmittedOperations
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestN3_ConsumptionMustSpendOnlyAdmittedOperations
+    package: tasksession
+    language: go
+    doc: "N3 (3981430712). A receipt carrying the right task, session, decision digest\nand capability, but naming an operation the decision never admitted, is\naccepted as an ordinary spend. ConsumeCapability refuses to CREATE such a\nreceipt (capability.go:47-55); the reader must refuse to BELIEVE one."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestN4_PrepareReturnsACoherentPermissionAndAction
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestN4_PrepareReturnsACoherentPermissionAndAction
+    package: tasksession
+    language: go
+    doc: "N4 (3981430720). For a task on the file protocol with a positive decision,\nModify is downgraded while Next still instructs the edit, so Prepare's output\nsimultaneously says \"no consumable capability\" and \"perform the edit\"; and the\nfile protocol's established Modify value changed despite the stated boundary."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestTypedPrepareReturnsACoherentPermissionAndAction
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestTypedPrepareReturnsACoherentPermissionAndAction
+    package: tasksession
+    language: go
+    doc: "Contract 3, typed half. The file-protocol case (N4) cannot see this: it never\nenters the ledger-derived branch, so a mutation removing the governed action\nsurvives it. Equivalent prepare scenarios on BOTH protocols, asserting Modify\nand Next TOGETHER -- a test of Modify alone misses this defect again."
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant
