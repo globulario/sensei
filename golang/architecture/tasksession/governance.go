@@ -281,3 +281,76 @@ func changePlanTargets(plan closureprotocol.ChangePlan) []string {
 	}
 	return out
 }
+
+// MutationPermission is what every public projection of a task's mutation
+// permission must be derived from. It exists because three surfaces used to
+// answer the question independently -- AdvanceTask from the ledger reducer,
+// projectControlStatusAndClosure and BuildTaskBriefing from the admission
+// decision FILE -- and disagreed with each other on a healthy binding in both
+// directions: reporting a grant the ledger withheld, and withholding one the
+// ledger had granted.
+//
+// WHAT permission.modify MEANS, exactly: permission to CONSUME A NEW mutation
+// capability. It is not permission to apply an operation whose capability was
+// already consumed. After consumption the answer is "no new capability", which
+// is not the same statement as "the application you already made was
+// unauthorized", and the two must not be collapsed onto Refused.
+type MutationPermission struct {
+	// Capability is the projected permission.modify value.
+	Capability string
+	// Scope is the exact modify envelope the capability covers. It is non-empty
+	// only while a fresh grant is available.
+	Scope []string
+	// LedgerDerived reports that a typed governed chain decided this, rather
+	// than the file protocol. It is what the protocol boundary turns on.
+	LedgerDerived bool
+	// Disposition is the governance fold this permission was derived from. It is
+	// carried so a caller that also needs the disposition reuses THIS fold rather
+	// than folding a second time -- one authoritative world per call, which is
+	// the same property foldGovernance's own snapshot comment protects.
+	Disposition governanceState
+}
+
+// resolveMutationPermission is the SOLE owner of the mutation-permission
+// predicate. Every public projection routes through it; none re-derives it.
+//
+// THE PROTOCOL BOUNDARY. A task whose chain has resolved typed authority is
+// governed by the ledger, and the decision file may not add to what the reducer
+// grants. A task that has not is on the file protocol, whose established
+// behaviour is preserved -- with the one rule AdvanceTask already applied: the
+// legacy path may not hand out a positive mutation capability on its own.
+//
+// FAIL CLOSED. A governance-integrity error is never "no governance"; it grants
+// nothing. Absence of a readable governed record and absence of governance are
+// different facts and only the second is a legitimate file-protocol task.
+func resolveMutationPermission(taskDir string, decision admission.Decision, now time.Time) (MutationPermission, error) {
+	gov, err := governanceDisposition(taskDir, now, nil)
+	if err != nil {
+		return MutationPermission{Capability: admission.CapabilityWaiting, LedgerDerived: true}, err
+	}
+	if gov.Resolved {
+		// The single-use grant is projected only while a typed decision binds and
+		// its capability is unconsumed. After consumption or scope verification
+		// the reducer withholds it, and no read may reopen it.
+		if gov.GrantModify {
+			return MutationPermission{
+				Capability:    admission.CapabilityAdmitted,
+				Scope:         append([]string{}, gov.ModifyPaths...),
+				LedgerDerived: true,
+				Disposition:   gov,
+			}, nil
+		}
+		// No NEW capability. Deliberately not Refused: a consumed capability is
+		// spent, not repudiated.
+		return MutationPermission{Capability: admission.CapabilityWaiting, LedgerDerived: true, Disposition: gov}, nil
+	}
+	capability := decision.MutationCapability
+	if capability == admission.CapabilityAdmitted || capability == admission.CapabilityAdmittedWithConditions {
+		capability = admission.CapabilityWaiting
+	}
+	return MutationPermission{
+		Capability:  capability,
+		Scope:       append([]string{}, decision.Envelope.ModifyPaths...),
+		Disposition: gov,
+	}, nil
+}

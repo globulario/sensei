@@ -313,28 +313,12 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	// legacy admission no longer hands out modify permission on its own. A
 	// governance-integrity error fails closed — the task cannot advance and no
 	// mutation is granted.
-	gov, gerr := governanceDisposition(taskDir, now().UTC(), nil)
+	perm, gerr := resolveMutationPermission(taskDir, decision, now().UTC())
 	if gerr != nil {
 		return AdvanceTaskResult{}, gerr
 	}
-	modifyCapability := decision.MutationCapability
-	modifyScope := decision.Envelope.ModifyPaths
-	if gov.Resolved {
-		// A single-use mutation grant is projected only while the typed decision
-		// binds and its capability is unconsumed. After consumption or scope
-		// verification the ledger reducer withholds the grant, and no read can
-		// reopen it.
-		if gov.GrantModify {
-			modifyCapability = admission.CapabilityAdmitted
-			modifyScope = gov.ModifyPaths
-		} else {
-			modifyCapability = admission.CapabilityWaiting
-		}
-	} else if modifyCapability == admission.CapabilityAdmitted || modifyCapability == admission.CapabilityAdmittedWithConditions {
-		// A task that has not resolved typed governance must not be granted a
-		// mutation capability through the legacy path.
-		modifyCapability = admission.CapabilityWaiting
-	}
+	modifyCapability := perm.Capability
+	modifyScope := perm.Scope
 	classStarted := now()
 	controlState, err := taskcontrol.Project(taskcontrol.Inputs{
 		TaskID: baseSession.TaskID, Iteration: latestIter.Index, Binding: baseSession.Binding,
@@ -420,7 +404,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	// The typed ledger reducer is authoritative for the projected disposition;
 	// reuse the disposition already folded for the mutation-grant decision. At
 	// the scope-verified terminal this points the next action at result rebuild.
-	applyGovernedDisposition(&status, gov, baseSession.OperationalStatus)
+	applyGovernedDisposition(&status, perm.Disposition, baseSession.OperationalStatus)
 	statusBytes, err := yaml.Marshal(map[string]StatusResult{"architecture_task_status": status})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -572,7 +556,26 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 	// architect has already dismissed — the same defect one layer out, where the
 	// projection is correct and a copy of an older one is returned instead.
 	if len(verifyErrors) == 0 && latestState != nil && !taskHasGovernedDisposition(taskDir) {
-		return *latestState, closure.Report{}, admission.Decision{}, taskDir, nil
+		// The cache may carry the expensive projection, but it may NOT carry the
+		// mutation permission. A persisted control state records what governance
+		// said when advance-task last ran; serving it re-asserts a grant the
+		// ledger may since have withdrawn -- or withholds one it has since made.
+		// Measured on real records: seven persisted projections asserted
+		// modify=admitted for tasks whose chains carry no authority resolution at
+		// all. The permission is therefore always re-derived from the one owner,
+		// and only the rest of the projection is reused.
+		cached := *latestState
+		decision, decErr := loadCurrentAdmissionDecision(taskDir)
+		if decErr != nil {
+			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", decErr
+		}
+		perm, permErr := resolveMutationPermission(taskDir, decision, time.Now().UTC())
+		if permErr != nil {
+			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", permErr
+		}
+		cached.Permission.Modify = perm.Capability
+		cached.Permission.ExactScope = append(append([]string{}, decision.Envelope.ReadPaths...), perm.Scope...)
+		return cached, closure.Report{}, admission.Decision{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
 	if useLatest {
@@ -608,19 +611,25 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 	// declaring real ones: admission.projectProof derives obligations from
 	// the current closure's RelevantNodes, so the two decisions can
 	// genuinely diverge, and only the current one is authoritative.
-	decisionPath := filepath.Join(taskDir, "admission", "decision.yaml")
-	if paths.Results != "" {
-		decisionPath = filepath.Join(filepath.Dir(paths.Results), "admission-decision.yaml")
-	}
-	decision, err := admission.LoadDecision(decisionPath)
+	decision, err := admission.LoadDecision(currentDecisionPath(taskDir, paths.Results))
 	if err != nil {
 		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", err
 	}
+	// The mutation capability comes from the one owner, never from the decision
+	// file directly. Reading decision.MutationCapability here is what made this
+	// projection disagree with AdvanceTask and with the ledger on a healthy
+	// binding, in both directions.
+	perm, permErr := resolveMutationPermission(taskDir, decision, time.Now().UTC())
+	if permErr != nil {
+		return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", permErr
+	}
 	inspectCapability := decision.InspectionCapability
-	mutationCapability := decision.MutationCapability
+	mutationCapability := perm.Capability
+	modifyScope := perm.Scope
 	if len(verifyErrors) > 0 {
 		inspectCapability = "uncertifiable"
 		mutationCapability = admission.CapabilityRefused
+		modifyScope = nil
 	}
 	var results *probe.ResultDocument
 	if paths.Results != "" {
@@ -637,12 +646,34 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 	}
 	state, err := taskcontrol.Project(taskcontrol.Inputs{
 		TaskID: session.TaskID, Iteration: iteration, Binding: session.Binding,
-		Permission: taskcontrol.PermissionSummary{Inspect: inspectCapability, Modify: mutationCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), decision.Envelope.ModifyPaths...)},
+		Permission: taskcontrol.PermissionSummary{Inspect: inspectCapability, Modify: mutationCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), modifyScope...)},
 		Closure:    closureReport, Dialogue: dialogue, Claims: claims, Probes: probes, Results: results,
 		BindingHealthy: len(verifyErrors) == 0, BindingErrors: verifyErrors, GeneratedAt: "1970-01-01T00:00:00Z", Receipts: receipts,
 		Dispositions: governedDispositions(taskDir, dialogue),
 	})
 	return state, closureReport, decision, taskDir, err
+}
+
+// currentDecisionPath resolves the admission decision that describes the task's
+// CURRENT generation -- never the fixed prepare-time file once a generation
+// exists. Extracted so the cache path and the rebuild path cannot drift apart;
+// two copies of this rule is how the prepare-time file came to be read
+// unconditionally in the first place.
+func currentDecisionPath(taskDir, resultsPath string) string {
+	if strings.TrimSpace(resultsPath) != "" {
+		return filepath.Join(filepath.Dir(resultsPath), "admission-decision.yaml")
+	}
+	return filepath.Join(taskDir, "admission", "decision.yaml")
+}
+
+// loadCurrentAdmissionDecision resolves and loads the task's current decision
+// through the same generation rule the rebuild path uses.
+func loadCurrentAdmissionDecision(taskDir string) (admission.Decision, error) {
+	paths, _, err := currentControlPaths(taskDir)
+	if err != nil {
+		return admission.Decision{}, err
+	}
+	return admission.LoadDecision(currentDecisionPath(taskDir, paths.Results))
 }
 
 func loadSessionForControl(path string) (Session, []string, error) {
