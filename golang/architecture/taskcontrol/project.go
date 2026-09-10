@@ -34,6 +34,14 @@ type Inputs struct {
 	GeneratedAt    string
 	Receipts       []string
 	DominanceEdges []DominanceEdge
+	// GovernedMutation is the ledger-derived mutation disposition, supplied by
+	// the caller for a TYPED governed task and left zero for a task on the file
+	// protocol. The action for a governed task is selected from this, never from
+	// the permission scalar: once permission.modify was narrowed to mean "may
+	// consume a NEW capability", reading it as an instruction produced two wrong
+	// answers -- "admitted" told an agent to edit before consuming, and a spent
+	// capability asked for another admission.
+	GovernedMutation GovernedMutationDisposition
 	// Dispositions is the governed decision about each question, keyed by
 	// question ID, folded from the verified task ledger by the caller.
 	//
@@ -150,7 +158,7 @@ func Project(in Inputs) (TaskControlState, error) {
 	state.Evidence = summarizeEvidence(state.Probes)
 	state.PrimaryBlocker = primaryBlocker(state.Blockers)
 	state.PrimaryQuestion = primaryQuestion(state.Questions)
-	state.NextAction = selectNextAction(state, in.BindingHealthy)
+	state.NextAction = selectNextAction(state, in.BindingHealthy, in.GovernedMutation)
 	if err := validateAccounting(state); err != nil {
 		state.Limitations = append(state.Limitations, err.Error())
 		state.NextAction = NextAction{Kind: ActionProvideMissingInput, Summary: "repair task-control accounting before proceeding"}
@@ -536,7 +544,31 @@ func primaryQuestion(questions []ClassifiedQuestion) *ClassifiedQuestion {
 	return &candidates[0]
 }
 
-func selectNextAction(state TaskControlState, bindingHealthy bool) NextAction {
+// GovernedMutationDisposition is what a typed governed chain says about the
+// mutation step. Zero means "not a typed governed task": the file protocol's
+// established behaviour is preserved untouched.
+type GovernedMutationDisposition struct {
+	// Governed is true only when typed authority resolved on this chain.
+	Governed bool
+	// CapabilityAvailable is true when a decision binds and its single-use
+	// capability has NOT been consumed.
+	CapabilityAvailable bool
+	// CapabilityConsumed is true when the capability was validly spent.
+	//
+	// It deliberately does NOT imply that an application remains to be done.
+	// Whether the mutation was already applied is the recovery question the
+	// application bridge owns, and this projection must not answer it.
+	CapabilityConsumed bool
+}
+
+// SelectNextActionFor re-selects the next action for an already-projected state
+// under a current governance disposition. It exists so a caller refreshing a
+// cached projection cannot leave the action describing a superseded permission.
+func SelectNextActionFor(state TaskControlState, gov GovernedMutationDisposition) NextAction {
+	return selectNextAction(state, state.BindingHealth == "current", gov)
+}
+
+func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedMutationDisposition) NextAction {
 	if !bindingHealthy {
 		return NextAction{Kind: ActionRepairBinding, Summary: "repair the stale or invalid task binding"}
 	}
@@ -554,11 +586,29 @@ func selectNextAction(state TaskControlState, bindingHealthy bool) NextAction {
 	if state.Summary.ActiveRootBlockers > 0 {
 		return NextAction{Kind: ActionAdvanceConvergence, TargetID: state.TaskID, Summary: "advance one convergence iteration with the current evidence"}
 	}
-	if strings.Contains(state.Permission.Modify, "admitted") {
-		return NextAction{Kind: ActionPerformAdmittedEdit, TargetID: state.TaskID, Summary: "perform only the admitted edit"}
-	}
-	if state.Permission.Modify == "waiting" {
-		return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
+	// A TYPED governed task selects from the ledger disposition. The permission
+	// scalar answers "may a new capability be consumed" and is not an
+	// instruction; both of its old readings were wrong once it meant that.
+	if gov.Governed {
+		switch {
+		case gov.CapabilityAvailable:
+			return NextAction{Kind: ActionConsumeCapability, TargetID: state.TaskID, Summary: "run consume-admission to spend the single-use capability for this exact operation set, before applying any mutation"}
+		case gov.CapabilityConsumed:
+			// Consumed does not establish that an application remains to be done:
+			// a process may have applied and crashed before recording. Point at
+			// the step that reconciles and records rather than asserting either.
+			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to record the observed change and verify scope for the consumed operation"}
+		}
+		// Governed but neither available nor consumed (no decision yet, refused,
+		// or already past mutation): fall through to the ordinary selection.
+	} else {
+		// File protocol: established behaviour, unchanged.
+		if strings.Contains(state.Permission.Modify, "admitted") {
+			return NextAction{Kind: ActionPerformAdmittedEdit, TargetID: state.TaskID, Summary: "perform only the admitted edit"}
+		}
+		if state.Permission.Modify == "waiting" {
+			return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
+		}
 	}
 	return NextAction{Kind: ActionCompleteTask, TargetID: state.TaskID, Summary: "complete the task and preserve final receipts"}
 }

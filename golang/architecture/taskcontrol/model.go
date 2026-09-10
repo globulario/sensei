@@ -40,10 +40,16 @@ const (
 	ActionRequestInspection       = "request_inspection_admission"
 	ActionRequestMutation         = "request_mutation_admission"
 	ActionPerformAdmittedEdit     = "perform_admitted_edit"
-	ActionVerifyAdmission         = "verify_admission"
-	ActionCompleteTests           = "complete_tests"
-	ActionCompleteTask            = "complete_task"
-	ActionNone                    = "none"
+	// ActionConsumeCapability is the step between an admitted capability and any
+	// edit. It reuses the token tasksession already uses for the same step
+	// (AdvanceNextConsumeCapability, "consume_capability"); this vocabulary
+	// simply could not express it, which is why the selector reached for
+	// perform_admitted_edit and told agents to mutate first.
+	ActionConsumeCapability = "consume_capability"
+	ActionVerifyAdmission   = "verify_admission"
+	ActionCompleteTests     = "complete_tests"
+	ActionCompleteTask      = "complete_task"
+	ActionNone              = "none"
 
 	ReasonDominanceCycle  = "task.control.dominance_cycle"
 	ReasonNoPrimaryAction = "task.control.no_primary_action"

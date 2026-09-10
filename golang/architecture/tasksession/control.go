@@ -252,6 +252,14 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 	convDuration := now().Sub(convStarted)
 	if conv.Disposition == convergence.DispositionReplay {
 		if existing, loadErr := LoadTaskControl(filepath.Join(taskDir, "control", "latest.yaml")); loadErr == nil {
+			// A replay returns a CACHED control state. Serving it unchanged
+			// re-asserts whatever permission and action were true when it was
+			// written -- so a capability consumed since then still reads as
+			// admitted, and both the CLI and MCP print this directly.
+			existing, loadErr = refreshCachedEvaluation(taskDir, existing)
+			if loadErr != nil {
+				return AdvanceTaskResult{}, loadErr
+			}
 			if err := updateActiveControlPointer(repoRoot, ptr, existing.ReceiptDigestSHA256, nil); err != nil {
 				return AdvanceTaskResult{}, err
 			}
@@ -325,7 +333,7 @@ func AdvanceTask(opts AdvanceTaskOptions) (AdvanceTaskResult, error) {
 		Permission: taskcontrol.PermissionSummary{Inspect: decision.InspectionCapability, Modify: modifyCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), modifyScope...)},
 		Closure:    closureReport, Dialogue: latestDialogue, Claims: latestClaims, Probes: latestProbes,
 		Results: &batch.Results, BindingHealthy: true, GeneratedAt: observedAt, Receipts: iterationReceiptIDs(latestIter),
-		Dispositions: governedDispositions(taskDir, latestDialogue),
+		Dispositions: governedDispositions(taskDir, latestDialogue), GovernedMutation: perm.GovernedMutation,
 	})
 	if err != nil {
 		return AdvanceTaskResult{}, err
@@ -564,18 +572,11 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		// modify=admitted for tasks whose chains carry no authority resolution at
 		// all. The permission is therefore always re-derived from the one owner,
 		// and only the rest of the projection is reused.
-		cached := *latestState
-		decision, decErr := loadCurrentAdmissionDecision(taskDir)
-		if decErr != nil {
-			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", decErr
+		refreshed, refreshErr := refreshCachedEvaluation(taskDir, *latestState)
+		if refreshErr != nil {
+			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", refreshErr
 		}
-		perm, permErr := resolveMutationPermission(taskDir, decision, time.Now().UTC())
-		if permErr != nil {
-			return taskcontrol.TaskControlState{}, closure.Report{}, admission.Decision{}, "", permErr
-		}
-		cached.Permission.Modify = perm.Capability
-		cached.Permission.ExactScope = append(append([]string{}, decision.Envelope.ReadPaths...), perm.Scope...)
-		return cached, closure.Report{}, admission.Decision{}, taskDir, nil
+		return refreshed, closure.Report{}, admission.Decision{}, taskDir, nil
 	}
 	paths := baseControlPaths(taskDir)
 	if useLatest {
@@ -649,7 +650,7 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 		Permission: taskcontrol.PermissionSummary{Inspect: inspectCapability, Modify: mutationCapability, ExactScope: append(append([]string{}, decision.Envelope.ReadPaths...), modifyScope...)},
 		Closure:    closureReport, Dialogue: dialogue, Claims: claims, Probes: probes, Results: results,
 		BindingHealthy: len(verifyErrors) == 0, BindingErrors: verifyErrors, GeneratedAt: "1970-01-01T00:00:00Z", Receipts: receipts,
-		Dispositions: governedDispositions(taskDir, dialogue),
+		Dispositions: governedDispositions(taskDir, dialogue), GovernedMutation: perm.GovernedMutation,
 	})
 	return state, closureReport, decision, taskDir, err
 }
@@ -659,6 +660,37 @@ func projectControlStatusAndClosure(repoRoot, taskDir string, active, useLatest,
 // exists. Extracted so the cache path and the rebuild path cannot drift apart;
 // two copies of this rule is how the prepare-time file came to be read
 // unconditionally in the first place.
+// refreshCachedEvaluation re-derives, from ONE current evaluation, every field
+// of a cached control state that the ledger can invalidate: the permission, the
+// next action it implies, and the receipt digest that identifies the state
+// actually being returned.
+//
+// Refreshing only the permission is insufficient and was its own defect: the
+// cached action still described the superseded permission -- directing a
+// mutation with no capability, or requesting an admission already granted --
+// and the receipt digest no longer equalled StateDigest of the returned state,
+// so JSON and MCP consumers were handed an identifier for a state that never
+// existed.
+//
+// The rest of the projection (blockers, questions, probes) is genuinely
+// expensive and is reused: it is not what the ledger changed.
+func refreshCachedEvaluation(taskDir string, cached taskcontrol.TaskControlState) (taskcontrol.TaskControlState, error) {
+	decision, err := loadCurrentAdmissionDecision(taskDir)
+	if err != nil {
+		return taskcontrol.TaskControlState{}, err
+	}
+	perm, err := resolveMutationPermission(taskDir, decision, time.Now().UTC())
+	if err != nil {
+		return taskcontrol.TaskControlState{}, err
+	}
+	cached.Permission.Modify = perm.Capability
+	cached.Permission.ExactScope = append(append([]string{}, decision.Envelope.ReadPaths...), perm.Scope...)
+	cached.NextAction = taskcontrol.SelectNextActionFor(cached, perm.GovernedMutation)
+	cached.ReceiptDigestSHA256 = ""
+	cached.ReceiptDigestSHA256 = taskcontrol.StateDigest(cached)
+	return cached, nil
+}
+
 func currentDecisionPath(taskDir, resultsPath string) string {
 	if strings.TrimSpace(resultsPath) != "" {
 		return filepath.Join(filepath.Dir(resultsPath), "admission-decision.yaml")
