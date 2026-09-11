@@ -251,7 +251,21 @@ func Seed(baseDir string, opts Options) (Result, error) {
 	if _, err := admission.RecordAuthorityResolved(store, h, base.Task, resolution, actor, closureprotocol.ChangePlan{PlanID: "plan.e2e", Operations: ops}, base, nil, opts.Epoch); err != nil {
 		return Result{}, fmt.Errorf("authority: %w", err)
 	}
-	decision := closureprotocol.AdmissionDecision{DecisionID: "decision.e2e", RequestDigestSHA256: "req0", PolicyID: "admission.strict.v2",
+	// The request digest is the REAL one, computed over the same AdmissionRequest
+	// a reader reconstructs from the recorded authority. It used to be the
+	// placeholder "req0": a decision no producer could emit, since
+	// admission.DecideAdmission always stamps SemanticDigest(req). Nothing caught
+	// it, because a chain carrying scope_verified returned from the fold before
+	// any decision binding was ever checked.
+	plan := closureprotocol.ChangePlan{PlanID: "plan.e2e", Operations: ops}
+	requestDigest := closureprotocol.MustSemanticDigest(closureprotocol.AdmissionRequest{
+		ActorBinding:                    actor,
+		BaseBinding:                     base,
+		ChangePlan:                      plan,
+		AuthorityResolutionDigestSHA256: authorityDigest,
+		PolicyID:                        strings.TrimSpace(base.Policies.Admission),
+	})
+	decision := closureprotocol.AdmissionDecision{DecisionID: "decision.e2e", RequestDigestSHA256: requestDigest, PolicyID: strings.TrimSpace(base.Policies.Admission),
 		OperationVerdicts: verdicts, CapabilityID: "cap.e2e", CompletionPolicyID: "completion.architectural_closure.v1"}
 	decisionDigest := closureprotocol.MustSemanticDigest(decision)
 	if h, err = head(); err != nil {
