@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"gopkg.in/yaml.v3"
 )
 
@@ -102,14 +103,32 @@ func TestConsumeCapabilityIsAPersistableActionThatMovesTheDigest(t *testing.T) {
 // awaiting admission is complete, and causing singleNonCompletedTask to filter
 // it out of discovery entirely.
 func TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion(t *testing.T) {
-	// ready_for_admission: governed, nothing granted, nothing consumed.
-	got := selectNextAction(cleanState("waiting"), true, GovernedMutationDisposition{Governed: true})
-	if got.Kind == ActionCompleteTask {
-		t.Fatalf("N2: a governed task awaiting admission selected %q; missing decision and false capability flags cannot establish completion",
-			got.Kind)
+	// ready_for_admission. The original expectation here was
+	// request_mutation_admission, written before the lifecycle owner existed;
+	// the ratified mapping names this state's machine operation decide_admission.
+	awaiting := lifecycleaction.Disposition{
+		TypedProtocol: true, AuthorityResolved: true, Status: "ready_for_admission", ReadyForAdmission: true,
 	}
-	if got.Kind != ActionRequestMutation {
-		t.Fatalf("N2: a governed task awaiting admission selected %q, want %q", got.Kind, ActionRequestMutation)
+	got := selectNextAction(cleanState("waiting"), true, GovernedMutationDisposition{Governed: true, Disposition: awaiting})
+	if got.Kind == ActionCompleteTask {
+		t.Fatalf("N2: a governed task awaiting admission selected %q; missing decision and false capability flags cannot establish completion", got.Kind)
+	}
+	if got.Kind != ActionDecideAdmission {
+		t.Fatalf("N2: a governed task awaiting admission selected %q, want %q", got.Kind, ActionDecideAdmission)
+	}
+}
+
+// An unrecognised governed state must fail closed -- never completion, never a
+// mutation action, never an admission instruction invented to fill the gap.
+func TestN2b_UnrecognisedGovernedStateFailsClosed(t *testing.T) {
+	got := selectNextAction(cleanState("waiting"), true, GovernedMutationDisposition{Governed: true})
+	for _, forbidden := range []string{ActionCompleteTask, ActionPerformAdmittedEdit, ActionConsumeCapability, ActionDecideAdmission} {
+		if got.Kind == forbidden {
+			t.Fatalf("an unrecognised governed state selected %q", got.Kind)
+		}
+	}
+	if got.Kind != ActionNone {
+		t.Fatalf("an unrecognised governed state selected %q, want %q", got.Kind, ActionNone)
 	}
 }
 
@@ -117,3 +136,46 @@ func TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion(t *testing.T) {
 // closed with an error, so no state is produced at all. That is the stronger
 // property, and it is asserted in tasksession where the error originates
 // (TestGovernanceErrorProducesNoStateAtAll).
+
+// The four ratified tokens widen the persisted NextAction vocabulary and move
+// StateDigest when selected. Serialization, round trip and digest sensitivity
+// are proven, not assumed.
+func TestRatifiedLifecycleTokensPersistAndMoveTheDigest(t *testing.T) {
+	for _, kind := range []string{
+		ActionResolveAuthority, ActionDecideAdmission,
+		ActionMechanicalRepair, ActionRecordResultTransition,
+	} {
+		t.Run(kind, func(t *testing.T) {
+			base := cleanState("waiting")
+			base.NextAction = NextAction{Kind: ActionNone, TargetID: "task.t"}
+			with := cleanState("waiting")
+			with.NextAction = NextAction{Kind: kind, TargetID: "task.t"}
+			if StateDigest(base) == StateDigest(with) {
+				t.Fatalf("StateDigest does not distinguish %q; a stale digest could describe it", kind)
+			}
+			for _, enc := range []struct {
+				name string
+				m    func(any) ([]byte, error)
+				u    func([]byte, any) error
+			}{{"json", json.Marshal, json.Unmarshal}, {"yaml", yaml.Marshal, yaml.Unmarshal}} {
+				raw, err := enc.m(with)
+				if err != nil {
+					t.Fatalf("%s marshal: %v", enc.name, err)
+				}
+				if !strings.Contains(string(raw), kind) {
+					t.Fatalf("%s serialization dropped %q", enc.name, kind)
+				}
+				var back TaskControlState
+				if err := enc.u(raw, &back); err != nil {
+					t.Fatalf("%s unmarshal: %v", enc.name, err)
+				}
+				if back.NextAction.Kind != kind {
+					t.Fatalf("%s round trip produced %q, want %q", enc.name, back.NextAction.Kind, kind)
+				}
+				if StateDigest(back) != StateDigest(with) {
+					t.Fatalf("%s round trip changed StateDigest for %q", enc.name, kind)
+				}
+			}
+		})
+	}
+}

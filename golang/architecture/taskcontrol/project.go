@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/probe"
 	"gopkg.in/yaml.v3"
 )
@@ -34,7 +35,7 @@ type Inputs struct {
 	GeneratedAt    string
 	Receipts       []string
 	DominanceEdges []DominanceEdge
-	// GovernedMutation is the ledger-derived mutation disposition, supplied by
+	// GovernedMutation carries the ledger-derived lifecycle disposition, supplied by
 	// the caller for a TYPED governed task and left zero for a task on the file
 	// protocol. The action for a governed task is selected from this, never from
 	// the permission scalar: once permission.modify was narrowed to mean "may
@@ -559,6 +560,10 @@ type GovernedMutationDisposition struct {
 	// Whether the mutation was already applied is the recovery question the
 	// application bridge owns, and this projection must not answer it.
 	CapabilityConsumed bool
+	// Disposition is the full lifecycle fact the owner decides from. The two
+	// booleans above are retained for callers that only ask about the mutation
+	// grant; the ACTION comes from here.
+	Disposition lifecycleaction.Disposition
 }
 
 // SelectNextActionFor re-selects the next action for an already-projected state
@@ -590,23 +595,36 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 	// scalar answers "may a new capability be consumed" and is not an
 	// instruction; both of its old readings were wrong once it meant that.
 	if gov.Governed {
-		switch {
-		case gov.CapabilityAvailable:
+		// The lifecycle owner decides; this adapter only presents. Reconstructing
+		// an action from the permission scalar is what made three readers give
+		// three answers for the same state.
+		switch a := lifecycleaction.Select(gov.Disposition); a {
+		case lifecycleaction.ConsumeCapability:
 			return NextAction{Kind: ActionConsumeCapability, TargetID: state.TaskID, Summary: "run consume-admission to spend the single-use capability for this exact operation set, before applying any mutation"}
-		case gov.CapabilityConsumed:
-			// Consumed does not establish that an application remains to be done:
-			// a process may have applied and crashed before recording. Point at
-			// the step that reconciles and records rather than asserting either.
-			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to record the observed change and verify scope for the consumed operation"}
+		case lifecycleaction.VerifyAdmission:
+			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to reconcile and record the consumed operation"}
+		case lifecycleaction.VerifyScope:
+			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to verify the scope of the observed change"}
+		case lifecycleaction.RecordResultTransition:
+			return NextAction{Kind: ActionRecordResultTransition, TargetID: state.TaskID, Summary: "record the result transition, rebuilding and binding the result architecture"}
+		case lifecycleaction.MechanicalRepair:
+			return NextAction{Kind: ActionMechanicalRepair, TargetID: state.TaskID, Summary: "perform the mechanical repair the scope verification requires"}
+		case lifecycleaction.DecideAdmission:
+			return NextAction{Kind: ActionDecideAdmission, TargetID: state.TaskID, Summary: "decide admission for the exact scope"}
+		case lifecycleaction.ResolveAuthority:
+			return NextAction{Kind: ActionResolveAuthority, TargetID: state.TaskID, Summary: "resolve typed authority for this task"}
+		case lifecycleaction.None:
+			return NextAction{Kind: ActionNone, TargetID: state.TaskID, Summary: "admission refused; no legal advance from this state"}
 		default:
-			// EXPLICIT FALLBACK, granting nothing. A governed task with no
-			// decision, a refused one, or an unreadable disposition has both
-			// flags false -- and falling through to the ordinary selection let
-			// it reach ActionCompleteTask, telling consumers a task awaiting
-			// admission was finished and hiding it from singleNonCompletedTask.
-			// Missing decision and false capability flags cannot establish
-			// completion; completion needs its own positive evidence.
-			return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
+			// Blocked, or Unavailable inside a branch that already asserted the
+			// task IS governed -- a contradiction between this adapter's claim
+			// and the owner's verdict. Compatibility lives in the `else` branch
+			// below, reached only when this adapter does not claim governance;
+			// falling through from HERE would let a state nothing should act on
+			// reach the ordinary selection and complete the task. Never
+			// admission, mutation, completion -- and never the action this
+			// state previously carried.
+			return NextAction{Kind: ActionNone, TargetID: state.TaskID, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
 		}
 	} else {
 		// File protocol: established behaviour, unchanged.

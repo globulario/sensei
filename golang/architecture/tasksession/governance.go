@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 )
 
@@ -267,21 +268,35 @@ func applyGovernedDisposition(res *StatusResult, disp governanceState, legacySta
 	res.Status = reconcileGovernedStatus(disp, legacyStatus)
 	if disp.Terminal {
 		res.Phase = string(closureprotocol.PhaseScopeVerified)
-		res.Next = NextAction{Action: NextRebuildResult, Summary: "scope verified; rebuild and bind the result architecture"}
-		return
 	}
-	if !disp.Resolved {
-		return
-	}
-	// Surface the single next legal command in the explicit admission-v2
-	// workflow: at ready_for_mutation the capability is consumed BEFORE the
-	// mutation, then the mutation is applied and verified. Consumption is never
-	// hidden inside verification.
-	switch disp.Status {
-	case StatusReadyForMutation:
+	// The lifecycle owner decides; this adapter presents. Previously this switch
+	// covered two states and left the rest showing whatever the historical
+	// session said -- including a stale "perform admitted edit".
+	switch a := lifecycleaction.Select(lifecycleDisposition(disp, disp.Resolved)); a {
+	case lifecycleaction.ConsumeCapability:
 		res.Next = NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}
-	case StatusAdmitted:
-		res.Next = NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}
+	case lifecycleaction.VerifyAdmission:
+		res.Next = NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to reconcile and record the consumed operation"}
+	case lifecycleaction.VerifyScope:
+		res.Next = NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to verify the scope of the observed change"}
+	case lifecycleaction.RecordResultTransition:
+		res.Next = NextAction{Action: NextRebuildResult, Summary: "record the result transition, rebuilding and binding the result architecture"}
+	case lifecycleaction.MechanicalRepair:
+		res.Next = NextAction{Action: NextMechanicalRepair, Summary: "perform the mechanical repair the scope verification requires"}
+	case lifecycleaction.DecideAdmission:
+		res.Next = NextAction{Action: NextDecideAdmission, Summary: "decide admission for the exact scope"}
+	case lifecycleaction.ResolveAuthority:
+		res.Next = NextAction{Action: NextResolveAuthority, Summary: "resolve typed authority for this task"}
+	case lifecycleaction.None:
+		res.Next = NextAction{Action: NextNoLegalAdvance, Summary: "admission refused; no legal advance from this state"}
+	case lifecycleaction.Unavailable:
+		// Not this owner's task: preserve the established compatibility
+		// behaviour, which is whatever this surface already decided.
+		return
+	default:
+		// Blocked. Never preserve the historical action here -- that is how a
+		// stale "perform admitted edit" survives a state nothing should act on.
+		res.Next = NextAction{Action: NextNoLegalAdvance, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
 	}
 }
 
@@ -298,15 +313,16 @@ func consumptionBinds(c closureprotocol.CapabilityConsumption, dec closureprotoc
 	fail := func(detail string) error {
 		return &GovernanceError{Code: GovernanceCodeConsumptionUnbound, Detail: detail}
 	}
-	// Contract: the fields that make a consumption a consumption at all.
-	if strings.TrimSpace(c.CapabilityID) == "" {
-		return fail("capability_consumption carries no capability_id")
-	}
-	if strings.TrimSpace(c.ConsumedAt) == "" {
-		return fail("capability_consumption carries no consumed_at")
-	}
-	if len(c.ConsumedOperationIDs) == 0 {
-		return fail("capability_consumption spends no operation")
+	// CONTRACT: the canonical validator, not a hand-rolled subset of it.
+	//
+	// Re-listing "the fields that make a consumption a consumption" duplicated
+	// part of closureprotocol.ValidateCapabilityConsumption and silently omitted
+	// the rest -- an invalid ConsumerActor and a non-valid OneUseStatus both
+	// passed, and RecordAdmissionConsumed only serializes its input, so nothing
+	// else would have caught them. The canonical validator owns the contract;
+	// this function owns only the CROSS-RECORD relations it cannot see.
+	if err := closureprotocol.ValidateCapabilityConsumption(c); err != nil {
+		return fail("capability_consumption fails its own contract: " + err.Error())
 	}
 	// Relation: it must bind THIS decision, by the same digest ConsumeCapability
 	// stamps (closureprotocol.SemanticDigest of the decision).
@@ -333,28 +349,33 @@ func consumptionBinds(c closureprotocol.CapabilityConsumption, dec closureprotoc
 	// admission.ConsumeCapability already refuses to CREATE such a receipt
 	// (capability.go:47-55, via admittedOperationSet). A receipt appended or
 	// imported by any other route bypasses that producer, and without this the
-	// reader believes it: the legitimate capability reads as spent while the
-	// receipt names an operation the decision never admitted.
+	// reader believes it.
 	//
-	// This is a SUBSET check, not coverage. A consumption spends a non-empty
-	// subset of the admitted operations and is not required to spend all of
-	// them; requiring that would invent whole-capability consumption, which is
-	// not the protocol's rule.
-	//
-	// Only operation IDENTITY is checked here. Whether those operations' targets
-	// and kinds correspond to a candidate's actual changes needs ChangePlan
+	// SUBSET, not coverage: a consumption spends a NON-EMPTY subset of the
+	// admitted operations and need not spend all of them. Only operation
+	// IDENTITY is checked; matching targets to actual changes needs ChangePlan
 	// resolution and belongs to the application bridge.
+	//
+	// EMPTINESS IS CHECKED EXPLICITLY. The membership loop below runs zero times
+	// for an empty set, so "every consumed operation was admitted" is vacuously
+	// true of a receipt that spends nothing -- and ValidateCapabilityConsumption
+	// does not look at operation IDs at all. A receipt claiming a capability was
+	// spent on no operation is not a spend.
+	consumed := closureprotocol.NormalizeSet(c.ConsumedOperationIDs)
+	if len(consumed) == 0 {
+		return fail("capability_consumption spends no operation; a receipt that spends nothing is not a consumption")
+	}
 	admitted := map[string]bool{}
 	for _, v := range dec.OperationVerdicts {
 		if v.Verdict == admission.AdmissionVerdictAdmitted {
 			admitted[v.OperationID] = true
 		}
 	}
-	if len(admitted) > 0 {
-		for _, op := range c.ConsumedOperationIDs {
-			if !admitted[op] {
-				return fail(fmt.Sprintf("capability_consumption spends operation %q, which the current decision does not admit", op))
-			}
+	// NO len(admitted) > 0 GUARD. Skipping the check when the decision admits
+	// nothing would accept any operation against a decision that admitted none.
+	for _, op := range consumed {
+		if !admitted[op] {
+			return fail(fmt.Sprintf("capability_consumption spends operation %q, which the current decision does not admit", op))
 		}
 	}
 	return nil
@@ -378,6 +399,58 @@ func changePlanTargets(plan closureprotocol.ChangePlan) []string {
 		}
 	}
 	return out
+}
+
+// lifecycleDisposition converts this package's governance fold into the value
+// the lifecycle owner decides from. It is the ONLY conversion: three readers
+// each deriving their own action from governanceState is the defect this
+// removes.
+//
+// typedProtocol is supplied BY THE CALLER, per the caller-context ruling, and is
+// never inferred here:
+//
+//   - An explicitly typed entry point, whose own contract establishes the
+//     protocol, may assert true before authority exists -- that is how
+//     typed-but-awaiting-authority reaches ResolveAuthority.
+//   - A MIXED surface (Status, control status) must pass gov.Resolved. Status
+//     consults this fold for file-protocol sessions too, so calling it proves
+//     nothing about the protocol; only verified typed authority does.
+//   - A mixed surface with no typed authority therefore yields Unavailable, and
+//     the adapter preserves its established compatibility behaviour. THE
+//     AMBIGUITY IS RECORDED, NOT RESOLVED: a legacy file-protocol task and a
+//     typed task awaiting authority are indistinguishable without durable
+//     protocol identity, and an action-selection repair must not introduce a
+//     protocol migration by guessing between them.
+//   - Unreadable or invalid authority never reaches here: foldGovernance returns
+//     a GovernanceError and the caller propagates it.
+func lifecycleDisposition(gov governanceState, typedProtocol bool) lifecycleaction.Disposition {
+	return lifecycleaction.Disposition{
+		TypedProtocol:     typedProtocol,
+		AuthorityResolved: gov.Resolved,
+		Phase:             gov.Phase,
+		Status:            gov.Status,
+		// BOTH, not either. foldGovernance sets GrantModify and
+		// StatusReadyForMutation at exactly ONE site, together, so production
+		// cannot produce one without the other. An OR would let a status label
+		// override a false grant.
+		CapabilityAvailable: gov.GrantModify && gov.Status == StatusReadyForMutation,
+		// The combination production cannot produce. A fixture setting only one
+		// of them is incomplete -- not evidence that the combination is legal --
+		// and the owner refuses rather than choosing which field to believe.
+		GrantInconsistent: gov.GrantModify != (gov.Status == StatusReadyForMutation),
+		// NOT masked by gov.Resolved. Anding authority into the observation
+		// erased the downstream fact before Select could reject it: a chain
+		// reporting StatusAdmitted with authority absent yielded zero positions
+		// and selected resolve_authority, discarding the consumption entirely.
+		// The conversion reports what the fold observed; Select decides whether
+		// it is coherent with authority.
+		CapabilityConsumed:       gov.Status == StatusAdmitted,
+		ScopeVerified:            gov.Terminal,
+		ChangeObserved:           gov.Status == StatusMutationObserved,
+		MechanicalRepairRequired: gov.Status == StatusWaitingMechanical,
+		ReadyForAdmission:        gov.Status == StatusReadyForAdmission,
+		Refused:                  gov.Status == StatusRefused,
+	}
 }
 
 // MutationPermission is what every public projection of a task's mutation
@@ -439,7 +512,7 @@ func resolveMutationPermission(taskDir string, decision admission.Decision, now 
 				Scope:            append([]string{}, gov.ModifyPaths...),
 				LedgerDerived:    true,
 				Disposition:      gov,
-				GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityAvailable: true},
+				GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityAvailable: true, Disposition: lifecycleDisposition(gov, gov.Resolved)},
 			}, nil
 		}
 		// No NEW capability. Deliberately not Refused: a consumed capability is
@@ -448,7 +521,7 @@ func resolveMutationPermission(taskDir string, decision admission.Decision, now 
 			Capability:       admission.CapabilityWaiting,
 			LedgerDerived:    true,
 			Disposition:      gov,
-			GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityConsumed: gov.Status == StatusAdmitted},
+			GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityConsumed: gov.Status == StatusAdmitted, Disposition: lifecycleDisposition(gov, gov.Resolved)},
 		}, nil
 	}
 	capability := decision.MutationCapability
