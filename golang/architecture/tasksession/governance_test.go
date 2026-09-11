@@ -240,18 +240,39 @@ func TestGovernanceWaitsWhenNotEnrolled(t *testing.T) {
 
 // recordScopeVerification appends a scope_verified event to a prepared task
 // ledger, standing in for the post-mutation verify-admission step.
+// recordScopeVerification appends a scope_verified terminal that is ABOUT
+// something.
+//
+// It used to append a bare receipt carrying placeholder digests ("decision",
+// "base", "result") with no admission_decided, no consumption and no
+// change_observed anywhere in the chain -- a chain no producer can emit. That
+// shape is exactly what the fold's terminal now refuses, and while the fold
+// returned before examining any predecessor, nothing could tell the two apart.
+// The helper assembles the real predecessors so each test's own subject is the
+// only thing under test.
 func recordScopeVerification(t *testing.T, taskDir string, verified bool) {
 	t.Helper()
+	dec := ensureDecisionAndConsumption(t, taskDir)
+	observed := ensureChangeObserved(t, taskDir)
+	obsDigest, err := admission.ObservedChangeSetDigest(observed)
+	if err != nil {
+		t.Fatalf("observed change digest: %v", err)
+	}
+	decDigest, err := closureprotocol.SemanticDigest(dec)
+	if err != nil {
+		t.Fatalf("decision digest: %v", err)
+	}
 	head, err := admission.TaskLedgerHead(taskDir)
 	if err != nil {
 		t.Fatalf("head: %v", err)
 	}
 	store := taskLedgerStore(taskDir)
 	v := admission.ScopeVerification{
-		CapabilityID:                  "capability.test",
-		DecisionDigestSHA256:          "decision",
-		BaseTreeDigestSHA256:          "base",
-		ResultTreeDigestSHA256:        "result",
+		CapabilityID:                  dec.CapabilityID,
+		DecisionDigestSHA256:          decDigest,
+		ObservedChangeSetDigestSHA256: obsDigest,
+		BaseTreeDigestSHA256:          observed.BaseTreeDigestSHA256,
+		ResultTreeDigestSHA256:        observed.ResultTreeDigestSHA256,
 		VerifiedOperationIDs:          []string{"op.0"},
 		Status:                        closureprotocol.ReceiptValid,
 		VerifiedAt:                    time.Unix(0, 0).UTC().Format(time.RFC3339),
@@ -269,6 +290,60 @@ func recordScopeVerification(t *testing.T, taskDir string, verified bool) {
 		t.Fatalf("record scope_verified: %v", err)
 	}
 	rebuildProjections(t, taskDir)
+}
+
+// ensureDecisionAndConsumption returns the chain's admission decision, recording
+// one (and its consumption) when the caller has not already.
+func ensureDecisionAndConsumption(t *testing.T, taskDir string) closureprotocol.AdmissionDecision {
+	t.Helper()
+	var dec closureprotocol.AdmissionDecision
+	if hasEventType(t, taskDir, closureprotocol.LedgerEventAdmissionDecided) {
+		if err := admission.LoadLatestArtifact(taskDir, closureprotocol.LedgerEventAdmissionDecided, "admission_decision", &dec); err != nil {
+			t.Fatalf("load admission_decision: %v", err)
+		}
+	} else {
+		dec = recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	}
+	if !hasEventType(t, taskDir, closureprotocol.LedgerEventAdmissionConsumed) {
+		recordCapabilityConsumption(t, taskDir, dec, time.Now().UTC())
+	}
+	return dec
+}
+
+// ensureChangeObserved returns the chain's observed change set, recording a
+// minimal one bound to this task's actor and authority when absent.
+func ensureChangeObserved(t *testing.T, taskDir string) admission.ObservedChangeSet {
+	t.Helper()
+	rec, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		t.Fatalf("load recorded authority: %v", err)
+	}
+	var observed admission.ObservedChangeSet
+	if hasEventType(t, taskDir, closureprotocol.LedgerEventChangeObserved) {
+		if err := admission.LoadLatestArtifact(taskDir, closureprotocol.LedgerEventChangeObserved, "observed_change_set", &observed); err != nil {
+			t.Fatalf("load observed_change_set: %v", err)
+		}
+		return observed
+	}
+	actorDigest, err := closureprotocol.SemanticDigest(rec.Actor)
+	if err != nil {
+		t.Fatalf("actor digest: %v", err)
+	}
+	observed = admission.ObservedChangeSet{
+		BaseTreeDigestSHA256:            "base.tree.test",
+		ResultTreeDigestSHA256:          "result.tree.test",
+		ActorBindingDigestSHA256:        actorDigest,
+		AuthorityResolutionDigestSHA256: rec.Resolution.AuthorityResolutionDigestSHA256,
+	}
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if _, err := admission.RecordChangeObserved(taskLedgerStore(taskDir), head, rec.Base.Task, observed, time.Unix(0, 0).UTC()); err != nil {
+		t.Fatalf("record change_observed: %v", err)
+	}
+	rebuildProjections(t, taskDir)
+	return observed
 }
 
 func hasEventType(t *testing.T, taskDir string, want closureprotocol.LedgerEventType) bool {

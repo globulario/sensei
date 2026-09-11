@@ -40,6 +40,11 @@ const (
 	// failure, never an ordinary spend: reading it as "consumed" would withhold
 	// the legitimate current grant while looking exactly like normal waiting.
 	GovernanceCodeConsumptionUnbound = "tasksession.governance_consumption_unbound"
+	// GovernanceCodeScopeUnbound is a scope_verification receipt that decodes but
+	// does not bind the records a scope verification is ABOUT: the decision it
+	// names, the consumption that spent its capability, and the observed change
+	// it claims to have verified -- or one that precedes them in the chain.
+	GovernanceCodeScopeUnbound = "tasksession.governance_scope_unbound"
 )
 
 func governanceValidator(et closureprotocol.LedgerEventType, _ string, data []byte) error {
@@ -130,11 +135,31 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 		return governanceState{}, err
 	}
 
+	// The decision is decoded BEFORE the terminal, because the terminal is about
+	// it. Reading the terminal first is what let a scope_verified receipt answer
+	// for a task whose decision had never been examined.
+	decVE, hasDecision := latest[closureprotocol.LedgerEventAdmissionDecided]
+	var dec closureprotocol.AdmissionDecision
+	if hasDecision {
+		if err := decodeGovernedArtifact(taskDir, decVE, "admission_decision", &dec); err != nil {
+			return governanceState{}, err
+		}
+	}
+
 	// scope_verified is the non-mutable terminal. Present-but-unreadable is a HARD
 	// error — never "no terminal", so a corrupt verification cannot reopen the task.
+	//
+	// A TERMINAL MUST GUARD ITS OWN ENTRY. This branch used to return before any
+	// predecessor was examined, so an appended or imported scope_verified event
+	// reached the terminal with no admitted decision, no spent capability and no
+	// observed change behind it -- and every status and control reader then
+	// advertised the result transition for a mutation that never happened.
 	if scopeVE, ok := latest[closureprotocol.LedgerEventScopeVerified]; ok {
 		var v admission.ScopeVerification
 		if err := decodeGovernedArtifact(taskDir, scopeVE, "scope_verification", &v); err != nil {
+			return governanceState{}, err
+		}
+		if err := scopeVerificationBinds(taskDir, latest, authVE, decVE, scopeVE, v, dec, hasDecision, rec); err != nil {
 			return governanceState{}, err
 		}
 		if admission.ScopeVerified(v) {
@@ -143,15 +168,10 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 		return governanceState{Phase: closureprotocol.PhaseWaitingMechanicalRepair, Status: StatusWaitingMechanical, Resolved: true}, nil
 	}
 
-	decVE, ok := latest[closureprotocol.LedgerEventAdmissionDecided]
-	if !ok {
+	if !hasDecision {
 		// Authority resolved, no typed decision yet: the next legal action is
 		// admit-change; no mutation is granted here.
 		return governanceState{Phase: closureprotocol.PhaseReadyForAdmission, Status: StatusReadyForAdmission, Resolved: true}, nil
-	}
-	var dec closureprotocol.AdmissionDecision
-	if err := decodeGovernedArtifact(taskDir, decVE, "admission_decision", &dec); err != nil {
-		return governanceState{}, err
 	}
 	if !recordedDecisionBinds(dec, rec, now) {
 		return governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: true}, nil
@@ -226,6 +246,26 @@ func decodeGovernedArtifact(taskDir string, ve ledger.VerifiedEntry, key string,
 // writer built it, the capability must not have expired at now, and every
 // operation must have been admitted.
 func recordedDecisionBinds(dec closureprotocol.AdmissionDecision, rec admission.RecordedAuthority, now time.Time) bool {
+	if !decisionBindsRecord(dec, rec) {
+		return false
+	}
+	// TEMPORAL half, deliberately separated. A capability that has run out is not
+	// a grant NOW; it does not stop the decision from being the one this task
+	// recorded, which is what a later terminal needs to check long after the
+	// window has legitimately closed.
+	if expiry := strings.TrimSpace(dec.CapabilityExpiry); expiry != "" {
+		exp, err := time.Parse(time.RFC3339, expiry)
+		if err != nil || !now.Before(exp) {
+			return false
+		}
+	}
+	return true
+}
+
+// decisionBindsRecord is the TIME-INDEPENDENT half: this decision is the one
+// THIS recorded authority asked for, and it adjudicated exactly the plan that
+// authority recorded.
+func decisionBindsRecord(dec closureprotocol.AdmissionDecision, rec admission.RecordedAuthority) bool {
 	req := closureprotocol.AdmissionRequest{
 		ActorBinding:                    rec.Actor,
 		BaseBinding:                     rec.Base,
@@ -237,13 +277,50 @@ func recordedDecisionBinds(dec closureprotocol.AdmissionDecision, rec admission.
 	if err != nil || want != strings.TrimSpace(dec.RequestDigestSHA256) {
 		return false
 	}
-	if expiry := strings.TrimSpace(dec.CapabilityExpiry); expiry != "" {
-		exp, err := time.Parse(time.RFC3339, expiry)
-		if err != nil || !now.Before(exp) {
-			return false
-		}
+	if !verdictsCoverPlan(dec, rec.ChangePlan) {
+		return false
 	}
 	return admission.AllAdmitted(dec)
+}
+
+// verdictsCoverPlan requires the decision's verdicts to correspond EXACTLY to
+// the recorded change plan: one verdict per planned operation, no extras, no
+// duplicates, nothing unadjudicated.
+//
+// WHY THE DIGEST IS NOT ENOUGH. request_digest_sha256 binds the decision to the
+// request, but OperationVerdicts is a SEPARATE field that digest does not cover.
+// A decision carrying a correct (copied) request digest and a verdict list
+// replaced by one unrelated admitted operation therefore satisfied AllAdmitted,
+// which only iterates the verdicts it is handed -- and the grant that followed
+// took its scope from rec.ChangePlan, exposing every target in the plan for
+// operations the decision never adjudicated.
+//
+// The producer already guarantees this correspondence: DecideAdmission emits one
+// verdict per plan operation, in plan order (decision_v2.go). Only an appended
+// or imported artifact reaches the reader without it.
+func verdictsCoverPlan(dec closureprotocol.AdmissionDecision, plan closureprotocol.ChangePlan) bool {
+	planned := make(map[string]bool, len(plan.Operations))
+	for _, op := range plan.Operations {
+		id := strings.TrimSpace(op.OperationID)
+		if id == "" || planned[id] {
+			// An unidentifiable or duplicated operation cannot be adjudicated,
+			// so no verdict set can correspond to this plan.
+			return false
+		}
+		planned[id] = true
+	}
+	if len(planned) == 0 {
+		return false
+	}
+	adjudicated := make(map[string]bool, len(dec.OperationVerdicts))
+	for _, v := range dec.OperationVerdicts {
+		id := strings.TrimSpace(v.OperationID)
+		if !planned[id] || adjudicated[id] {
+			return false
+		}
+		adjudicated[id] = true
+	}
+	return len(adjudicated) == len(planned)
 }
 
 // reconcileGovernedStatus overlays the ledger-derived disposition onto a legacy
@@ -298,6 +375,102 @@ func applyGovernedDisposition(res *StatusResult, disp governanceState, legacySta
 		// stale "perform admitted edit" survives a state nothing should act on.
 		res.Next = NextAction{Action: NextNoLegalAdvance, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
 	}
+}
+
+// scopeVerificationBinds checks a decoded scope verification against the records
+// a scope verification IS ABOUT, and against their order in the chain.
+//
+// The PRODUCER cannot mint one without them: admission.VerifyScope takes a
+// ScopeExpectation carrying the decision AND the consumption, plus an observed
+// change set, and stamps both digests into the receipt it returns. The reader
+// accepted any receipt whose Status was valid with an empty violations list --
+// admission.ScopeVerified looks at nothing else -- so an appended or imported
+// receipt asserted a verified terminal on its own say-so.
+//
+// Every failure is a GovernanceError, never an earlier phase: a receipt that
+// does not bind says the record is untrustworthy, not that the task is younger
+// than it claims. Fail-closed rules elsewhere in this fold move to an earlier
+// phase only on ABSENCE.
+//
+// The predecessor set is the one resultrecording already requires to
+// reconstruct a result transition (load.go): authority_resolved,
+// admission_decided, admission_consumed, change_observed -- in that order.
+func scopeVerificationBinds(
+	taskDir string,
+	latest map[closureprotocol.LedgerEventType]ledger.VerifiedEntry,
+	authVE, decVE, scopeVE ledger.VerifiedEntry,
+	v admission.ScopeVerification,
+	dec closureprotocol.AdmissionDecision,
+	hasDecision bool,
+	rec admission.RecordedAuthority,
+) error {
+	fail := func(detail string) error {
+		return &GovernanceError{Code: GovernanceCodeScopeUnbound, Detail: detail}
+	}
+	if !hasDecision {
+		return fail("scope_verified is recorded with no admission_decided; nothing was ever admitted for this verification to be about")
+	}
+	// TIME-INDEPENDENT binding only. The capability has usually expired by the
+	// time scope is verified, and that is not evidence against the record.
+	if !decisionBindsRecord(dec, rec) {
+		return fail("scope_verified names a decision that does not bind this task's recorded authority and change plan")
+	}
+	decDigest, err := closureprotocol.SemanticDigest(dec)
+	if err != nil {
+		return fail("the current typed decision has no computable semantic digest: " + err.Error())
+	}
+	if got := strings.TrimSpace(v.DecisionDigestSHA256); got != decDigest {
+		return fail(fmt.Sprintf("scope_verification verifies decision %s, but the current typed decision is %s", short12(got), short12(decDigest)))
+	}
+	if wantCap := strings.TrimSpace(dec.CapabilityID); wantCap != "" && strings.TrimSpace(v.CapabilityID) != wantCap {
+		return fail(fmt.Sprintf("scope_verification names capability %q, but the current decision issued %q", v.CapabilityID, wantCap))
+	}
+
+	consVE, ok := latest[closureprotocol.LedgerEventAdmissionConsumed]
+	if !ok {
+		return fail("scope_verified is recorded with no admission_consumed; a scope cannot be verified for a capability that was never spent")
+	}
+	var c closureprotocol.CapabilityConsumption
+	if err := decodeGovernedArtifact(taskDir, consVE, "capability_consumption", &c); err != nil {
+		return err
+	}
+	if err := consumptionBinds(c, dec, rec); err != nil {
+		return err
+	}
+
+	obsVE, ok := latest[closureprotocol.LedgerEventChangeObserved]
+	if !ok {
+		return fail("scope_verified is recorded with no change_observed; there is no observed change for it to have verified")
+	}
+	var observed admission.ObservedChangeSet
+	if err := decodeGovernedArtifact(taskDir, obsVE, "observed_change_set", &observed); err != nil {
+		return err
+	}
+	obsDigest, err := admission.ObservedChangeSetDigest(observed)
+	if err != nil {
+		return fail("the recorded observed change set has no computable digest: " + err.Error())
+	}
+	if got := strings.TrimSpace(v.ObservedChangeSetDigestSHA256); got != obsDigest {
+		return fail(fmt.Sprintf("scope_verification verifies observed change %s, but this task's recorded observation is %s", short12(got), short12(obsDigest)))
+	}
+
+	// ORDER. Each record must have existed when the next one was made. A chain
+	// carrying all four in the wrong order describes a verification of something
+	// that had not happened yet.
+	for _, step := range []struct {
+		earlier, later ledger.VerifiedEntry
+		detail         string
+	}{
+		{authVE, decVE, "admission_decided precedes the authority_resolved it rests on"},
+		{decVE, consVE, "admission_consumed precedes the admission_decided it spends"},
+		{consVE, obsVE, "change_observed precedes the admission_consumed that authorised it"},
+		{obsVE, scopeVE, "scope_verified precedes the change_observed it claims to verify"},
+	} {
+		if step.earlier.Entry.Sequence >= step.later.Entry.Sequence {
+			return fail("out-of-order governance chain: " + step.detail)
+		}
+	}
+	return nil
 }
 
 // consumptionBinds checks a decoded consumption against the contract it claims

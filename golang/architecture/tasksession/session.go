@@ -26,6 +26,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/convergence"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/extractor"
@@ -1545,19 +1546,44 @@ func primaryNext(req TaskRequest, conv convergence.StatusReport, decision admiss
 }
 
 // governedNextAction is the action that belongs with a typed task's permission,
-// taken from the same governance evaluation that produced it. It mirrors
-// applyGovernedDisposition, which has always selected consumption before the
-// mutation and verification after it.
+// taken from the same governance evaluation that produced it.
+//
+// IT ASKS THE OWNER. It used to hold its own two-case table over the capability
+// flags -- a FOURTH reader deriving an action for itself, which is the condition
+// this package's lifecycle owner exists to end. Its consumed case published
+// "apply the admitted mutation, then run verify-admission", asserting that the
+// application was still outstanding. A consumed receipt cannot distinguish
+// consume-before-apply from apply-before-crash, which is exactly why the owner
+// defines that state as reconciliation; on the supported same-task replay path
+// (Prepare retains an existing ledger and calls resultFromSession) following
+// that instruction applies the change a second time.
 func governedNextAction(perm MutationPermission, s Session) NextAction {
-	switch {
-	case perm.GovernedMutation.CapabilityAvailable:
+	switch a := lifecycleaction.Select(perm.GovernedMutation.Disposition); a {
+	case lifecycleaction.ConsumeCapability:
 		return NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}
-	case perm.GovernedMutation.CapabilityConsumed:
-		return NextAction{Action: NextVerifyAdmission, Summary: "apply the admitted mutation, then run verify-admission to record the observed change and verify scope"}
-	default:
-		// Governed, nothing granted or consumed: admission is unresolved, so the
-		// task advances toward it. Never NextPerformEdit -- no capability exists.
+	case lifecycleaction.VerifyAdmission:
+		return NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to reconcile and record the consumed operation"}
+	case lifecycleaction.VerifyScope:
+		return NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to verify the scope of the observed change"}
+	case lifecycleaction.RecordResultTransition:
+		return NextAction{Action: NextRebuildResult, Summary: "record the result transition, rebuilding and binding the result architecture"}
+	case lifecycleaction.MechanicalRepair:
+		return NextAction{Action: NextMechanicalRepair, Summary: "perform the mechanical repair the scope verification requires"}
+	case lifecycleaction.DecideAdmission:
+		return NextAction{Action: NextDecideAdmission, Summary: "decide admission for the exact scope"}
+	case lifecycleaction.ResolveAuthority:
+		return NextAction{Action: NextResolveAuthority, Summary: "resolve typed authority for this task"}
+	case lifecycleaction.None:
+		return NextAction{Action: NextNoLegalAdvance, Summary: "admission refused; no legal advance from this state"}
+	case lifecycleaction.Unavailable:
+		// This surface asserts the typed protocol only as far as the governance
+		// fold did; where it did not, the established behaviour is to advance
+		// convergence toward admission. Never NextPerformEdit -- no capability
+		// exists in that state either.
 		return NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+	default:
+		// Blocked. Never an instruction, and never the historical one.
+		return NextAction{Action: NextNoLegalAdvance, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
 	}
 }
 
