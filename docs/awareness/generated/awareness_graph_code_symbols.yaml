@@ -16177,6 +16177,18 @@ test_symbols:
     package: lifecycleaction
     language: go
     doc: "A grant flag disagreeing with its accompanying status describes a state\nproduction cannot produce. The owner refuses rather than believing whichever\nfield looks more authoritative."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestDownstreamPositionIsRejectedBeforeUnavailable
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestDownstreamPositionIsRejectedBeforeUnavailable
+    package: lifecycleaction
+    language: go
+    doc: "F1 (review 3985530094). A downstream position on a disposition that claims the\ntyped protocol does NOT govern it is a contradiction, and a contradiction is\nnobody's to keep acting in.\n\nUnavailable was returned first, so such a disposition reached the caller as\ncompatibility-safe and applyGovernedDisposition could preserve a historical\ninstruction -- including a stale \"perform admitted edit\" -- for a state whose\nown evidence disagrees with itself. TypedProtocol is asserted by the caller and\nverified by nobody; a false assertion earns no shortcut past the gates."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestPositionMustAgreeWithPhaseAndStatus
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestPositionMustAgreeWithPhaseAndStatus
+    package: lifecycleaction
+    language: go
+    doc: "F2 (review 3985530099). A position is not a Boolean: it is one component of a\ntuple that must agree with the phase and status recorded beside it.\n\nCounting positions and then switching on the flag selected an operation from\nhalf a state while the other half described something else -- or nothing the\nowner names at all."
   - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestRefusedIsNoneAndNeverCompletionOrMutation
     file: golang/architecture/lifecycleaction/lifecycleaction_test.go
     symbol: TestRefusedIsNoneAndNeverCompletionOrMutation
@@ -22614,6 +22626,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "HELPER CONTRACT, not a demonstrated public bypass: AllAdmitted appears to stop\nthis reaching the helper through the normal fold. A non-empty consumption\nagainst a decision that admits NOTHING must still be refused -- the old\nlen(admitted) > 0 guard skipped the check entirely in exactly that case."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConsumptionRecordedAfterExpiryDoesNotBind
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestConsumptionRecordedAfterExpiryDoesNotBind
+    package: tasksession
+    language: go
+    doc: "F3 (review 3985530101). A consumption receipt recorded AFTER the capability it\nspends had expired is not a spend, whatever time the reader happens to run at.\n\nThe producer refuses to mint one (admission/capability.go:37-44). The reader\ndelegated the contract to ValidateCapabilityConsumption, which checks only that\nconsumed_at PARSES -- the relation between the receipt and the decision beside\nit is not its to see -- so an appended or imported receipt bound anyway,\nwithheld the legitimate grant and selected verification instead.\n\nTHE READER'S CLOCK IS DELIBERATELY INSIDE THE WINDOW. recordedDecisionBinds\nalready refuses an expired decision as of now(); a now-based check cannot see\nthis, and the defect is invisible exactly while the capability still looks\nlive."
   - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConversionDoesNotMaskDownstreamFactsWithAuthority
     file: golang/architecture/tasksession/lifecycle_adapters_test.go
     symbol: TestConversionDoesNotMaskDownstreamFactsWithAuthority
@@ -22668,6 +22686,18 @@ test_symbols:
     package: tasksession
     language: go
     doc: "Compatibility is preserved only where the ruling allows it: a surface this\nowner does not govern keeps its own decision."
+  - id: golang/architecture/tasksession/lifecycleaction_vocabulary_test.go:TestEveryFoldOutcomeIsANamedRow
+    file: golang/architecture/tasksession/lifecycleaction_vocabulary_test.go
+    symbol: TestEveryFoldOutcomeIsANamedRow
+    package: tasksession
+    language: go
+    doc: "EVERY state foldGovernance can produce must be a row the owner names. The\nmapping was written FROM this function; if a fold return is added or its\nphase/status pair edited without the mapping following, the new state fails\nclosed to Blocked and nothing else reports it.\n\nDriven through lifecycleDisposition, the single conversion, so the tuple under\ntest is the one production actually hands the owner."
+  - id: golang/architecture/tasksession/lifecycleaction_vocabulary_test.go:TestStatusVocabularyMatchesTaskSession
+    file: golang/architecture/tasksession/lifecycleaction_vocabulary_test.go
+    symbol: TestStatusVocabularyMatchesTaskSession
+    package: tasksession
+    language: go
+    doc: "The closed mapping is keyed by STATUS STRINGS, and lifecycleaction is a leaf\nthat cannot import the package declaring them. It therefore restates them, and\na silent divergence would not break a build: it would drop a row out of the\nmapping, and every task in that state would fail closed to Blocked -- a\nhealthy, fully governed task reported as unsafe to act on.\n\nPinned HERE because this is the only package that can see both vocabularies."
   - id: golang/architecture/tasksession/mutation_permission_test.go:TestAStalePersistedProjectionCannotReAssertAGrant
     file: golang/architecture/tasksession/mutation_permission_test.go
     symbol: TestAStalePersistedProjectionCannotReAssertAGrant
