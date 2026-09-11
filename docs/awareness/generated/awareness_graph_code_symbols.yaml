@@ -16147,6 +16147,78 @@ test_symbols:
     package: ledger
     language: go
     doc: "Event-type payload validation runs on every entry of every verification and is never\nskipped by a digest-memo hit: validation and digesting are independent."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestAbsentAuthorityWithAnyDownstreamPositionIsBlocked
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestAbsentAuthorityWithAnyDownstreamPositionIsBlocked
+    package: lifecycleaction
+    language: go
+    doc: "Authority absent is coherent with nothing downstream of it. Each of the seven\npositions is tested individually against absent authority, with the genuine\ntyped-but-awaiting-authority case as the positive control."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestAdvancesIsNotASafetyPredicate
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestAdvancesIsNotASafetyPredicate
+    package: lifecycleaction
+    language: go
+    doc: "Advances() is NOT a safety predicate: three actions that request real work\nreturn false. Pinned so a future test cannot mistake it for one."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestAnyTwoPositionsAreAContradiction
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestAnyTwoPositionsAreAContradiction
+    package: lifecycleaction
+    language: go
+    doc: "Two mutually exclusive positions are a contradiction whichever pair they are."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestContradictionIsRejectedBeforeEarlierBranches
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestContradictionIsRejectedBeforeEarlierBranches
+    package: lifecycleaction
+    language: go
+    doc: "A contradiction must be rejected BEFORE any action is selected, including when\nit is paired with a position an earlier branch would have answered."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestContradictoryGrantInputsFailClosed
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestContradictoryGrantInputsFailClosed
+    package: lifecycleaction
+    language: go
+    doc: "A grant flag disagreeing with its accompanying status describes a state\nproduction cannot produce. The owner refuses rather than believing whichever\nfield looks more authoritative."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestRefusedIsNoneAndNeverCompletionOrMutation
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestRefusedIsNoneAndNeverCompletionOrMutation
+    package: lifecycleaction
+    language: go
+    doc: "Refused is a disposition, not something to execute. It must never become\ncompletion or any mutation action."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestTheClosedLifecycleActionMapping
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestTheClosedLifecycleActionMapping
+    package: lifecycleaction
+    language: go
+    doc: "The closed lifecycle/action mapping, enumerated. A state that is not listed\nhere has no ratified action, and the owner must answer Blocked for it -- NOT\nUnavailable, which tells the caller to keep its own behaviour -- rather than\nletting it fall through to admission, mutation or completion."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestTypedProtocolIsNotAFunctionOfAuthorityResolved
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestTypedProtocolIsNotAFunctionOfAuthorityResolved
+    package: lifecycleaction
+    language: go
+    doc: "TypedProtocol must be an INPUT, not a function of AuthorityResolved. If it\nwere derived, these two would be indistinguishable."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestTypedProtocolIsSeparateFromAuthorityResolved
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestTypedProtocolIsSeparateFromAuthorityResolved
+    package: lifecycleaction
+    language: go
+    doc: "Typed-protocol membership is not inferred from authority resolution: a typed\ntask awaiting authority must not read as a legacy file-protocol task."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestUnavailableAndBlockedAreDistinct
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestUnavailableAndBlockedAreDistinct
+    package: lifecycleaction
+    language: go
+    doc: "The two non-action outcomes must stay distinguishable: one permits the\ncaller's own compatibility behaviour, the other forbids acting at all."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestUnknownNonemptyStatusIsBlockedNotAdmission
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestUnknownNonemptyStatusIsBlockedNotAdmission
+    package: lifecycleaction
+    language: go
+    doc: "A NONEMPTY unknown status must not select admission. Testing only the zero\nvalue misses this: the first version returned DecideAdmission whenever any\nstatus or phase was set."
+  - id: golang/architecture/lifecycleaction/lifecycleaction_test.go:TestUnknownOrInconsistentStateFailsClosed
+    file: golang/architecture/lifecycleaction/lifecycleaction_test.go
+    symbol: TestUnknownOrInconsistentStateFailsClosed
+    package: lifecycleaction
+    language: go
+    doc: "Unknown or inconsistent input must fail closed."
   - id: golang/architecture/maintenance/maintenance_test.go:TestAbsentCurrentClaimIsReportedRetiredAndStale
     file: golang/architecture/maintenance/maintenance_test.go
     symbol: TestAbsentCurrentClaimIsReportedRetiredAndStale
@@ -21947,6 +22019,18 @@ test_symbols:
     package: taskcontrol
     language: go
     doc: "N2 (3981430709). A governed task with typed authority resolved but no\nadmission_decided has Governed=true and both capability flags false. The typed\nbranch matches neither case and falls through to the ordinary selection, which\nwith no blockers reaches ActionCompleteTask -- telling consumers a task\nawaiting admission is complete, and causing singleNonCompletedTask to filter\nit out of discovery entirely."
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestN2b_UnrecognisedGovernedStateFailsClosed
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestN2b_UnrecognisedGovernedStateFailsClosed
+    package: taskcontrol
+    language: go
+    doc: "An unrecognised governed state must fail closed -- never completion, never a\nmutation action, never an admission instruction invented to fill the gap."
+  - id: golang/architecture/taskcontrol/project_next_action_repro_test.go:TestRatifiedLifecycleTokensPersistAndMoveTheDigest
+    file: golang/architecture/taskcontrol/project_next_action_repro_test.go
+    symbol: TestRatifiedLifecycleTokensPersistAndMoveTheDigest
+    package: taskcontrol
+    language: go
+    doc: "The four ratified tokens widen the persisted NextAction vocabulary and move\nStateDigest when selected. Serialization, round trip and digest sensitivity\nare proven, not assumed."
   - id: golang/architecture/taskcontrol/project_test.go:TestActiveRootCountUsesStableGroups
     file: golang/architecture/taskcontrol/project_test.go
     symbol: TestActiveRootCountUsesStableGroups
@@ -22359,6 +22443,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "consumptionBinds is pure, so the three membership cases are tested directly --\nincluding the one the seeded fixture cannot produce, which would otherwise\nSKIP, and a skipped check is not a check."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestConsumptionUsesTheCanonicalValidator
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestConsumptionUsesTheCanonicalValidator
+    package: tasksession
+    language: go
+    doc: "R-A. The canonical validator owns the receipt contract. A receipt with the\nright task, session, decision, capability and operations but an invalid actor\nor a non-valid one-use status must be refused -- these are exactly the fields\na hand-rolled subset omitted."
   - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestGovernanceErrorProducesNoStateAtAll
     file: golang/architecture/tasksession/g3_round2_repro_test.go
     symbol: TestGovernanceErrorProducesNoStateAtAll
@@ -22383,6 +22473,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "N4 (3981430720). For a task on the file protocol with a positive decision,\nModify is downgraded while Next still instructs the edit, so Prepare's output\nsimultaneously says \"no consumable capability\" and \"perform the edit\"; and the\nfile protocol's established Modify value changed despite the stated boundary."
+  - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestStatusPropagatesGovernanceIntegrityFailure
+    file: golang/architecture/tasksession/g3_round2_repro_test.go
+    symbol: TestStatusPropagatesGovernanceIntegrityFailure
+    package: tasksession
+    language: go
+    doc: "R-B. Status must PROPAGATE a governance-integrity failure, not substitute a\nwaiting disposition and return an actionable state built from the historical\nsession -- which could answer `sensei task-status` with a mutation\ninstruction."
   - id: golang/architecture/tasksession/g3_round2_repro_test.go:TestTypedPrepareReturnsACoherentPermissionAndAction
     file: golang/architecture/tasksession/g3_round2_repro_test.go
     symbol: TestTypedPrepareReturnsACoherentPermissionAndAction
@@ -22471,6 +22567,107 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLedgerOrdersAuthorityBeforeAdmission proves the typed authority resolution\nis ledgered before any admission decision and that preparation records no\nplaceholder admission_decided event — the decision is produced later, by\nadmit-change (regression #8, #9)."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestAdapter1StatusNeverKeepsAStaleMutationInstruction
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestAdapter1StatusNeverKeepsAStaleMutationInstruction
+    package: tasksession
+    language: go
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestAdapter1StatusPublishesTheActualOperation
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestAdapter1StatusPublishesTheActualOperation
+    package: tasksession
+    language: go
+    doc: "ADAPTER 1 -- applyGovernedDisposition (Status). No state may keep a stale\nsession action, and none may instruct an edit."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestAdapter2TaskControlCoversEveryState
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestAdapter2TaskControlCoversEveryState
+    package: tasksession
+    language: go
+    doc: "ADAPTER 2 -- taskcontrol.selectNextAction. No state may reopen admission\nafter mutation, and none may reach completion without positive evidence."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestAdapter3AdvanceResultCoversEveryState
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestAdapter3AdvanceResultCoversEveryState
+    package: tasksession
+    language: go
+    doc: "ADAPTER 3 -- dispositionNextAction (advance-result)."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestAddedNextActionsRoundTripInJSONAndYAML
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestAddedNextActionsRoundTripInJSONAndYAML
+    package: tasksession
+    language: go
+    doc: "The four added Next.Action values are plain strings on a public struct, so\nthey must survive JSON and YAML unchanged. Audited at this revision: no\nnon-test consumer compares Next.Action against any constant -- the only\ncomparisons are the assignments themselves -- so nothing branches on a value\nthese additions could surprise."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestBlockedNeverRecoversWhileUnavailablePreserves
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestBlockedNeverRecoversWhileUnavailablePreserves
+    package: tasksession
+    language: go
+    doc: "The ruling's two cases, side by side through the PUBLIC adapter, each with a\nhistorical perform-edit in place:\n\n  - BLOCKED (typed, unsafe): must never recover the historical instruction.\n  - UNAVAILABLE (not this owner's task): MAY preserve it -- that is the\n    established compatibility behaviour, and the ambiguity is recorded rather\n    than resolved by guessing."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConsumedAndObservedStayDistinctInEveryAdapter
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestConsumedAndObservedStayDistinctInEveryAdapter
+    package: tasksession
+    language: go
+    doc: "The owner distinguishes CONSUMED (reconcile and record) from CHANGE OBSERVED\n(verify the scope). Both may invoke verify-admission, but the consumed case\nmust not claim a change has already been observed. Action AND summary are\nasserted together, on all three adapters."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConsumptionAgainstADecisionThatAdmitsNothingIsRefused
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestConsumptionAgainstADecisionThatAdmitsNothingIsRefused
+    package: tasksession
+    language: go
+    doc: "HELPER CONTRACT, not a demonstrated public bypass: AllAdmitted appears to stop\nthis reaching the helper through the normal fold. A non-empty consumption\nagainst a decision that admits NOTHING must still be refused -- the old\nlen(admitted) > 0 guard skipped the check entirely in exactly that case."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConversionDoesNotMaskDownstreamFactsWithAuthority
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestConversionDoesNotMaskDownstreamFactsWithAuthority
+    package: tasksession
+    language: go
+    doc: "Through the CONVERSION and then Select -- not a hand-built Disposition.\n\nThe conversion must not mask a downstream observation with authority. Anding\ngov.Resolved into CapabilityConsumed erased the fact before Select saw it, so\na chain reporting StatusAdmitted with authority absent selected\nresolve_authority and the consumption vanished."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestConversionRequiresBothGrantSignals
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestConversionRequiresBothGrantSignals
+    package: tasksession
+    language: go
+    doc: "The conversion must require BOTH grant signals. Production sets them at one\nsite together; an OR would let a status label override a false grant."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestEmptyConsumptionIsAnIntegrityFailure
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestEmptyConsumptionIsAnIntegrityFailure
+    package: tasksession
+    language: go
+    doc: "An empty consumption is not a spend. The membership loop runs zero times for\nan empty set, so \"every consumed operation was admitted\" is vacuously true --\nand ValidateCapabilityConsumption never looks at operation IDs. The explicit\nemptiness check is the only thing standing between a receipt that spends\nnothing and the capability reading as spent."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestInconsistentGrantIsRejectedBeforeAnyAdvance
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestInconsistentGrantIsRejectedBeforeAnyAdvance
+    package: tasksession
+    language: go
+    doc: "Inconsistent grant inputs must be rejected BEFORE any advancing action can be\nselected -- including for a caller that asserts the typed protocol."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestInconsistentTypedStateNeverRecoversAHistoricalMutationInstruction
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestInconsistentTypedStateNeverRecoversAHistoricalMutationInstruction
+    package: tasksession
+    language: go
+    doc: "THE CRITICAL BOUNDARY. Unavailable and Blocked must not be treated alike.\n\nAn adapter that checks only \"does this action advance?\" and otherwise keeps\nwhat it had will restore a historical instruction -- including a stale\n\"perform admitted edit\" -- for a typed state that is exactly the one nothing\nshould be done in. Driven through the PUBLIC adapter with a historical\nperform-edit action in place, because the owner's own fail-closed test cannot\nsee this."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestLifecycleConversionCoversEveryState
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestLifecycleConversionCoversEveryState
+    package: tasksession
+    language: go
+    doc: "The single conversion must produce the ratified action for every state."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestMixedSurfaceCannotClaimTypedWithoutAuthority
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestMixedSurfaceCannotClaimTypedWithoutAuthority
+    package: tasksession
+    language: go
+    doc: "The caller-context ruling, pinned. A MIXED surface may not claim typed\nprotocol without verified typed authority; it must preserve the established\ncompatibility behaviour and leave the ambiguity recorded rather than guessing\nbetween a legacy file-protocol task and a typed task awaiting authority."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestRefusedAndBlockedPublishANonAdvancingAction
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestRefusedAndBlockedPublishANonAdvancingAction
+    package: tasksession
+    language: go
+    doc: "Refused and blocked must publish an explicitly NON-ADVANCING action, not a\nplausible-looking instruction such as \"advance one convergence iteration\"."
+  - id: golang/architecture/tasksession/lifecycle_adapters_test.go:TestUnavailablePreservesCompatibilityWithoutAsserting
+    file: golang/architecture/tasksession/lifecycle_adapters_test.go
+    symbol: TestUnavailablePreservesCompatibilityWithoutAsserting
+    package: tasksession
+    language: go
+    doc: "Compatibility is preserved only where the ruling allows it: a surface this\nowner does not govern keeps its own decision."
   - id: golang/architecture/tasksession/mutation_permission_test.go:TestAStalePersistedProjectionCannotReAssertAGrant
     file: golang/architecture/tasksession/mutation_permission_test.go
     symbol: TestAStalePersistedProjectionCannotReAssertAGrant

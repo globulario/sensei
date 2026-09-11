@@ -1679,6 +1679,19 @@ components:
       stereotype: module
       view: structural
       confidence: inferred
+  - id: component.golang.architecture.lifecycleaction
+    name: lifecycleaction
+    kind: module
+    assertion: inferred
+    source_files:
+      - golang/architecture/lifecycleaction/lifecycleaction.go
+    depends_on:
+      - component.golang.architecture.closureprotocol
+    uml:
+      kind: Component
+      stereotype: module
+      view: structural
+      confidence: inferred
   - id: component.golang.architecture.maintenance
     name: maintenance
     kind: module
@@ -2397,6 +2410,7 @@ components:
       - component.golang.architecture
       - component.golang.architecture.closure
       - component.golang.architecture.dispositionsemantics
+      - component.golang.architecture.lifecycleaction
       - component.golang.architecture.probe
     external_imports:
       - gopkg.in/yaml.v3
@@ -2432,6 +2446,7 @@ components:
       - component.golang.architecture.graphsnapshot
       - component.golang.architecture.identity
       - component.golang.architecture.ledger
+      - component.golang.architecture.lifecycleaction
       - component.golang.architecture.maintenance
       - component.golang.architecture.probe
       - component.golang.architecture.probeexec
