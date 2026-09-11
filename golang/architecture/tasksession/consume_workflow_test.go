@@ -10,7 +10,7 @@ import "testing"
 
 func TestGovernedNextActionSurfacesConsumeThenVerify(t *testing.T) {
 	var res StatusResult
-	applyGovernedDisposition(&res, governanceState{Status: StatusReadyForMutation, Resolved: true}, StatusReadyForMutation)
+	applyGovernedDisposition(&res, governanceState{Status: StatusReadyForMutation, Resolved: true, GrantModify: true}, StatusReadyForMutation)
 	if res.Next.Action != NextConsumeCapability {
 		t.Fatalf("ready_for_mutation next = %q, want %q", res.Next.Action, NextConsumeCapability)
 	}

@@ -80,6 +80,17 @@ const (
 	NextCompleteProof     = "complete required proof"
 	NextRebuildResult     = "rebuild and bind result architecture"
 	NextPrepareNewTask    = "prepare a new task"
+	// The lifecycle tail's remaining operations. Previously every one of these
+	// was published as "advance one convergence iteration", which does not
+	// faithfully present "resolve authority", "decide admission", "perform the
+	// mechanical repair" -- or, worse, "no legal advance".
+	NextResolveAuthority = "resolve typed authority"
+	NextDecideAdmission  = "decide admission"
+	NextMechanicalRepair = "perform mechanical repair"
+	// NextNoLegalAdvance is explicitly NON-ADVANCING. It is what a refused or
+	// unsafe state publishes, and it must never be confused with an instruction
+	// to do something.
+	NextNoLegalAdvance = "no legal advance"
 )
 
 type FileOperation struct {
@@ -570,9 +581,13 @@ func Status(opts StatusOptions) (StatusResult, error) {
 	if res.Status != StatusStale {
 		disp, derr := governanceDisposition(taskDir, time.Now().UTC(), nil)
 		if derr != nil {
-			// Fail closed: an unreadable or drifted governance record never grants
-			// or suggests mutation. Report waiting_governance rather than a grant.
-			disp = governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}
+			// PROPAGATE, do not substitute. Reporting waiting_governance here
+			// returned an actionable StatusResult built from the historical
+			// session -- and applyGovernedDisposition returns early for an
+			// unresolved disposition, leaving a stale NextPerformEdit in place.
+			// So `sensei task-status` could answer a governance-integrity failure
+			// with a mutation instruction. An integrity failure has no state.
+			return StatusResult{}, derr
 		}
 		applyGovernedDisposition(&res, disp, res.Status)
 	}

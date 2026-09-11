@@ -28,18 +28,22 @@ func TestN1_ReplayMustLeaveTheTaskVerifiable(t *testing.T) {
 	repo, taskDir := enrolledPreparedTask(t)
 	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
 	rebindActivePointer(t, repo, taskDir)
+	// This fixture exists to establish the active-pointer replay scenario
+	// DETERMINISTICALLY. Skipping on an unexpected error or disposition would let
+	// a regression that bypasses the replay path entirely keep CI green while the
+	// protected branch is never exercised -- so both are failures.
 	if _, err := AdvanceTask(AdvanceTaskOptions{RepoRoot: repo, Active: true}); err != nil {
-		t.Skipf("advance-task unavailable: %v", err)
+		t.Fatalf("first advance-task failed: %v", err)
 	}
 	recordCapabilityConsumption(t, taskDir, decision, time.Now().UTC().Add(time.Minute))
 	rebindActivePointer(t, repo, taskDir)
 
 	res, err := AdvanceTask(AdvanceTaskOptions{RepoRoot: repo, Active: true})
 	if err != nil {
-		t.Skipf("second advance-task failed: %v", err)
+		t.Fatalf("second advance-task failed: %v", err)
 	}
 	if res.Disposition != AdvanceReplay {
-		t.Skipf("fixture did not replay (disposition=%v)", res.Disposition)
+		t.Fatalf("the fixture no longer reaches replay (disposition=%q); the pointer comparison and the subsequent verification were never exercised", res.Disposition)
 	}
 
 	// The pointer must name bytes that exist on disk.
@@ -70,55 +74,38 @@ func TestN1_ReplayMustLeaveTheTaskVerifiable(t *testing.T) {
 // accepted as an ordinary spend. ConsumeCapability refuses to CREATE such a
 // receipt (capability.go:47-55); the reader must refuse to BELIEVE one.
 func TestN3_ConsumptionMustSpendOnlyAdmittedOperations(t *testing.T) {
-	for _, tc := range []struct {
-		name string
-		opID func(dec closureprotocol.AdmissionDecision) string
-	}{
-		{"unknown operation id", func(closureprotocol.AdmissionDecision) string { return "op.never.declared" }},
-		{"declared but not admitted", func(dec closureprotocol.AdmissionDecision) string {
-			for _, v := range dec.OperationVerdicts {
-				if v.Verdict != admission.AdmissionVerdictAdmitted {
-					return v.OperationID
-				}
-			}
-			return ""
-		}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			repo, taskDir := enrolledPreparedTask(t)
-			decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
-			rebindActivePointer(t, repo, taskDir)
-			op := tc.opID(decision)
-			if strings.TrimSpace(op) == "" {
-				t.Skip("fixture has no non-admitted operation verdict to use")
-			}
-			rec, err := admission.LoadRecordedAuthority(taskDir)
-			if err != nil {
-				t.Fatalf("recorded authority: %v", err)
-			}
-			var admitted []string
-			for _, v := range decision.OperationVerdicts {
-				if v.Verdict == admission.AdmissionVerdictAdmitted {
-					admitted = append(admitted, v.OperationID)
-				}
-			}
-			c, err := admission.ConsumeCapability(decision, rec.Base.Task, rec.Actor, admitted, time.Now().UTC().Format(time.RFC3339))
-			if err != nil {
-				t.Fatalf("consume: %v", err)
-			}
-			c.ConsumedOperationIDs = []string{op} // correct in every other respect
-			head, err := admission.TaskLedgerHead(taskDir)
-			if err != nil {
-				t.Fatalf("head: %v", err)
-			}
-			if _, err := admission.RecordAdmissionConsumed(taskLedgerStore(taskDir), head, c, time.Now().UTC()); err != nil {
-				t.Fatalf("record: %v", err)
-			}
-			rebuildProjections(t, taskDir)
-			if _, err := governanceDisposition(taskDir, time.Now().UTC(), nil); err == nil {
-				t.Fatalf("N3: a receipt spending %q — which the decision does not admit — was accepted as an ordinary spend", op)
-			}
-		})
+	// Only the unknown-id case is driveable end to end: the seeded decision has
+	// no non-admitted verdict to name. The declared-but-refused case is covered
+	// deterministically by TestConsumptionMembershipSubsetRule rather than left
+	// as a permanent skip -- a check that always skips is not a check.
+	repo, taskDir := enrolledPreparedTask(t)
+	decision := recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	rebindActivePointer(t, repo, taskDir)
+	rec, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		t.Fatalf("recorded authority: %v", err)
+	}
+	var admitted []string
+	for _, v := range decision.OperationVerdicts {
+		if v.Verdict == admission.AdmissionVerdictAdmitted {
+			admitted = append(admitted, v.OperationID)
+		}
+	}
+	c, err := admission.ConsumeCapability(decision, rec.Base.Task, rec.Actor, admitted, time.Now().UTC().Format(time.RFC3339))
+	if err != nil {
+		t.Fatalf("consume: %v", err)
+	}
+	c.ConsumedOperationIDs = []string{"op.never.declared"} // correct in every other respect
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if _, err := admission.RecordAdmissionConsumed(taskLedgerStore(taskDir), head, c, time.Now().UTC()); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	rebuildProjections(t, taskDir)
+	if _, err := governanceDisposition(taskDir, time.Now().UTC(), nil); err == nil {
+		t.Fatal("N3: a receipt spending an operation the decision does not admit was accepted as an ordinary spend")
 	}
 }
 
@@ -129,7 +116,7 @@ func TestN3_ConsumptionMustSpendOnlyAdmittedOperations(t *testing.T) {
 func TestN4_PrepareReturnsACoherentPermissionAndAction(t *testing.T) {
 	repo, taskDir := notEnrolledPreparedTask(t)
 	if gov, err := governanceDisposition(taskDir, time.Now().UTC(), nil); err != nil || gov.Resolved {
-		t.Skipf("fixture is not on the file protocol (resolved=%v err=%v)", gov.Resolved, err)
+		t.Fatalf("fixture must deterministically be on the file protocol, but resolved=%v err=%v", gov.Resolved, err)
 	}
 	sess, _, err := loadSessionForControl(filepath.Join(taskDir, "session.yaml"))
 	if err != nil {
@@ -185,12 +172,22 @@ func TestConsumptionMembershipSubsetRule(t *testing.T) {
 	if err != nil {
 		t.Fatalf("digest: %v", err)
 	}
+	// Canonically VALID in every field, so each negative case isolates exactly
+	// the membership relation. Without the actor these receipts were refused by
+	// the canonical validator, and the negative cases passed for the wrong
+	// reason -- proving nothing about membership at all.
 	receipt := func(ops ...string) closureprotocol.CapabilityConsumption {
 		return closureprotocol.CapabilityConsumption{
 			CapabilityID: "cap.m", Task: task, ConsumedOperationIDs: ops,
 			ConsumedAt: time.Now().UTC().Format(time.RFC3339), DecisionDigestSHA256: digest,
 			OneUseStatus: closureprotocol.ReceiptValid,
+			ConsumerActor: closureprotocol.ActorBinding{
+				PrincipalID: "principal.m", ActorKind: closureprotocol.ActorAgent,
+			},
 		}
+	}
+	if err := closureprotocol.ValidateCapabilityConsumption(receipt("op.a")); err != nil {
+		t.Fatalf("the baseline receipt must be canonically valid or these cases prove nothing about membership: %v", err)
 	}
 
 	t.Run("valid non-empty subset is accepted", func(t *testing.T) {
@@ -288,5 +285,89 @@ func TestTypedPrepareReturnsACoherentPermissionAndAction(t *testing.T) {
 	}
 	if spent.Next.Action != NextVerifyAdmission {
 		t.Fatalf("after consumption Next=%q, want %q (reconcile and record)", spent.Next.Action, NextVerifyAdmission)
+	}
+}
+
+// R-A. The canonical validator owns the receipt contract. A receipt with the
+// right task, session, decision, capability and operations but an invalid actor
+// or a non-valid one-use status must be refused -- these are exactly the fields
+// a hand-rolled subset omitted.
+func TestConsumptionUsesTheCanonicalValidator(t *testing.T) {
+	task := closureprotocol.TaskBinding{ID: "task.v", SessionID: "session.v"}
+	rec := admission.RecordedAuthority{}
+	rec.Base.Task = task
+	dec := closureprotocol.AdmissionDecision{
+		CapabilityID: "cap.v",
+		OperationVerdicts: []closureprotocol.OperationAdmissionVerdict{
+			{OperationID: "op.a", Verdict: admission.AdmissionVerdictAdmitted},
+		},
+	}
+	digest, err := closureprotocol.SemanticDigest(dec)
+	if err != nil {
+		t.Fatalf("digest: %v", err)
+	}
+	base := closureprotocol.CapabilityConsumption{
+		CapabilityID: "cap.v", Task: task, ConsumedOperationIDs: []string{"op.a"},
+		ConsumedAt: time.Now().UTC().Format(time.RFC3339), DecisionDigestSHA256: digest,
+		OneUseStatus: closureprotocol.ReceiptValid,
+		ConsumerActor: closureprotocol.ActorBinding{
+			PrincipalID: "principal.v", ActorKind: closureprotocol.ActorAgent,
+		},
+	}
+	if err := closureprotocol.ValidateCapabilityConsumption(base); err != nil {
+		t.Fatalf("the baseline receipt must be canonically valid, so the two negative cases isolate exactly one field each: %v", err)
+	}
+	if err := consumptionBinds(base, dec, rec); err != nil {
+		t.Fatalf("a fully valid receipt was refused: %v", err)
+	}
+	t.Run("non-valid one-use status is refused", func(t *testing.T) {
+		bad := base
+		bad.OneUseStatus = closureprotocol.ReceiptRevoked
+		if err := consumptionBinds(bad, dec, rec); err == nil {
+			t.Fatal("a receipt whose one_use_status is not valid was accepted as a spend")
+		}
+	})
+	t.Run("invalid consumer actor is refused", func(t *testing.T) {
+		bad := base
+		bad.ConsumerActor = closureprotocol.ActorBinding{PrincipalID: "  ", ActorKind: "not-a-kind"}
+		if err := consumptionBinds(bad, dec, rec); err == nil {
+			t.Fatal("a receipt with an invalid consumer actor was accepted as a spend")
+		}
+	})
+}
+
+// R-B. Status must PROPAGATE a governance-integrity failure, not substitute a
+// waiting disposition and return an actionable state built from the historical
+// session -- which could answer `sensei task-status` with a mutation
+// instruction.
+func TestStatusPropagatesGovernanceIntegrityFailure(t *testing.T) {
+	repo, taskDir := enrolledPreparedTask(t)
+	recordAdmissionDecision(t, taskDir, time.Now().UTC())
+	rebindActivePointer(t, repo, taskDir)
+	rec, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		t.Fatalf("recorded authority: %v", err)
+	}
+	c := closureprotocol.CapabilityConsumption{
+		CapabilityID: "cap.foreign", Task: rec.Base.Task,
+		ConsumedOperationIDs: []string{"op.foreign"},
+		ConsumedAt:           time.Now().UTC().Format(time.RFC3339),
+		DecisionDigestSHA256: strings.Repeat("a", 64), OneUseStatus: closureprotocol.ReceiptValid,
+	}
+	head, err := admission.TaskLedgerHead(taskDir)
+	if err != nil {
+		t.Fatalf("head: %v", err)
+	}
+	if _, err := admission.RecordAdmissionConsumed(taskLedgerStore(taskDir), head, c, time.Now().UTC()); err != nil {
+		t.Fatalf("record: %v", err)
+	}
+	rebuildProjections(t, taskDir)
+
+	for _, verify := range []bool{false, true} {
+		res, err := Status(StatusOptions{RepoRoot: repo, TaskDir: taskDir, Verify: verify})
+		if err == nil {
+			t.Fatalf("Status(Verify=%v) returned a state (phase=%q next=%q) for a governance-integrity failure; it must return no actionable state",
+				verify, res.Phase, res.Next.Action)
+		}
 	}
 }

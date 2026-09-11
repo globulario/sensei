@@ -46,10 +46,19 @@ const (
 	// simply could not express it, which is why the selector reached for
 	// perform_admitted_edit and told agents to mutate first.
 	ActionConsumeCapability = "consume_capability"
-	ActionVerifyAdmission   = "verify_admission"
-	ActionCompleteTests     = "complete_tests"
-	ActionCompleteTask      = "complete_task"
-	ActionNone              = "none"
+	// The lifecycle tail's remaining machine operations. Each reuses the token
+	// tasksession already defines (AdvanceNext*), so the two vocabularies cannot
+	// drift apart again. Ratified as compatible semantic vocabulary extensions:
+	// they widen the persisted NextAction vocabulary and move StateDigest when
+	// selected.
+	ActionResolveAuthority       = "resolve_authority"
+	ActionDecideAdmission        = "decide_admission"
+	ActionMechanicalRepair       = "perform_mechanical_repair"
+	ActionRecordResultTransition = "record_result_transition"
+	ActionVerifyAdmission        = "verify_admission"
+	ActionCompleteTests          = "complete_tests"
+	ActionCompleteTask           = "complete_task"
+	ActionNone                   = "none"
 
 	ReasonDominanceCycle  = "task.control.dominance_cycle"
 	ReasonNoPrimaryAction = "task.control.no_primary_action"
