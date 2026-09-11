@@ -22497,6 +22497,36 @@ test_symbols:
     package: tasksession
     language: go
     doc: "Contract 3, typed half. The file-protocol case (N4) cannot see this: it never\nenters the ledger-derived branch, so a mutation removing the governed action\nsurvives it. Equivalent prepare scenarios on BOTH protocols, asserting Modify\nand Next TOGETHER -- a test of Modify alone misses this defect again."
+  - id: golang/architecture/tasksession/g3_round3_repro_test.go:TestConsumedStateIsReconciliationNotAnotherApply
+    file: golang/architecture/tasksession/g3_round3_repro_test.go
+    symbol: TestConsumedStateIsReconciliationNotAnotherApply
+    package: tasksession
+    language: go
+    doc: "G3 (inline 3991072883, session.go). A consumed receipt cannot distinguish\nconsume-before-apply from apply-before-crash, which is why the owner defines\nthat state as reconciliation. On the supported same-task replay path (Prepare\nretains an existing ledger and calls resultFromSession) an instruction to\napply applies the change twice.\n\nOriginal witness: the consumed state must not be published as \"apply the mutation\"."
+  - id: golang/architecture/tasksession/g3_round3_repro_test.go:TestScopeVerifiedRequiresEachPredecessorSeparately
+    file: golang/architecture/tasksession/g3_round3_repro_test.go
+    symbol: TestScopeVerifiedRequiresEachPredecessorSeparately
+    package: tasksession
+    language: go
+    doc: "Each predecessor is required SEPARATELY. A witness missing the first one never\nreaches the checks for the others."
+  - id: golang/architecture/tasksession/g3_round3_repro_test.go:TestScopeVerifiedRequiresItsPredecessors
+    file: golang/architecture/tasksession/g3_round3_repro_test.go
+    symbol: TestScopeVerifiedRequiresItsPredecessors
+    package: tasksession
+    language: go
+    doc: "G2 (review body, governance.go:136-140). A TERMINAL MUST GUARD ITS OWN ENTRY.\nAn appended or imported scope_verified with no admitted decision, no spent\ncapability and no observed change behind it must never produce the terminal;\nstatus and control readers would advertise the result transition for a\nmutation that never happened.\n\nOriginal witness: a scope_verified terminal with no admitted decision, no spent\ncapability and no observed change behind it must not produce a terminal."
+  - id: golang/architecture/tasksession/g3_round3_repro_test.go:TestVerdictCoverageIsExactBothWays
+    file: golang/architecture/tasksession/g3_round3_repro_test.go
+    symbol: TestVerdictCoverageIsExactBothWays
+    package: tasksession
+    language: go
+    doc: "COVERAGE, not merely membership. A decision must adjudicate EVERY planned\noperation. Two separate failures hide behind one another: a verdict list that\nnames only some of the plan, and one whose cardinality matches the plan while\nnaming an operation the plan never contained."
+  - id: golang/architecture/tasksession/g3_round3_repro_test.go:TestVerdictsMustCoverTheRecordedPlan
+    file: golang/architecture/tasksession/g3_round3_repro_test.go
+    symbol: TestVerdictsMustCoverTheRecordedPlan
+    package: tasksession
+    language: go
+    doc: "G1 (review body, governance.go:246). A decision carrying the CORRECT request\ndigest but a verdict list adjudicating none of the planned operations must not\nbind. AllAdmitted iterates only the verdicts it is handed, and the grant that\nfollows takes its scope from the recorded ChangePlan -- so every target in the\nplan is exposed for operations the decision never adjudicated.\n\nOriginal witness: a decision carrying the CORRECT request digest but a verdict list\nthat adjudicates none of the planned operations must not bind."
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant
