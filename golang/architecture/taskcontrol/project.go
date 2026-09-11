@@ -15,6 +15,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
 	"github.com/globulario/sensei/golang/architecture/dispositionsemantics"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/probe"
 	"gopkg.in/yaml.v3"
 )
@@ -34,6 +35,14 @@ type Inputs struct {
 	GeneratedAt    string
 	Receipts       []string
 	DominanceEdges []DominanceEdge
+	// GovernedMutation carries the ledger-derived lifecycle disposition, supplied by
+	// the caller for a TYPED governed task and left zero for a task on the file
+	// protocol. The action for a governed task is selected from this, never from
+	// the permission scalar: once permission.modify was narrowed to mean "may
+	// consume a NEW capability", reading it as an instruction produced two wrong
+	// answers -- "admitted" told an agent to edit before consuming, and a spent
+	// capability asked for another admission.
+	GovernedMutation GovernedMutationDisposition
 	// Dispositions is the governed decision about each question, keyed by
 	// question ID, folded from the verified task ledger by the caller.
 	//
@@ -150,7 +159,7 @@ func Project(in Inputs) (TaskControlState, error) {
 	state.Evidence = summarizeEvidence(state.Probes)
 	state.PrimaryBlocker = primaryBlocker(state.Blockers)
 	state.PrimaryQuestion = primaryQuestion(state.Questions)
-	state.NextAction = selectNextAction(state, in.BindingHealthy)
+	state.NextAction = selectNextAction(state, in.BindingHealthy, in.GovernedMutation)
 	if err := validateAccounting(state); err != nil {
 		state.Limitations = append(state.Limitations, err.Error())
 		state.NextAction = NextAction{Kind: ActionProvideMissingInput, Summary: "repair task-control accounting before proceeding"}
@@ -536,7 +545,35 @@ func primaryQuestion(questions []ClassifiedQuestion) *ClassifiedQuestion {
 	return &candidates[0]
 }
 
-func selectNextAction(state TaskControlState, bindingHealthy bool) NextAction {
+// GovernedMutationDisposition is what a typed governed chain says about the
+// mutation step. Zero means "not a typed governed task": the file protocol's
+// established behaviour is preserved untouched.
+type GovernedMutationDisposition struct {
+	// Governed is true only when typed authority resolved on this chain.
+	Governed bool
+	// CapabilityAvailable is true when a decision binds and its single-use
+	// capability has NOT been consumed.
+	CapabilityAvailable bool
+	// CapabilityConsumed is true when the capability was validly spent.
+	//
+	// It deliberately does NOT imply that an application remains to be done.
+	// Whether the mutation was already applied is the recovery question the
+	// application bridge owns, and this projection must not answer it.
+	CapabilityConsumed bool
+	// Disposition is the full lifecycle fact the owner decides from. The two
+	// booleans above are retained for callers that only ask about the mutation
+	// grant; the ACTION comes from here.
+	Disposition lifecycleaction.Disposition
+}
+
+// SelectNextActionFor re-selects the next action for an already-projected state
+// under a current governance disposition. It exists so a caller refreshing a
+// cached projection cannot leave the action describing a superseded permission.
+func SelectNextActionFor(state TaskControlState, gov GovernedMutationDisposition) NextAction {
+	return selectNextAction(state, state.BindingHealth == "current", gov)
+}
+
+func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedMutationDisposition) NextAction {
 	if !bindingHealthy {
 		return NextAction{Kind: ActionRepairBinding, Summary: "repair the stale or invalid task binding"}
 	}
@@ -554,11 +591,49 @@ func selectNextAction(state TaskControlState, bindingHealthy bool) NextAction {
 	if state.Summary.ActiveRootBlockers > 0 {
 		return NextAction{Kind: ActionAdvanceConvergence, TargetID: state.TaskID, Summary: "advance one convergence iteration with the current evidence"}
 	}
-	if strings.Contains(state.Permission.Modify, "admitted") {
-		return NextAction{Kind: ActionPerformAdmittedEdit, TargetID: state.TaskID, Summary: "perform only the admitted edit"}
-	}
-	if state.Permission.Modify == "waiting" {
-		return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
+	// A TYPED governed task selects from the ledger disposition. The permission
+	// scalar answers "may a new capability be consumed" and is not an
+	// instruction; both of its old readings were wrong once it meant that.
+	if gov.Governed {
+		// The lifecycle owner decides; this adapter only presents. Reconstructing
+		// an action from the permission scalar is what made three readers give
+		// three answers for the same state.
+		switch a := lifecycleaction.Select(gov.Disposition); a {
+		case lifecycleaction.ConsumeCapability:
+			return NextAction{Kind: ActionConsumeCapability, TargetID: state.TaskID, Summary: "run consume-admission to spend the single-use capability for this exact operation set, before applying any mutation"}
+		case lifecycleaction.VerifyAdmission:
+			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to reconcile and record the consumed operation"}
+		case lifecycleaction.VerifyScope:
+			return NextAction{Kind: ActionVerifyAdmission, TargetID: state.TaskID, Summary: "run verify-admission to verify the scope of the observed change"}
+		case lifecycleaction.RecordResultTransition:
+			return NextAction{Kind: ActionRecordResultTransition, TargetID: state.TaskID, Summary: "record the result transition, rebuilding and binding the result architecture"}
+		case lifecycleaction.MechanicalRepair:
+			return NextAction{Kind: ActionMechanicalRepair, TargetID: state.TaskID, Summary: "perform the mechanical repair the scope verification requires"}
+		case lifecycleaction.DecideAdmission:
+			return NextAction{Kind: ActionDecideAdmission, TargetID: state.TaskID, Summary: "decide admission for the exact scope"}
+		case lifecycleaction.ResolveAuthority:
+			return NextAction{Kind: ActionResolveAuthority, TargetID: state.TaskID, Summary: "resolve typed authority for this task"}
+		case lifecycleaction.None:
+			return NextAction{Kind: ActionNone, TargetID: state.TaskID, Summary: "admission refused; no legal advance from this state"}
+		default:
+			// Blocked, or Unavailable inside a branch that already asserted the
+			// task IS governed -- a contradiction between this adapter's claim
+			// and the owner's verdict. Compatibility lives in the `else` branch
+			// below, reached only when this adapter does not claim governance;
+			// falling through from HERE would let a state nothing should act on
+			// reach the ordinary selection and complete the task. Never
+			// admission, mutation, completion -- and never the action this
+			// state previously carried.
+			return NextAction{Kind: ActionNone, TargetID: state.TaskID, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
+		}
+	} else {
+		// File protocol: established behaviour, unchanged.
+		if strings.Contains(state.Permission.Modify, "admitted") {
+			return NextAction{Kind: ActionPerformAdmittedEdit, TargetID: state.TaskID, Summary: "perform only the admitted edit"}
+		}
+		if state.Permission.Modify == "waiting" {
+			return NextAction{Kind: ActionRequestMutation, TargetID: state.TaskID, Summary: "request mutation admission for the exact scope"}
+		}
 	}
 	return NextAction{Kind: ActionCompleteTask, TargetID: state.TaskID, Summary: "complete the task and preserve final receipts"}
 }

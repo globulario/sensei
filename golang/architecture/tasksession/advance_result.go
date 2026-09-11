@@ -11,6 +11,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/admission"
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/resultpipeline"
 	"github.com/globulario/sensei/golang/architecture/resultrecording"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
@@ -67,10 +68,16 @@ const (
 	AdvanceNextConsumeCapability = "consume_capability"
 	AdvanceNextPerformMutation   = "perform_mutation"
 	AdvanceNextVerifyScope       = "verify_scope"
-	AdvanceNextMechanicalRepair  = "perform_mechanical_repair"
-	AdvanceNextRecordTransition  = "record_result_transition"
-	AdvanceNextRetrySameAdvance  = "retry_same_advance"
-	AdvanceNextNone              = "none"
+	// AdvanceNextVerifyAdmission is the CONSUMED case: reconcile and record what
+	// the consumed capability did. It mirrors the taskcontrol token for the same
+	// state. Distinct from verify_scope on purpose -- both may invoke
+	// verify-admission, but a consumed capability must not claim that a change
+	// has already been observed.
+	AdvanceNextVerifyAdmission  = "verify_admission"
+	AdvanceNextMechanicalRepair = "perform_mechanical_repair"
+	AdvanceNextRecordTransition = "record_result_transition"
+	AdvanceNextRetrySameAdvance = "retry_same_advance"
+	AdvanceNextNone             = "none"
 )
 
 // advanceNextSummaries maps every machine action identity (this package's plus the
@@ -82,6 +89,7 @@ var advanceNextSummaries = map[string]string{
 	AdvanceNextDecideAdmission:                 "run admit-change to decide typed admission",
 	AdvanceNextConsumeCapability:               "run consume-admission to spend the single-use capability",
 	AdvanceNextPerformMutation:                 "apply the admitted mutation",
+	AdvanceNextVerifyAdmission:                 "run verify-admission to reconcile and record the consumed operation",
 	AdvanceNextVerifyScope:                     "run verify-admission to verify the observed change against the admitted scope",
 	AdvanceNextMechanicalRepair:                "perform the mechanical repair that returns the change to the admitted scope",
 	AdvanceNextRecordTransition:                "advance the task to record the result transition at scope_verified",
@@ -430,25 +438,37 @@ func latestChainEvent(chain ledger.VerifiedChain, et closureprotocol.LedgerEvent
 // dispositionNextAction maps a governance disposition to the single current next
 // legal action.
 func dispositionNextAction(disp governanceState) NextAction {
-	switch {
-	case !disp.Resolved:
-		return advanceNext(AdvanceNextResolveAuthority)
-	case disp.Status == StatusRefused:
-		return advanceNext(AdvanceNextNone)
-	case disp.Terminal:
-		return advanceNext(AdvanceNextRecordTransition)
-	case disp.Status == StatusWaitingMechanical:
-		return advanceNext(AdvanceNextMechanicalRepair)
-	case disp.GrantModify:
+	// The lifecycle owner decides. This reader previously held the most complete
+	// of the three competing tables -- and still disagreed with the ruling in two
+	// rows: it answered a CONSUMED capability with perform_mutation, an
+	// unconditional mutation instruction for a state where the application may
+	// already have happened, and it named verify_scope where the ruling reuses
+	// the verify-admission command with a phase-specific summary.
+	// AdvanceResultTransition IS the typed result operation: its own entry-point
+	// contract establishes the protocol, so it may assert typed before authority
+	// exists and reach resolve_authority rather than Unavailable.
+	switch a := lifecycleaction.Select(lifecycleDisposition(disp, true)); a {
+	case lifecycleaction.ConsumeCapability:
 		return advanceNext(AdvanceNextConsumeCapability)
-	case disp.Status == StatusMutationObserved:
+	case lifecycleaction.VerifyAdmission:
+		return advanceNext(AdvanceNextVerifyAdmission)
+	case lifecycleaction.VerifyScope:
 		return advanceNext(AdvanceNextVerifyScope)
-	case disp.Status == StatusAdmitted:
-		return advanceNext(AdvanceNextPerformMutation)
-	case disp.Status == StatusReadyForAdmission:
+	case lifecycleaction.RecordResultTransition:
+		return advanceNext(AdvanceNextRecordTransition)
+	case lifecycleaction.MechanicalRepair:
+		return advanceNext(AdvanceNextMechanicalRepair)
+	case lifecycleaction.DecideAdmission:
 		return advanceNext(AdvanceNextDecideAdmission)
-	default:
+	case lifecycleaction.ResolveAuthority:
 		return advanceNext(AdvanceNextResolveAuthority)
+	case lifecycleaction.None:
+		return advanceNext(AdvanceNextNone)
+	default:
+		// Blocked (or Unavailable, which this caller cannot produce since it
+		// asserts the typed protocol). Never advance on a state the owner does
+		// not recognise.
+		return advanceNext(AdvanceNextNone)
 	}
 }
 

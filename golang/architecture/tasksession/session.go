@@ -26,6 +26,7 @@ import (
 	"github.com/globulario/sensei/golang/architecture/convergence"
 	"github.com/globulario/sensei/golang/architecture/graphbuild"
 	"github.com/globulario/sensei/golang/architecture/ledger"
+	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"github.com/globulario/sensei/golang/architecture/maintenance"
 	"github.com/globulario/sensei/golang/architecture/taskcontrol"
 	"github.com/globulario/sensei/golang/extractor"
@@ -80,6 +81,17 @@ const (
 	NextCompleteProof     = "complete required proof"
 	NextRebuildResult     = "rebuild and bind result architecture"
 	NextPrepareNewTask    = "prepare a new task"
+	// The lifecycle tail's remaining operations. Previously every one of these
+	// was published as "advance one convergence iteration", which does not
+	// faithfully present "resolve authority", "decide admission", "perform the
+	// mechanical repair" -- or, worse, "no legal advance".
+	NextResolveAuthority = "resolve typed authority"
+	NextDecideAdmission  = "decide admission"
+	NextMechanicalRepair = "perform mechanical repair"
+	// NextNoLegalAdvance is explicitly NON-ADVANCING. It is what a refused or
+	// unsafe state publishes, and it must never be confused with an instruction
+	// to do something.
+	NextNoLegalAdvance = "no legal advance"
 )
 
 type FileOperation struct {
@@ -570,9 +582,13 @@ func Status(opts StatusOptions) (StatusResult, error) {
 	if res.Status != StatusStale {
 		disp, derr := governanceDisposition(taskDir, time.Now().UTC(), nil)
 		if derr != nil {
-			// Fail closed: an unreadable or drifted governance record never grants
-			// or suggests mutation. Report waiting_governance rather than a grant.
-			disp = governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}
+			// PROPAGATE, do not substitute. Reporting waiting_governance here
+			// returned an actionable StatusResult built from the historical
+			// session -- and applyGovernedDisposition returns early for an
+			// unresolved disposition, leaving a stale NextPerformEdit in place.
+			// So `sensei task-status` could answer a governance-integrity failure
+			// with a mutation instruction. An integrity failure has no state.
+			return StatusResult{}, derr
 		}
 		applyGovernedDisposition(&res, disp, res.Status)
 	}
@@ -1529,8 +1545,83 @@ func primaryNext(req TaskRequest, conv convergence.StatusReport, decision admiss
 	return NextAction{Action: NextCompleteProof, Summary: "external proof is still required; correctness is not certified"}
 }
 
+// governedNextAction is the action that belongs with a typed task's permission,
+// taken from the same governance evaluation that produced it.
+//
+// IT ASKS THE OWNER. It used to hold its own two-case table over the capability
+// flags -- a FOURTH reader deriving an action for itself, which is the condition
+// this package's lifecycle owner exists to end. Its consumed case published
+// "apply the admitted mutation, then run verify-admission", asserting that the
+// application was still outstanding. A consumed receipt cannot distinguish
+// consume-before-apply from apply-before-crash, which is exactly why the owner
+// defines that state as reconciliation; on the supported same-task replay path
+// (Prepare retains an existing ledger and calls resultFromSession) following
+// that instruction applies the change a second time.
+func governedNextAction(perm MutationPermission, s Session) NextAction {
+	switch a := lifecycleaction.Select(perm.GovernedMutation.Disposition); a {
+	case lifecycleaction.ConsumeCapability:
+		return NextAction{Action: NextConsumeCapability, Summary: "run consume-admission to spend the single-use capability for this exact operation set before applying the mutation"}
+	case lifecycleaction.VerifyAdmission:
+		return NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to reconcile and record the consumed operation"}
+	case lifecycleaction.VerifyScope:
+		return NextAction{Action: NextVerifyAdmission, Summary: "run verify-admission to verify the scope of the observed change"}
+	case lifecycleaction.RecordResultTransition:
+		return NextAction{Action: NextRebuildResult, Summary: "record the result transition, rebuilding and binding the result architecture"}
+	case lifecycleaction.MechanicalRepair:
+		return NextAction{Action: NextMechanicalRepair, Summary: "perform the mechanical repair the scope verification requires"}
+	case lifecycleaction.DecideAdmission:
+		return NextAction{Action: NextDecideAdmission, Summary: "decide admission for the exact scope"}
+	case lifecycleaction.ResolveAuthority:
+		return NextAction{Action: NextResolveAuthority, Summary: "resolve typed authority for this task"}
+	case lifecycleaction.None:
+		return NextAction{Action: NextNoLegalAdvance, Summary: "admission refused; no legal advance from this state"}
+	case lifecycleaction.Unavailable:
+		// This surface asserts the typed protocol only as far as the governance
+		// fold did; where it did not, the established behaviour is to advance
+		// convergence toward admission. Never NextPerformEdit -- no capability
+		// exists in that state either.
+		return NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+	default:
+		// Blocked. Never an instruction, and never the historical one.
+		return NextAction{Action: NextNoLegalAdvance, Summary: "the governed lifecycle state is inconsistent or unrecognised; no action is safe until it is resolved"}
+	}
+}
+
 func resultFromSession(repoRoot, taskRoot string, s Session, disposition string) PrepareResult {
 	rel, _ := filepath.Rel(repoRoot, taskRoot)
+	// PrepareResult.Modify is PUBLISHED AS CURRENT PERMISSION -- printed by
+	// `sensei prepare-change` and read by the MCP briefing -- so it comes from
+	// the sole owner, not from the session's own recorded field.
+	//
+	// s.MutationCapability is deliberately left as written. It is the session's
+	// historical record of what the file decision said when the task was
+	// prepared, receipts/prepare-change.yaml preserves it, and a receipt that
+	// disagrees with the present is evidence rather than drift. It is not
+	// renamed or removed: it has no consumer outside this package, and the
+	// public field is left in place for auditability.
+	modify := s.MutationCapability
+	next := firstNext(s)
+	if decision, err := loadCurrentAdmissionDecision(taskRoot); err == nil {
+		perm, permErr := resolveMutationPermission(taskRoot, decision, time.Now().UTC())
+		switch {
+		case permErr != nil:
+			// Governance cannot be verified: publish no grant, and do not
+			// instruct a mutation either.
+			modify = admission.CapabilityWaiting
+			next = NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+		case perm.LedgerDerived:
+			// TYPED task: Modify and Next come from the SAME evaluation. Taking
+			// only Modify from it published "no consumable capability" beside a
+			// Next that still instructed the edit.
+			modify = perm.Capability
+			next = governedNextAction(perm, s)
+		default:
+			// FILE PROTOCOL: established behaviour, unchanged. Downgrading here
+			// crossed the compatibility boundary -- a task with no typed
+			// authority had its published Modify changed out from under the
+			// protocol that owns it.
+		}
+	}
 	return PrepareResult{
 		TaskID:         s.TaskID,
 		TaskDir:        filepath.ToSlash(rel),
@@ -1538,11 +1629,11 @@ func resultFromSession(repoRoot, taskRoot string, s Session, disposition string)
 		Closure:        s.ClosureVerdict,
 		Convergence:    s.ConvergenceStatus,
 		Inspect:        s.InspectionCapability,
-		Modify:         s.MutationCapability,
+		Modify:         modify,
 		WaitingOn:      s.WaitingOn,
 		ReadEnvelope:   s.ReadEnvelope,
 		ModifyEnvelope: s.ModifyEnvelope,
-		Next:           firstNext(s),
+		Next:           next,
 		Session:        s,
 		Disposition:    disposition,
 	}

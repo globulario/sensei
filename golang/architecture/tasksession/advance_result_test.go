@@ -75,8 +75,18 @@ func TestAdvanceWaitsToPerformMutationThenVerify(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Outcome != OutcomeWaiting || res.NextAction.Action != AdvanceNextPerformMutation {
-		t.Fatalf("after consume got %s/%q, want waiting/perform_mutation", res.Outcome, res.NextAction.Action)
+	// SUPERSEDED EXPECTATION, changed by ruling and not to make a change pass.
+	//
+	// This asserted perform_mutation after consumption. A consumed capability
+	// does not establish that an application remains to be done -- a process may
+	// have applied and crashed before recording -- so instructing an
+	// unconditional mutation here is exactly what the lifecycle owner forbids.
+	// The ratified mapping answers a spent capability with the operation that
+	// RECONCILES and records.
+	// verify_admission, not verify_scope: a consumed capability needs
+	// reconciling and recording, and must not claim a change has been observed.
+	if res.Outcome != OutcomeWaiting || res.NextAction.Action != AdvanceNextVerifyAdmission {
+		t.Fatalf("after consume got %s/%q, want waiting/%s", res.Outcome, res.NextAction.Action, AdvanceNextVerifyAdmission)
 	}
 }
 
