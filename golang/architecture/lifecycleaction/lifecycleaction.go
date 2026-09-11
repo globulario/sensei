@@ -63,6 +63,70 @@ const (
 	Blocked Action = "blocked"
 )
 
+// The governance fold's status vocabulary, restated here because this package
+// is a LEAF: tasksession declares these and imports this package, so this
+// package cannot import them back. They are part of the closed mapping's key,
+// not decoration, and a silent divergence would drop a row out of the mapping
+// and turn a healthy state into Blocked. TestStatusVocabularyMatchesTaskSession
+// pins every one of them to its tasksession constant.
+const (
+	StatusWaitingGovernance = "waiting_governance"
+	StatusReadyForAdmission = "ready_for_admission"
+	StatusReadyForMutation  = "ready_for_mutation"
+	StatusAdmitted          = "admitted"
+	StatusMutationObserved  = "mutation_observed"
+	StatusScopeVerified     = "scope_verified"
+	StatusWaitingMechanical = "waiting_mechanical_repair"
+	StatusRefused           = "refused"
+)
+
+// position names the single lifecycle position a disposition occupies. A
+// position is not a free Boolean: it is one component of a tuple that must also
+// agree with the phase and status recorded beside it.
+type position string
+
+const (
+	posNone                position = "none"
+	posReadyForAdmission   position = "ready_for_admission"
+	posCapabilityAvailable position = "capability_available"
+	posCapabilityConsumed  position = "capability_consumed"
+	posChangeObserved      position = "change_observed"
+	posMechanicalRepair    position = "mechanical_repair_required"
+	posScopeVerified       position = "scope_verified"
+	posRefused             position = "refused"
+)
+
+// tuple is the complete key of the closed mapping: WHERE the task stands, and
+// the phase and status recorded alongside that position, and whether typed
+// authority is established.
+//
+// Position alone is not the state. A position flag set beside a phase or status
+// describing a different -- or unnamed -- state is not a lifecycle position at
+// all; it is a disagreement between two records of the same fact, and selecting
+// an operation from the half that happens to be a Boolean discards the half that
+// contradicts it.
+type tuple struct {
+	Position          position
+	Phase             closureprotocol.TaskPhase
+	Status            string
+	AuthorityResolved bool
+}
+
+// closedMapping is THE mapping. Every row is a tuple foldGovernance actually
+// produces; there are exactly eight, and this table is the enumeration.
+// Anything absent from it is not a state this owner names, whatever its
+// individual fields look like.
+var closedMapping = map[tuple]Action{
+	{posNone, closureprotocol.PhaseWaitingGovernance, StatusWaitingGovernance, false}:                  ResolveAuthority,
+	{posReadyForAdmission, closureprotocol.PhaseReadyForAdmission, StatusReadyForAdmission, true}:      DecideAdmission,
+	{posCapabilityAvailable, closureprotocol.PhaseAdmitted, StatusReadyForMutation, true}:              ConsumeCapability,
+	{posCapabilityConsumed, closureprotocol.PhaseAdmitted, StatusAdmitted, true}:                       VerifyAdmission,
+	{posChangeObserved, closureprotocol.PhaseMutationObserved, StatusMutationObserved, true}:           VerifyScope,
+	{posMechanicalRepair, closureprotocol.PhaseWaitingMechanicalRepair, StatusWaitingMechanical, true}: MechanicalRepair,
+	{posScopeVerified, closureprotocol.PhaseScopeVerified, StatusScopeVerified, true}:                  RecordResultTransition,
+	{posRefused, closureprotocol.PhaseRefused, StatusRefused, true}:                                    None,
+}
+
 // Disposition is the lifecycle fact an adapter supplies. It is a value: this
 // package reads no files and folds no chain.
 type Disposition struct {
@@ -113,56 +177,85 @@ type Disposition struct {
 // that reads as "nothing to do" is indistinguishable from "finished", and that
 // is how a task awaiting admission came to be reported complete.
 func Select(d Disposition) Action {
-	if !d.TypedProtocol {
-		// Not this owner's task. The caller keeps its own protocol's behaviour.
-		return Unavailable
-	}
-	// CONTRADICTIONS FIRST, before any action can be selected.
+	// CONTRADICTIONS FIRST -- before Unavailable, not merely before selection.
 	//
-	// Checking them inside the selection switch let an earlier branch answer
-	// before the contradiction was reached: a disposition that was both
-	// scope-verified AND carried a contradictory capability pair selected
-	// record_result_transition and never reached its own rejection. Incompatible
-	// inputs describe a state that does not exist, and no action is safe in one.
+	// Unavailable is an answer ABOUT A COHERENT STATE: "this task is not mine,
+	// keep your own protocol's behaviour". A disposition whose fields contradict
+	// each other describes no state at all, and it is not any protocol's to keep
+	// doing something in. Returning Unavailable first let contradictory evidence
+	// reach a caller as compatibility-safe, where applyGovernedDisposition could
+	// preserve a historical instruction -- including a stale mutation -- that
+	// nothing in the contradictory state authorised. TypedProtocol is asserted by
+	// the caller and inferred by nobody, so a FALSE assertion is exactly as
+	// unverified as a true one and earns no shortcut past these gates.
 	if d.GrantInconsistent {
 		return Blocked
 	}
-	if positions := d.lifecyclePositions(); positions > 1 {
+	if d.lifecyclePositions() > 1 {
 		return Blocked
 	}
-	if !d.AuthorityResolved {
+	if !d.AuthorityResolved && d.lifecyclePositions() > 0 {
 		// Authority absent is only coherent with NOTHING downstream of it. A
 		// consumed capability, a verified scope or any other position asserts a
 		// fact that authority resolution is a precondition for, so the two
 		// together describe a state that cannot have happened -- and answering
-		// it with "resolve authority" would quietly discard the downstream fact.
-		if d.lifecyclePositions() > 0 {
-			return Blocked
-		}
-		return ResolveAuthority
-	}
-	switch {
-	case d.Refused:
-		return None
-	case d.ScopeVerified:
-		return RecordResultTransition
-	case d.MechanicalRepairRequired:
-		return MechanicalRepair
-	case d.ChangeObserved:
-		return VerifyScope
-	case d.CapabilityAvailable:
-		return ConsumeCapability
-	case d.CapabilityConsumed:
-		return VerifyAdmission
-	case d.ReadyForAdmission:
-		return DecideAdmission
-	default:
-		// A state this owner does not name. NOT admission: "some status was
-		// set" is not evidence that admission is the next step, and answering
-		// an unrecognised state with an instruction is how a task reaches an
-		// operation nobody decided it should reach.
+		// it with "resolve authority", or with the caller's own behaviour, would
+		// quietly discard the downstream fact.
 		return Blocked
 	}
+	if !d.TypedProtocol && d.AuthorityResolved {
+		// Typed authority ESTABLISHED is itself the assertion that the typed
+		// protocol governs this task. Claiming the authority while denying the
+		// protocol is the same contradiction as an orphan position, and it must
+		// not reach a caller as compatibility-safe either.
+		return Blocked
+	}
+	if !d.TypedProtocol {
+		// Not this owner's task, and nothing about it contradicts itself. The
+		// caller keeps its own protocol's established behaviour.
+		return Unavailable
+	}
+	// THE CLOSED MAPPING, by exact tuple. A position is checked against the
+	// phase and status recorded with it; an unenumerated combination is a state
+	// this owner does not name.
+	//
+	// FAIL CLOSED on a miss. NOT admission, and not the operation the position
+	// flag alone would suggest: "some position was set" is not evidence that its
+	// operation is the next step when the phase and status beside it describe
+	// something else, and answering an unrecognised tuple with an instruction is
+	// how a task reaches an operation nobody decided it should reach.
+	if a, ok := closedMapping[d.key()]; ok {
+		return a
+	}
+	return Blocked
+}
+
+// key is the disposition's tuple in the closed mapping.
+func (d Disposition) key() tuple {
+	return tuple{Position: d.position(), Phase: d.Phase, Status: d.Status, AuthorityResolved: d.AuthorityResolved}
+}
+
+// position returns the single position this disposition claims. Callers reach it
+// only after lifecyclePositions has established there is at most one, so the
+// order of these cases decides nothing.
+func (d Disposition) position() position {
+	switch {
+	case d.Refused:
+		return posRefused
+	case d.ScopeVerified:
+		return posScopeVerified
+	case d.MechanicalRepairRequired:
+		return posMechanicalRepair
+	case d.ChangeObserved:
+		return posChangeObserved
+	case d.CapabilityAvailable:
+		return posCapabilityAvailable
+	case d.CapabilityConsumed:
+		return posCapabilityConsumed
+	case d.ReadyForAdmission:
+		return posReadyForAdmission
+	}
+	return posNone
 }
 
 // lifecyclePositions counts the mutually exclusive positions a disposition

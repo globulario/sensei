@@ -82,7 +82,7 @@ func TestAdapter1StatusPublishesTheActualOperation(t *testing.T) {
 // plausible-looking instruction such as "advance one convergence iteration".
 func TestRefusedAndBlockedPublishANonAdvancingAction(t *testing.T) {
 	refused := StatusResult{Status: "x", Next: NextAction{Action: NextPerformEdit}}
-	applyGovernedDisposition(&refused, governanceState{Status: StatusRefused, Resolved: true}, "x")
+	applyGovernedDisposition(&refused, governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: true}, "x")
 	if refused.Next.Action != NextNoLegalAdvance {
 		t.Fatalf("refused published %q, want %q", refused.Next.Action, NextNoLegalAdvance)
 	}
@@ -217,7 +217,7 @@ func TestMixedSurfaceCannotClaimTypedWithoutAuthority(t *testing.T) {
 // Inconsistent grant inputs must be rejected BEFORE any advancing action can be
 // selected -- including for a caller that asserts the typed protocol.
 func TestInconsistentGrantIsRejectedBeforeAnyAdvance(t *testing.T) {
-	d := lifecycleDisposition(governanceState{Status: StatusReadyForMutation, Resolved: true}, true)
+	d := lifecycleDisposition(governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusReadyForMutation, Resolved: true}, true)
 	got := lifecycleaction.Select(d)
 	if got.Advances() {
 		t.Fatalf("inconsistent grant inputs selected an advancing action (%q)", got)
@@ -238,7 +238,7 @@ func TestInconsistentGrantIsRejectedBeforeAnyAdvance(t *testing.T) {
 func TestInconsistentTypedStateNeverRecoversAHistoricalMutationInstruction(t *testing.T) {
 	// GrantModify unset beside StatusReadyForMutation: contradictory, and
 	// production cannot produce it.
-	inconsistent := governanceState{Status: StatusReadyForMutation, Resolved: true}
+	inconsistent := governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusReadyForMutation, Resolved: true}
 	if got := lifecycleaction.Select(lifecycleDisposition(inconsistent, true)); got != lifecycleaction.Blocked {
 		t.Fatalf("inconsistent typed state selected %q, want %q", got, lifecycleaction.Blocked)
 	}
@@ -258,13 +258,13 @@ func TestInconsistentTypedStateNeverRecoversAHistoricalMutationInstruction(t *te
 //     than resolved by guessing.
 func TestBlockedNeverRecoversWhileUnavailablePreserves(t *testing.T) {
 	blocked := StatusResult{Status: "x", Next: NextAction{Action: NextPerformEdit}}
-	applyGovernedDisposition(&blocked, governanceState{Status: StatusReadyForMutation, Resolved: true}, "x")
+	applyGovernedDisposition(&blocked, governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusReadyForMutation, Resolved: true}, "x")
 	if blocked.Next.Action == NextPerformEdit {
 		t.Fatal("a BLOCKED typed state recovered the historical perform-edit instruction")
 	}
 
 	preserved := StatusResult{Status: "x", Next: NextAction{Action: NextPerformEdit}}
-	applyGovernedDisposition(&preserved, governanceState{Status: StatusWaitingGovernance}, "x")
+	applyGovernedDisposition(&preserved, governanceState{Phase: closureprotocol.PhaseWaitingGovernance, Status: StatusWaitingGovernance}, "x")
 	if preserved.Next.Action != NextPerformEdit {
 		t.Fatalf("a task this owner does not govern had its compatibility behaviour overridden: Next=%q", preserved.Next.Action)
 	}
@@ -405,10 +405,10 @@ func TestConversionDoesNotMaskDownstreamFactsWithAuthority(t *testing.T) {
 		name string
 		gov  governanceState
 	}{
-		{"admitted/consumed with authority absent", governanceState{Status: StatusAdmitted, Resolved: false}},
-		{"mutation observed with authority absent", governanceState{Status: StatusMutationObserved, Resolved: false}},
-		{"scope verified with authority absent", governanceState{Status: StatusScopeVerified, Resolved: false, Terminal: true}},
-		{"refused with authority absent", governanceState{Status: StatusRefused, Resolved: false}},
+		{"admitted/consumed with authority absent", governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusAdmitted, Resolved: false}},
+		{"mutation observed with authority absent", governanceState{Phase: closureprotocol.PhaseMutationObserved, Status: StatusMutationObserved, Resolved: false}},
+		{"scope verified with authority absent", governanceState{Phase: closureprotocol.PhaseScopeVerified, Status: StatusScopeVerified, Resolved: false, Terminal: true}},
+		{"refused with authority absent", governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: false}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := lifecycleaction.Select(lifecycleDisposition(tc.gov, true))
@@ -503,5 +503,88 @@ func TestConsumptionAgainstADecisionThatAdmitsNothingIsRefused(t *testing.T) {
 	}
 	if err := consumptionBinds(c, dec, rec); err == nil {
 		t.Fatal("a consumption was accepted against a decision whose admitted set is empty")
+	}
+}
+
+// F3 (review 3985530101). A consumption receipt recorded AFTER the capability it
+// spends had expired is not a spend, whatever time the reader happens to run at.
+//
+// The producer refuses to mint one (admission/capability.go:37-44). The reader
+// delegated the contract to ValidateCapabilityConsumption, which checks only that
+// consumed_at PARSES -- the relation between the receipt and the decision beside
+// it is not its to see -- so an appended or imported receipt bound anyway,
+// withheld the legitimate grant and selected verification instead.
+//
+// THE READER'S CLOCK IS DELIBERATELY INSIDE THE WINDOW. recordedDecisionBinds
+// already refuses an expired decision as of now(); a now-based check cannot see
+// this, and the defect is invisible exactly while the capability still looks
+// live.
+func TestConsumptionRecordedAfterExpiryDoesNotBind(t *testing.T) {
+	task := closureprotocol.TaskBinding{ID: "task.x", SessionID: "session.x"}
+	rec := admission.RecordedAuthority{}
+	rec.Base.Task = task
+	expiry := time.Now().UTC().Add(1 * time.Hour)
+	dec := closureprotocol.AdmissionDecision{
+		CapabilityID:     "cap.x",
+		CapabilityExpiry: expiry.Format(time.RFC3339),
+		OperationVerdicts: []closureprotocol.OperationAdmissionVerdict{
+			{OperationID: "op.a", Verdict: admission.AdmissionVerdictAdmitted},
+		},
+	}
+	digest, err := closureprotocol.SemanticDigest(dec)
+	if err != nil {
+		t.Fatalf("digest: %v", err)
+	}
+	actor := closureprotocol.ActorBinding{PrincipalID: "principal.x", ActorKind: closureprotocol.ActorAgent}
+	receipt := func(consumedAt time.Time) closureprotocol.CapabilityConsumption {
+		return closureprotocol.CapabilityConsumption{
+			CapabilityID: "cap.x", Task: task, ConsumedOperationIDs: []string{"op.a"},
+			ConsumedAt: consumedAt.Format(time.RFC3339), DecisionDigestSHA256: digest,
+			OneUseStatus: closureprotocol.ReceiptValid, ConsumerActor: actor,
+		}
+	}
+
+	// The receipt's own contract passes: this is a CROSS-RECORD relation, and
+	// pinning that here keeps the repair from being "re-derive the validator".
+	after := receipt(expiry.Add(1 * time.Minute))
+	if err := closureprotocol.ValidateCapabilityConsumption(after); err != nil {
+		t.Fatalf("the receipt fails its own contract, so this proves nothing about the relation: %v", err)
+	}
+	if err := consumptionBinds(after, dec, rec); err == nil {
+		t.Fatal("a consumption recorded after the capability expired was accepted as a valid spend")
+	}
+
+	// SYMMETRY: the producer refuses the same pair. The two contracts must not
+	// disagree about what a spend is.
+	if _, err := admission.ConsumeCapability(dec, task, actor, []string{"op.a"}, after.ConsumedAt); err == nil {
+		t.Fatal("the producer minted a receipt this reader must refuse; the asymmetry this repair closes has reopened")
+	}
+
+	// POSITIVE CONTROLS: inside the window and exactly at the boundary still bind.
+	for _, tc := range []struct {
+		name string
+		at   time.Time
+	}{
+		{"well inside the window", expiry.Add(-30 * time.Minute)},
+		{"exactly at expiry", expiry},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := consumptionBinds(receipt(tc.at), dec, rec); err != nil {
+				t.Fatalf("a legitimate spend %s was rejected: %v", tc.name, err)
+			}
+		})
+	}
+
+	// An UNBOUNDED capability has no window to fall outside of.
+	unbounded := dec
+	unbounded.CapabilityExpiry = ""
+	unboundedDigest, err := closureprotocol.SemanticDigest(unbounded)
+	if err != nil {
+		t.Fatalf("digest: %v", err)
+	}
+	c := receipt(expiry.Add(24 * time.Hour))
+	c.DecisionDigestSHA256 = unboundedDigest
+	if err := consumptionBinds(c, unbounded, rec); err != nil {
+		t.Fatalf("a spend against a capability with no expiry was rejected: %v", err)
 	}
 }

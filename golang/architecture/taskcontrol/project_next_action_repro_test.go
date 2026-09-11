@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/lifecycleaction"
 	"gopkg.in/yaml.v3"
 )
@@ -107,7 +108,8 @@ func TestN2_GovernedTaskAwaitingAdmissionMustNotSelectCompletion(t *testing.T) {
 	// request_mutation_admission, written before the lifecycle owner existed;
 	// the ratified mapping names this state's machine operation decide_admission.
 	awaiting := lifecycleaction.Disposition{
-		TypedProtocol: true, AuthorityResolved: true, Status: "ready_for_admission", ReadyForAdmission: true,
+		TypedProtocol: true, AuthorityResolved: true,
+		Phase: closureprotocol.PhaseReadyForAdmission, Status: "ready_for_admission", ReadyForAdmission: true,
 	}
 	got := selectNextAction(cleanState("waiting"), true, GovernedMutationDisposition{Governed: true, Disposition: awaiting})
 	if got.Kind == ActionCompleteTask {

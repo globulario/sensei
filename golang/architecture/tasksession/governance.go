@@ -337,6 +337,33 @@ func consumptionBinds(c closureprotocol.CapabilityConsumption, dec closureprotoc
 	if wantCap := strings.TrimSpace(dec.CapabilityID); wantCap != "" && strings.TrimSpace(c.CapabilityID) != wantCap {
 		return fail(fmt.Sprintf("capability_consumption spends capability %q, but the current decision issued %q", c.CapabilityID, wantCap))
 	}
+	// Relation: the spend must fall inside the capability's OWN validity window.
+	//
+	// NOT a now() comparison. recordedDecisionBinds already refuses a decision
+	// whose capability has expired as of the READER'S clock; this is the
+	// different question of whether the receipt claims a spend that happened
+	// after the capability it spends had already expired. A reader still inside
+	// the window accepted such a receipt as a valid spend, which withheld the
+	// legitimate grant and selected verification instead -- so the defect is
+	// invisible exactly while the capability still looks live.
+	//
+	// admission.ConsumeCapability refuses to CREATE one (capability.go:37-44).
+	// ValidateCapabilityConsumption checks only that consumed_at PARSES; the
+	// relation between the two records is not its to see. A receipt appended or
+	// imported by any other route reaches here unexamined.
+	if expiry := strings.TrimSpace(dec.CapabilityExpiry); expiry != "" {
+		exp, err := time.Parse(time.RFC3339, expiry)
+		if err != nil {
+			return fail("the current decision's capability_expiry is not RFC3339: " + err.Error())
+		}
+		spent, err := time.Parse(time.RFC3339, strings.TrimSpace(c.ConsumedAt))
+		if err != nil {
+			return fail("capability_consumption consumed_at is not RFC3339: " + err.Error())
+		}
+		if spent.After(exp) {
+			return fail(fmt.Sprintf("capability_consumption records a spend at %s, after the capability it spends expired at %s", c.ConsumedAt, expiry))
+		}
+	}
 	// Relation: it must bind THIS task and session.
 	if c.Task.ID != rec.Base.Task.ID {
 		return fail(fmt.Sprintf("capability_consumption binds task %q, but this task is %q", c.Task.ID, rec.Base.Task.ID))
