@@ -5,8 +5,9 @@ package lifecycleaction
 import "testing"
 
 // The closed lifecycle/action mapping, enumerated. A state that is not listed
-// here has no ratified action, and the owner must answer Unavailable for it
-// rather than letting it fall through to admission, mutation or completion.
+// here has no ratified action, and the owner must answer Blocked for it -- NOT
+// Unavailable, which tells the caller to keep its own behaviour -- rather than
+// letting it fall through to admission, mutation or completion.
 func TestTheClosedLifecycleActionMapping(t *testing.T) {
 	for _, tc := range []struct {
 		name string
