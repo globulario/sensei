@@ -4,7 +4,6 @@ package completion
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1164,68 +1163,6 @@ func TestAReceiptWithInconsistentInternalIdentityIsRefused(t *testing.T) {
 					"abandonedEventMatches reads, so the bound world can be substituted underneath", tc.name)
 			}
 		})
-	}
-}
-
-// R4-F4. A durable entry whose HEAD write failed is post-commit, not a failure.
-//
-// Store.Append returns ErrEntryDurable to say the terminal fact IS committed and
-// only HEAD.yaml is unwritten. Treating it as an ordinary append failure left the
-// fact committed, the projection unrebuilt and the pointer live -- and a retry
-// with the original expected head then reported stale, because verification
-// derives the new durable head. The caller was told the write failed, then that
-// it was too late to try again.
-//
-// Driven through AbandonTask with a one-shot fault armed at the exact boundary,
-// so this proves the BRANCH runs, not merely that the verifier it calls works.
-func TestADurableAppendCompletesTheRecoveryPath(t *testing.T) {
-	w := seedWorldWithoutResult(t)
-	id := taskID(t, w.TaskDir)
-	setActivePointer(t, w, id)
-	before := currentHead(t, w.TaskDir)
-
-	res, err := abandonTask(context.Background(), AbandonRequest{
-		RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir, IdentityRoot: w.IdentityRoot,
-		ExpectedLedgerHeadDigestSHA256: before, Reason: whyAbandoned,
-	}, abandonDependencies{
-		ledgerOptions: []ledger.StoreOption{
-			ledger.WithHeadPublicationFault(errors.New("injected: HEAD publication failed")),
-		},
-	})
-	if err != nil {
-		t.Fatalf("abandon: %v", err)
-	}
-
-	// The event is durable despite the failed publication -- that is what makes
-	// this post-commit rather than a failed append.
-	if n := abandonedEvents(t, w.TaskDir); n != 1 {
-		t.Fatalf("abandoned events = %d, want 1: the injected fault must fire AFTER the entry is durable", n)
-	}
-	// The branch ran and completed the cleanup rather than stranding the fact.
-	if res.Outcome != OutcomeCommitted {
-		t.Fatalf("outcome = %q (%s): a durable entry was not carried through the recovery path",
-			res.Outcome, res.Detail)
-	}
-	if res.Receipt == nil || res.ReceiptPath == "" {
-		t.Fatalf("recovery returned receipt=%v path=%q; both are returned on the ordinary path",
-			res.Receipt != nil, res.ReceiptPath)
-	}
-	if !res.ActivePointerCleared || pointerExists(t, w.Repo) {
-		t.Fatal("the pointer was not retired after a durable append")
-	}
-	// Projection recovery completed: the task reconstructs as abandoned.
-	a, ierr := InspectTerminalState(context.Background(), Request{RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir})
-	if ierr != nil || a.State != TerminalAbandoned {
-		t.Fatalf("terminal state = %q err=%v, want abandoned", a.State, ierr)
-	}
-
-	// A retry is idempotent, and the fault is one-shot so this takes the real path.
-	retry := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
-	if retry.Outcome != OutcomeExactReplay {
-		t.Fatalf("retry = %q (%s), want exact_replay", retry.Outcome, retry.Detail)
-	}
-	if n := abandonedEvents(t, w.TaskDir); n != 1 {
-		t.Fatalf("abandoned events = %d after retry, want exactly 1", n)
 	}
 }
 

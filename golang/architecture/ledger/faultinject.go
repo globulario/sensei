@@ -16,6 +16,11 @@ import "errors"
 // InjectHeadWriteFaults, from serial tests running under the build tag.
 var pendingHeadWriteFaults int
 
+// consumedHeadWriteFaults counts faults that actually fired. A fault-injection
+// test whose fault never fires passes while proving nothing, so the tests assert
+// on this rather than trusting that arming an injector had an effect.
+var consumedHeadWriteFaults int
+
 // InjectHeadWriteFaults makes the next n HEAD writes fail. Compiled only under the
 // sensei_faultinject tag; it does not exist in the production ledger API.
 func InjectHeadWriteFaults(n int) { pendingHeadWriteFaults = n }
@@ -24,7 +29,21 @@ func InjectHeadWriteFaults(n int) { pendingHeadWriteFaults = n }
 func headWriteFault() error {
 	if pendingHeadWriteFaults > 0 {
 		pendingHeadWriteFaults--
+		consumedHeadWriteFaults++
 		return errors.New("injected head write fault")
 	}
 	return nil
 }
+
+// ClearHeadWriteFaults disarms any pending faults and resets the consumed count.
+// The counters are process-global, so a test that arms faults it does not consume
+// would poison the next one.
+func ClearHeadWriteFaults() { pendingHeadWriteFaults, consumedHeadWriteFaults = 0, 0 }
+
+// ConsumedHeadWriteFaults reports how many armed faults actually fired.
+//
+// This is what a test must assert on. Asserting that nothing remains PENDING is
+// trivially true when nothing was armed, so it cannot tell "the fault fired" from
+// "the fault was never armed" -- and the second is exactly how a fault-injection
+// test comes to pass while exercising the ordinary path.
+func ConsumedHeadWriteFaults() int { return consumedHeadWriteFaults }
