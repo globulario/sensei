@@ -37,7 +37,19 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		return AppendResult{}, err
 	}
 	if !report.Valid {
-		return AppendResult{}, fmt.Errorf("cannot append to invalid ledger")
+		recovered, rerr := recoverUnpublishedHead(ctx, s)
+		if rerr != nil {
+			return AppendResult{}, rerr
+		}
+		if !recovered {
+			return AppendResult{}, fmt.Errorf("cannot append to invalid ledger")
+		}
+		if report, err = verifyTaskLedger(ctx, s.taskDir, s.payloadValidator); err != nil {
+			return AppendResult{}, err
+		}
+		if !report.Valid {
+			return AppendResult{}, fmt.Errorf("cannot append to invalid ledger")
+		}
 	}
 	currentHead := report.HeadDigestSHA256
 	if currentHead != req.ExpectedHeadDigestSHA256 {
@@ -102,23 +114,87 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		EntryDigestSHA256: digest,
 		EntryPath:         filepath.ToSlash(filepath.Join("ledger", ledgerEntryFilename(entry.Sequence, entry.EventType, digest))),
 	}
-	// The entry is now durable. A HEAD write failure is a POST-commit condition,
-	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
-	// entry identity so the caller reconciles instead of assuming no append.
-	// The injected fault, if armed, stands exactly here: after writeEntry made
-	// the entry durable and before HEAD is published. One-shot, so the retry that
-	// follows takes the real path.
-	headErr := error(nil)
-	if s.headFault != nil {
-		headErr, s.headFault = s.headFault, nil
-	} else {
-		headErr = writeHead(s.headPath(), head)
-	}
-	if err := headErr; err != nil {
+	// The entry is now durable. Publication is retried here, still under the lock,
+	// because this is the only owner that knows the pointer it is writing. If every
+	// attempt fails that is a POST-commit condition, not a pre-commit failure:
+	// ErrEntryDurable carries the committed entry identity, and generic readers
+	// refuse the ledger until a later Append republishes HEAD.
+	// Tests reach this branch only through the sensei_faultinject seams.
+	if err := publishHead(s, head); err != nil {
 		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
 			ErrEntryDurable{Entry: entry, Head: head, Detail: err.Error()}
 	}
 	return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path}, nil
+}
+
+// headPublicationAttempts bounds the HEAD writes one publication may make.
+const headPublicationAttempts = 3
+
+// publishHead is the bounded HEAD-publication retry. Only appendEntry calls it,
+// directly or through recoverUnpublishedHead.
+//
+// s.headFaults is empty in every default build (faultinject_off.go); only a
+// sensei_faultinject-tagged test can arm it.
+func publishHead(s *Store, head Head) error {
+	var err error
+	for attempt := 0; attempt < headPublicationAttempts; attempt++ {
+		if err = s.headFaults.next(); err == nil {
+			err = writeHead(s.headPath(), head)
+		}
+		if err == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("HEAD not published after %d attempts: %w", headPublicationAttempts, err)
+}
+
+// recoverUnpublishedHead republishes HEAD when, and only when, the ledger's sole
+// defect is the residue an interrupted publication by appendEntry leaves behind.
+// It runs only inside appendEntry, which holds the append lock.
+//
+// That residue has exactly two shapes, because writeFileAtomic replaces HEAD by
+// rename and never removes a published pointer:
+//
+//	head_stale    HEAD names the entry immediately before the last one
+//	head_missing  the chain is a single entry and HEAD was never published
+//
+// Anything else is refused. A HEAD naming an entry the chain no longer contains is
+// what tail truncation produces (#352), and rewriting it would resurrect the
+// authority the deleted entries consumed. A missing HEAD on a longer chain cannot
+// come from an interrupted publication, so it is not recovered either.
+func recoverUnpublishedHead(ctx context.Context, s *Store) (bool, error) {
+	chain, report, head, err := verifyAndLoadChain(ctx, s.taskDir, s.payloadValidator)
+	if err != nil {
+		return false, err
+	}
+	if len(report.Errors) > 0 || head.finding == nil || !isUnpublishedHeadResidue(chain, head) {
+		return false, nil
+	}
+	if err := publishHead(s, chain.Head); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func isUnpublishedHeadResidue(chain VerifiedChain, head headObservation) bool {
+	n := len(chain.Entries)
+	switch head.finding.Code {
+	case "ledger.head_missing":
+		return n == 1
+	case "ledger.head_stale":
+		if n < 2 {
+			return false
+		}
+		prev := chain.Entries[n-2]
+		return head.published == Head{
+			SchemaVersion:     HeadSchemaVersion,
+			TaskID:            chain.TaskID,
+			Sequence:          prev.Entry.Sequence,
+			EntryDigestSHA256: prev.Entry.EntryDigestSHA256,
+			EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(prev.EntryPath))),
+		}
+	}
+	return false
 }
 
 func replayMatchesCurrentHead(ctx context.Context, s *Store, req AppendRequest, report VerificationReport) bool {

@@ -12,20 +12,21 @@ import (
 	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
-// TestCLIAdvanceResultPostCommitRecovery is the CLI-level post-commit test. It runs
-// only under sensei_faultinject (the non-shipping HEAD-write fault seam). The first
-// invocation leaves a durable entry with an unreconciled HEAD: the CLI reports
-// post_commit_incomplete with the committed identity + recovery action and exits 1.
-// A later invocation of the exact same command reconciles and exits 0, appending no
-// second transition event.
-func TestCLIAdvanceResultPostCommitRecovery(t *testing.T) {
+// TestCLIAdvanceResultPostCommitDoesNotRepairHead is the CLI-level post-commit
+// test. It runs only under sensei_faultinject (the non-shipping HEAD-write fault
+// seam). Every HEAD publication attempt Store.Append makes fails, so the first
+// invocation leaves a durable entry with an unpublished HEAD: the CLI reports
+// post_commit_incomplete with the committed identity + recovery action and exits
+// 1. A later invocation of the same command cannot read through that HEAD and does
+// not exit 0: HEAD publication recovery belongs to Store.Append alone (#352).
+func TestCLIAdvanceResultPostCommitDoesNotRepairHead(t *testing.T) {
 	r, err := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	args := []string{"-repo", r.Repo, "-task-dir", r.TaskDir, "-result-revision", r.ResultRev, "-format", "json"}
 
-	ledger.InjectHeadWriteFaults(2)
+	ledger.InjectHeadWriteFaults(ledger.HeadPublicationAttempts())
 	defer ledger.InjectHeadWriteFaults(0)
 
 	out, code := captureAdvance(t, args)
@@ -46,20 +47,13 @@ func TestCLIAdvanceResultPostCommitRecovery(t *testing.T) {
 		t.Fatal("correctness_certified must be false")
 	}
 
-	// Exact retry after the fault clears: reconcile, exit 0.
+	// Retry after the fault clears: the unpublished HEAD is refused, not repaired.
 	ledger.InjectHeadWriteFaults(0)
 	out2, code2 := captureAdvance(t, args)
-	if code2 != 0 {
-		t.Fatalf("retry exit %d, want 0: %s", code2, out2)
+	if code2 == 0 {
+		t.Fatalf("retry exit 0 over an unpublished HEAD: %s", out2)
 	}
-	var o2 advanceResultOutput
-	if err := json.Unmarshal([]byte(out2), &o2); err != nil {
-		t.Fatal(err)
-	}
-	if o2.Outcome != "recorded" {
-		t.Fatalf("retry outcome = %s, want recorded", o2.Outcome)
-	}
-	if o2.TransitionDisposition == "recorded" {
-		t.Fatal("retry must reconcile the durable entry, not perform a fresh record")
+	if report, _ := ledger.NewStore(r.TaskDir).Verify(); report.Valid {
+		t.Fatal("HEAD was republished outside Store.Append")
 	}
 }

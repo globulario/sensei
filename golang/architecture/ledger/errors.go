@@ -23,11 +23,14 @@ func (e ErrLockHeld) Error() string {
 }
 
 // ErrEntryDurable reports that the ledger entry was written durably (the append
-// is committed) but a subsequent derived-state write (HEAD) failed. It must never
-// be mistaken for a pre-commit failure: the entry exists and is authoritative, so
-// the caller must reconcile rather than assume nothing was appended. The recovery
-// is to reconcile derived state (or retry the same append, which resolves as an
-// exact replay).
+// is committed) but HEAD publication failed on every bounded attempt Append made
+// under its lock. It must never be mistaken for a pre-commit failure: the entry
+// exists and is authoritative, so the caller must not assume nothing was appended.
+//
+// Until HEAD is published the ledger fails closed: Verify reports
+// ledger.head_stale or ledger.head_missing and every generic chain read refuses.
+// Only Store.Append republishes it, under its lock -- retrying the same append
+// does so and resolves as an exact replay. No other API repairs HEAD.
 type ErrEntryDurable struct {
 	Entry  Entry
 	Head   Head

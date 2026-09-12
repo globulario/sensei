@@ -56,7 +56,7 @@ func Project(chain VerifiedChain) (ProjectionSet, error) {
 }
 
 func RebuildProjections(taskDir string, validator PayloadValidator) (ProjectionSet, error) {
-	chain, err := loadVerifiedChain(context.Background(), taskDir, validator)
+	chain, err := loadSettledVerifiedChain(context.Background(), taskDir, validator)
 	if err != nil {
 		return ProjectionSet{}, err
 	}

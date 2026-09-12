@@ -95,7 +95,10 @@ func TestConcurrentDifferentWritersOneWinner(t *testing.T) {
 
 // --- derived-state recovery ---
 
-func TestMissingHeadRecovery(t *testing.T) {
+// HEAD damage is not recoverable by a recording caller. HEAD publication recovery
+// belongs to ledger.Store.Append alone (#352), so a retry refuses the ledger and
+// leaves both HEAD and the event count exactly as it found them.
+func TestMissingHeadIsRefusedNotRecovered(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
@@ -103,35 +106,31 @@ func TestMissingHeadRecovery(t *testing.T) {
 	if err := os.Remove(headPath(taskDir)); err != nil {
 		t.Fatal(err)
 	}
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("retry after HEAD loss: %v", err)
+	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err == nil {
+		t.Fatal("retry succeeded over a missing HEAD")
 	}
-	if res.Disposition != DispositionReconciled {
-		t.Fatalf("disposition = %s, want reconciled", res.Disposition)
+	if _, err := os.Stat(headPath(taskDir)); !os.IsNotExist(err) {
+		t.Fatal("a recording caller republished HEAD")
 	}
-	if _, err := os.Stat(headPath(taskDir)); err != nil {
-		t.Fatal("HEAD not restored")
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("recovery appended a second event")
+	if durableTransitionEvents(t, taskDir) != 1 {
+		t.Fatal("retry appended a second event")
 	}
 }
 
-func TestStaleHeadRecovery(t *testing.T) {
+func TestStaleHeadIsRefusedNotRecovered(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(headPath(taskDir), []byte("schema_version: \"1\"\ntask_id: task.rec\nsequence: 0\nentry_digest_sha256: deadbeef\n"), 0o644); err != nil {
+	forged := []byte("schema_version: \"1\"\ntask_id: task.rec\nsequence: 0\nentry_digest_sha256: deadbeef\n")
+	if err := os.WriteFile(headPath(taskDir), forged, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("retry after HEAD corruption: %v", err)
+	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err == nil {
+		t.Fatal("retry succeeded over a stale HEAD")
 	}
-	if res.Disposition != DispositionReconciled || res.ProjectionState != "current" {
-		t.Fatalf("stale HEAD not reconciled: %+v", res)
+	if got, _ := os.ReadFile(headPath(taskDir)); string(got) != string(forged) {
+		t.Fatal("a recording caller rewrote HEAD")
 	}
 }
 
@@ -162,14 +161,19 @@ func TestReconcileDerivedStateDirect(t *testing.T) {
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
 	}
-	_ = os.Remove(headPath(taskDir))
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(recordingPayloadValidator))
 	rec, err := store.ReconcileDerivedState()
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || rec.ProjectionState != "current" {
+		t.Fatalf("reconcile of a valid ledger: %+v err=%v", rec, err)
 	}
-	if !rec.HeadRewritten || rec.ProjectionState != "current" {
-		t.Fatalf("reconcile did not repair HEAD: %+v", rec)
+
+	// It rebuilds projections only. A missing HEAD is refused, never republished.
+	_ = os.Remove(headPath(taskDir))
+	if _, err := store.ReconcileDerivedState(); err == nil {
+		t.Fatal("ReconcileDerivedState accepted a missing HEAD")
+	}
+	if _, err := os.Stat(headPath(taskDir)); !os.IsNotExist(err) {
+		t.Fatal("ReconcileDerivedState republished HEAD")
 	}
 }
 
