@@ -102,6 +102,13 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		EntryDigestSHA256: digest,
 		EntryPath:         filepath.ToSlash(filepath.Join("ledger", ledgerEntryFilename(entry.Sequence, entry.EventType, digest))),
 	}
+	// The witness advances at the ENTRY's commit point, not HEAD's. The entry is
+	// durable now; that this task has reached this sequence is true from here on,
+	// and must remain true even if everything below fails or is later deleted.
+	if err := advanceWitness(s.taskDir, req.TaskID, head, req.ProducedAt); err != nil {
+		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
+			ErrEntryDurable{Entry: entry, Head: head, Detail: "history witness not advanced: " + err.Error()}
+	}
 	// The entry is now durable. A HEAD write failure is a POST-commit condition,
 	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
 	// entry identity so the caller reconciles instead of assuming no append.

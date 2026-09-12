@@ -44,6 +44,21 @@ func (s *Store) ReconcileDerivedState() (ReconcileResult, error) {
 	// stale; never touch the entries themselves.
 	derived := chain.Head
 	current, herr := readHead(s.headPath())
+
+	// RECOVERY IS DIRECTIONAL -- and the refusal is enforced ABOVE this point.
+	//
+	// Rewriting HEAD to match a recomputed chain is the correct repair for a HEAD
+	// that LAGS, and was the act that destroyed the evidence when HEAD LED: the
+	// shorter chain became canonical and the truncation left no trace.
+	//
+	// This function no longer needs its own directional check. loadVerifiedChain
+	// above refuses a chain whose HEAD leads its entries or whose history is short
+	// of the witness, because both are STRUCTURAL failures, so reconcile cannot be
+	// reached over lost history at all. A duplicate check here would be a guard
+	// that can never fire -- which reads as protection and provides none.
+	//
+	// What remains below is therefore only the LAGGING case, which is exactly what
+	// derived-state repair is for.
 	needRepair := herr != nil ||
 		current.EntryDigestSHA256 != derived.EntryDigestSHA256 ||
 		current.Sequence != derived.Sequence ||

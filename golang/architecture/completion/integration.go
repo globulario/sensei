@@ -148,7 +148,9 @@ func reverifyOwners(ctx context.Context, root, taskDir string, terminal Terminal
 }
 
 func reverifyCorrectness(ctx context.Context, taskDir string, currentRB closureprotocol.ResultBinding, boundDigest string) (bool, string) {
-	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
+	// Same reason as inspect: a broken_completion verdict is a refusal that names
+	// what is broken, and it needs the chain to say so.
+	chain, _, err := ledger.NewStore(taskDir).VerifyChainForDiagnosisCtx(ctx)
 	if err != nil {
 		return false, "chain unavailable"
 	}

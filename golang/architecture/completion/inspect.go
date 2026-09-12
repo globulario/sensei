@@ -109,16 +109,16 @@ func InspectTerminalState(ctx context.Context, req Request) (TerminalStateAssess
 	a := TerminalStateAssessment{SchemaVersion: inspectSchemaVersion, Bound: inspectBound()}
 
 	store := ledger.NewStore(taskDir)
-	report, verr := store.VerifyCtx(ctx)
-	if verr != nil || !report.Valid || report.EntryCount == 0 {
-		a.State = TerminalUnsupported
-		a.Detail = "task ledger did not verify"
-		return stampInspect(a), nil
-	}
-	chain, cerr := store.VerifyChainCtx(ctx)
+	// DIAGNOSIS, NOT AUTHORITY. inspect exists to name what is broken, so a
+	// referenced artifact that is missing or altered must not collapse it into
+	// "unsupported": event_without_valid_receipt is a MORE precise refusal than
+	// "did not verify", and recovery acts on it. A STRUCTURALLY invalid chain is
+	// still refused here, and Complete -- which is an authority action -- keeps
+	// the strict gate.
+	chain, report, cerr := store.VerifyChainForDiagnosisCtx(ctx)
 	if cerr != nil || len(chain.Entries) == 0 {
 		a.State = TerminalUnsupported
-		a.Detail = "task ledger chain unavailable"
+		a.Detail = "task ledger did not verify"
 		return stampInspect(a), nil
 	}
 	a.Task = chain.Entries[len(chain.Entries)-1].Entry.Task

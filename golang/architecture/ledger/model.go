@@ -60,6 +60,11 @@ type VerificationReport struct {
 	Warnings         []VerificationWarning `json:"warnings,omitempty" yaml:"warnings,omitempty"`
 	OrphanArtifacts  []string              `json:"orphan_artifacts,omitempty" yaml:"orphan_artifacts,omitempty"`
 	ProjectionState  string                `json:"projection_state,omitempty" yaml:"projection_state,omitempty"`
+	// CompletenessEstablished reports whether a history witness covering this
+	// chain from genesis exists. It is NOT implied by Valid: a chain can be
+	// internally consistent and still be missing its tail. A reduction that is
+	// about to interpret the ABSENCE of an event must consult this first.
+	CompletenessEstablished bool `json:"completeness_established" yaml:"completeness_established"`
 }
 
 type PayloadValidator func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error
