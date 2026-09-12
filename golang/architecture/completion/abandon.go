@@ -92,33 +92,7 @@ func refuseAbandon(o Outcome, format string, a ...any) (AbandonResult, error) {
 	return AbandonResult{Outcome: o, Detail: fmt.Sprintf(format, a...)}, nil
 }
 
-// abandonDependencies is what AbandonTask needs from its environment and what a
-// test may substitute. It is unexported and travels as a parameter, NOT as a
-// field on AbandonRequest.
-//
-// The field version was wrong in a way a keyed-construction compile check does
-// not reveal: adding a slice makes AbandonRequest non-comparable, and adding an
-// unexported field makes external positional literals illegal. Both are public
-// API breaks, and neither shows up when a test constructs the struct with named
-// fields. The request contract is left byte-for-byte as it was.
-type abandonDependencies struct {
-	// ledgerOptions are handed to the task ledger store. Empty in production.
-	ledgerOptions []ledger.StoreOption
-}
-
-func defaultAbandonDependencies() abandonDependencies { return abandonDependencies{} }
-
 // AbandonTask records a task as abandoned and then retires its active pointer.
-//
-// The public entry point. It delegates to abandonTask with production defaults;
-// the split exists so this package's own tests can drive the same implementation
-// with a one-shot ledger fault armed, without that seam appearing anywhere in
-// the public request contract.
-func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
-	return abandonTask(ctx, req, defaultAbandonDependencies())
-}
-
-// abandonTask is the implementation. AbandonTask is its production caller.
 //
 // THE ORDER IS THE CONTRACT, and it is durable-first for a reason that survives a
 // crash. Clearing the pointer first would, on interruption, leave a task with no
@@ -131,7 +105,7 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 //
 // So an interruption between the two steps is not an error state. It is the
 // expected intermediate, and TestAnInterruptedAbandonmentIsResumable pins it.
-func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependencies) (AbandonResult, error) {
+func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
 	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
@@ -160,7 +134,7 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 	}
 	defer release()
 
-	store := ledger.NewStore(taskDir, deps.ledgerOptions...)
+	store := ledger.NewStore(taskDir)
 	report, verr := store.VerifyCtx(ctx)
 	if verr != nil || !report.Valid || report.EntryCount == 0 {
 		return refuseAbandon(OutcomeLedgerInvalid, "task ledger did not verify")
