@@ -54,6 +54,12 @@ func LoadLatestArtifactOptional(taskDir string, eventType closureprotocol.Ledger
 // latest event that omits artifactKey yields (false, nil); an absent event fails
 // closed with the same error the per-artifact loaders return.
 func latestArtifactFromChain(taskDir string, chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType, artifactKey string, out any) (bool, error) {
+	// A SINGLETON fact has no "latest". Route it to the count predicate rather
+	// than to a backward scan, which cannot express "more than one is wrong".
+	switch closureprotocol.EventOccurrence[eventType] {
+	case closureprotocol.OccurrenceSingleton, closureprotocol.OccurrenceUnratified:
+		return singletonArtifactFromChain(taskDir, chain, eventType, artifactKey, out)
+	}
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
 		ve := chain.Entries[i]
 		if ve.Entry.EventType != eventType {

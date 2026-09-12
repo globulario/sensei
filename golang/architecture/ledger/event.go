@@ -80,22 +80,16 @@ func ValidateTaskEventPayload(eventType closureprotocol.LedgerEventType, data []
 			return err
 		}
 	}
-	// A result_transition_recorded event must reference the content-addressed
-	// ResultTransitionReceipt it records. The receipt's fields are validated where
-	// it is loaded (closureprotocol.ValidateResultTransitionReceipt); here the
-	// event contract only requires the artifact to be present.
-	if eventType == closureprotocol.LedgerEventResultTransitionRecorded {
-		if _, ok := payload.Artifacts["result_transition_receipt"]; !ok {
-			return fmt.Errorf("result_transition_recorded event requires a result_transition_receipt artifact")
-		}
-	}
-	// A question_disposition_recorded event must reference the content-addressed
-	// QuestionDispositionReceipt it records (Phase 8.1a). The receipt's fields are
-	// validated where it is loaded; here the event contract only requires the
-	// artifact to be present.
-	if eventType == closureprotocol.LedgerEventQuestionDispositionRecorded {
-		if _, ok := payload.Artifacts["question_disposition_receipt"]; !ok {
-			return fmt.Errorf("question_disposition_recorded event requires a question_disposition_receipt artifact")
+	// REQUIRED ARTIFACTS, from the declared table rather than a list of ifs.
+	//
+	// Two types were hardcoded here, which is why an admission_consumed without a
+	// capability_consumption was a WELL-FORMED entry: the reader was not fooled,
+	// it was handed a record this validator declared legal. The receipts' own
+	// fields are validated where they are loaded; this contract requires only that
+	// the artifact the event's meaning depends on is present.
+	for _, key := range closureprotocol.RequiredEventArtifacts[eventType] {
+		if _, ok := payload.Artifacts[key]; !ok {
+			return fmt.Errorf("%s event requires a %s artifact", eventType, key)
 		}
 	}
 	return nil

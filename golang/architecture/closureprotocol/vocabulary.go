@@ -207,6 +207,73 @@ var (
 	}
 )
 
+// OCCURRENCE SEMANTICS — the declared cardinality of each ledger event type.
+//
+// Without this table the protocol semantics of all nineteen types are encoded,
+// accidentally, in the direction of a `for` loop: a backward scan makes every
+// type behave as "latest wins", which is correct for a projection, wrong for a
+// single-use fact, and destructive for an accumulating record.
+//
+// "LATEST" IS A DECLARED PROPERTY OF AN EVENT CLASS, never an emergent property
+// of iteration order. Ratified as B-R1.
+type OccurrenceSemantics string
+
+const (
+	// OccurrenceSingleton: at most one occurrence within its cardinality key.
+	// Zero, one-valid, more-than-one and one-malformed are four distinct
+	// semantic states, and there is NO selection algorithm among occurrences.
+	OccurrenceSingleton OccurrenceSemantics = "singleton"
+	// OccurrenceSuperseding: may legitimately recur; the current one is current.
+	OccurrenceSuperseding OccurrenceSemantics = "superseding"
+	// OccurrenceAccumulating: may recur and EVERY occurrence matters. Selecting
+	// "latest" discards evidence.
+	OccurrenceAccumulating OccurrenceSemantics = "accumulating"
+	// OccurrenceUnratified: the vocabulary recognises the token, but no producer
+	// contract has been ratified. A writer must not emit it, and a reader must
+	// refuse it rather than let it participate in an authority reduction.
+	OccurrenceUnratified OccurrenceSemantics = "unratified"
+)
+
+// EventOccurrence declares the cardinality of every member of LedgerEventTypes.
+// TestEventOccurrenceCoversTheClosedSet pins it to that closed set.
+var EventOccurrence = map[LedgerEventType]OccurrenceSemantics{
+	LedgerEventLegacyImport:      OccurrenceSingleton,
+	LedgerEventTaskPrepared:      OccurrenceSingleton,
+	LedgerEventAdmissionConsumed: OccurrenceSingleton,
+	LedgerEventChangeObserved:    OccurrenceSingleton,
+	LedgerEventCertified:         OccurrenceSingleton,
+	LedgerEventCompleted:         OccurrenceSingleton,
+	LedgerEventRevoked:           OccurrenceSingleton,
+
+	LedgerEventAdmissionDecided:     OccurrenceSuperseding,
+	LedgerEventAuthorityResolved:    OccurrenceSuperseding,
+	LedgerEventTaskControlProjected: OccurrenceSuperseding,
+
+	LedgerEventConvergenceAdvanced:         OccurrenceAccumulating,
+	LedgerEventClosureAssessed:             OccurrenceAccumulating,
+	LedgerEventScopeVerified:               OccurrenceAccumulating,
+	LedgerEventResultTransitionRecorded:    OccurrenceAccumulating,
+	LedgerEventQuestionDispositionRecorded: OccurrenceAccumulating,
+
+	LedgerEventEvidenceRecorded:  OccurrenceUnratified,
+	LedgerEventProofDischarged:   OccurrenceUnratified,
+	LedgerEventMigrationExecuted: OccurrenceUnratified,
+	LedgerEventTaskMarkedStale:   OccurrenceUnratified,
+}
+
+// RequiredEventArtifacts declares the artifacts an event type's SEMANTICS depend
+// on. An event of that type without them is not an impoverished record; it is a
+// record whose meaning cannot be reconstructed.
+//
+// Deliberately NOT the full B-R1 artifact column: only the rows enforced today
+// are listed, so this table never claims an enforcement that does not exist.
+// Adding a row is a behaviour change and belongs with its own falsifier.
+var RequiredEventArtifacts = map[LedgerEventType][]string{
+	LedgerEventAdmissionConsumed:           {"capability_consumption"},
+	LedgerEventResultTransitionRecorded:    {"result_transition_receipt"},
+	LedgerEventQuestionDispositionRecorded: {"question_disposition_receipt"},
+}
+
 var AllowedTaskTransitions = map[TaskPhase][]TaskPhase{
 	PhasePrepared:                {PhaseConverging, PhaseStale, PhaseUncertifiable, PhaseAbandoned},
 	PhaseConverging:              {PhaseReadyForAdmission, PhaseWaitingArchitect, PhaseWaitingEvidence, PhaseWaitingGovernance, PhaseWaitingMechanicalRepair, PhaseStale, PhaseUncertifiable, PhaseAbandoned},

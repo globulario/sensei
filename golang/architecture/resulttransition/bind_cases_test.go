@@ -319,8 +319,17 @@ func TestBindDuplicateDivergentObservedFails(t *testing.T) {
 	mutateWorktree(t, repo, "changed\n")
 	dir := seedChain(t, repo, baseRev, seedOpts{})
 
-	// Append a second, divergent change_observed after scope_verified. The loader
-	// returns the latest; scope still references the first, so it fails closed.
+	// Append a second, divergent change_observed after scope_verified.
+	//
+	// This USED to fail closed indirectly: the loader returned the latest
+	// occurrence, scope still referenced the first, and the digest mismatch
+	// caught it downstream. That path depended on latest-wins -- the behaviour
+	// B-R1 abolished for singleton facts, because it silently chose between
+	// contradictory records.
+	//
+	// It now fails closed DIRECTLY, naming the defect rather than a symptom:
+	// change_observed is SINGLETON, so two occurrences are an integrity failure
+	// in themselves. The property under test is unchanged; the reason improved.
 	validator := func(et closureprotocol.LedgerEventType, mt string, data []byte) error {
 		return ledger.ValidateTaskEventPayload(et, data)
 	}
@@ -336,7 +345,7 @@ func TestBindDuplicateDivergentObservedFails(t *testing.T) {
 	if _, err := admission.RecordChangeObserved(store, head, closureprotocol.TaskBinding{ID: "task.test", SessionID: "session.test"}, divergent, t0); err != nil {
 		t.Fatal(err)
 	}
-	wantBindError(t, repo, dir, ResultModeWorktree, "", "scope_observed_mismatch")
+	wantBindError(t, repo, dir, ResultModeWorktree, "", "multiple_occurrences")
 }
 
 func TestBindNotScopeVerifiedFails(t *testing.T) {
