@@ -70,10 +70,12 @@ func TestResolveControlAndClosure_AfterPublishedGeneration(t *testing.T) {
 // AdvanceTaskResult's own replay_no_new_iteration semantics -- so a real
 // second, distinct generation cannot be produced just by calling it
 // twice). currentControlPaths only checks that the generation directory
-// name matches what latest-generation.yaml claims (control.go's
-// `filepath.Base(root) != ptr.DigestSHA256` check); it never re-verifies
+// is inside the task directory and that its name matches what
+// latest-generation.yaml claims (control.go's escapesDirectory and
+// `filepath.Base(root) != ptr.DigestSHA256` checks); it never re-verifies
 // the directory's content actually hashes to that name, so a renamed copy
-// is accepted exactly like a real second generation would be.
+// beside the original is accepted exactly like a real second generation
+// would be.
 func cloneGenerationAs(t *testing.T, taskDir, from, to string) {
 	t.Helper()
 	src := filepath.Join(taskDir, "control", "generations", from)
