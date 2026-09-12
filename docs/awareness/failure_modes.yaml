@@ -2266,3 +2266,27 @@ failure_modes:
       - golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
     evidence:
       - 'Measured 2026-09-04: buildTransactionTSV run for github.com/globulario/sensei-code emits ''repo awareness-graph missing'' and ''repo services missing'' while its seed digest agrees, and evaluateTransactionForGraph -- which reads only the seed digest and triple count -- reports that stamp as certification. The v1 format is authored as a cross-repo awareness-graph/services certification and is hardwired around agRepo/svcRepo, so it can make no true claim about any other domain. Meanwhile an authenticated, generation-bound per-domain publication receipt already rode on the same response and the verdict did not consult it.'
+  - id: failure.test_only_fault_injection_shipped_in_the_production_api
+    title: Test-only fault injection shipped in the production API
+    protects:
+      files:
+        - golang/architecture/ledger/model.go
+    evidence:
+      - golang/architecture/ledger/model.go exports WithHeadPublicationFault and WithHeadPublicationFaults as production StoreOptions, referenced only by verify_head_test.go. The candidate's own default-build API guard passed because it did not inspect those names.
+    contract: 'A store option that makes HEAD publication fail exists to prove the recovery path and must be unreachable from a default build. Scaffolding that ships is indistinguishable from a capability: a caller able to inject a publication fault can manufacture the damaged state the verifier exists to refuse.'
+  - id: failure.the_latest_event_of_a_type_was_read_as_the_current_fact
+    title: The latest event of a type was read as the current fact
+    protects:
+      files:
+        - golang/architecture/admission/ledger_load.go
+    evidence:
+      - latestArtifactFromChain scans backwards and returns (false, nil) the moment the latest event of the type lacks the artifact key, never consulting earlier events. Appending one artifact-less admission_consumed hides an existing capability with no deletion and a complete valid chain.
+    contract: Reading a durable fact from a chain must distinguish an absent record from a malformed one, and must not treat the most recent event of a type as authoritative merely because it is most recent.
+  - id: failure.an_event_carrying_a_durable_fact_could_be_appended_without_i
+    title: An event carrying a durable fact could be appended without its artifact
+    protects:
+      files:
+        - golang/architecture/ledger/event.go
+    evidence:
+      - ValidateTaskEventPayload requires an artifact for only 2 of 19 event types; admission_consumed is not one of them, which is what makes the artifact-less append possible.
+    contract: Payload validation must require an artifact for every event type whose record is later read as a durable fact, not for a subset. An event type appendable without its artifact can mask the fact it is supposed to carry.
