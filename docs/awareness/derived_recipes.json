@@ -1,0 +1,35 @@
+{
+  "recipes": [
+    {
+      "kind": "state_mutation_confined_to_owner",
+      "dir": "golang/architecture/ledger",
+      "type": "VerificationReport",
+      "field": "Valid",
+      "search_paths": [
+        "golang/architecture",
+        "cmd/awg"
+      ],
+      "why": "Derive whether the ledger package is the sole owner of the validity predicate before making history completeness and referenced-artifact closure part of that authority boundary.",
+      "provenance": {
+        "origin_task": "task-1789225687430163542",
+        "origin_gap": "the plan rests on an unverified premise about planned ledger history witness: A witness stored outside ledger/ would be a second durable mutation; the pinned source does not establish whether witness-before-entry, entry-before-witness, or witness-lag reconciliation preserves the atomic-history law across crashes.",
+        "region": [
+          "golang/architecture/ledger/store.go",
+          "golang/architecture/ledger/lock.go",
+          "golang/architecture/ledger/util.go",
+          "golang/architecture/ledger/append.go",
+          "golang/architecture/ledger/verify.go",
+          "golang/architecture/ledger/reconcile.go",
+          "golang/architecture/ledger/model.go",
+          "golang/architecture/ledger/adversarial_test.go",
+          "golang/architecture/admission/ledger_load.go",
+          "cmd/awg/cmd_admission_v2.go",
+          "golang/architecture/tasksession/governance_integrity_test.go",
+          "docs/awareness/generic/state_authority_invariants.yaml"
+        ],
+        "written_at": "2026-09-12T15:20:10Z",
+        "written_by": "closure_round"
+      }
+    }
+  ]
+}
