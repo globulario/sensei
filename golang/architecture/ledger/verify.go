@@ -87,8 +87,14 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			if entry.PreviousEntryDigestSHA256 != "" {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
 			}
-		} else {
-			prev := out.Entries[idx-1].Entry
+		} else if len(out.Entries) > 0 {
+			// The previous entry is the last one actually appended, not
+			// files[idx-1]: an unreadable or invalid entry is recorded and
+			// skipped without appending, so idx and len(out.Entries) diverge
+			// after any skip. When nothing has been appended there is no prior
+			// verified entry and no established task id to compare against; the
+			// skipped entry already recorded its own typed error.
+			prev := out.Entries[len(out.Entries)-1].Entry
 			if entry.PreviousEntryDigestSHA256 != prev.EntryDigestSHA256 {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.previous_digest_mismatch", Detail: "previous digest does not match prior entry", Path: filepath.ToSlash(path)})
 			}
