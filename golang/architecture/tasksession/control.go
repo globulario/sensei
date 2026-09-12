@@ -693,6 +693,32 @@ func iterationReceiptIDs(iteration convergence.Iteration) []string {
 	return cleanStrings(ids)
 }
 
+// ensurePathInside reports an error when candidate does not resolve inside
+// boundary. filepath.Join cleans ".." segments away, so a path that has
+// already left its boundary can still look well formed -- same shape, same
+// basename -- which is why containment has to be decided on the resolved
+// absolute path and never on the string that produced it.
+//
+// This is deliberately the only copy of that test in this file. Two sites
+// depend on it (a task directory against its repository, and a control
+// generation against its task directory); a second copy would be free to
+// drift weaker over time without either copy ever looking locally wrong.
+func ensurePathInside(boundary, candidate string) error {
+	absBoundary, err := filepath.Abs(boundary)
+	if err != nil {
+		return err
+	}
+	absCandidate, err := filepath.Abs(candidate)
+	if err != nil {
+		return err
+	}
+	back, relErr := filepath.Rel(absBoundary, absCandidate)
+	if relErr != nil || back == ".." || strings.HasPrefix(back, ".."+string(filepath.Separator)) {
+		return fmt.Errorf("%s is outside %s", absCandidate, absBoundary)
+	}
+	return nil
+}
+
 func resolveControlTask(repoRoot, taskDir string, active bool) (string, string, *ActivePointer, error) {
 	if strings.TrimSpace(repoRoot) == "" {
 		repoRoot = "."
@@ -705,8 +731,7 @@ func resolveControlTask(repoRoot, taskDir string, active bool) (string, string, 
 		if !filepath.IsAbs(taskDir) {
 			taskDir = filepath.Join(abs, taskDir)
 		}
-		back, relErr := filepath.Rel(abs, taskDir)
-		if relErr != nil || back == ".." || strings.HasPrefix(back, ".."+string(filepath.Separator)) {
+		if err := ensurePathInside(abs, taskDir); err != nil {
 			return "", "", nil, errors.New("task directory must be inside the repository")
 		}
 		return abs, taskDir, nil, nil
@@ -888,7 +913,12 @@ func currentControlPaths(taskDir string) (controlPaths, string, error) {
 		return controlPaths{}, "", errors.New(ReasonIncompleteGeneration)
 	}
 	root := filepath.Join(taskDir, "control", filepath.FromSlash(ptr.Generation))
-	if filepath.Base(root) != ptr.DigestSHA256 {
+	// A basename equal to the digest is a real property and still required,
+	// but it is not sufficient: a generation of "../../../<digest>" keeps the
+	// basename while the resolved root leaves the task directory. That root
+	// decides which admission-decision.yaml is authoritative and what is
+	// spliced into Permission.ExactScope, so containment is checked too.
+	if filepath.Base(root) != ptr.DigestSHA256 || ensurePathInside(taskDir, root) != nil {
 		return controlPaths{}, "", errors.New(ReasonIncompleteGeneration)
 	}
 	return controlPaths{
