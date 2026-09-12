@@ -124,6 +124,38 @@ func TestVerifyReportsOrphanArtifacts(t *testing.T) {
 	}
 }
 
+// TestValidateTaskEventPayloadRequiresCapabilityConsumptionOnAdmissionConsumed
+// proves admission_consumed carries a durable fact: a payload without its
+// capability_consumption artifact is malformed history and is rejected, while a
+// payload that references the artifact is accepted.
+func TestValidateTaskEventPayloadRequiresCapabilityConsumptionOnAdmissionConsumed(t *testing.T) {
+	render := func(artifacts map[string]closureprotocol.LedgerPayloadRef) []byte {
+		t.Helper()
+		data, err := yaml.Marshal(TaskEventPayload{
+			SchemaVersion: EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventAdmissionConsumed,
+			TaskID:        "task.example",
+			SessionID:     "session.example",
+			Artifacts:     artifacts,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return data
+	}
+
+	if err := ValidateTaskEventPayload(closureprotocol.LedgerEventAdmissionConsumed, render(nil)); err == nil {
+		t.Fatal("an admission_consumed payload without capability_consumption must be rejected")
+	}
+
+	referenced := render(map[string]closureprotocol.LedgerPayloadRef{
+		"capability_consumption": {Path: "artifacts/sha256/consumption.json", MediaType: "application/json", DigestSHA256: "abc123"},
+	})
+	if err := ValidateTaskEventPayload(closureprotocol.LedgerEventAdmissionConsumed, referenced); err != nil {
+		t.Fatalf("an admission_consumed payload referencing capability_consumption must be accepted: %v", err)
+	}
+}
+
 func buildManualEntry(t *testing.T, taskDir string, prev Entry, eventType closureprotocol.LedgerEventType, payload testPayload) Entry {
 	t.Helper()
 	rendered, err := renderPayload(payload, "application/yaml")

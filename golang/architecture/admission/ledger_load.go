@@ -33,91 +33,95 @@ func TaskLedgerHead(taskDir string) (string, error) {
 }
 
 // LoadLatestArtifactOptional loads the JSON artifact named artifactKey from the
-// most recent ledger event of eventType into out, reporting whether it was
-// present. It fails closed on real read/parse errors and when no event of
-// eventType exists, but a latest event that simply omits artifactKey yields
+// newest ledger event of eventType that carries it into out, reporting whether it
+// was present. It fails closed on real read/parse errors and when no event of
+// eventType exists; events that exist but never carried artifactKey yield
 // (false, nil) — for artifacts that are only written on some code paths.
 func LoadLatestArtifactOptional(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string, out any) (bool, error) {
-	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
-	chain, err := store.VerifyChain()
-	if err != nil {
+	data, found, err := LoadLatestArtifactBytes(taskDir, eventType, artifactKey)
+	if err != nil || !found {
 		return false, err
 	}
-	return latestArtifactFromChain(taskDir, chain, eventType, artifactKey, out)
+	if err := json.Unmarshal(data, out); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
-// latestArtifactFromChain reads a named JSON artifact from the most recent event of
-// eventType in an already-verified chain, without re-verifying it. It is the shared
-// core of the artifact loaders, so a caller that needs several artifacts from one
-// chain (LoadRecordedAuthority) can verify the ledger once and read each artifact
-// from the same verified snapshot instead of reopening the world per artifact. A
-// latest event that omits artifactKey yields (false, nil); an absent event fails
-// closed with the same error the per-artifact loaders return.
-func latestArtifactFromChain(taskDir string, chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType, artifactKey string, out any) (bool, error) {
+// newestFactArtifactRef selects a durable fact: the artifact named artifactKey on
+// the newest event of eventType that carries it. The newest event of a type is not
+// the current fact — a later event of the same type that omits the artifact does
+// not hide an earlier recorded one. An absent event type fails closed; events that
+// exist but never carried artifactKey yield (false, nil).
+func newestFactArtifactRef(chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType, artifactKey string) (closureprotocol.LedgerPayloadRef, bool, error) {
+	seen := false
 	for i := len(chain.Entries) - 1; i >= 0; i-- {
 		ve := chain.Entries[i]
 		if ve.Entry.EventType != eventType {
 			continue
 		}
-		data, err := os.ReadFile(ve.PayloadPath)
+		seen = true
+		payload, err := readEventPayload(ve.PayloadPath)
 		if err != nil {
-			return false, err
+			return closureprotocol.LedgerPayloadRef{}, false, err
 		}
-		payload, err := ledger.ParseTaskEventPayload(data)
-		if err != nil {
-			return false, err
+		if ref, ok := payload.Artifacts[artifactKey]; ok {
+			return ref, true, nil
 		}
-		ref, ok := payload.Artifacts[artifactKey]
-		if !ok {
-			return false, nil
-		}
-		artifactData, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
-		if err != nil {
-			return false, err
-		}
-		if err := json.Unmarshal(artifactData, out); err != nil {
-			return false, err
-		}
-		return true, nil
 	}
-	return false, fmt.Errorf("no %s event found in task ledger", eventType)
+	if !seen {
+		return closureprotocol.LedgerPayloadRef{}, false, fmt.Errorf("no %s event found in task ledger", eventType)
+	}
+	return closureprotocol.LedgerPayloadRef{}, false, nil
+}
+
+// newestEventBundle selects a bundle: the payload of the single newest event of
+// eventType. Every member of the bundle, required or optional, must be decoded from
+// this one payload, so no member is ever taken from an older event of the type. It
+// fails closed when no event of eventType exists.
+func newestEventBundle(chain ledger.VerifiedChain, eventType closureprotocol.LedgerEventType) (ledger.TaskEventPayload, error) {
+	for i := len(chain.Entries) - 1; i >= 0; i-- {
+		ve := chain.Entries[i]
+		if ve.Entry.EventType == eventType {
+			return readEventPayload(ve.PayloadPath)
+		}
+	}
+	return ledger.TaskEventPayload{}, fmt.Errorf("no %s event found in task ledger", eventType)
+}
+
+func readEventPayload(payloadPath string) (ledger.TaskEventPayload, error) {
+	data, err := os.ReadFile(payloadPath)
+	if err != nil {
+		return ledger.TaskEventPayload{}, err
+	}
+	return ledger.ParseTaskEventPayload(data)
+}
+
+func readArtifact(taskDir string, ref closureprotocol.LedgerPayloadRef) ([]byte, error) {
+	return os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
 }
 
 // LoadLatestArtifactBytes returns the raw bytes of the artifact named artifactKey
-// from the most recent ledger event of eventType, after verifying the ledger
-// chain. Unlike LoadLatestArtifact it does not assume JSON, so a caller can decode
-// a YAML-serialized artifact (e.g. the closure request). It fails closed when the
-// event is absent; a latest event that omits artifactKey yields (nil, false, nil).
+// from the newest ledger event of eventType that carries it, after verifying the
+// ledger chain. Unlike LoadLatestArtifact it does not assume JSON, so a caller can
+// decode a YAML-serialized artifact (e.g. the closure request). It fails closed
+// when the event is absent; events that never carried artifactKey yield
+// (nil, false, nil).
 func LoadLatestArtifactBytes(taskDir string, eventType closureprotocol.LedgerEventType, artifactKey string) ([]byte, bool, error) {
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
 	chain, err := store.VerifyChain()
 	if err != nil {
 		return nil, false, err
 	}
-	for i := len(chain.Entries) - 1; i >= 0; i-- {
-		ve := chain.Entries[i]
-		if ve.Entry.EventType != eventType {
-			continue
-		}
-		data, err := os.ReadFile(ve.PayloadPath)
-		if err != nil {
-			return nil, false, err
-		}
-		payload, err := ledger.ParseTaskEventPayload(data)
-		if err != nil {
-			return nil, false, err
-		}
-		ref, ok := payload.Artifacts[artifactKey]
-		if !ok {
-			return nil, false, nil
-		}
-		artifactData, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
-		if err != nil {
-			return nil, false, err
-		}
-		return artifactData, true, nil
+	ref, found, err := newestFactArtifactRef(chain, eventType, artifactKey)
+	if err != nil || !found {
+		return nil, false, err
 	}
-	return nil, false, fmt.Errorf("no %s event found in task ledger", eventType)
+	artifactData, err := readArtifact(taskDir, ref)
+	if err != nil {
+		return nil, false, err
+	}
+	return artifactData, true, nil
 }
 
 // LoadLatestArtifact loads the JSON artifact named artifactKey from the most
@@ -186,36 +190,47 @@ func LoadRecordedAuthority(taskDir string) (RecordedAuthority, error) {
 // task ledger exactly once and reading all five artifacts from that single verified
 // chain instead of re-verifying per artifact. When ctx carries an evaluation scope
 // (ledger.WithVerificationScope) the verification participates in that scope's digest
-// memo. The result is byte-for-byte identical to loading each artifact separately:
-// the four core artifacts fail closed when absent, and delegation receipts are read
-// only when the event recorded them.
+// memo. Every artifact comes from the one newest authority_resolved event: the four
+// core artifacts fail closed when that event lacks them, and delegation receipts are
+// read only when that same event recorded them, so a direct resolution recorded after
+// a delegated one never inherits the older event's receipts.
 func LoadRecordedAuthorityCtx(ctx context.Context, taskDir string) (RecordedAuthority, error) {
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(admissionValidator))
 	chain, err := store.VerifyChainCtx(ctx)
 	if err != nil {
 		return RecordedAuthority{}, err
 	}
-	var out RecordedAuthority
-	required := []struct {
-		key string
-		dst any
-	}{
-		{"authority_resolution", &out.Resolution},
-		{"actor_binding", &out.Actor},
-		{"change_plan", &out.ChangePlan},
-		{"base_binding", &out.Base},
+	payload, err := newestEventBundle(chain, closureprotocol.LedgerEventAuthorityResolved)
+	if err != nil {
+		return RecordedAuthority{}, err
 	}
-	for _, r := range required {
-		found, err := latestArtifactFromChain(taskDir, chain, closureprotocol.LedgerEventAuthorityResolved, r.key, r.dst)
+	var out RecordedAuthority
+	members := []struct {
+		key      string
+		dst      any
+		required bool
+	}{
+		{"authority_resolution", &out.Resolution, true},
+		{"actor_binding", &out.Actor, true},
+		{"change_plan", &out.ChangePlan, true},
+		{"base_binding", &out.Base, true},
+		{"delegation_receipts", &out.DelegationReceipts, false},
+	}
+	for _, m := range members {
+		ref, ok := payload.Artifacts[m.key]
+		if !ok {
+			if m.required {
+				return RecordedAuthority{}, fmt.Errorf("ledger event %s has no artifact %q", closureprotocol.LedgerEventAuthorityResolved, m.key)
+			}
+			continue
+		}
+		data, err := readArtifact(taskDir, ref)
 		if err != nil {
 			return RecordedAuthority{}, err
 		}
-		if !found {
-			return RecordedAuthority{}, fmt.Errorf("ledger event %s has no artifact %q", closureprotocol.LedgerEventAuthorityResolved, r.key)
+		if err := json.Unmarshal(data, m.dst); err != nil {
+			return RecordedAuthority{}, err
 		}
-	}
-	if _, err := latestArtifactFromChain(taskDir, chain, closureprotocol.LedgerEventAuthorityResolved, "delegation_receipts", &out.DelegationReceipts); err != nil {
-		return RecordedAuthority{}, err
 	}
 	return out, nil
 }
