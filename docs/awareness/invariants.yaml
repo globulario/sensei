@@ -2308,3 +2308,15 @@ invariants:
     evidence:
       - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
     contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.
+  - id: invariant.ledger_verification_returns_a_typed_refusal_never_panics
+    title: Ledger verification returns a typed refusal, never panics
+    status: active
+    description: verifyAndLoadChain must index its accumulated entries by their own length, never by the enumeration index of the files slice. An unreadable or invalid entry is recorded and skipped without appending, so after any skip the two indices diverge and a previous-entry lookup reads out of range.
+    protects:
+      files:
+        - golang/architecture/ledger/verify.go
+    required_tests:
+      - golang/architecture/ledger/verify_corrupt_entry_test.go:TestVerifyCorruptEntryRefusesWithoutPanic
+    evidence:
+      - 'issue #356: one corrupt first entry produced ''panic: runtime error: index out of range [0] with length 0'''
+    contract: 'A fail-closed verifier must always produce a verdict: every governed read calls VerifyChain, so an unhandled runtime panic leaves the governance path with no refusal to act on.'
