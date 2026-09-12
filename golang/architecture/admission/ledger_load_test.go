@@ -56,6 +56,52 @@ func TestLoadRecordedAuthorityRoundTrips(t *testing.T) {
 	}
 }
 
+// TestArtifactLessAdmissionConsumedCannotHideRecordedConsumption is the witness for
+// issue #354: with only append rights and a complete valid chain, a second
+// admission_consumed carrying no capability_consumption must not make the already
+// recorded capability unreadable. The append itself must be refused as malformed
+// history, and the recorded consumption must still load.
+func TestArtifactLessAdmissionConsumedCannotHideRecordedConsumption(t *testing.T) {
+	task := v2Task()
+	store, dir, head := admissionLedgerStore(t, task)
+
+	exp, _ := scopeFixture(t)
+	consumed, err := RecordAdmissionConsumed(store, head, exp.Consumption, ledgerProducedAt())
+	if err != nil {
+		t.Fatalf("RecordAdmissionConsumed: %v", err)
+	}
+	if _, err := LoadRecordedConsumption(dir); err != nil {
+		t.Fatalf("LoadRecordedConsumption before the masking append: %v", err)
+	}
+
+	_, appendErr := store.Append(context.Background(), ledger.AppendRequest{
+		TaskID:                   task.ID,
+		SessionID:                task.SessionID,
+		ExpectedHeadDigestSHA256: consumed.Entry.EntryDigestSHA256,
+		EventType:                closureprotocol.LedgerEventAdmissionConsumed,
+		Payload: ledger.TaskEventPayload{
+			SchemaVersion: ledger.EventPayloadSchemaVersion,
+			EventType:     closureprotocol.LedgerEventAdmissionConsumed,
+			TaskID:        task.ID,
+			SessionID:     task.SessionID,
+		},
+		PayloadMediaType: "application/yaml",
+		ProducerID:       "test",
+		ProducedAt:       ledgerProducedAt(),
+	})
+
+	loaded, err := LoadRecordedConsumption(dir)
+	if err != nil {
+		t.Fatalf("recorded capability became unreadable after an artifact-less admission_consumed append (append error: %v): %v", appendErr, err)
+	}
+	if appendErr == nil {
+		t.Fatal("an admission_consumed payload without capability_consumption must be rejected at append")
+	}
+	if loaded.CapabilityID != exp.Consumption.CapabilityID || loaded.ConsumedAt != exp.Consumption.ConsumedAt {
+		t.Fatalf("loaded consumption %+v is not the recorded one %+v", loaded, exp.Consumption)
+	}
+}
+
 func TestLoadRecordedAuthorityAbsentFailsClosed(t *testing.T) {
 	task := closureprotocol.TaskBinding{ID: "task.empty", SessionID: "session.empty"}
 	_, dir, _ := admissionLedgerStore(t, task)
@@ -163,6 +209,37 @@ func TestLoadRecordedAuthorityRoundTripsDelegationReceipts(t *testing.T) {
 	want, _ := closureprotocol.DelegationReceiptDigest(receipts[0])
 	if got != want {
 		t.Fatalf("loaded delegation receipt digest %s != original %s", got, want)
+	}
+}
+
+// TestLoadRecordedAuthorityReadsOneBundleAfterDelegatedThenDirect proves the
+// authority bundle is decoded from the single newest authority_resolved event: a
+// direct resolution recorded after a delegated one loads with nil delegation
+// receipts rather than inheriting the older event's receipts.
+func TestLoadRecordedAuthorityReadsOneBundleAfterDelegatedThenDirect(t *testing.T) {
+	task := closureprotocol.TaskBinding{ID: "task.deleg-then-direct", SessionID: "session.deleg-then-direct"}
+	store, dir, head := admissionLedgerStore(t, task)
+
+	in := writerInput(closureprotocol.MechanismRepositoryEdit)
+	resolution, err := ResolveAuthority(authorizingIndex(), in)
+	if err != nil {
+		t.Fatalf("ResolveAuthority: %v", err)
+	}
+	receipts := []closureprotocol.DelegationReceipt{delegationRoundTripReceipt()}
+	delegated, err := RecordAuthorityResolved(store, head, task, resolution, in.Actor, in.ChangePlan, in.Base, receipts, ledgerProducedAt())
+	if err != nil {
+		t.Fatalf("RecordAuthorityResolved (delegated): %v", err)
+	}
+	if _, err := RecordAuthorityResolved(store, delegated.Entry.EntryDigestSHA256, task, resolution, in.Actor, in.ChangePlan, in.Base, nil, ledgerProducedAt()); err != nil {
+		t.Fatalf("RecordAuthorityResolved (direct): %v", err)
+	}
+
+	loaded, err := LoadRecordedAuthority(dir)
+	if err != nil {
+		t.Fatalf("LoadRecordedAuthority: %v", err)
+	}
+	if loaded.DelegationReceipts != nil {
+		t.Fatalf("latest direct bundle loaded delegation receipts from an older event: %v", loaded.DelegationReceipts)
 	}
 }
 

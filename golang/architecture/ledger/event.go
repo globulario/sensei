@@ -80,23 +80,25 @@ func ValidateTaskEventPayload(eventType closureprotocol.LedgerEventType, data []
 			return err
 		}
 	}
-	// A result_transition_recorded event must reference the content-addressed
-	// ResultTransitionReceipt it records. The receipt's fields are validated where
-	// it is loaded (closureprotocol.ValidateResultTransitionReceipt); here the
-	// event contract only requires the artifact to be present.
-	if eventType == closureprotocol.LedgerEventResultTransitionRecorded {
-		if _, ok := payload.Artifacts["result_transition_receipt"]; !ok {
-			return fmt.Errorf("result_transition_recorded event requires a result_transition_receipt artifact")
-		}
-	}
-	// A question_disposition_recorded event must reference the content-addressed
-	// QuestionDispositionReceipt it records (Phase 8.1a). The receipt's fields are
-	// validated where it is loaded; here the event contract only requires the
-	// artifact to be present.
-	if eventType == closureprotocol.LedgerEventQuestionDispositionRecorded {
-		if _, ok := payload.Artifacts["question_disposition_receipt"]; !ok {
-			return fmt.Errorf("question_disposition_recorded event requires a question_disposition_receipt artifact")
+	if key, ok := requiredEventArtifacts[eventType]; ok {
+		if _, ok := payload.Artifacts[key]; !ok {
+			return fmt.Errorf("%s event requires a %s artifact", eventType, key)
 		}
 	}
 	return nil
+}
+
+// requiredEventArtifacts names, by event type, the content-addressed artifact a
+// payload must reference because the record it carries is later read as a durable
+// fact. A required omission is malformed history, not an absent fact: an
+// artifact-less event of such a type would otherwise mask the record it exists to
+// carry. The artifacts' fields are validated where they are loaded (e.g.
+// closureprotocol.ValidateResultTransitionReceipt); here the event contract only
+// requires the artifact to be present.
+var requiredEventArtifacts = map[closureprotocol.LedgerEventType]string{
+	closureprotocol.LedgerEventResultTransitionRecorded: "result_transition_receipt",
+	// The QuestionDispositionReceipt it records (Phase 8.1a).
+	closureprotocol.LedgerEventQuestionDispositionRecorded: "question_disposition_receipt",
+	// The single-use CapabilityConsumption it records (issue #354).
+	closureprotocol.LedgerEventAdmissionConsumed: "capability_consumption",
 }
