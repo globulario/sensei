@@ -102,21 +102,17 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		EntryDigestSHA256: digest,
 		EntryPath:         filepath.ToSlash(filepath.Join("ledger", ledgerEntryFilename(entry.Sequence, entry.EventType, digest))),
 	}
-	// The entry is now durable. A HEAD write failure is a POST-commit condition,
-	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
-	// entry identity so the caller reconciles instead of assuming no append.
-	// The injected fault, if armed, stands exactly here: after writeEntry made
-	// the entry durable and before HEAD is published. One-shot, so the retry that
-	// follows takes the real path.
-	headErr := error(nil)
-	if s.headFault != nil {
-		headErr, s.headFault = s.headFault, nil
-	} else {
-		headErr = writeHead(s.headPath(), head)
-	}
-	if err := headErr; err != nil {
-		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
-			ErrEntryDurable{Entry: entry, Head: head, Detail: err.Error()}
+	// The entry is durable before HEAD is published. A single retry stays inside
+	// this lock-owning transaction: transient publication failure is recovered by
+	// its only authorized owner, with no caller-constructible recovery path.
+	//
+	// A second failure is post-commit. Report ErrEntryDurable with the committed
+	// identity so the caller never mistakes the error for a rolled-back append.
+	if err := writeHead(s.headPath(), head); err != nil {
+		if retryErr := writeHead(s.headPath(), head); retryErr != nil {
+			return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
+				ErrEntryDurable{Entry: entry, Head: head, Detail: retryErr.Error()}
+		}
 	}
 	return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path}, nil
 }

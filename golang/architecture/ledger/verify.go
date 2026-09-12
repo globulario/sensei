@@ -13,14 +13,18 @@ import (
 )
 
 func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadValidator) (VerificationReport, error) {
-	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
+	chain, report, head, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerificationReport{}, err
 	}
 	if len(chain.Entries) > 0 {
-		report.HeadDigestSHA256 = chain.Head.EntryDigestSHA256
 		report.TaskID = chain.TaskID
 	}
+	// The report says what HEAD PUBLISHED, never what it ought to publish. Naming
+	// the derived digest here let a stale pointer read as current and made generic
+	// verification a silent recovery authority.
+	report.HeadDigestSHA256 = head.digest
+	report.Errors = append(report.Errors, head.reportErrors...)
 	report.EntryCount = len(chain.Entries)
 	if chain.TaskDir != "" && len(chain.Entries) > 0 && len(report.Errors) == 0 {
 		if set, err := Project(chain); err == nil {
@@ -32,7 +36,11 @@ func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadVali
 }
 
 func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, error) {
-	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
+	// The head observation is deliberately discarded: HEAD is DERIVED state, and a
+	// stale pointer does not make the entry chain unreadable. Refusing here would
+	// leave ReconcileDerivedState unable to repair HEAD from the very chain that
+	// proves what HEAD should be -- the condition would be permanent.
+	chain, report, _, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerifiedChain{}, err
 	}
@@ -42,11 +50,29 @@ func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadVal
 	return chain, nil
 }
 
-func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, error) {
+// headObservation is what the published HEAD pointer actually says.
+//
+// It separates the two ways a pointer can be wrong, because they have different
+// authorities. A readable-but-disagreeing pointer, or an absent one, is DERIVED
+// state that the entries themselves prove how to repair. Corruption is not: a
+// pointer that cannot be parsed is not a ledger a caller may load.
+type headObservation struct {
+	digest string
+	// reportErrors are derived-state defects: stale or missing. They invalidate a
+	// verification REPORT -- no caller may act on a pointer the ledger cannot vouch
+	// for -- but leave the chain loadable, so derived-state repair can still read
+	// the chain that proves what HEAD should be.
+	reportErrors []VerificationError
+	// chainErrors are corruption. They travel with the entry-chain findings and
+	// make the chain itself unloadable.
+	chainErrors []VerificationError
+}
+
+func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, headObservation, error) {
 	s := NewStore(taskDir, WithPayloadValidator(validator))
 	files, err := listLedgerEntryFiles(s.ledgerDir())
 	if err != nil {
-		return VerifiedChain{}, VerificationReport{}, err
+		return VerifiedChain{}, VerificationReport{}, headObservation{}, err
 	}
 	var (
 		out       = VerifiedChain{TaskDir: taskDir}
@@ -133,14 +159,8 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(last.EntryPath))),
 		}
 	}
-	head, err := readHead(s.headPath())
-	if err == nil {
-		if head.EntryDigestSHA256 != out.Head.EntryDigestSHA256 || head.Sequence != out.Head.Sequence || head.EntryPath != out.Head.EntryPath {
-			report.Warnings = append(report.Warnings, VerificationWarning{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
-		}
-	} else if !os.IsNotExist(err) {
-		report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_unreadable", Detail: err.Error(), Path: filepath.ToSlash(s.headPath())})
-	}
+	observed := observePublishedHead(s.headPath(), out)
+	report.Errors = append(report.Errors, observed.chainErrors...)
 
 	artifactRoot := filepath.Join(taskDir, "artifacts", "sha256")
 	artifactEntries, err := os.ReadDir(artifactRoot)
@@ -156,5 +176,50 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 		}
 		sort.Strings(report.OrphanArtifacts)
 	}
-	return out, report, nil
+	return out, report, observed, nil
+}
+
+// observePublishedHead reads the published HEAD pointer and compares it against the
+// head derived from the verified entries. It REPORTS; it never repairs.
+//
+// All three non-matching outcomes fail closed, because a pointer that disagrees
+// with the entries is the residue of an interrupted publication, and a caller that
+// proceeds on it acts on a task state no entry supports.
+//
+// Recovery belongs to the store that owns the ledger -- ReconcileDerivedState
+// rebuilds the pointer from the verified chain under the append lock -- and never
+// to verification. A verifier that silently answered "what HEAD should say" while
+// reporting it as "what HEAD says" left no way to tell a published pointer from a
+// derived one.
+func observePublishedHead(path string, chain VerifiedChain) headObservation {
+	derived := chain.Head
+	head, err := readHead(path)
+	switch {
+	case err == nil:
+		obs := headObservation{digest: head.EntryDigestSHA256}
+		if head.EntryDigestSHA256 != derived.EntryDigestSHA256 || head.Sequence != derived.Sequence || head.EntryPath != derived.EntryPath {
+			obs.reportErrors = append(obs.reportErrors, VerificationError{
+				Code:   "ledger.head_stale",
+				Detail: "HEAD does not match verified last entry",
+				Path:   filepath.ToSlash(path),
+			})
+		}
+		return obs
+	case os.IsNotExist(err):
+		// No entries means nothing to publish, so an absent HEAD is correct.
+		if len(chain.Entries) == 0 {
+			return headObservation{}
+		}
+		return headObservation{reportErrors: []VerificationError{{
+			Code:   "ledger.head_missing",
+			Detail: "entries are present but HEAD is not published",
+			Path:   filepath.ToSlash(path),
+		}}}
+	default:
+		return headObservation{chainErrors: []VerificationError{{
+			Code:   "ledger.head_unreadable",
+			Detail: err.Error(),
+			Path:   filepath.ToSlash(path),
+		}}}
+	}
 }
