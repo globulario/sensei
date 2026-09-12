@@ -8,18 +8,25 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
 
 func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadValidator) (VerificationReport, error) {
-	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
+	chain, report, head, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerificationReport{}, err
 	}
 	if len(chain.Entries) > 0 {
-		report.HeadDigestSHA256 = chain.Head.EntryDigestSHA256
 		report.TaskID = chain.TaskID
+	}
+	// The report says what HEAD PUBLISHED, never the digest derived from the
+	// entries. Reporting the derived digest let a stale pointer read as current and
+	// made generic verification a silent recovery authority.
+	report.HeadDigestSHA256 = head.published.EntryDigestSHA256
+	if head.finding != nil {
+		report.Errors = append(report.Errors, *head.finding)
 	}
 	report.EntryCount = len(chain.Entries)
 	if chain.TaskDir != "" && len(chain.Entries) > 0 && len(report.Errors) == 0 {
@@ -31,22 +38,42 @@ func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadVali
 	return report, nil
 }
 
+// loadVerifiedChain is the generic chain read. A stale or missing HEAD refuses it
+// exactly as a broken entry does: no caller may read through a pointer the ledger
+// cannot vouch for. The one exception lives in appendEntry, under its lock.
 func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, error) {
-	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
+	chain, report, head, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
 		return VerifiedChain{}, err
 	}
+	if head.finding != nil {
+		report.Errors = append(report.Errors, *head.finding)
+	}
 	if len(report.Errors) > 0 {
-		return VerifiedChain{}, fmt.Errorf("invalid ledger chain")
+		codes := make([]string, 0, len(report.Errors))
+		for _, e := range report.Errors {
+			codes = append(codes, e.Code)
+		}
+		return VerifiedChain{}, fmt.Errorf("invalid ledger chain: %s", strings.Join(codes, ", "))
 	}
 	return chain, nil
 }
 
-func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, error) {
+// headObservation is what the published HEAD pointer says, kept apart from the
+// entry-chain findings so appendEntry can tell an unpublished HEAD from a broken
+// chain. Every other reader folds finding into its errors.
+type headObservation struct {
+	published Head
+	// finding is ledger.head_stale or ledger.head_missing, or nil. An unreadable
+	// HEAD is corruption and travels with the chain errors instead.
+	finding *VerificationError
+}
+
+func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, headObservation, error) {
 	s := NewStore(taskDir, WithPayloadValidator(validator))
 	files, err := listLedgerEntryFiles(s.ledgerDir())
 	if err != nil {
-		return VerifiedChain{}, VerificationReport{}, err
+		return VerifiedChain{}, VerificationReport{}, headObservation{}, err
 	}
 	var (
 		out       = VerifiedChain{TaskDir: taskDir}
@@ -133,12 +160,20 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(last.EntryPath))),
 		}
 	}
+	var observed headObservation
 	head, err := readHead(s.headPath())
-	if err == nil {
+	switch {
+	case err == nil:
+		observed.published = head
 		if head.EntryDigestSHA256 != out.Head.EntryDigestSHA256 || head.Sequence != out.Head.Sequence || head.EntryPath != out.Head.EntryPath {
-			report.Warnings = append(report.Warnings, VerificationWarning{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
+			observed.finding = &VerificationError{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())}
 		}
-	} else if !os.IsNotExist(err) {
+	case os.IsNotExist(err):
+		// No entries means nothing to publish, so an absent HEAD is correct only then.
+		if len(out.Entries) > 0 {
+			observed.finding = &VerificationError{Code: "ledger.head_missing", Detail: "entries are present but HEAD is not published", Path: filepath.ToSlash(s.headPath())}
+		}
+	default:
 		report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_unreadable", Detail: err.Error(), Path: filepath.ToSlash(s.headPath())})
 	}
 
@@ -156,5 +191,5 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 		}
 		sort.Strings(report.OrphanArtifacts)
 	}
-	return out, report, nil
+	return out, report, observed, nil
 }

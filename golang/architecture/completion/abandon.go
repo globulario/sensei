@@ -92,33 +92,7 @@ func refuseAbandon(o Outcome, format string, a ...any) (AbandonResult, error) {
 	return AbandonResult{Outcome: o, Detail: fmt.Sprintf(format, a...)}, nil
 }
 
-// abandonDependencies is what AbandonTask needs from its environment and what a
-// test may substitute. It is unexported and travels as a parameter, NOT as a
-// field on AbandonRequest.
-//
-// The field version was wrong in a way a keyed-construction compile check does
-// not reveal: adding a slice makes AbandonRequest non-comparable, and adding an
-// unexported field makes external positional literals illegal. Both are public
-// API breaks, and neither shows up when a test constructs the struct with named
-// fields. The request contract is left byte-for-byte as it was.
-type abandonDependencies struct {
-	// ledgerOptions are handed to the task ledger store. Empty in production.
-	ledgerOptions []ledger.StoreOption
-}
-
-func defaultAbandonDependencies() abandonDependencies { return abandonDependencies{} }
-
 // AbandonTask records a task as abandoned and then retires its active pointer.
-//
-// The public entry point. It delegates to abandonTask with production defaults;
-// the split exists so this package's own tests can drive the same implementation
-// with a one-shot ledger fault armed, without that seam appearing anywhere in
-// the public request contract.
-func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
-	return abandonTask(ctx, req, defaultAbandonDependencies())
-}
-
-// abandonTask is the implementation. AbandonTask is its production caller.
 //
 // THE ORDER IS THE CONTRACT, and it is durable-first for a reason that survives a
 // crash. Clearing the pointer first would, on interruption, leave a task with no
@@ -131,7 +105,7 @@ func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error)
 //
 // So an interruption between the two steps is not an error state. It is the
 // expected intermediate, and TestAnInterruptedAbandonmentIsResumable pins it.
-func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependencies) (AbandonResult, error) {
+func AbandonTask(ctx context.Context, req AbandonRequest) (AbandonResult, error) {
 	ctx, _ = ledger.WithVerificationScope(ctx)
 	root := strings.TrimSpace(req.RepositoryRoot)
 	taskDir := strings.TrimSpace(req.TaskDirectory)
@@ -160,7 +134,7 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 	}
 	defer release()
 
-	store := ledger.NewStore(taskDir, deps.ledgerOptions...)
+	store := ledger.NewStore(taskDir)
 	report, verr := store.VerifyCtx(ctx)
 	if verr != nil || !report.Valid || report.EntryCount == 0 {
 		return refuseAbandon(OutcomeLedgerInvalid, "task ledger did not verify")
@@ -367,27 +341,19 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 		var durable ledger.ErrEntryDurable
 		switch {
 		case errors.As(appErr, &durable):
-			// POST-COMMIT. The entry is durable and only the HEAD write failed,
-			// so the abandoned terminal exists whatever this call returns.
-			// Reporting ledger_invalid and stopping left the fact committed, the
-			// projection unrebuilt and the pointer live -- and a retry with the
-			// original expected head then reported stale, because verification
-			// derives the new durable head. The caller was told the write failed
-			// and then that it was too late to try again.
-			//
-			// Read the exact durable event back and verify it before continuing.
-			// Verification, not the error's word, is what licenses the rest.
-			if verr := verifyDurableAbandonment(ctx, taskDir, task.ID, receipt); verr != nil {
-				return AbandonResult{
-					Outcome: OutcomeIntegrityFailure,
-					Detail: fmt.Sprintf("the abandoned entry is durable but could not be verified (%v); "+
-						"the active pointer is left in place deliberately", verr),
-					Receipt:     &receipt,
-					ReceiptPath: ref.Path,
-				}, nil
-			}
-			// Verified: fall through to projection rebuild and pointer retirement,
-			// which is the resumable cleanup path this condition interrupted.
+			// POST-COMMIT. The entry is durable, and Store.Append already retried
+			// HEAD publication under its own lock and failed every attempt. HEAD
+			// recovery belongs to Append alone, so this caller repairs nothing,
+			// rebuilds nothing, and does not read the chain through an unpublished
+			// HEAD: the ledger fails closed, and the pointer is left in place
+			// because retiring it on an unverifiable ledger would strand the task.
+			return AbandonResult{
+				Outcome: OutcomeIntegrityFailure,
+				Detail: fmt.Sprintf("the abandoned entry is durable but its ledger HEAD was not published (%v); "+
+					"the ledger fails verification and the active pointer is left in place deliberately", durable),
+				Receipt:     &receipt,
+				ReceiptPath: ref.Path,
+			}, nil
 		case errors.As(appErr, &stale):
 			return refuseAbandon(OutcomeStaleExpectedHead, "ledger head advanced during abandonment")
 		default:
@@ -422,36 +388,6 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 		ReceiptPath:          ref.Path,
 		ActivePointerCleared: cleared,
 	}, nil
-}
-
-// verifyDurableAbandonment re-reads the ledger and proves the exact abandoned
-// event is present and carries this receipt.
-//
-// Called when Append reported the entry durable but HEAD unwritten. The error
-// says the entry is committed; this establishes it independently, because a
-// caller that continued on the error's word alone would rebuild projections and
-// retire a pointer on the strength of a claim it never checked.
-func verifyDurableAbandonment(ctx context.Context, taskDir, taskID string, want closureprotocol.AbandonmentReceipt) error {
-	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("chain unverifiable after durable append: %w", err)
-	}
-	tf := classifyTerminalFacts(chain)
-	if tf.abandonedCount != 1 {
-		return fmt.Errorf("expected exactly one abandoned event after a durable append, found %d", tf.abandonedCount)
-	}
-	got, _, lerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
-	if lerr != nil {
-		return lerr
-	}
-	if got.Task.ID != taskID {
-		return fmt.Errorf("the durable abandoned event names task %s, not %s", got.Task.ID, taskID)
-	}
-	if got.ReceiptDigestSHA256 != want.ReceiptDigestSHA256 {
-		return fmt.Errorf("the durable abandoned event carries a different receipt (%s, wanted %s)",
-			short(got.ReceiptDigestSHA256), short(want.ReceiptDigestSHA256))
-	}
-	return nil
 }
 
 // clearPointer delegates the whole decision to the pointer's owner.
