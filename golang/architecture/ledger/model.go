@@ -67,9 +67,6 @@ type PayloadValidator func(eventType closureprotocol.LedgerEventType, mediaType 
 type Store struct {
 	taskDir          string
 	payloadValidator PayloadValidator
-	// headFault, when non-nil, makes the NEXT HEAD publication fail and is then
-	// cleared. See WithHeadPublicationFault.
-	headFault error
 }
 
 type VerifiedEntry struct {
@@ -92,32 +89,6 @@ func WithPayloadValidator(fn PayloadValidator) StoreOption {
 	return func(s *Store) { s.payloadValidator = fn }
 }
 
-// WithHeadPublicationFault makes the next HEAD publication on THIS store fail
-// once, with the supplied error.
-//
-// It exists because ErrEntryDurable is a real contract that was, until now,
-// impossible to exercise deliberately. That condition -- the ledger entry is
-// durable and HEAD.yaml is not written -- is the one moment where a caller must
-// treat an error as post-commit, and every consumer's handling of it was
-// therefore unproved. A recovery path nobody can run is a recovery path nobody
-// has tested.
-//
-// Deliberately constrained:
-//
-//	instance-scoped   it lives on one Store, never in package state, so two
-//	                  tests cannot reach each other
-//	one-shot          it fires exactly once and clears itself, so a retry inside
-//	                  the same test exercises the real path
-//	explicit          it is armed by construction; a Store built without it takes
-//	                  a byte-identical path
-//
-// It does not change what Append means. Append already returns ErrEntryDurable
-// when the entry is durable and HEAD is not published; this makes that reachable
-// on purpose rather than by filesystem accident.
-func WithHeadPublicationFault(err error) StoreOption {
-	return func(s *Store) { s.headFault = err }
-}
-
 func NewStore(taskDir string, opts ...StoreOption) *Store {
 	s := &Store{taskDir: taskDir}
 	for _, opt := range opts {
@@ -131,25 +102,25 @@ func (s *Store) Append(ctx context.Context, req AppendRequest) (AppendResult, er
 }
 
 func (s *Store) Verify() (VerificationReport, error) {
-	return verifyTaskLedger(context.Background(), s.taskDir, s.payloadValidator)
+	return verifySettledTaskLedger(context.Background(), s.taskDir, s.payloadValidator)
 }
 
 // VerifyCtx is Verify with an evaluation scope. When ctx carries a verification
 // scope (see WithVerificationScope) the chain's per-payload semantic digests are
 // memoized for this evaluation; the verification is otherwise identical.
 func (s *Store) VerifyCtx(ctx context.Context) (VerificationReport, error) {
-	return verifyTaskLedger(ctx, s.taskDir, s.payloadValidator)
+	return verifySettledTaskLedger(ctx, s.taskDir, s.payloadValidator)
 }
 
 func (s *Store) VerifyChain() (VerifiedChain, error) {
-	return loadVerifiedChain(context.Background(), s.taskDir, s.payloadValidator)
+	return loadSettledVerifiedChain(context.Background(), s.taskDir, s.payloadValidator)
 }
 
 // VerifyChainCtx is VerifyChain with an evaluation scope (see VerifyCtx).
 func (s *Store) VerifyChainCtx(ctx context.Context) (VerifiedChain, error) {
-	return loadVerifiedChain(ctx, s.taskDir, s.payloadValidator)
+	return loadSettledVerifiedChain(ctx, s.taskDir, s.payloadValidator)
 }
 
 func VerifyTaskLedger(taskDir string) (VerificationReport, error) {
-	return verifyTaskLedger(context.Background(), taskDir, nil)
+	return verifySettledTaskLedger(context.Background(), taskDir, nil)
 }

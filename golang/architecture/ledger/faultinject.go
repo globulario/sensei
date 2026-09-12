@@ -20,6 +20,14 @@ var pendingHeadWriteFaults int
 // sensei_faultinject tag; it does not exist in the production ledger API.
 func InjectHeadWriteFaults(n int) { pendingHeadWriteFaults = n }
 
+// HeadPublicationAttempts is the bound Store.Append retries one HEAD publication
+// to. Injecting exactly this many faults exhausts it; one fewer is absorbed.
+func HeadPublicationAttempts() int { return headPublicationAttempts }
+
+// PendingHeadWriteFaults reports faults armed but not yet consumed, so a test can
+// prove its faults actually fired rather than merely that they were armed.
+func PendingHeadWriteFaults() int { return pendingHeadWriteFaults }
+
 // headWriteFault returns an injected error for each pending fault, then nil.
 func headWriteFault() error {
 	if pendingHeadWriteFaults > 0 {
