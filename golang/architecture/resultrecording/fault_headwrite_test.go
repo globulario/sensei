@@ -40,12 +40,22 @@ func TestDurableEntryHeadFailsReconcileSucceeds(t *testing.T) {
 }
 
 // TestDurableEntryReconcileFailsPostCommitError: the append's HEAD write AND the
-// reconciliation's HEAD write both fail, so the entry is durable but derived-state
-// repair cannot complete; a PostCommitError carries the committed identity, and a
-// retry after the fault clears reconciles with no second event.
+// recovery's HEAD write both fail, so the entry is durable but HEAD was never
+// published; a PostCommitError carries the committed identity.
+//
+// The retry used to reconcile and report "reconciled". It no longer can, and the
+// reason is the point of issue #352: across two calls nothing is left that
+// distinguishes "this process committed an entry and could not publish HEAD"
+// from "someone deleted the highest-sequence entry". Both leave entries that
+// verify and a HEAD that does not name the last one. The proof that licenses
+// republication -- the exact ErrEntryDurable identity -- lives inside the call
+// that made the append, and it does not survive into a later one. So a fresh
+// call refuses and leaves the damage visible rather than rebuilding HEAD from
+// whatever entries are on disk, which is the operation that resurrects a spent
+// mutation capability.
 func TestDurableEntryReconcileFailsPostCommitError(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
-	// Fail the append's HEAD write AND the reconciliation's HEAD write.
+	// Fail the append's HEAD write AND the recovery's HEAD write.
 	ledger.InjectHeadWriteFaults(2)
 	defer ledger.InjectHeadWriteFaults(0)
 	_, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
@@ -56,19 +66,19 @@ func TestDurableEntryReconcileFailsPostCommitError(t *testing.T) {
 	if !isHex64(pce.EntryDigestSHA256) {
 		t.Fatalf("post-commit error lacks committed entry identity: %+v", pce)
 	}
-	if countTransitionEvents(t, taskDir) != 1 {
+	// Counted off the directory: the chain deliberately does not verify here.
+	if countTransitionEntryFiles(t, taskDir) != 1 {
 		t.Fatal("durable entry should exist exactly once")
 	}
-	// Clear the fault and retry: reconcile, no second event.
+
 	ledger.InjectHeadWriteFaults(0)
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("retry after obstruction removed: %v", err)
+	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err == nil {
+		t.Fatal("a later call rebuilt an unpublished HEAD: it holds no evidence that the missing HEAD came from this append rather than from a deleted tail entry")
 	}
-	if res.Disposition != DispositionReconciled {
-		t.Fatalf("retry disposition = %s, want reconciled", res.Disposition)
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("retry appended a second event")
+	// The seeded task already had a chain, so HEAD survives naming the previous
+	// entry: it lags the durable tip rather than being absent.
+	assertLedgerStillInvalid(t, taskDir, "ledger.head_stale")
+	if countTransitionEntryFiles(t, taskDir) != 1 {
+		t.Fatal("the refused retry appended a second event")
 	}
 }

@@ -375,6 +375,21 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 			// derives the new durable head. The caller was told the write failed
 			// and then that it was too late to try again.
 			//
+			// HEAD was never published, so the chain does not verify yet and
+			// nothing downstream can read it. Republish HEAD through the
+			// proof-bound recovery, which writes it only when the chain tip on
+			// disk IS this committed entry. The generic derived-state repair is
+			// deliberately not used here: it cannot tell an unpublished HEAD from
+			// a deleted tail entry, and this branch holds the evidence that can.
+			if _, rerr := store.RecoverDurableAppend(ctx, durable); rerr != nil {
+				return AbandonResult{
+					Outcome: OutcomeIntegrityFailure,
+					Detail: fmt.Sprintf("the abandoned entry is durable but its HEAD could not be republished (%v); "+
+						"the active pointer is left in place deliberately", rerr),
+					Receipt:     &receipt,
+					ReceiptPath: ref.Path,
+				}, nil
+			}
 			// Read the exact durable event back and verify it before continuing.
 			// Verification, not the error's word, is what licenses the rest.
 			if verr := verifyDurableAbandonment(ctx, taskDir, task.ID, receipt); verr != nil {

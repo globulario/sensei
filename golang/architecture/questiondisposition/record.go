@@ -132,6 +132,9 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 	})
 	var durable ledger.ErrEntryDurable
 	var stale ledger.ErrStaleHead
+	// Non-nil only when HEAD was left unpublished; it is the proof postCommit
+	// hands to the narrow recovery that may republish HEAD.
+	var unpublished *ledger.ErrEntryDurable
 	switch {
 	case err == nil:
 		// appended, or a ledger-level exact replay; handled below.
@@ -139,6 +142,7 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 		// Durable entry but HEAD write failed — a post-commit condition. Carry the
 		// entry identity forward so postCommit reconciles HEAD.
 		appended = ledger.AppendResult{Entry: durable.Entry, Head: durable.Head}
+		unpublished = &durable
 	case errors.As(err, &stale):
 		return RecordResult{}, qdErr(CodeStaleExpectedHead, "ledger head moved during recording")
 	default:
@@ -164,7 +168,7 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 		ReceiptRef:               receiptRef,
 		ContestedPriorDigests:    contested,
 	}
-	if err := postCommit(taskDir, store, &result); err != nil {
+	if err := postCommit(ctx, taskDir, store, unpublished, &result); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -199,7 +203,13 @@ func reconcileExisting(taskDir string, store *ledger.Store, c DispositionCandida
 // postCommit reconciles derived state after the entry is durable. Any failure
 // here is a PostCommitError: the entry is authoritative and the caller retries
 // the same candidate.
-func postCommit(taskDir string, store *ledger.Store, result *RecordResult) error {
+//
+// unpublished is the append that committed its entry and then failed to publish
+// HEAD, or nil. Only that proof licenses republishing HEAD, and only when the
+// chain on disk still ends in the exact entry it names; otherwise reconciliation
+// requires a chain that already verifies, so a HEAD damaged by anything else
+// stays a refusal instead of being rewritten from whatever entries survive.
+func postCommit(ctx context.Context, taskDir string, store *ledger.Store, unpublished *ledger.ErrEntryDurable, result *RecordResult) error {
 	post := func(code, detail string) *PostCommitError {
 		return &PostCommitError{
 			Code:                   code,
@@ -211,7 +221,15 @@ func postCommit(taskDir string, store *ledger.Store, result *RecordResult) error
 			Detail:                 detail,
 		}
 	}
-	rec, err := store.ReconcileDerivedState()
+	var (
+		rec ledger.ReconcileResult
+		err error
+	)
+	if unpublished != nil {
+		rec, err = store.RecoverDurableAppend(ctx, *unpublished)
+	} else {
+		rec, err = store.ReconcileDerivedState()
+	}
 	if err != nil {
 		return post(CodeProjectionRebuild, err.Error())
 	}

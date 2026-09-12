@@ -6,10 +6,12 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/admission"
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	"github.com/globulario/sensei/golang/architecture/resultpipeline"
 	"github.com/globulario/sensei/golang/architecture/resulttransition"
@@ -95,7 +97,22 @@ func TestConcurrentDifferentWritersOneWinner(t *testing.T) {
 
 // --- derived-state recovery ---
 
-func TestMissingHeadRecovery(t *testing.T) {
+// TestMissingHeadRefusesRatherThanReconciling and its stale twin below used to
+// be TestMissingHeadRecovery/TestStaleHeadRecovery: a HEAD deleted or corrupted
+// between two recordings was silently rebuilt from the surviving entries and the
+// retry reported "reconciled".
+//
+// That recovery could not tell what it was recovering from. A HEAD that does not
+// name the last entry is what a failed HEAD publication leaves behind AND what
+// deleting the highest-sequence entry leaves behind, and the second one means a
+// recorded transition has been erased. Rebuilding HEAD over it republished the
+// truncated prefix as the whole history. An arbitrary later HEAD loss carries no
+// evidence of which case it is, so recording refuses and the damage stays
+// visible; the one condition that does carry evidence -- this process's own
+// append reporting the entry durable and HEAD unwritten -- recovers through the
+// proof-bound path instead (see TestProjectionDriftRecovery for what still
+// reconciles).
+func TestMissingHeadRefusesRatherThanReconciling(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
@@ -103,22 +120,16 @@ func TestMissingHeadRecovery(t *testing.T) {
 	if err := os.Remove(headPath(taskDir)); err != nil {
 		t.Fatal(err)
 	}
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
-	if err != nil {
-		t.Fatalf("retry after HEAD loss: %v", err)
+	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err == nil {
+		t.Fatal("recording over a ledger whose HEAD is gone must refuse: the same state is produced by deleting the tail entry")
 	}
-	if res.Disposition != DispositionReconciled {
-		t.Fatalf("disposition = %s, want reconciled", res.Disposition)
-	}
-	if _, err := os.Stat(headPath(taskDir)); err != nil {
-		t.Fatal("HEAD not restored")
-	}
-	if countTransitionEvents(t, taskDir) != 1 {
-		t.Fatal("recovery appended a second event")
+	assertLedgerStillInvalid(t, taskDir, "ledger.head_missing")
+	if countTransitionEntryFiles(t, taskDir) != 1 {
+		t.Fatal("the refused retry appended an event")
 	}
 }
 
-func TestStaleHeadRecovery(t *testing.T) {
+func TestStaleHeadRefusesRatherThanReconciling(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
@@ -126,13 +137,52 @@ func TestStaleHeadRecovery(t *testing.T) {
 	if err := os.WriteFile(headPath(taskDir), []byte("schema_version: \"1\"\ntask_id: task.rec\nsequence: 0\nentry_digest_sha256: deadbeef\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	res, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c})
+	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err == nil {
+		t.Fatal("recording over a ledger whose HEAD disagrees with its chain must refuse")
+	}
+	assertLedgerStillInvalid(t, taskDir, "ledger.head_stale")
+	if countTransitionEntryFiles(t, taskDir) != 1 {
+		t.Fatal("the refused retry appended an event")
+	}
+}
+
+// countTransitionEntryFiles counts recorded-transition entries off the directory
+// rather than off a verified chain, because these tests run against a ledger
+// that deliberately does not verify -- and "no second event was appended" is a
+// fact about the files, not about the verdict.
+func countTransitionEntryFiles(t *testing.T, taskDir string) int {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(taskDir, "ledger"))
 	if err != nil {
-		t.Fatalf("retry after HEAD corruption: %v", err)
+		t.Fatal(err)
 	}
-	if res.Disposition != DispositionReconciled || res.ProjectionState != "current" {
-		t.Fatalf("stale HEAD not reconciled: %+v", res)
+	n := 0
+	for _, e := range entries {
+		if strings.Contains(e.Name(), string(closureprotocol.LedgerEventResultTransitionRecorded)) {
+			n++
+		}
 	}
+	return n
+}
+
+// assertLedgerStillInvalid proves the refusal left the damage in place. A
+// refusal that repaired on its way out would be the laundering this is about,
+// one error return later.
+func assertLedgerStillInvalid(t *testing.T, taskDir, wantCode string) {
+	t.Helper()
+	report, err := ledger.NewStore(taskDir, ledger.WithPayloadValidator(recordingPayloadValidator)).Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatal("the refusal repaired the ledger on its way out")
+	}
+	for _, e := range report.Errors {
+		if e.Code == wantCode {
+			return
+		}
+	}
+	t.Fatalf("expected %s to still be reported, got %+v", wantCode, report.Errors)
 }
 
 func TestProjectionDriftRecovery(t *testing.T) {
@@ -157,20 +207,32 @@ func TestProjectionDriftRecovery(t *testing.T) {
 	}
 }
 
+// TestReconcileDerivedStateDirect calls the generic repair on its own, without
+// a recording in front of it, because that is the shortest route to laundering a
+// truncated ledger: one public call that rewrites HEAD from whatever entries are
+// left. It must refuse, and it must refuse without touching the ledger.
 func TestReconcileDerivedStateDirect(t *testing.T) {
 	taskDir, c := cleanCandidate(t, recAt)
 	if _, err := RecordTransition(context.Background(), RecordRequest{TaskDirectory: taskDir, Candidate: c}); err != nil {
 		t.Fatal(err)
 	}
-	_ = os.Remove(headPath(taskDir))
 	store := ledger.NewStore(taskDir, ledger.WithPayloadValidator(recordingPayloadValidator))
+
+	// On a chain that verifies, reconciliation is projection repair and stays
+	// available -- it just never rewrites HEAD.
 	rec, err := store.ReconcileDerivedState()
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("reconciling a valid chain must still work: %v", err)
 	}
-	if !rec.HeadRewritten || rec.ProjectionState != "current" {
-		t.Fatalf("reconcile did not repair HEAD: %+v", rec)
+	if rec.HeadRewritten || rec.ProjectionState != "current" {
+		t.Fatalf("reconcile on a valid chain rewrote HEAD or left projections behind: %+v", rec)
 	}
+
+	_ = os.Remove(headPath(taskDir))
+	if _, err := store.ReconcileDerivedState(); err == nil {
+		t.Fatal("reconciliation rebuilt a HEAD it cannot prove: deleting the tail entry produces the same state")
+	}
+	assertLedgerStillInvalid(t, taskDir, "ledger.head_missing")
 }
 
 // --- tamper matrix ---

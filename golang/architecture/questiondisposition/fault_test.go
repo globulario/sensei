@@ -7,8 +7,12 @@ package questiondisposition_test
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
 	qd "github.com/globulario/sensei/golang/architecture/questiondisposition"
 )
@@ -36,10 +40,19 @@ func TestDurableEntryHeadFailReconciles(t *testing.T) {
 	}
 }
 
-// TestPostCommitErrorThenRetryRecovers: both the append and reconcile HEAD writes
-// fail, yielding a PostCommitError carrying the durable entry identity; clearing
-// the fault and retrying the SAME candidate recovers with no second event.
-func TestPostCommitErrorThenRetryRecovers(t *testing.T) {
+// TestPostCommitErrorThenRetryRefuses: both the append and the recovery HEAD
+// writes fail, yielding a PostCommitError carrying the durable entry identity.
+// Clearing the fault and retrying the SAME candidate no longer recovers.
+//
+// It used to, by rebuilding HEAD from the entries that were there. That repair
+// could not tell what it was repairing: an entry durable with HEAD unpublished
+// and a chain whose highest-sequence entry was deleted are the same state on
+// disk, and rebuilding HEAD over the second one republishes a truncated history
+// as whole -- which is how a consumed admission came back as ready_for_mutation
+// (issue #352). The evidence that separates them is the ErrEntryDurable identity
+// the append itself produced, and it does not survive into a later call. So the
+// retry refuses, the ledger stays invalid, and no second event is appended.
+func TestPostCommitErrorThenRetryRefuses(t *testing.T) {
 	env := seedDisposable(t)
 	cand, err := qd.Prepare(answeredReusable(env))
 	if err != nil {
@@ -55,14 +68,35 @@ func TestPostCommitErrorThenRetryRecovers(t *testing.T) {
 		t.Fatal("post-commit error missing durable identity/recovery")
 	}
 	ledger.InjectHeadWriteFaults(0)
-	res, err := qd.RecordDisposition(context.Background(), qd.RecordRequest{TaskDirectory: env.TaskDir, Candidate: cand})
+	if _, err := qd.RecordDisposition(context.Background(), qd.RecordRequest{TaskDirectory: env.TaskDir, Candidate: cand}); err == nil {
+		t.Fatal("a later call rebuilt an unpublished HEAD: it holds no evidence that the missing HEAD came from this append rather than from a deleted tail entry")
+	}
+	report, verr := ledger.NewStore(env.TaskDir).Verify()
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	if report.Valid {
+		t.Fatal("the refusal repaired the ledger on its way out")
+	}
+	if n := countDispositionEntryFiles(t, env.TaskDir); n != 1 {
+		t.Fatalf("entry files = %d, want 1: the refused retry appended an event", n)
+	}
+}
+
+// countDispositionEntryFiles counts disposition entries off the directory rather
+// than off a verified chain, because this test runs against a ledger that
+// deliberately does not verify.
+func countDispositionEntryFiles(t *testing.T, taskDir string) int {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(taskDir, "ledger"))
 	if err != nil {
-		t.Fatalf("retry: %v", err)
+		t.Fatal(err)
 	}
-	if res.Outcome != qd.OutcomeReplayed && res.Outcome != qd.OutcomeReconciled {
-		t.Fatalf("retry outcome = %s, want replayed/reconciled", res.Outcome)
+	n := 0
+	for _, e := range entries {
+		if strings.Contains(e.Name(), string(closureprotocol.LedgerEventQuestionDispositionRecorded)) {
+			n++
+		}
 	}
-	if n := countDispositionEvents(t, env.TaskDir); n != 1 {
-		t.Fatalf("events = %d, want 1", n)
-	}
+	return n
 }
