@@ -42,6 +42,38 @@ func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadVal
 	return chain, nil
 }
 
+// loadChainForDerivedRepair loads the entry chain for DERIVED-STATE REPAIR only.
+// It accepts a chain whose only remaining defects are in HEAD itself, because HEAD
+// is derived state that the repair is about to recompute from the entries; every
+// other verification error still refuses. Nothing that reads a task's authority may
+// use it. Authority readers take loadVerifiedChain, which refuses a HEAD that
+// disagrees with its chain, so a truncated ledger can never be folded as truth.
+func loadChainForDerivedRepair(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, error) {
+	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
+	if err != nil {
+		return VerifiedChain{}, err
+	}
+	for _, e := range report.Errors {
+		if !isDerivedHeadFinding(e.Code) {
+			return VerifiedChain{}, fmt.Errorf("invalid ledger chain")
+		}
+	}
+	return chain, nil
+}
+
+// isDerivedHeadFinding reports whether a verification error is about HEAD.yaml
+// rather than about the entry chain. These findings still make the ledger's
+// verdict invalid -- Store.Verify reports them as errors and report.Valid is
+// false -- they merely do not block the repair that recomputes HEAD.
+func isDerivedHeadFinding(code string) bool {
+	switch code {
+	case "ledger.head_stale", "ledger.head_missing":
+		return true
+	default:
+		return false
+	}
+}
+
 func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, VerificationReport, error) {
 	s := NewStore(taskDir, WithPayloadValidator(validator))
 	files, err := listLedgerEntryFiles(s.ledgerDir())
@@ -133,12 +165,25 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(last.EntryPath))),
 		}
 	}
+	// A HEAD that disagrees with the recomputed chain is evidence that history is
+	// damaged, not an advisory: deleting the highest-sequence entry leaves HEAD
+	// pointing at an entry that is no longer on the chain, and a report that stays
+	// valid would let a spent mutation capability come back. An ABSENT HEAD is its
+	// own fact and must be stated too -- treating absence as nothing to say leaves
+	// the identical truncation available for the cost of one more deletion. Only a
+	// chain with no entries at all may have no HEAD; that is a task that has not
+	// started, not a task whose tail was removed.
 	head, err := readHead(s.headPath())
-	if err == nil {
+	switch {
+	case err == nil:
 		if head.EntryDigestSHA256 != out.Head.EntryDigestSHA256 || head.Sequence != out.Head.Sequence || head.EntryPath != out.Head.EntryPath {
-			report.Warnings = append(report.Warnings, VerificationWarning{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
+			report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
 		}
-	} else if !os.IsNotExist(err) {
+	case os.IsNotExist(err):
+		if len(out.Entries) > 0 {
+			report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_missing", Detail: "chain has entries but no HEAD", Path: filepath.ToSlash(s.headPath())})
+		}
+	default:
 		report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_unreadable", Detail: err.Error(), Path: filepath.ToSlash(s.headPath())})
 	}
 

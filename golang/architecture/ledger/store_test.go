@@ -89,11 +89,31 @@ func TestVerifyRecoversWhenEntryExistsButHeadIsStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Valid || report.HeadDigestSHA256 != second.EntryDigestSHA256 {
-		t.Fatalf("unexpected verify report: %+v", report)
+	// A HEAD that disagrees with its chain is damaged history: verification cannot
+	// tell "the entry is durable and HEAD was never published" apart from "the tail
+	// entry was deleted", so it refuses rather than guessing the benign reading.
+	if report.Valid {
+		t.Fatalf("a ledger whose HEAD disagrees with its chain must not be valid: %+v", report)
 	}
-	if len(report.Warnings) == 0 {
-		t.Fatal("expected stale head warning")
+	if !reportHasError(report, "ledger.head_stale") {
+		t.Fatalf("expected ledger.head_stale error, got %+v", report.Errors)
+	}
+	// Recovery is what this case is actually about: HEAD is derived state, so the
+	// durable entry is repaired by recomputing HEAD from the chain, never by
+	// rewriting an entry.
+	rec, err := store.ReconcileDerivedState()
+	if err != nil {
+		t.Fatalf("derived-state repair must still be reachable: %v", err)
+	}
+	if !rec.HeadRewritten {
+		t.Fatal("expected HEAD to be rewritten from the verified chain")
+	}
+	report, err = store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !report.Valid || report.HeadDigestSHA256 != second.EntryDigestSHA256 {
+		t.Fatalf("unexpected verify report after repair: %+v", report)
 	}
 }
 
