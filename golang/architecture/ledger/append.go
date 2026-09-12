@@ -102,23 +102,48 @@ func appendEntry(ctx context.Context, s *Store, req AppendRequest) (AppendResult
 		EntryDigestSHA256: digest,
 		EntryPath:         filepath.ToSlash(filepath.Join("ledger", ledgerEntryFilename(entry.Sequence, entry.EventType, digest))),
 	}
-	// The entry is now durable. A HEAD write failure is a POST-commit condition,
-	// not a pre-commit failure: report it as ErrEntryDurable carrying the committed
-	// entry identity so the caller reconciles instead of assuming no append.
-	// The injected fault, if armed, stands exactly here: after writeEntry made
-	// the entry durable and before HEAD is published. One-shot, so the retry that
-	// follows takes the real path.
-	headErr := error(nil)
-	if s.headFault != nil {
-		headErr, s.headFault = s.headFault, nil
-	} else {
-		headErr = writeHead(s.headPath(), head)
-	}
-	if err := headErr; err != nil {
-		return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
-			ErrEntryDurable{Entry: entry, Head: head, Detail: err.Error()}
+	// The entry is now durable, and publishing HEAD is the remainder of THIS
+	// append. This is the only place in the system where the committed identity is
+	// KNOWN rather than asserted: head was minted here, from the entry writeEntry
+	// just made durable, under a lock this call still holds. That is why the one
+	// bounded retry allowed to publish a HEAD the chain does not already carry
+	// lives here and nowhere else.
+	//
+	// There is deliberately no public recovery for the failure below. Across a
+	// later call nothing distinguishes "this append committed an entry and could
+	// not publish HEAD" from "someone deleted the highest-sequence entry": both
+	// leave entries that verify under a HEAD that does not name the last one. A
+	// recovery that took the committed identity as a PARAMETER proved nothing,
+	// because the caller supplies it -- after a truncation the caller simply names
+	// the SURVIVING tip, every equality check passes, and the truncated prefix is
+	// republished as the whole history, which is the resurrection of a spent
+	// mutation capability in issue #352. Every path outside this one is fail-closed.
+	//
+	// The injected fault, if armed, stands exactly here: after writeEntry made the
+	// entry durable and before HEAD is published.
+	if err := s.publishHead(head); err != nil {
+		// One bounded retry, still under the append lock, still on the locally
+		// minted head. If it also fails, HEAD was never published: report the
+		// post-commit condition and leave the ledger visibly invalid. The entry is
+		// authoritative, so this is never an ordinary "not appended" error.
+		if retryErr := s.publishHead(head); retryErr != nil {
+			return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path},
+				ErrEntryDurable{Entry: entry, Head: head, Detail: retryErr.Error()}
+		}
 	}
 	return AppendResult{Entry: entry, Head: head, PayloadPath: payload.path}, nil
+}
+
+// publishHead is the single HEAD-publication seam inside an append. It consumes
+// an armed instance fault before touching the filesystem, so a test can make
+// publication fail at exactly this boundary without any production code path
+// being able to.
+func (s *Store) publishHead(head Head) error {
+	if s.headFaults > 0 {
+		s.headFaults--
+		return s.headFault
+	}
+	return writeHead(s.headPath(), head)
 }
 
 func replayMatchesCurrentHead(ctx context.Context, s *Store, req AppendRequest, report VerificationReport) bool {

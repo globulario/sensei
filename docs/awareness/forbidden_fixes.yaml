@@ -789,3 +789,13 @@ forbidden_fixes:
     related_invariants:
       - graph.certified_domain_must_match_published_domain_content
     reason: Admitting the v1 stamp as an alternative to the publication receipt -- a plain OR rather than ordered admissibility -- lets the weaker mechanism answer over the stronger one precisely when the stronger one is reporting that its evidence is broken. ABSENT (nothing was published) and UNREADABLE (publication evidence exists and cannot be vouched for) are different worlds; resolveCurrentPublication takes care not to collapse them, and collapsing them one layer up restores the same hole. The legacy stamp is admissible only where no per-domain publication exists AND the domain is one the cross-repo format was authored to describe.
+  - id: forbidden_fix.sensei.republish_ledger_head_from_a_committed_entry_identity_the_ca
+    title: Republish ledger HEAD from a committed-entry identity the caller supplies
+    summary: 'A recovery that accepts ErrEntryDurable (or any caller-supplied entry digest/head) and republishes HEAD when it matches the chain tip is not proof-bound: ErrEntryDurable is an ordinary exported struct, so after deleting the highest-sequence entry a caller constructs the identity of the SURVIVING tip, every equality check passes, and HEAD is republished over the truncated prefix -- laundering the deletion into a valid ledger and resurrecting a spent mutation capability. The evidence that an append committed an entry exists only inside that Append, under its lock, and cannot be passed to a later call.'
+    protects:
+      files:
+        - golang/architecture/ledger/reconcile.go
+    related_invariants:
+      - invariant.ledger_verification_returns_a_typed_refusal_never_panics
+    reason: Only the Append that minted an entry may publish HEAD for it; every later or generic path is fail-closed.
+    contract: Only the Append that minted an entry may publish HEAD for it; every later or generic path is fail-closed.

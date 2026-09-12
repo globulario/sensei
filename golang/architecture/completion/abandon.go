@@ -367,27 +367,30 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 		var durable ledger.ErrEntryDurable
 		switch {
 		case errors.As(appErr, &durable):
-			// POST-COMMIT. The entry is durable and only the HEAD write failed,
-			// so the abandoned terminal exists whatever this call returns.
-			// Reporting ledger_invalid and stopping left the fact committed, the
-			// projection unrebuilt and the pointer live -- and a retry with the
-			// original expected head then reported stale, because verification
-			// derives the new durable head. The caller was told the write failed
-			// and then that it was too late to try again.
+			// POST-COMMIT and UNRECOVERABLE. The entry is durable and only the HEAD
+			// write failed, so the abandoned terminal exists whatever this call
+			// returns -- but Append has already spent its one bounded HEAD retry
+			// under the append lock, so reaching here means HEAD is genuinely
+			// unpublished and the chain does not verify.
 			//
-			// Read the exact durable event back and verify it before continuing.
-			// Verification, not the error's word, is what licenses the rest.
-			if verr := verifyDurableAbandonment(ctx, taskDir, task.ID, receipt); verr != nil {
-				return AbandonResult{
-					Outcome: OutcomeIntegrityFailure,
-					Detail: fmt.Sprintf("the abandoned entry is durable but could not be verified (%v); "+
-						"the active pointer is left in place deliberately", verr),
-					Receipt:     &receipt,
-					ReceiptPath: ref.Path,
-				}, nil
-			}
-			// Verified: fall through to projection rebuild and pointer retirement,
-			// which is the resumable cleanup path this condition interrupted.
+			// Nothing here may republish it. An unpublished HEAD and a deleted
+			// highest-sequence entry are the same state on disk, and the durable
+			// identity this branch holds is an ordinary value: a caller that
+			// truncated the chain and named the surviving tip presents the very
+			// same thing. Rebuilding HEAD from it would republish a truncated
+			// history as whole, which is how a consumed admission came back as
+			// ready_for_mutation (issue #352). So the damage is reported and left
+			// visible, and the active pointer is deliberately NOT retired -- the
+			// terminal cannot be read back from a ledger that does not verify.
+			return AbandonResult{
+				Outcome: OutcomeIntegrityFailure,
+				Detail: fmt.Sprintf("the abandoned entry is durable but HEAD was never published (%v); "+
+					"the ledger does not verify and no later call can prove this missing HEAD belongs to "+
+					"this append rather than to a deleted tail entry, so the active pointer is left in place "+
+					"deliberately", durable),
+				Receipt:     &receipt,
+				ReceiptPath: ref.Path,
+			}, nil
 		case errors.As(appErr, &stale):
 			return refuseAbandon(OutcomeStaleExpectedHead, "ledger head advanced during abandonment")
 		default:
@@ -422,36 +425,6 @@ func abandonTask(ctx context.Context, req AbandonRequest, deps abandonDependenci
 		ReceiptPath:          ref.Path,
 		ActivePointerCleared: cleared,
 	}, nil
-}
-
-// verifyDurableAbandonment re-reads the ledger and proves the exact abandoned
-// event is present and carries this receipt.
-//
-// Called when Append reported the entry durable but HEAD unwritten. The error
-// says the entry is committed; this establishes it independently, because a
-// caller that continued on the error's word alone would rebuild projections and
-// retire a pointer on the strength of a claim it never checked.
-func verifyDurableAbandonment(ctx context.Context, taskDir, taskID string, want closureprotocol.AbandonmentReceipt) error {
-	chain, err := ledger.NewStore(taskDir).VerifyChainCtx(ctx)
-	if err != nil {
-		return fmt.Errorf("chain unverifiable after durable append: %w", err)
-	}
-	tf := classifyTerminalFacts(chain)
-	if tf.abandonedCount != 1 {
-		return fmt.Errorf("expected exactly one abandoned event after a durable append, found %d", tf.abandonedCount)
-	}
-	got, _, lerr := loadAbandonmentReceipt(taskDir, tf.abandoned)
-	if lerr != nil {
-		return lerr
-	}
-	if got.Task.ID != taskID {
-		return fmt.Errorf("the durable abandoned event names task %s, not %s", got.Task.ID, taskID)
-	}
-	if got.ReceiptDigestSHA256 != want.ReceiptDigestSHA256 {
-		return fmt.Errorf("the durable abandoned event carries a different receipt (%s, wanted %s)",
-			short(got.ReceiptDigestSHA256), short(want.ReceiptDigestSHA256))
-	}
-	return nil
 }
 
 // clearPointer delegates the whole decision to the pointer's owner.

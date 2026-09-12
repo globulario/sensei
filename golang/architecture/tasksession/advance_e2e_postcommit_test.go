@@ -6,11 +6,13 @@ package tasksession
 
 import (
 	"context"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 	"github.com/globulario/sensei/golang/architecture/ledger"
-	"github.com/globulario/sensei/golang/architecture/resultrecording"
 	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
@@ -20,11 +22,20 @@ import (
 //
 //	go test -tags sensei_faultinject ./golang/architecture/tasksession/ -run TestE2EPostCommit
 //
-// The transition entry becomes durable but HEAD reconciliation fails, so the
-// orchestrator surfaces the committed identity and a recovery action instead of a
-// false success; an exact retry after the fault clears reconciles with no second
-// event.
-func TestE2EPostCommitRecoveryRetriesWithoutSecondEvent(t *testing.T) {
+// The transition entry becomes durable but HEAD publication fails twice, so the
+// orchestrator surfaces the committed identity and a recovery action instead of
+// a false success.
+//
+// The retry used to finish the job by rebuilding HEAD from the entries on disk.
+// It no longer does, and that is the repair for issue #352 arriving at the
+// orchestrator. An unpublished HEAD and a deleted highest-sequence entry leave
+// the same thing behind, so rebuilding HEAD from the survivors republishes a
+// truncated history as whole and a consumed admission comes back. The evidence
+// that tells the two apart is the ErrEntryDurable identity the append produced,
+// and it does not survive into a later call. So: the current state is honestly
+// UNAVAILABLE while the chain does not verify -- not guessed from the entries --
+// and the retry refuses without appending a second event.
+func TestE2EPostCommitRecoveryRefusesWithoutSecondEvent(t *testing.T) {
 	r := e2eSeed(t, resulttestkit.Options{})
 	taskDir := r.TaskDir
 	req := AdvanceResultRequest{
@@ -45,35 +56,58 @@ func TestE2EPostCommitRecoveryRetriesWithoutSecondEvent(t *testing.T) {
 	if res.PostCommitEntryDigestSHA256 == "" || res.PostCommitRecoveryAction == "" {
 		t.Fatal("post-commit must expose the committed entry identity and a recovery action")
 	}
-	// Repair 2: report the durable transition's RECONSTRUCTED current state — the
-	// entry is durable (phase proving), and the on-disk projection is honestly marked
-	// drifted since reconciliation did not complete. Never the pre-attempt disp.
-	if !res.CurrentStateAvailable {
-		t.Fatal("a durable post-commit entry must report its reconstructed current state")
+	// The durable entry is real, but HEAD was never published, so there is no
+	// verified chain to reconstruct a current state from. Typed absence, not a
+	// phase inferred from an unverifiable ledger.
+	if res.CurrentStateAvailable {
+		t.Fatalf("current state was reported from a ledger that does not verify: phase=%s status=%s", res.TaskPhase, res.OperationalStatus)
 	}
-	if res.TaskPhase != closureprotocol.PhaseProving {
-		t.Fatalf("post-commit current phase = %s, want proving (the durable transition)", res.TaskPhase)
+	if res.CurrentStateDetail == "" {
+		t.Fatal("an unavailable current state must say why")
 	}
-	if res.ProjectionState != "projection_drift" {
-		t.Fatalf("post-commit projection state = %q, want projection_drift (unreconciled)", res.ProjectionState)
+	if res.TaskPhase != "" || res.OperationalStatus != "" {
+		t.Fatalf("phase/status must be left empty when current state is unavailable, got %s/%s", res.TaskPhase, res.OperationalStatus)
 	}
-	if e2eCountTransitions(e2eLedgerEvents(t, taskDir)) != 1 {
+	if e2eCountTransitionEntryFiles(t, taskDir) != 1 {
 		t.Fatal("the durable entry must exist exactly once")
 	}
 
-	// Exact retry after the obstruction clears: reconcile, no second event.
+	// Exact retry after the obstruction clears: it cannot prove the unpublished
+	// HEAD belongs to this append rather than to a deleted tail, so it refuses.
 	ledger.InjectHeadWriteFaults(0)
 	retry, err := AdvanceResultTransition(context.Background(), req)
 	if err != nil {
 		t.Fatalf("retry: %v", err)
 	}
-	if retry.Outcome != OutcomeRecorded {
-		t.Fatalf("retry outcome = %s, want recorded", retry.Outcome)
+	if retry.Outcome == OutcomeRecorded {
+		t.Fatal("the retry rebuilt an unpublished HEAD; a truncated tail produces the same state and would be laundered the same way")
 	}
-	if retry.TransitionDisposition == resultrecording.DispositionRecorded {
-		t.Fatal("retry must reconcile the durable entry, not perform a fresh record")
+	report, verr := ledger.NewStore(taskDir).Verify()
+	if verr != nil {
+		t.Fatal(verr)
 	}
-	if e2eCountTransitions(e2eLedgerEvents(t, taskDir)) != 1 {
+	if report.Valid {
+		t.Fatal("the refusal repaired the ledger on its way out")
+	}
+	if e2eCountTransitionEntryFiles(t, taskDir) != 1 {
 		t.Fatal("retry appended a second transition event")
 	}
+}
+
+// e2eCountTransitionEntryFiles counts transition entries off the ledger
+// directory rather than off a verified chain, because this scenario runs
+// against a ledger that deliberately does not verify.
+func e2eCountTransitionEntryFiles(t *testing.T, taskDir string) int {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(taskDir, "ledger"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, e := range entries {
+		if strings.Contains(e.Name(), string(closureprotocol.LedgerEventResultTransitionRecorded)) {
+			n++
+		}
+	}
+	return n
 }

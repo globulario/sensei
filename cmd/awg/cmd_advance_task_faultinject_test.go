@@ -12,13 +12,20 @@ import (
 	"github.com/globulario/sensei/internal/resulttestkit"
 )
 
-// TestCLIAdvanceResultPostCommitRecovery is the CLI-level post-commit test. It runs
-// only under sensei_faultinject (the non-shipping HEAD-write fault seam). The first
-// invocation leaves a durable entry with an unreconciled HEAD: the CLI reports
-// post_commit_incomplete with the committed identity + recovery action and exits 1.
-// A later invocation of the exact same command reconciles and exits 0, appending no
-// second transition event.
-func TestCLIAdvanceResultPostCommitRecovery(t *testing.T) {
+// TestCLIAdvanceResultPostCommitRefusal is the CLI-level post-commit test. It
+// runs only under sensei_faultinject (the non-shipping HEAD-write fault seam).
+// The first invocation leaves a durable entry with HEAD unpublished: the CLI
+// reports post_commit_incomplete with the committed identity + recovery action
+// and exits 1.
+//
+// A later invocation of the same command used to reconcile and exit 0. It now
+// refuses, because a HEAD that does not name the last entry is also what
+// deleting the highest-sequence entry leaves behind, and rebuilding HEAD from
+// the survivors would republish a truncated history as whole (issue #352). The
+// evidence that separates the two is the durable-append identity from the call
+// that made the append, and it is gone by the next process. The refusal is
+// typed, non-zero, and leaves the ledger visibly damaged rather than repaired.
+func TestCLIAdvanceResultPostCommitRefusal(t *testing.T) {
 	r, err := resulttestkit.Seed(t.TempDir(), resulttestkit.Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -46,20 +53,27 @@ func TestCLIAdvanceResultPostCommitRecovery(t *testing.T) {
 		t.Fatal("correctness_certified must be false")
 	}
 
-	// Exact retry after the fault clears: reconcile, exit 0.
+	// Exact retry after the fault clears: it cannot prove the unpublished HEAD
+	// belongs to this append rather than to a deleted tail, so it refuses.
 	ledger.InjectHeadWriteFaults(0)
 	out2, code2 := captureAdvance(t, args)
-	if code2 != 0 {
-		t.Fatalf("retry exit %d, want 0: %s", code2, out2)
+	if code2 == 0 {
+		t.Fatalf("retry exit 0: the CLI rebuilt an unpublished HEAD, which is the same operation that launders a deleted tail entry: %s", out2)
 	}
 	var o2 advanceResultOutput
 	if err := json.Unmarshal([]byte(out2), &o2); err != nil {
 		t.Fatal(err)
 	}
-	if o2.Outcome != "recorded" {
-		t.Fatalf("retry outcome = %s, want recorded", o2.Outcome)
+	if o2.Outcome == "recorded" {
+		t.Fatalf("retry outcome = recorded, want a refusal: %s", out2)
 	}
-	if o2.TransitionDisposition == "recorded" {
-		t.Fatal("retry must reconcile the durable entry, not perform a fresh record")
+	if o2.CurrentStateAvailable {
+		t.Fatal("current state must be reported unavailable while the chain does not verify")
+	}
+	if o2.CurrentStateDetail == "" {
+		t.Fatal("an unavailable current state must say why")
+	}
+	if o2.CorrectnessCertified {
+		t.Fatal("correctness_certified must be false")
 	}
 }

@@ -2239,3 +2239,10 @@ required_tests:
     protects:
       failure_modes:
         - failure.graph_authority_certified_a_domain_publication_with_a_stamp
+  - id: golang/architecture/ledger/verify_corrupt_entry_test.go:TestVerifyCorruptEntryRefusesWithoutPanic
+    title: Ledger verification refuses a corrupt entry with a typed report instead of panicking
+    protects:
+      invariants:
+        - invariant.ledger_verification_returns_a_typed_refusal_never_panics
+      files:
+        - golang/architecture/ledger/verify.go

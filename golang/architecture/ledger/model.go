@@ -52,14 +52,21 @@ type VerificationWarning struct {
 }
 
 type VerificationReport struct {
-	Valid            bool                  `json:"valid" yaml:"valid"`
-	TaskID           string                `json:"task_id,omitempty" yaml:"task_id,omitempty"`
-	EntryCount       int                   `json:"entry_count" yaml:"entry_count"`
-	HeadDigestSHA256 string                `json:"head_digest_sha256,omitempty" yaml:"head_digest_sha256,omitempty"`
-	Errors           []VerificationError   `json:"errors,omitempty" yaml:"errors,omitempty"`
-	Warnings         []VerificationWarning `json:"warnings,omitempty" yaml:"warnings,omitempty"`
-	OrphanArtifacts  []string              `json:"orphan_artifacts,omitempty" yaml:"orphan_artifacts,omitempty"`
-	ProjectionState  string                `json:"projection_state,omitempty" yaml:"projection_state,omitempty"`
+	Valid            bool                `json:"valid" yaml:"valid"`
+	TaskID           string              `json:"task_id,omitempty" yaml:"task_id,omitempty"`
+	EntryCount       int                 `json:"entry_count" yaml:"entry_count"`
+	HeadDigestSHA256 string              `json:"head_digest_sha256,omitempty" yaml:"head_digest_sha256,omitempty"`
+	Errors           []VerificationError `json:"errors,omitempty" yaml:"errors,omitempty"`
+	// Warnings currently has NO producer, and a finding about chain integrity
+	// must not become one. Valid is len(Errors) == 0, so anything recorded here
+	// leaves the report valid: ledger.head_stale lived here and a truncated
+	// ledger therefore verified clean, which is how a consumed admission reverted
+	// to ready_for_mutation (issue #352). A fact that means the history may be
+	// damaged belongs in Errors. This stays for the wire shape and for advisories
+	// that genuinely do not bear on validity.
+	Warnings        []VerificationWarning `json:"warnings,omitempty" yaml:"warnings,omitempty"`
+	OrphanArtifacts []string              `json:"orphan_artifacts,omitempty" yaml:"orphan_artifacts,omitempty"`
+	ProjectionState string                `json:"projection_state,omitempty" yaml:"projection_state,omitempty"`
 }
 
 type PayloadValidator func(eventType closureprotocol.LedgerEventType, mediaType string, data []byte) error
@@ -67,9 +74,10 @@ type PayloadValidator func(eventType closureprotocol.LedgerEventType, mediaType 
 type Store struct {
 	taskDir          string
 	payloadValidator PayloadValidator
-	// headFault, when non-nil, makes the NEXT HEAD publication fail and is then
-	// cleared. See WithHeadPublicationFault.
-	headFault error
+	// headFault is the error returned by the next headFaults HEAD publications,
+	// each of which decrements the counter. See WithHeadPublicationFault.
+	headFault  error
+	headFaults int
 }
 
 type VerifiedEntry struct {
@@ -106,16 +114,28 @@ func WithPayloadValidator(fn PayloadValidator) StoreOption {
 //
 //	instance-scoped   it lives on one Store, never in package state, so two
 //	                  tests cannot reach each other
-//	one-shot          it fires exactly once and clears itself, so a retry inside
-//	                  the same test exercises the real path
+//	counted           each publication attempt consumes one fault, so once the
+//	                  count runs out the real path runs
 //	explicit          it is armed by construction; a Store built without it takes
 //	                  a byte-identical path
 //
-// It does not change what Append means. Append already returns ErrEntryDurable
-// when the entry is durable and HEAD is not published; this makes that reachable
-// on purpose rather than by filesystem accident.
+// One fault is absorbed by the bounded retry inside a single Append, so this
+// arms the RECOVERED case. Use WithHeadPublicationFaults(2, err) to leave HEAD
+// genuinely unpublished and reach ErrEntryDurable.
 func WithHeadPublicationFault(err error) StoreOption {
-	return func(s *Store) { s.headFault = err }
+	return WithHeadPublicationFaults(1, err)
+}
+
+// WithHeadPublicationFaults makes the next n HEAD publications on THIS store
+// fail with the supplied error.
+//
+// The count matters because Append publishes HEAD and, if that fails, retries
+// once under the same lock: n=1 exercises the recovery succeeding, n=2 leaves
+// HEAD unpublished and produces ErrEntryDurable. There is no third attempt and
+// no public repair afterwards, so n>=2 is how a test reaches the fail-closed
+// state a truncated ledger is indistinguishable from.
+func WithHeadPublicationFaults(n int, err error) StoreOption {
+	return func(s *Store) { s.headFault, s.headFaults = err, n }
 }
 
 func NewStore(taskDir string, opts ...StoreOption) *Store {

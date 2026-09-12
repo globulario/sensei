@@ -1597,12 +1597,12 @@ test_symbols:
     symbol: TestConvergenceStatusShowsCompactSummary
     package: main
     language: go
-  - id: cmd/awg/cmd_advance_task_faultinject_test.go:TestCLIAdvanceResultPostCommitRecovery
+  - id: cmd/awg/cmd_advance_task_faultinject_test.go:TestCLIAdvanceResultPostCommitRefusal
     file: cmd/awg/cmd_advance_task_faultinject_test.go
-    symbol: TestCLIAdvanceResultPostCommitRecovery
+    symbol: TestCLIAdvanceResultPostCommitRefusal
     package: main
     language: go
-    doc: "TestCLIAdvanceResultPostCommitRecovery is the CLI-level post-commit test. It runs\nonly under sensei_faultinject (the non-shipping HEAD-write fault seam). The first\ninvocation leaves a durable entry with an unreconciled HEAD: the CLI reports\npost_commit_incomplete with the committed identity + recovery action and exits 1.\nA later invocation of the exact same command reconciles and exits 0, appending no\nsecond transition event."
+    doc: "TestCLIAdvanceResultPostCommitRefusal is the CLI-level post-commit test. It\nruns only under sensei_faultinject (the non-shipping HEAD-write fault seam).\nThe first invocation leaves a durable entry with HEAD unpublished: the CLI\nreports post_commit_incomplete with the committed identity + recovery action\nand exits 1.\n\nA later invocation of the same command used to reconcile and exit 0. It now\nrefuses, because a HEAD that does not name the last entry is also what\ndeleting the highest-sequence entry leaves behind, and rebuilding HEAD from\nthe survivors would republish a truncated history as whole (issue #352). The\nevidence that separates the two is the durable-append identity from the call\nthat made the append, and it is gone by the next process. The refusal is\ntyped, non-zero, and leaves the ledger visibly damaged rather than repaired."
   - id: cmd/awg/cmd_advance_task_test.go:TestCLIAdvanceResultBlockedPath
     file: cmd/awg/cmd_advance_task_test.go
     symbol: TestCLIAdvanceResultBlockedPath
@@ -8602,6 +8602,12 @@ test_symbols:
     symbol: TestCheckDelegationVerdicts
     package: authority
     language: go
+  - id: golang/architecture/authority/policy_consistency_test.go:TestEveryGrantCoversItsDomainsRequiredMutationPath
+    file: golang/architecture/authority/policy_consistency_test.go
+    symbol: TestEveryGrantCoversItsDomainsRequiredMutationPath
+    package: authority
+    language: go
+    doc: "TestEveryGrantCoversItsDomainsRequiredMutationPath is a WHOLE-POLICY\ninvariant, deliberately not three pinned identifiers.\n\nA grant names the domains it authorizes and the mechanisms it permits. A\ndomain names the mechanisms a mutation MUST travel through. If a grant\nauthorizes a domain but permits none of that domain's required paths, the pair\nis unsatisfiable: the resolver in use today does not reject it, so it passes\nsilently, while any consumer that enforces the requirement rejects every\noperation on that domain.\n\nThat is how the abandonment domain shipped requiring\nmutation_path.terminal_completion while its own grant permitted only\nmutation_path.terminal_abandonment: the domain block was cloned from\ncompletion and its id renamed, and nothing compared the two halves.\n\nPinning the three abandonment identifiers would have caught that instance and\nno other. This closes the contract for every pair in the policy, including\npairs added later."
   - id: golang/architecture/authority/resolve_test.go:TestResolveAllowsNarrowDelegation
     file: golang/architecture/authority/resolve_test.go
     symbol: TestResolveAllowsNarrowDelegation
@@ -10669,12 +10675,36 @@ test_symbols:
     symbol: TestUnsupportedOperationIsTypedData
     package: commandprovider
     language: go
+  - id: golang/architecture/completion/abandon_api_test.go:TestAbandonRequestKeepsItsPublicContract
+    file: golang/architecture/completion/abandon_api_test.go
+    symbol: TestAbandonRequestKeepsItsPublicContract
+    package: completion_test
+    language: go
+    doc: "TestAbandonRequestKeepsItsPublicContract pins three properties that an\nin-package test cannot see, and that a keyed-literal check does not reveal.\n\nAn earlier attempt at the fault seam put an unexported []ledger.StoreOption\nfield on AbandonRequest. Keyed construction still compiled, so it looked\nharmless. It was not: a slice makes the struct non-comparable, and an\nunexported field makes external positional literals illegal. Both are breaking\nchanges to callers, and both are invisible from inside the package.\n\nThis file is the check that would have caught it."
+  - id: golang/architecture/completion/abandon_api_test.go:TestAbandonTaskIsReachableWithProductionDefaults
+    file: golang/architecture/completion/abandon_api_test.go
+    symbol: TestAbandonTaskIsReachableWithProductionDefaults
+    package: completion_test
+    language: go
+    doc: "TestAbandonTaskIsReachableWithProductionDefaults proves the public wrapper\ndelegates and runs the real implementation.\n\nThe recovery-path test drives the unexported helper so it can arm a ledger\nfault. That would be worth little if the exported function had drifted away\nfrom it, so this exercises AbandonTask itself: it must reach the same\nimplementation, refuse this obviously-invalid request through the same typed\noutcome, and return no error value."
   - id: golang/architecture/completion/abandon_test.go:TestACompletedTaskCannotBeAbandoned
     file: golang/architecture/completion/abandon_test.go
     symbol: TestACompletedTaskCannotBeAbandoned
     package: completion
     language: go
     doc: "TestACompletedTaskCannotBeAbandoned: abandonment may not weaken a stronger\nterminal. This is a refusal, not a replay."
+  - id: golang/architecture/completion/abandon_test.go:TestADurableAppendCompletesTheRecoveryPath
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestADurableAppendCompletesTheRecoveryPath
+    package: completion
+    language: go
+    doc: "R4-F4. A durable entry whose HEAD write failed is post-commit, not a failure.\n\nStore.Append returns ErrEntryDurable to say the terminal fact IS committed and\nonly HEAD.yaml is unwritten. Treating it as an ordinary append failure left the\nfact committed, the projection unrebuilt and the pointer live -- and a retry\nwith the original expected head then reported stale, because verification\nderives the new durable head. The caller was told the write failed, then that\nit was too late to try again.\n\nDriven through AbandonTask with a fault armed at the exact boundary -- after\nthe entry is durable, before HEAD is published -- so the condition is real and\nnot simulated.\n\nONE fault, which Append's own bounded retry absorbs while it still holds the\nappend lock and the entry identity it just minted. That is where this\ncondition is now resolved, and the observable result is the ordinary one: a\ncommitted abandonment, one event, the pointer retired. The companion test\nbelow arms two faults so the retry fails too, which is the only way to reach\nthe unrecoverable branch."
+  - id: golang/architecture/completion/abandon_test.go:TestAReceiptWithInconsistentInternalIdentityIsRefused
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAReceiptWithInconsistentInternalIdentityIsRefused
+    package: completion
+    language: go
+    doc: "R4-F3. Every duplicated identity inside the receipt must agree.\n\nThe validator checked in.Task and in.BaseBinding.Task independently and never\nrequired them equal, so a receipt could carry the abandoned event's task at\nthe top level -- which is all abandonedEventMatches reads -- while binding a\ndifferent world underneath."
   - id: golang/architecture/completion/abandon_test.go:TestAStaleExpectedHeadIsRefusedWithoutMutation
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAStaleExpectedHeadIsRefusedWithoutMutation
@@ -10753,12 +10783,24 @@ test_symbols:
     package: completion
     language: go
     doc: "F4. TestAnInvalidAbandonmentReceiptIsAnIntegrityFailure\n\nA missing, unparseable or digest-mismatched receipt cannot reconstruct the\nreason or the actor. Reporting exact_replay and clearing the pointer blesses a\nbroken event as terminal and removes the default route back to the task."
+  - id: golang/architecture/completion/abandon_test.go:TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath
+    package: completion
+    language: go
+    doc: "TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath is the negative control.\n\nWithout it, a branch that treated EVERY append error as post-commit would pass\nthe test above."
   - id: golang/architecture/completion/abandon_test.go:TestAnUnenrolledActorIsRefusedWithoutMutation
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAnUnenrolledActorIsRefusedWithoutMutation
     package: completion
     language: go
     doc: "TestAnUnenrolledActorIsRefusedWithoutMutation is the authority requirement."
+  - id: golang/architecture/completion/abandon_test.go:TestAnUnpublishedHeadIsReportedNotRepaired
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestAnUnpublishedHeadIsReportedNotRepaired
+    package: completion
+    language: go
+    doc: "TestAnUnpublishedHeadIsReportedNotRepaired is the fail-closed end of the same\nboundary, and it is the branch the test above no longer reaches.\n\nTwo faults: the append's HEAD publication fails AND the bounded retry inside\nthat same Append fails, so HEAD was genuinely never published. Nothing may\nrepair it afterwards. The durable identity this branch holds is an ordinary\nvalue -- a caller who deleted the highest-sequence entry and named the\nsurvivor presents the identical thing -- so rebuilding HEAD from it would\nrepublish a truncated history as whole and resurrect a spent mutation\ncapability (issue #352).\n\nSo the abandonment reports an integrity failure and, critically, LEAVES THE\nPOINTER LIVE: the terminal cannot be read back from a ledger that does not\nverify, and retiring the pointer on the strength of an unverifiable claim is\nthe write this whole repair exists to prevent."
   - id: golang/architecture/completion/abandon_test.go:TestAnUnreadableActivePointerIsNotAbsence
     file: golang/architecture/completion/abandon_test.go
     symbol: TestAnUnreadableActivePointerIsNotAbsence
@@ -10795,6 +10837,12 @@ test_symbols:
     package: completion
     language: go
     doc: "F2b. TestCompleteRefusesAnAbandonedTask\n\nPhaseAbandoned has no outgoing transitions. Completion that does not recognise\nthe event would append a second, contradictory terminal."
+  - id: golang/architecture/completion/abandon_test.go:TestLatestTaskPhaseFailsClosedOnAnUnreadablePayload
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestLatestTaskPhaseFailsClosedOnAnUnreadablePayload
+    package: completion
+    language: go
+    doc: "R4-F2. A malformed lifecycle payload is an integrity failure, not absence.\n\nlatestTaskPhase skipped anything it could not parse and kept walking back, so\nan unreadable task_marked_stale head fell through to an earlier non-terminal\nphase and abandonment proceeded over a terminal stale fact. \"Unreadable\" and\n\"not there\" are different facts and only one of them permits the write.\n\nTESTED AT THE FUNCTION, because the end-to-end path is guarded earlier: a\nchain carrying a semantically invalid payload also fails\nadmission.LoadRecordedAuthorityCtx, so AbandonTask refuses with\nauthority_refusal before the phase is ever derived. That earlier guard is real\nand is not what this finding is about -- and a test routed through it would\npass with this defect fully intact, which is the trap round two's finding 5\nalready sprang once."
   - id: golang/architecture/completion/abandon_test.go:TestRepeatedAbandonmentIsIdempotent
     file: golang/architecture/completion/abandon_test.go
     symbol: TestRepeatedAbandonmentIsIdempotent
@@ -16275,9 +16323,9 @@ test_symbols:
     symbol: TestAppendRejectsStaleWriter
     package: ledger
     language: go
-  - id: golang/architecture/ledger/store_test.go:TestVerifyRecoversWhenEntryExistsButHeadIsStale
+  - id: golang/architecture/ledger/store_test.go:TestVerifyRefusesWhenEntryExistsButHeadIsStale
     file: golang/architecture/ledger/store_test.go
-    symbol: TestVerifyRecoversWhenEntryExistsButHeadIsStale
+    symbol: TestVerifyRefusesWhenEntryExistsButHeadIsStale
     package: ledger
     language: go
   - id: golang/architecture/ledger/store_test.go:TestVerifyReportsOrphanArtifacts
@@ -16285,6 +16333,54 @@ test_symbols:
     symbol: TestVerifyReportsOrphanArtifacts
     package: ledger
     language: go
+  - id: golang/architecture/ledger/verify_corrupt_entry_test.go:TestVerifyCorruptEntryRefusesWithoutPanic
+    file: golang/architecture/ledger/verify_corrupt_entry_test.go
+    symbol: TestVerifyCorruptEntryRefusesWithoutPanic
+    package: ledger
+    language: go
+    doc: "TestVerifyCorruptEntryRefusesWithoutPanic is the required test for\ninvariant.ledger_verification_returns_a_typed_refusal_never_panics.\n\nverifyAndLoadChain records an unreadable or invalid entry and skips it WITHOUT\nappending, so the enumeration index of the files slice and the length of the\naccumulated slice diverge after the first skip. Indexing the accumulated\nentries by the file index then reads past the end: one corrupt FIRST entry\nproduced \"panic: runtime error: index out of range [0] with length 0\"\n(issue #356).\n\nA panic is not a refusal. Every governed read calls VerifyChain, so a verifier\nthat dies leaves the governance path with no verdict to fail closed on -- the\ncaller gets a crash where it needed an answer. The verdict must be typed, and\nit must be \"invalid\".\n\nThe corruption is placed at each position in turn: the first entry is the case\nthat panicked, but a skip anywhere makes the two indices diverge for every\nentry after it, so a fix that special-cased position zero would still be wrong."
+  - id: golang/architecture/ledger/verify_corrupt_entry_test.go:TestVerifyCorruptFirstEntryDoesNotRenumberTheSurvivors
+    file: golang/architecture/ledger/verify_corrupt_entry_test.go
+    symbol: TestVerifyCorruptFirstEntryDoesNotRenumberTheSurvivors
+    package: ledger
+    language: go
+    doc: "TestVerifyCorruptFirstEntryDoesNotRenumberTheSurvivors guards the fix's other\nhalf. Deriving the sequence check from the accumulated slice is only correct\nif a skipped entry still breaks the chain: if expectedSeq simply followed the\nsurvivors, a corrupt first entry would leave entry 2 looking like a valid\nentry 1 and the remaining suffix would verify as a whole chain -- the same\ntruncation laundering issue #352 is about, arriving through a corrupt file\ninstead of a deleted one."
+  - id: golang/architecture/ledger/verify_head_test.go:TestAppendLeavesTheLedgerInvalidWhenHeadIsNeverPublished
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestAppendLeavesTheLedgerInvalidWhenHeadIsNeverPublished
+    package: ledger
+    language: go
+    doc: "TestAppendLeavesTheLedgerInvalidWhenHeadIsNeverPublished is the fail-closed\nend of the same contract. When the retry also fails, HEAD was never published\nand NOTHING may repair it afterwards: this is byte-for-byte the state a\ndeleted tail entry produces, so the ledger stays invalid and the durable\nidentity is reported rather than acted on."
+  - id: golang/architecture/ledger/verify_head_test.go:TestAppendRecoversItsOwnUnpublishedHead
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestAppendRecoversItsOwnUnpublishedHead
+    package: ledger
+    language: go
+    doc: "TestAppendRecoversItsOwnUnpublishedHead is the positive control: the refusals\nabove are only meaningful if the genuine post-commit condition still recovers.\n\nIt recovers in the one place the evidence actually exists -- inside the Append\nthat minted the entry, under the lock it still holds, on a HEAD value it\ncomputed itself. Nothing is taken from a caller, so there is nothing to forge."
+  - id: golang/architecture/ledger/verify_head_test.go:TestNoPublicPathRepublishesHeadForATruncatedChain
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestNoPublicPathRepublishesHeadForATruncatedChain
+    package: ledger
+    language: go
+    doc: "TestNoPublicPathRepublishesHeadForATruncatedChain is the regression for the\nround-two review finding, and it is the half of issue #352 that a passing\ntruncation test can still hide.\n\nClassifying a stale or absent HEAD as an error only holds while no repair\nundoes the classification. The first attempt at this repair kept a recovery\nthat republished HEAD when the caller presented the committed-entry identity\nand the chain tip matched it. That looked proof-bound and was not: the identity\nis an ordinary exported value and the method was public, so after deleting the\ntail a caller constructs the identity of the entry that SURVIVED, every\nequality check passes, HEAD is republished over the truncated prefix, and the\ndeletion has been laundered into a valid ledger -- the spent mutation\ncapability comes back for the cost of one extra call.\n\nSo this drives every public derived-state path against both truncation\nvariants WHILE HOLDING THAT FORGED IDENTITY, and requires that HEAD.yaml is\nbyte-identical afterwards and the ledger still refuses."
+  - id: golang/architecture/ledger/verify_head_test.go:TestVerifyAcceptsEmptyLedgerWithNoHead
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestVerifyAcceptsEmptyLedgerWithNoHead
+    package: ledger
+    language: go
+    doc: "TestVerifyAcceptsEmptyLedgerWithNoHead pins the case the repair must not\ndamage: a task with no entries and no HEAD has no chain yet. It is fresh, not\ntruncated, and must keep verifying exactly as it did before."
+  - id: golang/architecture/ledger/verify_head_test.go:TestVerifyRejectsTruncatedTailWithHeadRemoved
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestVerifyRejectsTruncatedTailWithHeadRemoved
+    package: ledger
+    language: go
+    doc: "TestVerifyRejectsTruncatedTailWithHeadRemoved is the same attack carried one\ndeletion further. If only the stale case is promoted to an error, removing\nHEAD.yaml as well restores a clean verdict, because an absent HEAD matches\nneither branch of the HEAD check and reports nothing at all. A chain that has\nentries but no HEAD is damaged too."
+  - id: golang/architecture/ledger/verify_head_test.go:TestVerifyRejectsTruncatedTailWithStaleHead
+    file: golang/architecture/ledger/verify_head_test.go
+    symbol: TestVerifyRejectsTruncatedTailWithStaleHead
+    package: ledger
+    language: go
+    doc: "TestVerifyRejectsTruncatedTailWithStaleHead is the truncation attack of issue\n#352: deleting the highest-sequence entry leaves HEAD pointing at an entry that\nis no longer on the chain. A ledger whose HEAD disagrees with its entries is\ndamaged history, not an advisory, so it must not verify as valid."
   - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_DifferentBytesRecompute
     file: golang/architecture/ledger/verifyscope_test.go
     symbol: TestVerificationScope_DifferentBytesRecompute
@@ -18440,12 +18536,12 @@ test_symbols:
     package: questiondisposition_test
     language: go
     doc: "TestDurableEntryHeadFailReconciles: the append's HEAD write fails once; the\nentry is durable and the same call reconciles HEAD and succeeds with exactly\none event."
-  - id: golang/architecture/questiondisposition/fault_test.go:TestPostCommitErrorThenRetryRecovers
+  - id: golang/architecture/questiondisposition/fault_test.go:TestPostCommitErrorThenRetryRefuses
     file: golang/architecture/questiondisposition/fault_test.go
-    symbol: TestPostCommitErrorThenRetryRecovers
+    symbol: TestPostCommitErrorThenRetryRefuses
     package: questiondisposition_test
     language: go
-    doc: "TestPostCommitErrorThenRetryRecovers: both the append and reconcile HEAD writes\nfail, yielding a PostCommitError carrying the durable entry identity; clearing\nthe fault and retrying the SAME candidate recovers with no second event."
+    doc: "TestPostCommitErrorThenRetryRefuses: both the append and the recovery HEAD\nwrites fail, yielding a PostCommitError carrying the durable entry identity.\nClearing the fault and retrying the SAME candidate no longer recovers.\n\nIt used to, by rebuilding HEAD from the entries that were there. That repair\ncould not tell what it was repairing: an entry durable with HEAD unpublished\nand a chain whose highest-sequence entry was deleted are the same state on\ndisk, and rebuilding HEAD over the second one republishes a truncated history\nas whole -- which is how a consumed admission came back as ready_for_mutation\n(issue #352). The evidence that separates them is the ErrEntryDurable identity\nthe append itself produced, and it does not survive into a later call. So the\nretry refuses, the ledger stays invalid, and no second event is appended."
   - id: golang/architecture/questiondisposition/matrix_test.go:TestAnsweredTaskLocalReevaluatesAndContains
     file: golang/architecture/questiondisposition/matrix_test.go
     symbol: TestAnsweredTaskLocalReevaluatesAndContains
@@ -19565,7 +19661,7 @@ test_symbols:
     symbol: TestDurableEntryReconcileFailsPostCommitError
     package: resultrecording
     language: go
-    doc: "TestDurableEntryReconcileFailsPostCommitError: the append's HEAD write AND the\nreconciliation's HEAD write both fail, so the entry is durable but derived-state\nrepair cannot complete; a PostCommitError carries the committed identity, and a\nretry after the fault clears reconciles with no second event."
+    doc: "TestDurableEntryReconcileFailsPostCommitError: the append's HEAD write AND the\nrecovery's HEAD write both fail, so the entry is durable but HEAD was never\npublished; a PostCommitError carries the committed identity.\n\nThe retry used to reconcile and report \"reconciled\". It no longer can, and the\nreason is the point of issue #352: across two calls nothing is left that\ndistinguishes \"this process committed an entry and could not publish HEAD\"\nfrom \"someone deleted the highest-sequence entry\". Both leave entries that\nverify and a HEAD that does not name the last one. The proof that licenses\nrepublication -- the exact ErrEntryDurable identity -- lives inside the call\nthat made the append, and it does not survive into a later one. So a fresh\ncall refuses and leaves the damage visible rather than rebuilding HEAD from\nwhatever entries are on disk, which is the operation that resurrects a spent\nmutation capability."
   - id: golang/architecture/resultrecording/fault_test.go:TestReplayAfterLedgerAdvancedDoesNotRegress
     file: golang/architecture/resultrecording/fault_test.go
     symbol: TestReplayAfterLedgerAdvancedDoesNotRegress
@@ -19614,11 +19710,12 @@ test_symbols:
     symbol: TestLedgerTamperPayloadRejected
     package: resultrecording
     language: go
-  - id: golang/architecture/resultrecording/matrix_test.go:TestMissingHeadRecovery
+  - id: golang/architecture/resultrecording/matrix_test.go:TestMissingHeadRefusesRatherThanReconciling
     file: golang/architecture/resultrecording/matrix_test.go
-    symbol: TestMissingHeadRecovery
+    symbol: TestMissingHeadRefusesRatherThanReconciling
     package: resultrecording
     language: go
+    doc: "TestMissingHeadRefusesRatherThanReconciling and its stale twin below used to\nbe TestMissingHeadRecovery/TestStaleHeadRecovery: a HEAD deleted or corrupted\nbetween two recordings was silently rebuilt from the surviving entries and the\nretry reported \"reconciled\".\n\nThat recovery could not tell what it was recovering from. A HEAD that does not\nname the last entry is what a failed HEAD publication leaves behind AND what\ndeleting the highest-sequence entry leaves behind, and the second one means a\nrecorded transition has been erased. Rebuilding HEAD over it republished the\ntruncated prefix as the whole history. An arbitrary later HEAD loss carries no\nevidence of which case it is, so recording refuses and the damage stays\nvisible; the one condition that does carry evidence -- this process's own\nappend, which minted the entry under the lock it still holds -- resolves\ninside that Append's own bounded HEAD retry and never becomes a later call's\nproblem (see TestProjectionDriftRecovery for what still reconciles)."
   - id: golang/architecture/resultrecording/matrix_test.go:TestProjectionDriftRecovery
     file: golang/architecture/resultrecording/matrix_test.go
     symbol: TestProjectionDriftRecovery
@@ -19629,9 +19726,10 @@ test_symbols:
     symbol: TestReconcileDerivedStateDirect
     package: resultrecording
     language: go
-  - id: golang/architecture/resultrecording/matrix_test.go:TestStaleHeadRecovery
+    doc: "TestReconcileDerivedStateDirect calls the generic repair on its own, without\na recording in front of it, because that is the shortest route to laundering a\ntruncated ledger: one public call that rewrites HEAD from whatever entries are\nleft. It must refuse, and it must refuse without touching the ledger."
+  - id: golang/architecture/resultrecording/matrix_test.go:TestStaleHeadRefusesRatherThanReconciling
     file: golang/architecture/resultrecording/matrix_test.go
-    symbol: TestStaleHeadRecovery
+    symbol: TestStaleHeadRefusesRatherThanReconciling
     package: resultrecording
     language: go
   - id: golang/architecture/resultrecording/matrix_test.go:TestStorageTamperReceiptRejected
@@ -22200,12 +22298,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "A pointer that does not describe a complete generation is refused rather\nthan silently falling back to the prepare-time request, which would answer a\ndifferent question than the caller asked."
-  - id: golang/architecture/tasksession/advance_e2e_postcommit_test.go:TestE2EPostCommitRecoveryRetriesWithoutSecondEvent
+  - id: golang/architecture/tasksession/advance_e2e_postcommit_test.go:TestE2EPostCommitRecoveryRefusesWithoutSecondEvent
     file: golang/architecture/tasksession/advance_e2e_postcommit_test.go
-    symbol: TestE2EPostCommitRecoveryRetriesWithoutSecondEvent
+    symbol: TestE2EPostCommitRecoveryRefusesWithoutSecondEvent
     package: tasksession
     language: go
-    doc: "Scenario 6 — post-commit recovery. Requires the non-shipping HEAD-write fault\nseam (ledger.InjectHeadWriteFaults), so it is compiled only under the\nsensei_faultinject build tag and is absent from every normal build. Run:\n\n\tgo test -tags sensei_faultinject ./golang/architecture/tasksession/ -run TestE2EPostCommit\n\nThe transition entry becomes durable but HEAD reconciliation fails, so the\norchestrator surfaces the committed identity and a recovery action instead of a\nfalse success; an exact retry after the fault clears reconciles with no second\nevent."
+    doc: "Scenario 6 — post-commit recovery. Requires the non-shipping HEAD-write fault\nseam (ledger.InjectHeadWriteFaults), so it is compiled only under the\nsensei_faultinject build tag and is absent from every normal build. Run:\n\n\tgo test -tags sensei_faultinject ./golang/architecture/tasksession/ -run TestE2EPostCommit\n\nThe transition entry becomes durable but HEAD publication fails twice, so the\norchestrator surfaces the committed identity and a recovery action instead of\na false success.\n\nThe retry used to finish the job by rebuilding HEAD from the entries on disk.\nIt no longer does, and that is the repair for issue #352 arriving at the\norchestrator. An unpublished HEAD and a deleted highest-sequence entry leave\nthe same thing behind, so rebuilding HEAD from the survivors republishes a\ntruncated history as whole and a consumed admission comes back. The evidence\nthat tells the two apart is the ErrEntryDurable identity the append produced,\nand it does not survive into a later call. So: the current state is honestly\nUNAVAILABLE while the chain does not verify -- not guessed from the entries --\nand the retry refuses without appending a second event."
   - id: golang/architecture/tasksession/advance_e2e_test.go:TestE2EBoundaryProofNoLaterPhaseEvent
     file: golang/architecture/tasksession/advance_e2e_test.go
     symbol: TestE2EBoundaryProofNoLaterPhaseEvent

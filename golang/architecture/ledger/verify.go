@@ -12,6 +12,15 @@ import (
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
 
+// Verification codes naming a defect in the HEAD pointer itself rather than in
+// the entry chain. Both are errors, not warnings: a HEAD that disagrees with its
+// chain, and a chain with entries but no HEAD, are the two states a tail
+// truncation leaves behind, and neither is an advisory.
+const (
+	codeHeadStale   = "ledger.head_stale"
+	codeHeadMissing = "ledger.head_missing"
+)
+
 func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadValidator) (VerificationReport, error) {
 	chain, report, err := verifyAndLoadChain(ctx, taskDir, validator)
 	if err != nil {
@@ -53,7 +62,14 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 		report    VerificationReport
 		usedPaths = map[string]bool{}
 	)
-	for idx, path := range files {
+	// INDEXED BY len(out.Entries), NEVER BY THE FILE INDEX. An unreadable or
+	// invalid entry is recorded and skipped WITHOUT appending, so after any skip
+	// the enumeration index and the accumulated slice diverge: a previous-entry
+	// lookup at files-index-1 then reads past the end and the verifier panics
+	// instead of refusing (issue #356 -- one corrupt first entry produced
+	// "index out of range [0] with length 0"). Every governed read calls this, so
+	// a panic leaves the governance path with no verdict to fail closed on.
+	for _, path := range files {
 		entry, err := readEntry(path)
 		if err != nil {
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.entry_unreadable", Detail: err.Error(), Path: filepath.ToSlash(path)})
@@ -70,7 +86,7 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			}
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.sequence_filename_mismatch", Detail: detail, Path: filepath.ToSlash(path)})
 		}
-		expectedSeq := idx + 1
+		expectedSeq := len(out.Entries) + 1
 		if entry.Sequence != expectedSeq {
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.sequence_gap", Detail: fmt.Sprintf("expected sequence %d got %d", expectedSeq, entry.Sequence), Path: filepath.ToSlash(path)})
 		}
@@ -82,13 +98,13 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			}
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.entry_digest_mismatch", Detail: detail, Path: filepath.ToSlash(path)})
 		}
-		if idx == 0 {
+		if len(out.Entries) == 0 {
 			out.TaskID = entry.Task.ID
 			if entry.PreviousEntryDigestSHA256 != "" {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
 			}
 		} else {
-			prev := out.Entries[idx-1].Entry
+			prev := out.Entries[len(out.Entries)-1].Entry
 			if entry.PreviousEntryDigestSHA256 != prev.EntryDigestSHA256 {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.previous_digest_mismatch", Detail: "previous digest does not match prior entry", Path: filepath.ToSlash(path)})
 			}
@@ -133,12 +149,25 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(last.EntryPath))),
 		}
 	}
+	// A HEAD that disagrees with the recomputed chain is evidence that history is
+	// damaged, not an advisory: deleting the highest-sequence entry leaves HEAD
+	// pointing at an entry that is no longer on the chain, and a report that stays
+	// valid would let a spent mutation capability come back. An ABSENT HEAD is its
+	// own fact and must be stated too -- treating absence as nothing to say leaves
+	// the identical truncation available for the cost of one more deletion. Only a
+	// chain with no entries at all may have no HEAD; that is a task that has not
+	// started, not a task whose tail was removed.
 	head, err := readHead(s.headPath())
-	if err == nil {
+	switch {
+	case err == nil:
 		if head.EntryDigestSHA256 != out.Head.EntryDigestSHA256 || head.Sequence != out.Head.Sequence || head.EntryPath != out.Head.EntryPath {
-			report.Warnings = append(report.Warnings, VerificationWarning{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
+			report.Errors = append(report.Errors, VerificationError{Code: codeHeadStale, Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
 		}
-	} else if !os.IsNotExist(err) {
+	case os.IsNotExist(err):
+		if len(out.Entries) > 0 {
+			report.Errors = append(report.Errors, VerificationError{Code: codeHeadMissing, Detail: "chain has entries but no HEAD", Path: filepath.ToSlash(s.headPath())})
+		}
+	default:
 		report.Errors = append(report.Errors, VerificationError{Code: "ledger.head_unreadable", Detail: err.Error(), Path: filepath.ToSlash(s.headPath())})
 	}
 

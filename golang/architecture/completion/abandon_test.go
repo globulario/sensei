@@ -1176,8 +1176,16 @@ func TestAReceiptWithInconsistentInternalIdentityIsRefused(t *testing.T) {
 // derives the new durable head. The caller was told the write failed, then that
 // it was too late to try again.
 //
-// Driven through AbandonTask with a one-shot fault armed at the exact boundary,
-// so this proves the BRANCH runs, not merely that the verifier it calls works.
+// Driven through AbandonTask with a fault armed at the exact boundary -- after
+// the entry is durable, before HEAD is published -- so the condition is real and
+// not simulated.
+//
+// ONE fault, which Append's own bounded retry absorbs while it still holds the
+// append lock and the entry identity it just minted. That is where this
+// condition is now resolved, and the observable result is the ordinary one: a
+// committed abandonment, one event, the pointer retired. The companion test
+// below arms two faults so the retry fails too, which is the only way to reach
+// the unrecoverable branch.
 func TestADurableAppendCompletesTheRecoveryPath(t *testing.T) {
 	w := seedWorldWithoutResult(t)
 	id := taskID(t, w.TaskDir)
@@ -1229,6 +1237,65 @@ func TestADurableAppendCompletesTheRecoveryPath(t *testing.T) {
 	}
 }
 
+// TestAnUnpublishedHeadIsReportedNotRepaired is the fail-closed end of the same
+// boundary, and it is the branch the test above no longer reaches.
+//
+// Two faults: the append's HEAD publication fails AND the bounded retry inside
+// that same Append fails, so HEAD was genuinely never published. Nothing may
+// repair it afterwards. The durable identity this branch holds is an ordinary
+// value -- a caller who deleted the highest-sequence entry and named the
+// survivor presents the identical thing -- so rebuilding HEAD from it would
+// republish a truncated history as whole and resurrect a spent mutation
+// capability (issue #352).
+//
+// So the abandonment reports an integrity failure and, critically, LEAVES THE
+// POINTER LIVE: the terminal cannot be read back from a ledger that does not
+// verify, and retiring the pointer on the strength of an unverifiable claim is
+// the write this whole repair exists to prevent.
+func TestAnUnpublishedHeadIsReportedNotRepaired(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	id := taskID(t, w.TaskDir)
+	setActivePointer(t, w, id)
+	before := currentHead(t, w.TaskDir)
+
+	res, err := abandonTask(context.Background(), AbandonRequest{
+		RepositoryRoot: w.Repo, TaskDirectory: w.TaskDir, IdentityRoot: w.IdentityRoot,
+		ExpectedLedgerHeadDigestSHA256: before, Reason: whyAbandoned,
+	}, abandonDependencies{
+		ledgerOptions: []ledger.StoreOption{
+			ledger.WithHeadPublicationFaults(2, errors.New("injected: HEAD publication failed")),
+		},
+	})
+	if err != nil {
+		t.Fatalf("a post-commit condition must be a result, not a hard error: %v", err)
+	}
+	if res.Outcome != OutcomeIntegrityFailure {
+		t.Fatalf("outcome = %q (%s), want integrity_failure: an unpublished HEAD was treated as success",
+			res.Outcome, res.Detail)
+	}
+	// The entry really is durable -- that is what makes this post-commit. Counted
+	// off the ledger directory, not through VerifyChain: this chain deliberately
+	// does not verify, which is the whole point of the case.
+	if n := abandonedEntryFiles(t, w.TaskDir); n != 1 {
+		t.Fatalf("abandoned entry files = %d, want 1: the fault must fire AFTER the entry is durable", n)
+	}
+	// And the ledger does not verify, because HEAD names the previous entry.
+	report, verr := ledger.NewStore(w.TaskDir).Verify()
+	if verr != nil {
+		t.Fatal(verr)
+	}
+	if report.Valid {
+		t.Fatal("the ledger verified with a HEAD that was never published for its tip")
+	}
+	// The pointer stays live: nothing may act on a ledger that cannot be read.
+	if res.ActivePointerCleared || !pointerExists(t, w.Repo) {
+		t.Fatal("the pointer was retired on the strength of a ledger that does not verify")
+	}
+	if res.Receipt == nil || res.ReceiptPath == "" {
+		t.Fatal("an integrity failure must still surface the receipt it committed")
+	}
+}
+
 // TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath is the negative control.
 //
 // Without it, a branch that treated EVERY append error as post-commit would pass
@@ -1248,4 +1315,22 @@ func TestAnOrdinaryAppendFailureDoesNotTakeTheRecoveryPath(t *testing.T) {
 	if !pointerExists(t, w.Repo) {
 		t.Fatal("a pre-commit refusal retired the pointer")
 	}
+}
+
+// abandonedEntryFiles counts abandoned entries off the ledger directory rather
+// than off a verified chain, for the cases that run against a ledger which
+// deliberately does not verify.
+func abandonedEntryFiles(t *testing.T, taskDir string) int {
+	t.Helper()
+	entries, err := os.ReadDir(filepath.Join(taskDir, "ledger"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, e := range entries {
+		if strings.Contains(e.Name(), string(closureprotocol.LedgerEventAbandoned)) {
+			n++
+		}
+	}
+	return n
 }

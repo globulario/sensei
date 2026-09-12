@@ -132,6 +132,9 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 	})
 	var durable ledger.ErrEntryDurable
 	var stale ledger.ErrStaleHead
+	// Non-nil only when HEAD was left unpublished; it is the proof postCommit
+	// hands to the narrow recovery that may republish HEAD.
+	var unpublished *ledger.ErrEntryDurable
 	switch {
 	case err == nil:
 		// appended, or a ledger-level exact replay; handled below.
@@ -139,6 +142,7 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 		// Durable entry but HEAD write failed — a post-commit condition. Carry the
 		// entry identity forward so postCommit reconciles HEAD.
 		appended = ledger.AppendResult{Entry: durable.Entry, Head: durable.Head}
+		unpublished = &durable
 	case errors.As(err, &stale):
 		return RecordResult{}, qdErr(CodeStaleExpectedHead, "ledger head moved during recording")
 	default:
@@ -164,7 +168,7 @@ func RecordDisposition(ctx context.Context, req RecordRequest) (RecordResult, er
 		ReceiptRef:               receiptRef,
 		ContestedPriorDigests:    contested,
 	}
-	if err := postCommit(taskDir, store, &result); err != nil {
+	if err := postCommit(ctx, taskDir, store, unpublished, &result); err != nil {
 		return result, err
 	}
 	return result, nil
@@ -199,7 +203,15 @@ func reconcileExisting(taskDir string, store *ledger.Store, c DispositionCandida
 // postCommit reconciles derived state after the entry is durable. Any failure
 // here is a PostCommitError: the entry is authoritative and the caller retries
 // the same candidate.
-func postCommit(taskDir string, store *ledger.Store, result *RecordResult) error {
+//
+// unpublished is the append that committed its entry and then failed to publish
+// HEAD, or nil. It is reported, never acted on: Append already spent its one
+// bounded HEAD retry under the append lock, so a non-nil value means HEAD is
+// genuinely unpublished and no repair remains. Rebuilding HEAD from it would
+// launder a truncation -- the identity is an ordinary caller-supplied value, and
+// a chain whose tail was deleted yields the identical argument when the surviving
+// tip is named (issue #352). The ledger stays visibly invalid.
+func postCommit(ctx context.Context, taskDir string, store *ledger.Store, unpublished *ledger.ErrEntryDurable, result *RecordResult) error {
 	post := func(code, detail string) *PostCommitError {
 		return &PostCommitError{
 			Code:                   code,
@@ -210,6 +222,12 @@ func postCommit(taskDir string, store *ledger.Store, result *RecordResult) error
 			RecoveryAction:         "retry the same candidate",
 			Detail:                 detail,
 		}
+	}
+	if unpublished != nil {
+		return post(CodePostCommitValidation,
+			"the entry is durable but HEAD was never published: "+unpublished.Detail+
+				"; the ledger does not verify and no later call can prove this missing HEAD "+
+				"belongs to this append rather than to a deleted tail entry")
 	}
 	rec, err := store.ReconcileDerivedState()
 	if err != nil {

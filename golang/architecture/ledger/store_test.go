@@ -72,7 +72,7 @@ func TestAppendRejectsStaleWriter(t *testing.T) {
 	}
 }
 
-func TestVerifyRecoversWhenEntryExistsButHeadIsStale(t *testing.T) {
+func TestVerifyRefusesWhenEntryExistsButHeadIsStale(t *testing.T) {
 	taskDir := t.TempDir()
 	store := NewStore(taskDir, WithPayloadValidator(testPayloadValidator))
 	first, err := store.Append(context.Background(), AppendRequest{
@@ -89,12 +89,34 @@ func TestVerifyRecoversWhenEntryExistsButHeadIsStale(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !report.Valid || report.HeadDigestSHA256 != second.EntryDigestSHA256 {
-		t.Fatalf("unexpected verify report: %+v", report)
+	// A HEAD that disagrees with its chain is damaged history: verification cannot
+	// tell "the entry is durable and HEAD was never published" apart from "the tail
+	// entry was deleted", so it refuses rather than guessing the benign reading.
+	if report.Valid {
+		t.Fatalf("a ledger whose HEAD disagrees with its chain must not be valid: %+v", report)
 	}
-	if len(report.Warnings) == 0 {
-		t.Fatal("expected stale head warning")
+	if !reportHasError(report, "ledger.head_stale") {
+		t.Fatalf("expected ledger.head_stale error, got %+v", report.Errors)
 	}
+	// And it STAYS invalid. This entry was written straight to disk rather than by
+	// an Append, so nothing in this process committed it -- which is precisely the
+	// state a deleted tail entry also produces. No public path may resolve it: the
+	// only HEAD republication in the system is the bounded retry inside the Append
+	// that minted the entry, and that evidence does not survive into a later call.
+	if _, rerr := store.ReconcileDerivedState(); rerr == nil {
+		t.Fatal("ReconcileDerivedState republished a HEAD it cannot prove belongs to this chain")
+	}
+	report, err = store.Verify()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Valid {
+		t.Fatalf("the ledger was repaired by a path that holds no proof: %+v", report)
+	}
+	if !reportHasError(report, "ledger.head_stale") {
+		t.Fatalf("expected ledger.head_stale to persist, got %+v", report.Errors)
+	}
+	_ = second
 }
 
 func TestVerifyReportsOrphanArtifacts(t *testing.T) {
