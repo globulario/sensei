@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"github.com/globulario/sensei/golang/seedmeta"
 	"os"
 	"strings"
 	"time"
@@ -46,7 +47,9 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, "")
+	root, _ := resolveProjectRoot("")
+	resolvedAddr := resolveServiceAddr(fs, root, *addr)
+	resp, err := metadataRPC(ctx, resolvedAddr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -96,7 +99,9 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, *domain)
+	root, _ := resolveProjectRoot("")
+	resolvedAddr := resolveServiceAddr(fs, root, *addr)
+	resp, err := metadataRPC(ctx, resolvedAddr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -113,6 +118,24 @@ Flags:
 		fmt.Printf("Server started:        (unstamped)\n")
 	}
 	fmt.Println()
+	// G5: the report must say WHICH graph answered and where that choice came
+	// from. Two runs from different directories can legitimately reach different
+	// graphs and both be right; without this the output cannot be told apart from
+	// a graph having changed.
+	fmt.Println("Endpoint:")
+	fmt.Printf("  Awareness address:   %s\n", resolvedAddr)
+	fmt.Printf("  Chosen from:         %s\n", serviceAddrSource(fs, root))
+	markerPath := seedmeta.RuntimeMarkerPath(root)
+	fmt.Printf("  Marker file:         %s\n", markerPath)
+	if marker, merr := seedmeta.ReadMarkerFile(markerPath); merr == nil {
+		fmt.Printf("  Marker verdict:      %s\n",
+			markerAgreement(resp.GetLiveStoreGraphDigestSha256(), int(resp.GetLiveStoreGraphTripleCount()),
+				marker.Digest, int(marker.TripleCount)))
+	} else {
+		fmt.Printf("  Marker verdict:      cannot be verified: the marker is not readable (%v)\n", merr)
+	}
+	fmt.Println()
+
 	fmt.Println("Build provenance:")
 	fmt.Printf("  Graph build commit:  %s\n", strOrDash(resp.GetGraphBuildCommit()))
 	if t := resp.GetGraphBuildTimeUnix(); t != 0 {
