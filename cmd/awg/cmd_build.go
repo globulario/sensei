@@ -237,6 +237,20 @@ Flags:
 		return 1
 	}
 
+	// LAW 11: a generation must not be destroyed while something still refers to
+	// it. `rebuild` has guarded this since the self-only/combined clobber; --all,
+	// which is strictly MORE destructive, did not -- it warned and PUT. Same guard,
+	// same thresholds, same documented tolerance for an empty or unreachable store
+	// so cold starts are unaffected.
+	//
+	// Not hypothetical: three stores were live holding 237,049 / 142,739 / 35,268
+	// triples while a scoped build of one corpus compiles to 35,255, and `import`
+	// was recommending --all on a fabricated diagnosis.
+	if err := guardAgainstLiveShrink(*storeURL, len(strings.Split(strings.TrimSpace(string(ntBytes)), "\n"))); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+		return 1
+	}
+
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
