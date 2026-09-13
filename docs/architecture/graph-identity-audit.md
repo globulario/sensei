@@ -259,3 +259,73 @@ refusals worth recording, neither a defect in the work:
   You've hit your usage limit … try again at 2:27 PM.` Provider quota, account-wide.
 
 G1 therefore remains unimplemented and is still the correct next slice.
+
+---
+
+# Addendum 2 — G3 was largely already built, and the gaps that were real
+
+Phase 2's rule held again: the transaction existed, and the work was to find what it
+did not cover.
+
+## `runScopedRepoUpdate` is already transactional
+
+Measured by reading the ordering, not assumed:
+
+```
+compile candidate generation + marker   AppendMarker(postUpdateBase)
+stage into a named graph                putNamedGraph(stagingIRI, stagedNT)
+promote                                 client.Update(scopedPromoteStagingUpdate)
+VERIFY over the promoted store          seedmeta.VerifyLiveContent(marker)
+drop the staging graph                  deleteNamedGraph
+write the marker                        seedmeta.WriteMarkerFile
+```
+
+So laws **6** (build G+1 in staging, validate, then activate), **7** (other domains
+untouched: *"Only the replacement slice and its global marker are staged"*) and
+**10**'s write side (the marker is written only after live verification) were already
+satisfied on the scoped path. It even resolves an ambiguous promotion response by
+re-verifying with a fresh context, because a lost HTTP reply does not tell you whether
+the transaction committed.
+
+That is why Phase 7's disposable-store test found the historical *"generation vanishes
+when the builder exits"* failure did **not** reproduce.
+
+## The three gaps that were real
+
+| law | gap | fixed in |
+|---|---|---|
+| **9** | `import` steps 2–4 wrote the canonical checkout *before* the publication boundary | `37b6099d` — admissibility hoisted ahead of the first write; live-proved 0 → 0 changes |
+| **10** read side | nothing compared the marker with the graph actually served | `10075941` — `metadata` now reports the verdict; live-proved as *agrees* from one repo and *DOES NOT match* from another, same address |
+| **11** | `rebuild` guarded a destructive shrink; **`build --all` did not** | `4835659d` — same guard, same tolerances |
+
+## Laws status
+
+| law | state |
+|---|---|
+| 1 one ACTIVE identity per domain | **partial** — the registry can now name the endpoint (G2); an ACTIVE *generation* pointer still does not exist |
+| 2 wrong instance must refuse | **done** for the consumer — sensei-code#173 |
+| 3 readers resolve through one owner | **done** — `resolveDomainServiceAddr`, registry above project config |
+| 4 a run pins an identity | **partial** — `graph_digest` is pinned; generation identity is not a first-class thing yet |
+| 5 every query proves it belongs | **not done** — needs law 1's pointer |
+| 6, 7 transactional, ACTIVE survives | **already held** on the scoped path |
+| 8 failed build does not mutate the active graph | **held** — `mutation_started: false` |
+| 9 failed publication does not rewrite the checkout | **done** for import |
+| 10 marker cannot certify another generation | **done** — write side already held, read side now reported |
+| 11 no destruction while referred to | **done** for `--all`'s shrink shape |
+| 12 ambiguity fails closed | **partial** — G1 fails closed on domain disagreement; two services claiming one domain is still undetected |
+| 13 triple count is evidence, not identity | **enforced** in `markerAgreement`: an absent digest reports unverifiable, never agreement |
+| 14 raw `--store-url` is visibly non-canonical | **done** — `9ba1aa49` |
+
+## What remains before Oxigraph is an implementation detail
+
+Two things, and they are the same thing twice:
+
+1. **An ACTIVE generation pointer.** Laws 1, 4, 5 and the rest of 12 all wait on it.
+   Today a generation is identified by a digest in a marker file; nothing records
+   *which* generation is active for a domain, so nothing can refuse a silent switch
+   or detect two claimants.
+2. **`.sensei/project` cannot publish anywhere.** All three registered domains allow
+   only `docs/awareness`, so the reconstruction output carrying code-symbol coverage
+   is unpublishable by construction. Whether the allowlist or the output location is
+   wrong is an owner's decision; until it is made, coverage cannot reach any graph and
+   the W3 knowledge limit stands.
