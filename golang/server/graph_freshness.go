@@ -263,3 +263,50 @@ func storeScopedExpectedMarker(s *server) (seedmeta.Marker, bool) {
 	}
 	return set.Marker, true
 }
+
+// servedGraphDigest is the digest of the graph ACTUALLY being served, which is what
+// LiveStoreGraphDigestSha256's own contract says it carries.
+//
+// It did not. The freshness verification locates the live marker with
+// Describe(expected.IRI) -- it looks up only the generation it EXPECTED -- so when the
+// store serves a different one, describe returns nothing, VerifyLiveStore exits early
+// as STALE, and ver.Live is never populated. The field was therefore empty exactly when
+// the served graph was not the expected graph, which is the only case any of its
+// consumers exist for: markerAgreement reported "cannot be verified", the ACTIVE
+// generation check could never see a mismatch, and sensei-code's pinned-generation
+// check fell into its "this server predates the field" branch.
+//
+// Found by the Phase 7 disposable-store proof, which is what that proof is for.
+//
+// The repair reuses the owner that already existed rather than adding a second way to
+// ask: DiscoverLiveMarkers finds markers BY CLASS -- "never by looking up the expected
+// IRI", as its own comment puts it -- and AdmitLiveMarker returns the independently
+// discovered identity. The control-state provider already consumed it; the response
+// builders did not.
+//
+// TWO RULES, both deliberate:
+//
+//   - COST. The discovery runs only when the cheap lookup established nothing. On a
+//     healthy store the expected marker is present and this asks the store nothing
+//     extra, which is the "resolved only when asked" rule the authority projection
+//     already follows.
+//
+//   - ONLY A COHERENT IDENTITY IS AN IDENTITY. AuthorityCurrent and
+//     AuthorityStaleAdmissible mean a self-consistent marker was observed at its own
+//     digest-derived IRI: an older or other graph, but a real one. Every other state
+//     yields "" even where the observation carries a digest, because an
+//     integrity-failed store's self-description is precisely what must not become a
+//     comparable identity -- and two live markers must not be resolved by picking one
+//     (law 12).
+func servedGraphDigest(ctx context.Context, s *server, ver seedmeta.Verification) string {
+	if d := strings.TrimSpace(ver.Live.Digest); d != "" {
+		return d
+	}
+	obs, _ := snapshotLiveAuthority(ctx, s)
+	switch obs.State {
+	case seedmeta.AuthorityCurrent, seedmeta.AuthorityStaleAdmissible:
+		return strings.TrimSpace(obs.LiveIdentity)
+	default:
+		return ""
+	}
+}

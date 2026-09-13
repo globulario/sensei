@@ -73,7 +73,7 @@ func (s *server) Metadata(ctx context.Context, req *awarenesspb.MetadataRequest)
 	resp.EmbeddedSeedDigestSha256 = freshness.verification.Expected.Digest
 	resp.EmbeddedSeedMarkerIri = freshness.verification.Expected.IRI
 	resp.LiveStoreContainsEmbeddedSeedMarker = freshness.verification.MarkerPresent
-	resp.LiveStoreGraphDigestSha256 = freshness.verification.Live.Digest
+	resp.LiveStoreGraphDigestSha256 = servedGraphDigest(ctx, s, freshness.verification)
 	resp.LiveStoreGraphTripleCount = freshness.verification.LiveTripleCount
 	resp.GraphFreshnessState = graphFreshnessStateProto(freshness.verification.State)
 	resp.GraphFreshnessDetail = freshness.verification.Detail

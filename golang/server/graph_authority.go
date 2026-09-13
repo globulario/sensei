@@ -190,7 +190,7 @@ func graphAuthorityFromSnapshotFor(ctx context.Context, snap graphFreshnessSnaps
 		GraphBuildTimeUnix:              parseUnixStamp(BuildTimeUnix),
 		SourceRepoCommit:                SourceCommit,
 		EmbeddedSeedDigestSha256:        snap.verification.Expected.Digest,
-		LiveStoreGraphDigestSha256:      snap.verification.Live.Digest,
+		LiveStoreGraphDigestSha256:      servedGraphDigest(ctx, s, snap.verification),
 		LiveStoreGraphTripleCount:       snap.verification.LiveTripleCount,
 		EmbeddedTransactionStampPresent: stamp.Present,
 		CertifiedAwarenessGraphCommit:   stamp.AwarenessGraphCommit,
