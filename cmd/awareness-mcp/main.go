@@ -2412,6 +2412,10 @@ type mcpSingleFileChecker struct {
 	ctx          context.Context
 	root         string
 	expectedHead string
+	// domain is the audit's domain, kept so GraphGeneration asks the same
+	// question the impact queries are scoped to. Asking metadata about a
+	// different domain than the one being audited would compare two graphs.
+	domain string
 }
 
 func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
@@ -2511,6 +2515,28 @@ func requiredTestPathFromID(id string) string {
 		return ""
 	}
 	return path
+}
+
+// GraphGeneration reports which graph generation is answering this audit (law 5 of
+// the graph-identity front).
+//
+// It is the LIVE store digest, deliberately not CertifiedAwarenessGraphCommit: the
+// commit identifies the rule snapshot, and on this installation that snapshot
+// belongs to the services repository, so two different Sensei generations built
+// from it are indistinguishable by commit. The evaluator samples this before the
+// first graph query and after the last, so an equal pair brackets every query the
+// audit made.
+//
+// An unreachable or silent service returns "" with no error: that is the absence of
+// an identity, which the evaluator already treats as unverifiable rather than as
+// agreement. Returning an error here would report an outage the service may not be
+// having.
+func (c *mcpSingleFileChecker) GraphGeneration(ctx context.Context) (string, error) {
+	resp, err := c.bridge.client.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: strings.TrimSpace(c.domain)})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(resp.GetLiveStoreGraphDigestSha256()), nil
 }
 
 func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
@@ -2679,6 +2705,7 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		ctx:          ctx,
 		root:         root,
 		expectedHead: expectedHead,
+		domain:       domain,
 	}
 	res, err := diffaudit.EvaluateDiff(ctx, parsed, checker, diffaudit.AuditOptions{
 		Task:         task,

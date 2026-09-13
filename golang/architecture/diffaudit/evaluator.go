@@ -26,6 +26,21 @@ type SingleFileChecker interface {
 	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []Requirement, contracts []Requirement, RelevantRules []string, graphCommit string, err error)
 }
 
+// GraphGenerationReporter reports which graph GENERATION is answering right now.
+//
+// Law 5 of the graph-identity front: every graph query a run uses must prove it
+// belongs to the pinned identity, and a silent generation switch is forbidden.
+// GetFileImpact's graphCommit cannot carry that proof — it identifies the rule
+// snapshot, which on this installation belongs to another repository, so two
+// different Sensei generations built from one snapshot are indistinguishable by it.
+//
+// Optional in the Go sense only. A checker that does not implement it cannot bind
+// its result to a generation, and such a result is NOT available: an identity that
+// cannot be checked is not a matching one.
+type GraphGenerationReporter interface {
+	GraphGeneration(ctx context.Context) (string, error)
+}
+
 // BaseFileReader optionally reads the un-edited base content of a file from the repository.
 type BaseFileReader interface {
 	ReadBaseFile(ctx context.Context, path string) (string, bool, error)
@@ -121,6 +136,12 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	}
 
 	baseReader, _ := checker.(BaseFileReader)
+
+	// LAW 5, first sample. Taken before any graph query so the pair brackets every
+	// query this audit makes: a generation that is the same before and after is one
+	// that did not change underneath the answers.
+	generationReporter, _ := checker.(GraphGenerationReporter)
+	generationBefore, generationErr := observeGeneration(ctx, generationReporter)
 
 	var allContracts []Requirement
 	var allTests []Requirement
@@ -302,6 +323,40 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 
 	result.Findings = deduplicateFindings(result.Findings)
 
+	// LAW 5, second sample and the verdict.
+	//
+	// Placed before the decision is computed, so a switch degrades the decision
+	// rather than being appended to a verdict already announced as pass.
+	generationAfter, afterErr := observeGeneration(ctx, generationReporter)
+	switch {
+	case generationErr != nil || afterErr != nil:
+		err := generationErr
+		if err == nil {
+			err = afterErr
+		}
+		result.Availability = AvailabilityCannotVerify
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+		result.Limitations = append(result.Limitations,
+			fmt.Sprintf("the graph generation answering this audit could not be observed: %v", err))
+	case generationBefore == "" || generationAfter == "":
+		// Unobservable, not agreeing. Reported the same way whether the checker
+		// cannot report at all or reported nothing, because both are "no identity"
+		// and a verdict that differed between them would be describing the
+		// messenger rather than the graph.
+		result.Availability = AvailabilityCannotVerify
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+		result.Limitations = append(result.Limitations,
+			"the graph generation answering this audit was not observable, so this result cannot be bound to the graph that produced it")
+	case generationBefore != generationAfter:
+		result.Availability = AvailabilityCannotVerify
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphGenerationSwitched)
+		result.Limitations = append(result.Limitations,
+			fmt.Sprintf("the graph generation changed while this audit ran: %s answered the first query, %s the last; a silent generation switch is forbidden",
+				generationBefore, generationAfter))
+	default:
+		result.GraphGeneration = generationBefore
+	}
+
 	// Compute overall decision
 	if result.Availability != AvailabilityAvailable || len(result.ReasonCodes) > 0 {
 		result.Decision = DecisionCannotVerify
@@ -472,4 +527,22 @@ func applyHunks(base string, hunks []DiffHunk, isAdd bool) (string, error) {
 	}
 
 	return strings.Join(out, "\n"), nil
+}
+
+// observeGeneration asks the reporter which generation is answering.
+//
+// A checker that cannot report is not an error — it is the absence of an identity,
+// and the caller above treats absence as unverifiable rather than as agreement. The
+// distinction is kept because a reporting FAILURE and the absence of a reporter are
+// different facts about different things, and only one of them names something an
+// operator can fix.
+func observeGeneration(ctx context.Context, r GraphGenerationReporter) (string, error) {
+	if r == nil {
+		return "", nil
+	}
+	gen, err := r.GraphGeneration(ctx)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(gen), nil
 }
