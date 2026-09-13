@@ -225,10 +225,10 @@ Flags:
 		if m := strings.TrimSpace(*markerFile); m != "" {
 			ba = append(ba, "--graph-marker-file", m)
 		} else {
-			fmt.Fprintln(os.Stderr, "  note: no --graph-marker-file given; a live/served store may report freshness-stale for briefing until re-certified")
+			fmt.Fprintln(os.Stderr, "  note: "+importMarkerOmittedNotice())
 		}
 		if rc := runBuild(ba); rc != 0 {
-			fmt.Fprintln(os.Stderr, "sensei import: load failed — a scoped --repo update needs a non-empty store; seed with `sensei build --all` first")
+			fmt.Fprintln(os.Stderr, importLoadFailureNotice())
 			return 1
 		}
 	}
@@ -1671,4 +1671,43 @@ func relativeProjectPath(root, path string) string {
 		return path
 	}
 	return rel
+}
+
+// importLoadFailureNotice is what import says when the scoped load fails.
+//
+// It names no cause, because import HAS none: runBuild returns an int and nothing
+// else, so any cause stated here would be invented. On 2026-09-13 this line
+// claimed "a scoped --repo update needs a non-empty store; seed with `sensei build
+// --all` first" after a failure that was actually PUBLICATION_REFUSED over a dirty
+// awareness corpus, with mutation_started: false and a store holding 35,268
+// triples. The asserted cause was wrong, and the remedy it recommended replaces
+// the ENTIRE store.
+//
+// A fabricated diagnosis is worse than silence when the remedy it implies is
+// destructive. So this points at the build output, which did print the real
+// reason, says why import cannot interpret the exit code, and refuses --all
+// explicitly rather than leaving it as the obvious next thing to try.
+func importLoadFailureNotice() string {
+	return "sensei import: load failed — the reason was printed by the build above; " +
+		"import cannot interpret it, because the build reports only an exit code. " +
+		"Do NOT run `sensei build --all` on the strength of this failure: it replaces the " +
+		"ENTIRE store for every domain, and a scoped load fails for many reasons it would not fix."
+}
+
+// importMarkerOmittedNotice is what import says when no marker path was given.
+//
+// The previous wording claimed a live store "may report freshness-stale for
+// briefing until re-certified". build contradicts that: with an empty flag it
+// calls defaultRuntimeMarkerFile() (cmd_build.go:242 and :705), so a marker IS
+// written and freshness is not necessarily stale.
+//
+// The real hazard is the one that wording hid. defaultRuntimeMarkerFile resolves
+// through resolveProjectRoot(""), which reads the CURRENT DIRECTORY — so the
+// marker binds to whatever project cwd names, not necessarily the checkout being
+// refreshed. Run the same command from elsewhere and it certifies another
+// project's graph identity, silently.
+func importMarkerOmittedNotice() string {
+	return "no --graph-marker-file given; the build will default it from the project root resolved " +
+		"from the current directory, which need not be the checkout being refreshed — " +
+		"pass --graph-marker-file explicitly to bind the marker to this project"
 }
