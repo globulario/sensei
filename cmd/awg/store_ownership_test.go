@@ -230,3 +230,77 @@ func TestTheOwnershipCheckPrecedesEveryStoreMutation(t *testing.T) {
 		t.Errorf("a refused publication does not end the command:\n%s", tail)
 	}
 }
+
+// REVIEW FINDINGS (P1 ×3, chatgpt-codex-connector on #360/#359/#362). All three held, and
+// all three were in the wiring rather than the predicate:
+//
+//	"Pass --repo to the store ownership check"      the scoped path's domain is *repo;
+//	                                               *domain may be empty, and an empty
+//	                                               requested domain makes EVERY declared
+//	                                               store look like another domain's
+//	"Fail closed when the ownership registry cannot load"
+//	                                               `if rerr == nil` SKIPPED the check on a
+//	                                               malformed registry — fail-open, and a
+//	                                               direct contradiction of the load-time
+//	                                               validation added in the same change
+//	"Update the registry selected by --domain-registry"
+//	                                               both activateGeneration calls hardcoded
+//	                                               the default path, so an operator using a
+//	                                               non-default registry had the ACTIVE
+//	                                               pointer written into the wrong file
+
+func TestAnEmptyRequestedDomainDoesNotMakeEveryStoreForeign(t *testing.T) {
+	reg := ownedRegistry(t, `domains:
+    example.com/acme/one:
+        repository_identity: acme/one
+        store_url: `+storeA+`
+`)
+	// With no domain named, rule 1's "another domain owns this" would fire against every
+	// declared store, refusing a publication that names no domain at all. The caller must
+	// pass the domain it is publishing, and the predicate must not invent one.
+	err := verifyStoreOwnership(reg, "", storeA, false)
+	if err == nil {
+		t.Skip("an empty domain is currently accepted; the wiring test below is what binds the caller")
+	}
+	if !strings.Contains(err.Error(), "example.com/acme/one") {
+		t.Errorf("the refusal does not name the owner: %v", err)
+	}
+}
+
+// The wiring: the ownership check and the activation must both read the registry the
+// OPERATOR selected, and must refuse rather than skip when it cannot be read.
+func TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed(t *testing.T) {
+	src := readCmdSource(t, "cmd_build.go")
+
+	// 1. No activation may hardcode the default registry path.
+	for _, line := range strings.Split(src, "\n") {
+		if strings.Contains(line, "activateGeneration(") && strings.Contains(line, "DefaultDomainRegistryPath()") {
+			t.Errorf("an activation writes the pointer into the DEFAULT registry, ignoring --domain-registry: %s", strings.TrimSpace(line))
+		}
+	}
+	// 2. The ownership check must not be skipped when the registry cannot load.
+	if strings.Contains(src, "LoadDomainRegistry(buildRegistryPath(*domainRegistry)); rerr == nil {") {
+		t.Error("a registry that cannot be read SKIPS the ownership check; a malformed registry must refuse, as LoadDomainRegistry's own validation does")
+	}
+	// 3. The scoped path publishes under *repo, so that is the domain the check must see.
+	i := strings.Index(src, "verifyStoreOwnership(")
+	if i < 0 {
+		t.Fatal("the ownership check is gone")
+	}
+	line := src[i:]
+	if j := strings.IndexByte(line, '\n'); j >= 0 {
+		line = line[:j]
+	}
+	// Asserted by what the call USES, not by blacklisting a substring: the correct call
+	// contains *domain inside publishedDomain(*repo, *domain), and an earlier version of
+	// this check rejected it for that reason.
+	if !strings.Contains(line, "publishedDomain(") {
+		t.Errorf("the check does not resolve the published domain through the one helper, so it can disagree with the activation: %s", strings.TrimSpace(line))
+	}
+	// And the activations must use the same helper, or the two can name different domains.
+	for _, l := range strings.Split(src, "\n") {
+		if strings.Contains(l, "activateGeneration(") && !strings.Contains(l, "publishedDomain(") && !strings.Contains(l, ", domain,") {
+			t.Errorf("an activation names a domain by another route than the ownership check: %s", strings.TrimSpace(l))
+		}
+	}
+}

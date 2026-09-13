@@ -167,3 +167,20 @@ func buildRegistryPath(flagValue string) string {
 	}
 	return DefaultDomainRegistryPath()
 }
+
+// publishedDomain is the domain a build is publishing FOR.
+//
+// The scoped publication path is selected by --repo and passes that value as the domain;
+// --domain is a separate flag that the scoped path may leave empty. Reading --domain alone
+// gave the ownership check an empty requested domain, and an empty domain matches no
+// registry entry, so every declared store looked like another domain's and a publication
+// naming no domain was refused for the wrong reason.
+//
+// One helper so the ownership check and the activation cannot disagree about which domain
+// this publication is for.
+func publishedDomain(repoFlag, domainFlag string) string {
+	if d := strings.TrimSpace(repoFlag); d != "" {
+		return d
+	}
+	return strings.TrimSpace(domainFlag)
+}
