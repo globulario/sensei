@@ -306,8 +306,8 @@ when the builder exits"* failure did **not** reproduce.
 | 1 one ACTIVE identity per domain | **done** — the registry names both the endpoint (G2) and the ACTIVE generation (`active_generation`), so the Phase 2 question has one answer that does not depend on where it is asked from |
 | 2 wrong instance must refuse | **done** for the consumer — sensei-code#173 |
 | 3 readers resolve through one owner | **done** — `resolveDomainServiceAddr`, registry above project config |
-| 4 a run pins an identity | **partial** — a run pins `graph_digest`, and that digest is now *checkable* against a declared ACTIVE generation. What is still missing is the run pinning the generation itself, so that it reads the pointer rather than merely being comparable to it |
-| 5 every query proves it belongs | **partial** — the pointer law 1 needed now exists, and `sensei metadata` proves agreement on demand. No per-query verification is wired into the governed read path, so a silent switch *between* two queries of one run is still undetected |
+| 4 a run pins an identity | **done for the decisive call** — a run pins `certifiedStart.GraphDigest()` and the admitting audit is refused unless it was answered by that generation (sensei-code#173). Still open: the run is *compared* against the registry's ACTIVE pointer rather than reading it |
+| 5 every query proves it belongs | **done for the audit, both directions** — the evaluator brackets its own queries and refuses a switch *within* one audit (`graph_generation_switched`), and the run refuses a verdict answered by a generation other than the one it pinned. Still open: briefing and impact calls outside the audit are not each individually bound |
 | 6, 7 transactional, ACTIVE survives | **already held** on the scoped path |
 | 8 failed build does not mutate the active graph | **held** — `mutation_started: false` |
 | 9 failed publication does not rewrite the checkout | **done** for import — `50319cb5`, after `37b6099d` was reported closed and was not (see the correction) |
@@ -383,6 +383,44 @@ Recording happens *after* the marker is written, so the pointer can never name a
 generation whose marker was never published, and a failure to record does not fail
 a publication that genuinely succeeded — it warns, and the consequence of a stale
 pointer is that readers **refuse**. That fails closed, which is the point.
+
+## Law 5, and the third identity
+
+Closed 2026-09-13 in two commits, one per side.
+
+The evaluator behind `awareness_audit_diff` already enforced half the law without
+naming it: `graph_commit` must agree across every file of an audit, because "a
+divergence means the snapshot shifted mid-audit and the result cannot be trusted."
+What it binds, though, is the RULE SNAPSHOT, and the graph server here runs with
+`-home-domain github.com/globulario/services` — so that commit belongs to the
+**services** repository, and two different Sensei generations built from one
+snapshot are indistinguishable by it.
+
+So the audit reported an identity that could not detect the switch it was checking
+for. The repair is a third identity, never merged into the other two:
+
+| identity | names | field |
+|---|---|---|
+| audit target | the repository base the diff applies to | `expected_head` |
+| rule snapshot | the commit that produced the rules consulted | `graph_commit` |
+| generation | the bytes that answered the queries | `graph_generation_sha256` |
+
+`GraphGenerationReporter` is sampled before the first graph query and after the
+last, so an equal pair brackets every query the audit made. A switch is
+`cannot_verify` with `graph_generation_switched` — deliberately not
+`graph_unavailable`, because "a different graph answered the second half" and "the
+graph did not answer" are opposite diagnoses and collapsing them sends a reader to
+look for an outage that never happened.
+
+On the consumer side, `verifyPinnedGeneration` refuses a verdict answered by a
+generation other than the one `certifiedStart` pinned, before the verdict is
+weighed. A graph rebuilt between the certifying preflight and the admitting audit
+would otherwise hand the run a well-formed judgement produced by rules it never
+certified.
+
+Six fixtures were resting on the silence this closed — a hand-built `AuditResult`,
+the evaluator's `fakeChecker`, and five bridge tests whose fake client had no
+metadata stub. Every one was completed rather than the guard relaxed.
 
 ## What remains before Oxigraph is an implementation detail
 
