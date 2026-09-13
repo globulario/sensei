@@ -171,3 +171,91 @@ Transcribed from the front's brief, with the measurement each now rests on.
 `sensei build --all` must not be run against a served store on the strength of
 `cmd_import.go:230`'s recommendation. It is a guess, and the operation it
 recommends is destructive.
+
+---
+
+# Addendum — Phase 7 disposable-store proof, and the W3 root cause
+
+**Date:** 2026-09-13. All measurements below come from a disposable Oxigraph on
+`127.0.0.1:7899` with its own store location and its own marker file. **The live
+stores and the live marker were never written to.**
+
+## The root cause of the W3 knowledge limit
+
+This corrects an earlier conclusion of mine. I reported that the refresh's only
+blocker was an uncommitted corpus. With the corpus committed (`32f6117` in
+sensei-code), the scoped load **still refuses**, for a different and structural
+reason:
+
+```
+PUBLICATION_REFUSED
+  reason: corpus root ".sensei/project" is not in the domain's allowed roots [docs/awareness]
+  mutation_started: false
+```
+
+- `cmd/awg/domain_admission.go:316` refuses a corpus root the domain does not allow.
+- `cmd/awg/cmd_import.go:205,224` **always** passes `.sensei/project` as an input.
+
+**So `import --refresh` generates a build command that this domain's publication
+gate must always refuse.** Import's own step 5 is unpublishable here, regardless of
+cleanliness.
+
+Proven by removing exactly that one input and changing nothing else:
+
+| command | result |
+|---|---|
+| `--input docs/awareness --input generated --input .sensei/project` | `PUBLICATION_REFUSED` (allowed roots) |
+| `--input docs/awareness --input generated` | **exit 0**, 35,255 triples loaded |
+
+And `.sensei/project` is precisely where project reconstruction puts code-symbol
+coverage — the ~248,000 triples that separate `docs/awareness` alone (35,245) from
+the full compile (283,503).
+
+**Therefore code-symbol coverage can never reach this domain's graph through
+`import --refresh`, and the three files W3 needed examined could never become
+examined by that path.** The knowledge limit W3 reported was truthful; its cause is
+a corpus-root allowlist that excludes the extractor's own output directory, plus a
+command that always violates it. Not a missing extractor run.
+
+This also means the remedy text the knowledge limit prints — `sensei import
+--refresh <root> --domain <domain>` — **cannot work as written** for this domain.
+That is a defect in the remedy, traceable to this one.
+
+## Phase 7 checklist — what is proven
+
+| requirement | result |
+|---|---|
+| construct a complete generation in a disposable store | **PASS** — 35,255 triples |
+| marker/store/generation agreement | **PASS** — marker digest `230a74f68fed…`, `triple_count 35255`, matching the store |
+| generation valid after the builder exits | **PASS** — 35,255 after exit 0 |
+| restart/reopen | **PASS** — store process killed and restarted, 35,255 intact |
+| **the historical failure: a successful build whose generation vanishes when the builder exits** | **DID NOT REPRODUCE** on a scoped `--repo` load |
+| failed publication leaves the active graph untouched | **PASS** — `mutation_started: false` on both refusals |
+| the live marker is untouched when `--graph-marker-file` is explicit | **PASS** — live stayed `c0b660fc42a5` / 35,268 while the disposable marker was written |
+| law 14: a raw override is visibly non-canonical | **PASS, live** — the notice fired naming `:7899` against the configured `:7882` |
+
+Not yet proven, and still open: wrong-port identity refusal (needs G1/G2, since
+nothing validates identity today), G→G+1 activation, and that a reader pinned to G
+cannot silently consume G+1.
+
+## One number worth noticing
+
+The disposable generation built from the **committed** corpus is 35,255 triples.
+The live graph is 35,268 — thirteen more. So the live graph is not the current
+corpus; it corresponds to another corpus revision (`graph_build_commit 739133dc`).
+Under law 13 that difference is evidence, not identity, and today nothing would
+have reported it.
+
+## Instrument note
+
+Attempting this front through sensei-code's governed lane produced two external
+refusals worth recording, neither a defect in the work:
+
+- in the **sensei** repo: `no adapter took the architect role: no exact
+  objective/world binding`, with `BaseSHA:` empty and `GraphBuildCommit 7c39060d`
+  against a checkout at `bc1f6d12`, while the bridge mailbox points at
+  `globulario/sensei-code` PR #157. Four identities disagreeing — §2 item 6.
+- in **sensei-code** (slice G1): `architect could not produce a bounded decision:
+  You've hit your usage limit … try again at 2:27 PM.` Provider quota, account-wide.
+
+G1 therefore remains unimplemented and is still the correct next slice.
