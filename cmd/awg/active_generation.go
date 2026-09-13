@@ -230,6 +230,14 @@ func renderEndpointBlock(w io.Writer, r endpointReport) {
 	fmt.Fprintln(w, "Endpoint:")
 	fmt.Fprintf(w, "  Awareness address:   %s\n", r.ResolvedAddr)
 	fmt.Fprintf(w, "  Chosen from:         %s\n", r.AddrSource)
+
+	// Complaints are collected as each field is resolved and printed once at the end
+	// (G5: "one read-only command that reports the entire canonical state in one
+	// place"). A reader checking a graph should not have to know which of five lines
+	// carries the problem, and a summary assembled from the same values the fields
+	// printed cannot contradict them.
+	var disagreements []string
+
 	// ONE marker resolver, and it reports which of the four tiers answered (G4).
 	markerPath, markerSource, markerErr := resolveGraphMarkerFile("", r.Root, false)
 	switch {
@@ -239,28 +247,52 @@ func renderEndpointBlock(w io.Writer, r endpointReport) {
 			fmt.Fprintf(w, "                       (no project root: %v)\n", r.RootError)
 		}
 		fmt.Fprintf(w, "  Marker verdict:      cannot be verified: no marker file could be named\n")
+		disagreements = append(disagreements, "no marker file can be named, so nothing certifies the served graph")
 	default:
 		fmt.Fprintf(w, "  Marker file:         %s\n", markerPath)
 		fmt.Fprintf(w, "  Chosen from:         %s\n", markerSource)
+		if strings.Contains(markerSource, "orphaned") {
+			disagreements = append(disagreements, "an orphaned legacy marker exists and certifies a generation nothing serves")
+		}
 		if marker, err := seedmeta.ReadMarkerFile(markerPath); err == nil {
-			fmt.Fprintf(w, "  Marker verdict:      %s\n",
-				markerAgreement(r.LiveDigest, r.LiveTriples, marker.Digest, int(marker.TripleCount)))
+			verdict := markerAgreement(r.LiveDigest, r.LiveTriples, marker.Digest, int(marker.TripleCount))
+			fmt.Fprintf(w, "  Marker verdict:      %s\n", verdict)
+			if strings.HasPrefix(verdict, "DOES NOT") || strings.HasPrefix(verdict, "cannot be verified") {
+				disagreements = append(disagreements, "the marker "+verdict)
+			}
 		} else {
 			fmt.Fprintf(w, "  Marker verdict:      cannot be verified: the marker is not readable (%v)\n", err)
+			disagreements = append(disagreements, "the marker file is not readable, so it certifies nothing")
 		}
 	}
+
 	declared := declaredActiveGeneration(r.RegistryPath, r.Domain)
-	if declared == "" {
+	switch {
+	case declared == "":
 		fmt.Fprintf(w, "  Active generation:   NOT DECLARED for %s in %s\n", r.Domain, registryPathOrNone(r.RegistryPath))
 		fmt.Fprintf(w, "  Generation verdict:  cannot be verified: no ACTIVE generation is declared, so nothing here proves the served graph is the intended one\n")
+		disagreements = append(disagreements, "no ACTIVE generation is declared for this domain, so the served graph cannot be proven to be the intended one")
+	default:
+		fmt.Fprintf(w, "  Active generation:   %s (declared in %s)\n", declared, registryPathOrNone(r.RegistryPath))
+		if err := verifyActiveGeneration(r.Domain, declared, r.LiveDigest); err != nil {
+			fmt.Fprintf(w, "  Generation verdict:  %s\n", strings.TrimSpace(firstLine(err.Error())))
+			disagreements = append(disagreements, "the served graph is not the declared ACTIVE generation")
+		} else {
+			fmt.Fprintf(w, "  Generation verdict:  the served graph IS the declared ACTIVE generation\n")
+		}
+	}
+
+	// Stated positively when there is nothing wrong. "No complaints printed" and
+	// "checked, and everything agrees" are different claims, and only one of them is
+	// evidence that a check ran at all -- the rule markerAgreement already follows.
+	if len(disagreements) == 0 {
+		fmt.Fprintf(w, "  Disagreements:       none (endpoint, marker and ACTIVE generation all agree)\n")
 		return
 	}
-	fmt.Fprintf(w, "  Active generation:   %s (declared in %s)\n", declared, registryPathOrNone(r.RegistryPath))
-	if err := verifyActiveGeneration(r.Domain, declared, r.LiveDigest); err != nil {
-		fmt.Fprintf(w, "  Generation verdict:  %s\n", strings.TrimSpace(firstLine(err.Error())))
-		return
+	fmt.Fprintf(w, "  Disagreements:       %d\n", len(disagreements))
+	for _, d := range disagreements {
+		fmt.Fprintf(w, "                       - %s\n", d)
 	}
-	fmt.Fprintf(w, "  Generation verdict:  the served graph IS the declared ACTIVE generation\n")
 }
 
 func registryPathOrNone(path string) string {

@@ -305,7 +305,7 @@ when the builder exits"* failure did **not** reproduce.
 |---|---|
 | 1 one ACTIVE identity per domain | **done** — the registry names both the endpoint (G2) and the ACTIVE generation (`active_generation`), so the Phase 2 question has one answer that does not depend on where it is asked from |
 | 2 wrong instance must refuse | **done** for the consumer — sensei-code#173 |
-| 3 readers resolve through one owner | **done** — `resolveDomainServiceAddr`, registry above project config |
+| 3 readers resolve through one owner | **done** — `resolveDomainServiceAddr`, registry above project config; `seed-status` reads the store directly and now says so rather than passing for the canonical answer |
 | 4 a run pins an identity | **done for the decisive call** — a run pins `certifiedStart.GraphDigest()` and the admitting audit is refused unless it was answered by that generation (sensei-code#173). Still open: the run is *compared* against the registry's ACTIVE pointer rather than reading it |
 | 5 every query proves it belongs | **done for the audit, both directions** — the evaluator brackets its own queries and refuses a switch *within* one audit (`graph_generation_switched`), and the run refuses a verdict answered by a generation other than the one it pinned. Still open: briefing and impact calls outside the audit are not each individually bound |
 | 6, 7 transactional, ACTIVE survives | **already held** on the scoped path |
@@ -479,6 +479,59 @@ An explicit flag and embedded-seed mode are unaffected: neither infers a root.
   execute, since `resolveProjectRoot` errors only if `os.Getwd()` fails.
 
 Seven fixtures asserted a bare `.sensei` directory was a project. All corrected.
+
+## G5: one canonical report, and the one that was not it
+
+Closed 2026-09-13. The plan's rule was explicit: *"If an equivalent command already
+exists, fix that rather than adding another one. Its answer must come from the same
+graph authority used by production readers."*
+
+Two commands already answered "is this graph current", over **different transports**:
+
+| command | asks | resolves how |
+|---|---|---|
+| `sensei metadata --domain D` | the awareness service | through the domain registry (G2) — the production path |
+| `sensei seed-status` | Oxigraph, **directly** | `--oxigraph-url`, defaulting to a fixed port |
+
+So the most detailed graph report in the codebase describes whichever store answers
+that port, with **no domain in the picture at all** — and under law 13 a matching
+digest and triple count from the wrong store reads there as agreement.
+
+Neither command was deleted. Opening the store directly is exactly the right power for
+a maintenance instrument, and law 14 keeps it while requiring that it be "explicit and
+visibly unsafe/non-canonical". What it must stop doing is *looking like* the canonical
+answer, so `seed-status` now states, at the top of its text output and inside its JSON,
+that its answer describes the store it opened directly and names the command that
+answers canonically. A caveat with no alternative leaves the reader holding the same
+single answer they had.
+
+`sensei metadata --domain` is the canonical report and now ends with one consolidated
+line:
+
+```
+  Disagreements:       none (endpoint, marker and ACTIVE generation all agree)
+```
+
+or a numbered list of every disagreement found — a marker that does not match the
+served graph, a served graph that is not the declared ACTIVE generation, no ACTIVE
+generation declared, an orphaned legacy marker, no marker file nameable at all. It is
+assembled from the same values the fields above printed, so it cannot contradict them,
+and it is stated positively when there is nothing wrong: "no complaints printed" and
+"checked, and everything agrees" are different claims, and only one is evidence a
+check ran.
+
+### What the mutation pass caught
+
+Four of twelve mutants survived the first pass, and all four indicted the tests:
+
+- three deleted a single complaint-gatherer and survived, because each test scenario
+  carried SEVERAL complaints — the summary stayed non-empty, so the assertion could
+  not tell which gatherer had run. Each case is now isolated to exactly one
+  disagreement and asserts `Disagreements: 1` before checking the text;
+- one stopped populating the caveat in the command and survived, because the test
+  built the result itself. Proving a sentence can be composed proves nothing about
+  whether anything emits it. `printSeedStatusResult` now writes to an `io.Writer` so
+  the rendering is provable, and a second test drives the real command.
 
 ## What remains before Oxigraph is an implementation detail
 
