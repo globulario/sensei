@@ -79,6 +79,14 @@ Exit status:
 			fmt.Fprintln(os.Stderr, "error: --dir (the declaring package), --type, --field and at least one --search are required")
 			return 2
 		}
+	case derive.KindConstructionConfinedToOwner:
+		// --field is OPTIONAL here and the difference is the point: without it the claim
+		// is about who may construct the TYPE, with it about who may mint a value
+		// carrying one authority-bearing field.
+		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" || len(searchPaths) == 0 {
+			fmt.Fprintln(os.Stderr, "error: --dir (the declaring package), --type and at least one --search are required (--field is optional)")
+			return 2
+		}
 	default:
 		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" ||
 			strings.TrimSpace(*field) == "" || strings.TrimSpace(*lock) == "" {
