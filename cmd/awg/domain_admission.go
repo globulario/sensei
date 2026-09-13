@@ -108,6 +108,17 @@ type RegisteredDomain struct {
 	// Optional, and inert while empty: every existing caller keeps the precedence
 	// it had until an operator fills this in.
 	ServiceAddr string `yaml:"service_addr"`
+	// StoreURL is the Oxigraph store this domain's graph lives in.
+	//
+	// A governed store belongs to exactly ONE domain, because a graph marker certifies
+	// the WHOLE store: publishing a second domain recomputes the digest the first
+	// domain's ACTIVE pointer names, and strands every reader of it. Declaring the store
+	// here is what lets that be refused before any mutation.
+	//
+	// Optional and inert while empty, like ServiceAddr and ActiveGeneration. A store no
+	// domain declares is exactly what a disposable store is, so experiments are
+	// unaffected.
+	StoreURL string `yaml:"store_url"`
 	// ActiveGeneration is the graph digest of the generation that is ACTIVE for
 	// THIS domain right now.
 	//
@@ -173,6 +184,11 @@ func LoadDomainRegistry(path string) (*DomainRegistry, error) {
 	}
 	var r DomainRegistry
 	if err := yaml.Unmarshal(raw, &r); err != nil {
+		return nil, fmt.Errorf("domain registry %s: %w", path, err)
+	}
+	// Fail closed at LOAD, so every command inherits the one-store-per-domain invariant
+	// rather than each publication path having to remember it.
+	if err := r.validateStoreOwnership(); err != nil {
 		return nil, fmt.Errorf("domain registry %s: %w", path, err)
 	}
 	return &r, nil

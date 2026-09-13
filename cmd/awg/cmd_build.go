@@ -122,6 +122,22 @@ Flags:
 				fmt.Fprintln(os.Stderr, note)
 			}
 		}
+		// ONE GOVERNED STORE, ONE DOMAIN — refused here, before the store is touched.
+		//
+		// A graph marker certifies the WHOLE store, so publishing a second domain into it
+		// recomputes the digest the first domain's ACTIVE pointer names and strands every
+		// reader of that domain. Measured in Phase 7: one reader, one moment, one store,
+		// and one domain agreed while the other refused.
+		//
+		// Placed beside the agreement check rather than at the upload, because the damage
+		// this prevents lands on a domain the command does not mention -- and a refusal
+		// that arrives after the bytes are in is not a refusal.
+		if reg, rerr := LoadDomainRegistry(buildRegistryPath(*domainRegistry)); rerr == nil {
+			if err := verifyStoreOwnership(reg, strings.TrimSpace(*domain), *storeURL, flagPassed(fs, "store-url")); err != nil {
+				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
@@ -133,10 +149,7 @@ Flags:
 	// single triple changes — the store was destructively replaced three times
 	// on 2026-08-05 while every later verdict was accurate but too late.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		registryPath := strings.TrimSpace(*domainRegistry)
-		if registryPath == "" {
-			registryPath = DefaultDomainRegistryPath()
-		}
+		registryPath := buildRegistryPath(*domainRegistry)
 		// A hosted runner has no operator registry. The attestation is offered
 		// only when the operator asked for it, so enabling CI admission is a
 		// visible decision in the workflow rather than a silent change of
