@@ -119,6 +119,36 @@ Resolve it one of two ways:
 		endpointConfigPath(root), configKey, configured, resolved, flagName)
 }
 
+// nonCanonicalStoreURLNotice makes a raw --store-url override visible.
+//
+// Law 14 of the graph-identity front: a raw store URL is test/dev/maintenance
+// authority, not normal production discovery; if it is retained it must be
+// explicit AND visibly non-canonical. Today it is explicit and SILENT —
+// requireEndpointAgreement returns nil the moment the flag is passed, and `import`
+// cannot load a slice without passing it, so on that path the endpoint custody
+// guard (#212) can never fire. The flag required to publish is the flag that
+// disables the check.
+//
+// Three stores answer healthily on this machine and hold different graphs, so the
+// cost of silence is publishing into a graph nobody asked for. This does not take
+// the escape away — an operator with a reason keeps it — it stops the escape from
+// looking like an ordinary choice between equals.
+//
+// Returns "" when the endpoint the config names is the one being used.
+func nonCanonicalStoreURLNotice(configured, resolved string) string {
+	configured, resolved = strings.TrimSpace(configured), strings.TrimSpace(resolved)
+	if configured != "" && configured == resolved {
+		return ""
+	}
+	const tail = " This is a non-canonical override: a raw store URL is maintenance authority, " +
+		"not production discovery, and nothing has verified that this endpoint serves the graph you mean."
+	if configured == "" {
+		return "sensei: the project config names no store, so it cannot corroborate the endpoint " +
+			resolved + "." + tail
+	}
+	return "sensei: publishing to " + resolved + " while the project config states " + configured + "." + tail
+}
+
 // requireStoreURLAgreement is requireEndpointAgreement for a command's
 // -store-url, the flag that decides which store a load mutates.
 func requireStoreURLAgreement(fs *flag.FlagSet, root, resolved string) error {

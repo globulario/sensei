@@ -113,6 +113,15 @@ Flags:
 			fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 			return 1
 		}
+		// The agreement check above yields to an explicit --store-url, and
+		// `import` cannot load a slice without passing one -- so on that path
+		// the check can never fire. Law 14: the override stays available and
+		// stops being silent.
+		if cfg, cerr := loadEndpointConfig(buildRoot); cerr == nil {
+			if note := nonCanonicalStoreURLNotice(cfg.configuredStoreURL(), *storeURL); note != "" {
+				fmt.Fprintln(os.Stderr, note)
+			}
+		}
 	}
 
 	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
