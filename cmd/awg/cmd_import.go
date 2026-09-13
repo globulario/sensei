@@ -183,6 +183,35 @@ Flags:
 	}
 
 	// 2) Structural extraction — now safe to scaffold the checkout.
+	// ADMISSIBILITY BEFORE ANY WRITE.
+	//
+	// Steps 2-4 -- structural extraction, cold-bootstrap, project reconstruction
+	// -- all write the CANONICAL CHECKOUT. On 2026-09-13 they ran to completion
+	// and only then did the load discover that import's own input set was
+	// inadmissible for the domain: `.sensei/project` is not in this domain's
+	// allowed corpus roots. The refusal was correct and far too late. It left 12
+	// regenerated skill files, a deleted protection-coverage.yaml, a rebuilt and
+	// quarantined .sensei/project, five new candidate sources and a stale
+	// .sensei/project.lock behind -- from a run that loaded nothing and truthfully
+	// reported mutation_started: false.
+	//
+	// The gate answers this read-only and the inputs are known from `checkout`
+	// alone, so there is no reason to write anything first. This is law 9 of the
+	// graph-identity front: a failed publication must not leave the canonical
+	// checkout rewritten merely because staging was attempted.
+	if *storeURL != "" {
+		if aerr := AdmitPublication(dom,
+			[]string{
+				filepath.Join(checkout, "docs", "awareness"),
+				filepath.Join(checkout, "docs", "awareness", "generated"),
+				filepath.Join(checkout, ".sensei", "project"),
+			},
+			DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
+			return 1
+		}
+	}
+
 	fmt.Fprintln(os.Stderr, "\n== [2/5] structural extraction ==")
 	if rc := runBootstrap([]string{"--path", checkout, "--skip-history", "--skip-build"}); rc != 0 {
 		fmt.Fprintln(os.Stderr, "sensei import: structural extraction failed")
@@ -221,6 +250,13 @@ Flags:
 		fmt.Fprintln(os.Stderr, "  (fresh store? seed once with `sensei build --all` first.)")
 	} else {
 		fmt.Fprintln(os.Stderr, "\n== [5/5] load domain-scoped slice ==")
+		// Re-asked here as a last-line guard. The hoisted check above is the one
+		// that protects the checkout; this one catches an input set that became
+		// inadmissible while the extraction stages ran.
+		if aerr := AdmitPublication(dom, []string{awarenessDir, generatedDir, projectDir}, DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
+			return 1
+		}
 		ba := []string{"--input", awarenessDir, "--input", generatedDir, "--input", projectDir, "--repo", dom, "--store-url", *storeURL}
 		if m := strings.TrimSpace(*markerFile); m != "" {
 			ba = append(ba, "--graph-marker-file", m)
@@ -1710,4 +1746,20 @@ func importMarkerOmittedNotice() string {
 	return "no --graph-marker-file given; the build will default it from the project root resolved " +
 		"from the current directory, which need not be the checkout being refreshed — " +
 		"pass --graph-marker-file explicitly to bind the marker to this project"
+}
+
+// importLoadRefusal explains a load import declined to attempt.
+//
+// The publication gate would have refused it, and asking the gate first is free.
+// Before this, import ran bootstrap, cold-bootstrap and project reconstruction --
+// all of which write the canonical checkout -- and only then discovered that its
+// own input set was inadmissible for the domain. The refusal carried the gate's
+// reason, but by then the checkout had already been rewritten.
+//
+// It repeats the gate's words rather than paraphrasing them, says plainly that
+// nothing was loaded, and does not reach for `--all`, which fixes no
+// admissibility problem.
+func importLoadRefusal(err error) string {
+	return "sensei import: refusing to load — the publication gate would refuse this input set, " +
+		"so the load was not attempted and nothing was written to the store.\n  " + err.Error()
 }

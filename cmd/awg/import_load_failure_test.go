@@ -11,6 +11,7 @@ package main
 // import has no cause to report — which is exactly why it must not invent one.
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -76,5 +77,35 @@ func TestTheMarkerNoteNamesTheCwdHazardNotAFalseConsequence(t *testing.T) {
 		if !strings.Contains(note, want) {
 			t.Errorf("the note omits %q: %q", want, note)
 		}
+	}
+}
+
+// import must not construct a load the publication gate is certain to refuse.
+//
+// Measured 2026-09-13: import's step 5 always passes `.sensei/project` as a corpus
+// input (cmd_import.go:205,224), and this domain's registry allows only
+// `[docs/awareness]`, so domain_admission.go:316 refuses every time. Removing that
+// one input and changing nothing else turns PUBLICATION_REFUSED into exit 0 with
+// 35,255 triples loaded. The refusal arrived AFTER bootstrap, cold-bootstrap and
+// project reconstruction had already rewritten the canonical checkout.
+//
+// Checking admissibility first costs nothing and is read-only: AdmitPublication
+// already exists for exactly this question.
+func TestImportRefusesALoadTheGateMustRefuse(t *testing.T) {
+	notice := importLoadRefusal(errors.New(`corpus root ".sensei/project" is not in the domain's allowed roots [docs/awareness]`))
+
+	// It must carry the gate's own reason rather than paraphrasing it.
+	if !strings.Contains(notice, `".sensei/project"`) || !strings.Contains(notice, "docs/awareness") {
+		t.Errorf("the refusal does not carry the gate's own reason: %q", notice)
+	}
+	// It must say the load was not attempted, so an operator does not go looking
+	// for a partial write.
+	lower := strings.ToLower(notice)
+	if !strings.Contains(lower, "not attempted") && !strings.Contains(lower, "nothing was") {
+		t.Errorf("the refusal does not say the load was never attempted: %q", notice)
+	}
+	// And it must not reach for the destructive remedy, which fixes none of this.
+	if strings.Contains(notice, "--all") {
+		t.Errorf("the refusal recommends --all for an admissibility failure it cannot fix: %q", notice)
 	}
 }
