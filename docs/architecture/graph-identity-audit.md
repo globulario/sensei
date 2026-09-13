@@ -533,6 +533,62 @@ Four of twelve mutants survived the first pass, and all four indicted the tests:
   whether anything emits it. `printSeedStatusResult` now writes to an `io.Writer` so
   the rendering is provable, and a second test drives the real command.
 
+## G4's second half: one activation transition
+
+Closed 2026-09-13. The plan asked that `build`, `import`, `refresh`, bootstrap,
+`rebuild` and the served-store handoff "use the same publication/identity primitive
+rather than each owning a slightly different lifecycle".
+
+Measured first, and the divergence was narrower and sharper than "five lifecycles":
+
+| step | build | import | rebuild | governance activate | serve |
+|---|---|---|---|---|---|
+| stage / promote / verify / drop staging | ✅ | – | – | – | – |
+| verify the live graph | ✅ | – | ✅ | ✅ | – |
+| **write the marker** | ✅ | – | ✅ | ✅ | ✅ |
+| write a publication receipt | ✅ | – | – | its own richer record | – |
+| **record the ACTIVE pointer** | ✅ | – | – | – | – |
+
+All three publishers verify before writing, so the staging transaction was never the
+thing that diverged — everything upstream of "the graph is verified" is legitimately
+different work, because a staged scoped promotion is not a whole-store reload.
+
+What diverged is the **last** step. Only `build` recorded which generation it had
+activated. `rebuild`, `governance activate` and `serve`'s marker refresh made a
+generation live and left the registry's ACTIVE pointer naming the previous one — after
+which every reader resolving through the registry refuses a graph that is otherwise
+perfectly healthy. Fail-closed is correct; giving the operator no reason is not, and
+before this there was no message anywhere.
+
+So the shared primitive is the activation transition, and only that:
+
+```
+activateGeneration(out, markerPath, marker, domain, registryPath)
+  1. write the marker          — first, so the pointer can never name a generation
+                                 whose marker was never published
+  2. record the ACTIVE pointer — or state plainly that it was NOT updated
+```
+
+Five call sites, one implementation. A failure to record does not fail an activation
+that genuinely happened; it is reported. And a command that publishes **without knowing
+its governed domain** — which is `rebuild`, `governance activate` and `serve` — now says
+so and says how to fix it, because "readers refuse a healthy graph" is
+indistinguishable from a broken endpoint unless something names the cause.
+
+The unification claim is itself falsifiable: `TestNoCommandWritesAGraphMarkerOutside
+TheActivationTransition` counts direct `seedmeta.WriteMarkerFile` calls per file and
+fails on any writer outside the primitive. A second writer is a second lifecycle, and it
+would be invisible in behaviour, because the marker it writes looks identical.
+
+### A structural check retired
+
+`TestActivationRecordsThePointerAfterTheMarkerIsPublished` asserted the marker→pointer
+ordering by reading `cmd_build.go`'s source, because the sequence was inlined in a path
+no unit test can reach. Now that the sequence is a function, the ordering is proven by
+**executing** it — a failed marker write leaves the pointer untouched — so the source
+check is deleted rather than kept as a second opinion that can disagree with the real
+one.
+
 ## What remains before Oxigraph is an implementation detail
 
 **`.sensei/project` cannot publish anywhere.** All three registered domains allow

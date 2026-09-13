@@ -513,7 +513,11 @@ func syncDefaultRuntimeMarkerFromLiveStore(ctx context.Context, markerPath, quer
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
+	// Refreshing a stale marker from the live store makes that generation the one this
+	// host certifies, so it goes through the same transition (G4) rather than writing
+	// the file itself. serve does not know the governed domain, and activateGeneration
+	// states that the pointer was left alone instead of leaving it silent.
+	if err := activateGeneration(out, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
 		return err
 	}
 	if err := reconcileRuntimeTransactionStamp(markerPath, marker, out); err != nil {

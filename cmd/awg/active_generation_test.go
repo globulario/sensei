@@ -255,46 +255,17 @@ func renderBlock(t *testing.T, r endpointReport) string {
 	return buf.String()
 }
 
-// TestActivationRecordsThePointerAfterTheMarkerIsPublished is a WIRING check on
-// source order, not a behavioural one, and it is labelled that way on purpose:
-// the scoped publication path needs a live Oxigraph store to reach, so a unit test
-// cannot execute it. What it CAN falsify is the ordering the repair depends on —
-// the pointer must be recorded after the marker exists, so it can never name a
-// generation whose marker was never published, and before the receipt, so a
-// receipt never describes a publication the pointer disagrees with.
+// The ordering this file used to assert over cmd_build.go's source — marker written
+// before the pointer is recorded — moved into the activation transition when G4 unified
+// the five lifecycles, and it is proven BEHAVIOURALLY there:
 //
-// The behavioural evidence for recordActiveGeneration itself is above; this covers
-// only where it is called from.
-func TestActivationRecordsThePointerAfterTheMarkerIsPublished(t *testing.T) {
-	raw, err := os.ReadFile("cmd_build.go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := string(raw)
-	// Anchor on the receipt write, then look BACKWARDS for the marker write. This
-	// file has more than one WriteMarkerFile call, in different functions, so
-	// indexing the first one would let the pointer be recorded in a completely
-	// different code path and still satisfy the assertion.
-	receipt := strings.Index(src, "writePublicationReceipt(markerPath, receipt, marker)")
-	if receipt < 0 {
-		t.Fatal("the publication path no longer writes a receipt; this check has lost its anchor")
-	}
-	marker := strings.LastIndex(src[:receipt], "seedmeta.WriteMarkerFile(markerPath, marker)")
-	record := strings.LastIndex(src[:receipt], "recordActiveGeneration(")
-	if marker < 0 {
-		t.Fatal("no marker write precedes the receipt write; this check has lost its anchor")
-	}
-	if record < 0 {
-		t.Fatal("the ACTIVE generation pointer is never recorded before the receipt write")
-	}
-	if record < marker {
-		t.Errorf("the ACTIVE pointer is recorded BEFORE the marker is published, so it can name a generation whose marker was never written: marker=%d record=%d", marker, record)
-	}
-	if strings.Count(src, "recordActiveGeneration(") != 1 {
-		t.Errorf("recordActiveGeneration has %d call sites; the activation transition is one place, and a second caller would be a second claimant",
-			strings.Count(src, "recordActiveGeneration("))
-	}
-}
+//	TestAFailedMarkerWriteLeavesThePointerAlone            the ordering itself
+//	TestNoCommandWritesAGraphMarkerOutsideTheTransition    that no command bypasses it
+//
+// A source-order check was the best available evidence while the sequence was inlined in
+// a code path no unit test can reach. Once the sequence has its own function, executing
+// it is strictly better evidence than reading it, so the structural check is gone rather
+// than kept as a second opinion that can disagree with the real one.
 
 // G4 in the report: the Endpoint block must say WHICH marker it used and refuse to
 // name one whose path would depend on the caller's directory.
