@@ -89,6 +89,23 @@ const (
 	// a counterexample to confinement, not by itself an architectural defect:
 	// an exported structure may be intentionally caller-mutable.
 	KindStateMutationConfinedToOwner Kind = "state_mutation_confined_to_owner"
+
+	// KindConstructionConfinedToOwner: every observable construction of a named
+	// exported struct type, within a named repository scope, originates from the
+	// package that declares the type. With a Field named, only constructions that
+	// INITIALIZE that field are considered.
+	//
+	// A fourth family, and the one the third cannot answer. Mutation confinement asks
+	// who may CHANGE a field; this asks who may MINT a value carrying it. The two are
+	// not interchangeable: a field set only in a constructor has no writes at all, so
+	// the mutation family correctly establishes nothing about it, and widening that
+	// family to count constructions would destroy the distinction it exists to make
+	// (a constructor filling its own struct is not a caller reaching in).
+	//
+	// For an authority-bearing field this is the question that matters -- a deadline a
+	// restarted waiter must honour means nothing if any package can construct a record
+	// carrying one.
+	KindConstructionConfinedToOwner Kind = "construction_confined_to_owner"
 )
 
 // Proposition is a claim in a shape a derivation can attempt.
@@ -322,7 +339,7 @@ type PinnedSource interface {
 
 // registry is the set of derivations Sensei can attempt. Adding a family is a
 // reviewed change to this list, not something a claimant can request.
-var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}}
+var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}, constructionConfinement{}}
 
 // Derive attempts a proposition against pinned project state.
 //
