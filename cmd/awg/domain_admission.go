@@ -96,6 +96,18 @@ type RegisteredDomain struct {
 	// AllowedCorpusRoots are repo-relative corpus directories this domain may
 	// publish from.
 	AllowedCorpusRoots []string `yaml:"allowed_corpus_roots"`
+	// ServiceAddr is the awareness endpoint that serves THIS domain's graph.
+	//
+	// G2 of the graph-identity front: resolve domain -> endpoint through one owner,
+	// so a caller stops choosing a port and the port becomes an implementation
+	// detail this registry returns. The registry is the right owner because it is
+	// already the operator-controlled authority kept OUTSIDE any published
+	// repository -- a repository must not be able to redirect its own graph, for
+	// the same reason it must not vouch for its own corpus.
+	//
+	// Optional, and inert while empty: every existing caller keeps the precedence
+	// it had until an operator fills this in.
+	ServiceAddr string `yaml:"service_addr"`
 	// AllowDirtyWorktree permits publishing uncommitted content. Default false:
 	// a dirty tree must never silently certify only the git commit while
 	// publishing something else.

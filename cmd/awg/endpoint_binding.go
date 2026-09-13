@@ -198,6 +198,47 @@ func markerAgreement(liveDigest string, liveTriples int, markerDigest string, ma
 	}
 }
 
+// resolveDomainServiceAddr resolves domain -> endpoint through the registry (G2).
+//
+// Precedence, highest first:
+//
+//  1. an explicit flag      the operator naming it at the point of use, visible
+//     in the command they ran
+//  2. the domain registry   operator-controlled and OUTSIDE any published
+//     repository, so a repository cannot redirect its own
+//     graph
+//  3. the project config    what an operator edits alongside the code
+//  4. the built-in default  netcfg
+//
+// The registry sits above the project because of why it exists: it is already
+// trusted not to live inside the thing it vouches for. It is also INERT until an
+// operator declares a service_addr, so adding this cannot move any caller's
+// endpoint today.
+//
+// Falls through on every absence -- unregistered domain, unreadable registry, no
+// declared endpoint -- because this reports an endpoint rather than gating access.
+// A resolver that refused here would turn a missing convenience into an outage.
+func resolveDomainServiceAddr(fs *flag.FlagSet, projectRoot, domain, flagValue, registryPath string) (addr, source string) {
+	if flagPassed(fs, "addr") {
+		return flagValue, "named on the command line"
+	}
+	if strings.TrimSpace(domain) != "" && strings.TrimSpace(registryPath) != "" {
+		if reg, err := LoadDomainRegistry(registryPath); err == nil && reg != nil {
+			if rd, ok := reg.Domains[strings.TrimSpace(domain)]; ok {
+				if a := strings.TrimSpace(rd.ServiceAddr); a != "" {
+					return a, "the domain registry (" + registryPath + ")"
+				}
+			}
+		}
+	}
+	if cfg, err := loadEndpointConfig(projectRoot); err == nil {
+		if a := cfg.configuredServerAddr(); a != "" {
+			return a, "this project's configuration"
+		}
+	}
+	return flagValue, "the built-in default"
+}
+
 // nonCanonicalStoreURLNotice makes a raw --store-url override visible.
 //
 // Law 14 of the graph-identity front: a raw store URL is test/dev/maintenance

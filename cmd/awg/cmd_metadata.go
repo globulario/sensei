@@ -100,7 +100,9 @@ Flags:
 	defer cancel()
 
 	root, _ := resolveProjectRoot("")
-	resolvedAddr := resolveServiceAddr(fs, root, *addr)
+	// Domain-scoped: the registry can answer `domain -> endpoint`, so this variant
+	// resolves through the G2 owner rather than choosing a port.
+	resolvedAddr, addrSource := resolveDomainServiceAddr(fs, root, *domain, *addr, DefaultDomainRegistryPath())
 	resp, err := metadataRPC(ctx, resolvedAddr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
@@ -124,7 +126,7 @@ Flags:
 	// a graph having changed.
 	fmt.Println("Endpoint:")
 	fmt.Printf("  Awareness address:   %s\n", resolvedAddr)
-	fmt.Printf("  Chosen from:         %s\n", serviceAddrSource(fs, root))
+	fmt.Printf("  Chosen from:         %s\n", addrSource)
 	markerPath := seedmeta.RuntimeMarkerPath(root)
 	fmt.Printf("  Marker file:         %s\n", markerPath)
 	if marker, merr := seedmeta.ReadMarkerFile(markerPath); merr == nil {
