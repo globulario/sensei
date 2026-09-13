@@ -26,7 +26,7 @@ var metadataRPC = func(ctx context.Context, addr, domain string) (*awarenesspb.M
 func runDomains(args []string) int {
 	fs := flag.NewFlagSet("sensei domains", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei domains [flags]
@@ -47,7 +47,10 @@ Flags:
 	defer cancel()
 
 	root, _ := resolveProjectRoot("")
-	resolvedAddr := resolveServiceAddr(fs, root, *addr)
+	// One owner, same as every other production reader (law 3). This variant asks about
+	// no particular domain, so it resolves without one rather than through a different
+	// function.
+	resolvedAddr := resolveGraphReader(fs, root, "", *addr, DefaultDomainRegistryPath()).Addr
 	resp, err := metadataRPC(ctx, resolvedAddr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
@@ -76,7 +79,7 @@ Flags:
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", "", "scope per-class counts to a domain/repo (e.g. github.com/globulario/services); empty = graph-wide")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -105,7 +108,8 @@ Flags:
 	root, rootErr := resolveProjectRoot("")
 	// Domain-scoped: the registry can answer `domain -> endpoint`, so this variant
 	// resolves through the G2 owner rather than choosing a port.
-	resolvedAddr, addrSource := resolveDomainServiceAddr(fs, root, *domain, *addr, DefaultDomainRegistryPath())
+	reader := resolveGraphReader(fs, root, *domain, *addr, DefaultDomainRegistryPath())
+	resolvedAddr, addrSource := reader.Addr, reader.Source
 	resp, err := metadataRPC(ctx, resolvedAddr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))

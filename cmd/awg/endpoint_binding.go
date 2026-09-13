@@ -288,3 +288,95 @@ func requireServerAddrAgreement(fs *flag.FlagSet, root, resolved string) error {
 	}
 	return requireEndpointAgreement(fs, root, "-addr", "server.addr", cfg.configuredServerAddr(), resolved)
 }
+
+// --- LAW 3: ONE OWNER FOR EVERY PRODUCTION READER ---------------------------------
+//
+// "All production readers resolve graph identity through one owner. They must not
+// independently choose an Oxigraph port."
+//
+// That was false. Eighteen commands in this package declared
+// `fs.String("addr", defaultServiceAddr(), …)` and dialled it; exactly one, `metadata`,
+// resolved through resolveDomainServiceAddr. `briefing` was the sharpest case: it
+// already resolved the governed domain and then ignored it, so in a repository whose
+// config states :10122 it failed with "dial tcp 127.0.0.1:10120: connection refused"
+// while the graph it should read was running the whole time.
+//
+// The repair is not a different default port. A reader now states the domain it reads
+// for and RECEIVES the endpoint, its provenance, and the generation the registry
+// declares ACTIVE. The port stops being something a reader picks, which is the only
+// form of this law that can hold: as long as a command owns a default port, it owns a
+// graph choice.
+
+// graphReader is what a production reader resolves BEFORE it dials: where to read, why
+// that endpoint, which domain it is reading for, and which generation is declared ACTIVE.
+//
+// Resolution is complete before any connection is attempted, deliberately. A resolver
+// that probed endpoints would be selecting a graph by liveness, and "it answered" is
+// exactly the evidence law 2 exists to reject.
+type graphReader struct {
+	Addr   string
+	Source string
+	Domain string
+	// DeclaredGeneration is the registry's ACTIVE generation for Domain, or "" when
+	// none is declared.
+	DeclaredGeneration string
+	// Overridden records that an operator named the endpoint at the point of use, so a
+	// caller can report the answer as non-canonical (law 14's rule for raw overrides,
+	// applied to the read side).
+	Overridden bool
+}
+
+// resolveGraphReader is the one resolution every production reader uses.
+func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, registryPath string) graphReader {
+	r := graphReader{Domain: strings.TrimSpace(domain)}
+	// An explicitly named endpoint wins, and is recorded as an override. The flag's
+	// default is deliberately EMPTY in every reader, so a non-empty value is always an
+	// operator naming it rather than a port the command chose for them.
+	if strings.TrimSpace(flagValue) != "" || flagPassed(fs, "addr") {
+		r.Addr, r.Source, r.Overridden = strings.TrimSpace(flagValue), "named on the command line", true
+		if r.Addr == "" {
+			r.Addr = defaultServiceAddr()
+		}
+		r.DeclaredGeneration = declaredActiveGeneration(registryPath, r.Domain)
+		return r
+	}
+	r.Addr, r.Source = resolveDomainServiceAddr(fs, projectRoot, r.Domain, "", registryPath)
+	if strings.TrimSpace(r.Addr) == "" {
+		r.Addr, r.Source = defaultServiceAddr(), "the built-in default"
+	}
+	r.DeclaredGeneration = declaredActiveGeneration(registryPath, r.Domain)
+	return r
+}
+
+// verifyServed refuses a response answered by a generation other than the one declared
+// ACTIVE for this reader's domain.
+//
+// Inert when nothing is declared, for the same reason the pointer itself is: an absent
+// declaration contradicts nothing. When a declaration exists, an answer from another
+// generation is refused rather than reported -- a well-formed briefing from rules this
+// domain does not declare active is worse than no briefing, because it carries the
+// authority of one graph and the content of another.
+func (r graphReader) verifyServed(servedDigest string) error {
+	if strings.TrimSpace(r.DeclaredGeneration) == "" {
+		return nil
+	}
+	return verifyActiveGeneration(r.Domain, r.DeclaredGeneration, servedDigest)
+}
+
+// nonCanonicalReaderNotice states that a reader's endpoint was named rather than
+// resolved, so an override can never pass for canonical discovery.
+func nonCanonicalReaderNotice(r graphReader) string {
+	if !r.Overridden {
+		return ""
+	}
+	return "sensei: reading " + r.Addr + " because it was named on the command line. " +
+		"This is a non-canonical override: nothing has verified that this endpoint serves the graph for " +
+		domainOrAny(r.Domain) + "."
+}
+
+func domainOrAny(domain string) string {
+	if strings.TrimSpace(domain) == "" {
+		return "any particular domain"
+	}
+	return domain
+}
