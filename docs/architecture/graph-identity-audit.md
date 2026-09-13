@@ -422,6 +422,64 @@ Six fixtures were resting on the silence this closed — a hand-built `AuditResu
 the evaluator's `fakeChecker`, and five bridge tests whose fake client had no
 metadata stub. Every one was completed rather than the guard relaxed.
 
+## G4: the marker contract, and a resolver that fails open to the working directory
+
+Closed 2026-09-13 for the marker half of G4. The plan named the symptom it is
+resolving: *"marker paths not following the defaults callers believed they had."*
+
+One flag name carried **four** contracts, and no command said which had answered:
+
+| tier | condition | answer |
+|---|---|---|
+| 1 | explicit `--graph-marker-file` | that path |
+| 2 | `serve` in embedded-seed mode, no flag | **no marker file** — the embedded one is in force |
+| 3 | any other command, no flag | `<root>/<statedir>/graph-authority.json` |
+| 4 | no resolvable project root | a **relative** path, resolved against the caller's directory |
+
+Tiers 2 and 3 were the same empty string at the call site, so "the embedded marker is
+in force" and "the default marker file" were indistinguishable. `resolveGraphMarkerFile`
+is now the single owner and returns `(path, source, error)` — the shape G2's
+`resolveDomainServiceAddr` established, because a resolution that cannot say where it
+came from makes two legitimately different answers indistinguishable from one answer
+having changed. `sensei metadata` prints the source beside the path.
+
+### The resolver failed open, and the first refusal watched the wrong door
+
+Tier 4 was built as a refusal: no root means the path would be relative, so refuse.
+Measuring the trigger found the actual defect.
+
+**`resolveProjectRoot` never reports "not in a project."** Its walk looks for
+`docs/awareness` or `<statedir>/config.yaml` and, finding neither anywhere up the
+tree, returns the **current working directory** with a nil error. So `root == ""`
+almost never happens, and the cwd-dependent marker arrives as a perfectly ordinary
+absolute path through a door the refusal was not watching. Two commands run from two
+directories resolve two markers, silently, and `statedir.Name` is then evaluated
+against a directory that is not a project either.
+
+Changing that contract is out of scope: 34 non-test callers depend on the fail-open
+walk. The invariant goes at the choke point instead — the marker resolution requires
+its root to satisfy the *same* definition of a project the walk searches for,
+extracted as `looksLikeProjectRoot` so the search and the requirement cannot drift.
+An explicit flag and embedded-seed mode are unaffected: neither infers a root.
+
+### Two other things this exposed
+
+- **An orphaned legacy marker.** `statedir.Name` prefers `.sensei` and falls back to
+  a pre-existing `.awg`. When both exist the legacy marker is still on disk,
+  certifying a generation nothing serves, and reported by nothing. The resolution now
+  names it — but only when it actually exists, because a report that always warns
+  teaches its reader to skip the line.
+
+- **Four tests over unreachable code.** Routing `serve` through the single resolver
+  left `selectServeGraphMarkerFile` reachable only from its own four tests. Four
+  passing tests over dead code are worse than none, because they report the contract
+  as covered. The helper is deleted and those four cases now call the function serve
+  actually runs. A dead branch in the new code went the same way: an "unresolvable
+  project root" special case in `resolveServeGraphMarkerFile` that could never
+  execute, since `resolveProjectRoot` errors only if `os.Getwd()` fails.
+
+Seven fixtures asserted a bare `.sensei` directory was a project. All corrected.
+
 ## What remains before Oxigraph is an implementation detail
 
 **`.sensei/project` cannot publish anywhere.** All three registered domains allow

@@ -98,7 +98,11 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	root, _ := resolveProjectRoot("")
+	// The root error is NOT discarded (G4). Without a project root the default marker
+	// path is relative, so this report would name a different marker from each
+	// directory it ran in. resolveGraphMarkerFile refuses that, and the Endpoint block
+	// states the refusal rather than printing a path that means nothing.
+	root, rootErr := resolveProjectRoot("")
 	// Domain-scoped: the registry can answer `domain -> endpoint`, so this variant
 	// resolves through the G2 owner rather than choosing a port.
 	resolvedAddr, addrSource := resolveDomainServiceAddr(fs, root, *domain, *addr, DefaultDomainRegistryPath())
@@ -125,6 +129,7 @@ Flags:
 	// a graph having changed.
 	renderEndpointBlock(os.Stdout, endpointReport{
 		Root:         root,
+		RootError:    rootErr,
 		Domain:       *domain,
 		ResolvedAddr: resolvedAddr,
 		AddrSource:   addrSource,

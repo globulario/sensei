@@ -295,3 +295,30 @@ func TestActivationRecordsThePointerAfterTheMarkerIsPublished(t *testing.T) {
 			strings.Count(src, "recordActiveGeneration("))
 	}
 }
+
+// G4 in the report: the Endpoint block must say WHICH marker it used and refuse to
+// name one whose path would depend on the caller's directory.
+func TestTheEndpointReportNamesTheMarkerItChoseOrRefusesToNameOne(t *testing.T) {
+	root := projectRoot(t, t.TempDir())
+	out := renderBlock(t, endpointReport{Root: root, Domain: "d", ResolvedAddr: "a", LiveDigest: "x"})
+	if !strings.Contains(out, filepath.Join(root, ".sensei", "graph-authority.json")) {
+		t.Errorf("the report does not name the marker file it used:\n%s", out)
+	}
+	if !strings.Contains(out, "in the project root") {
+		t.Errorf("the report does not say which tier chose the marker:\n%s", out)
+	}
+
+	// No project root: the default path would be relative, so the report must refuse
+	// to name a marker rather than print one that means something different from every
+	// directory.
+	out = renderBlock(t, endpointReport{Root: "", RootError: errors.New("not inside a project"), Domain: "d", ResolvedAddr: "a", LiveDigest: "x"})
+	if !strings.Contains(out, "cannot be resolved") {
+		t.Errorf("a rootless report named a marker anyway:\n%s", out)
+	}
+	if !strings.Contains(out, "not inside a project") {
+		t.Errorf("the root error was discarded instead of explaining the refusal:\n%s", out)
+	}
+	if strings.Contains(out, "agrees with the served graph") {
+		t.Errorf("a marker verdict was reported without a marker:\n%s", out)
+	}
+}

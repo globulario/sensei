@@ -206,7 +206,11 @@ func setMappingScalar(m *yaml.Node, key, value string) {
 // graph answered, where that choice came from, and whether the two records of its
 // identity — the marker file and the registry's ACTIVE pointer — agree with it.
 type endpointReport struct {
-	Root         string
+	Root string
+	// RootError is why no project root could be resolved, when none could. Carried
+	// rather than discarded because the marker path would otherwise be relative and
+	// the report would name a different marker from each directory (G4).
+	RootError    error
 	Domain       string
 	ResolvedAddr string
 	AddrSource   string
@@ -226,13 +230,24 @@ func renderEndpointBlock(w io.Writer, r endpointReport) {
 	fmt.Fprintln(w, "Endpoint:")
 	fmt.Fprintf(w, "  Awareness address:   %s\n", r.ResolvedAddr)
 	fmt.Fprintf(w, "  Chosen from:         %s\n", r.AddrSource)
-	markerPath := seedmeta.RuntimeMarkerPath(r.Root)
-	fmt.Fprintf(w, "  Marker file:         %s\n", markerPath)
-	if marker, err := seedmeta.ReadMarkerFile(markerPath); err == nil {
-		fmt.Fprintf(w, "  Marker verdict:      %s\n",
-			markerAgreement(r.LiveDigest, r.LiveTriples, marker.Digest, int(marker.TripleCount)))
-	} else {
-		fmt.Fprintf(w, "  Marker verdict:      cannot be verified: the marker is not readable (%v)\n", err)
+	// ONE marker resolver, and it reports which of the four tiers answered (G4).
+	markerPath, markerSource, markerErr := resolveGraphMarkerFile("", r.Root, false)
+	switch {
+	case markerErr != nil:
+		fmt.Fprintf(w, "  Marker file:         cannot be resolved: %s\n", firstLine(markerErr.Error()))
+		if r.RootError != nil {
+			fmt.Fprintf(w, "                       (no project root: %v)\n", r.RootError)
+		}
+		fmt.Fprintf(w, "  Marker verdict:      cannot be verified: no marker file could be named\n")
+	default:
+		fmt.Fprintf(w, "  Marker file:         %s\n", markerPath)
+		fmt.Fprintf(w, "  Chosen from:         %s\n", markerSource)
+		if marker, err := seedmeta.ReadMarkerFile(markerPath); err == nil {
+			fmt.Fprintf(w, "  Marker verdict:      %s\n",
+				markerAgreement(r.LiveDigest, r.LiveTriples, marker.Digest, int(marker.TripleCount)))
+		} else {
+			fmt.Fprintf(w, "  Marker verdict:      cannot be verified: the marker is not readable (%v)\n", err)
+		}
 	}
 	declared := declaredActiveGeneration(r.RegistryPath, r.Domain)
 	if declared == "" {

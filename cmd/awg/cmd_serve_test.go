@@ -69,31 +69,77 @@ func TestWatchBackendHealth_FailsAfterConsecutiveErrors(t *testing.T) {
 	}
 }
 
-func TestSelectServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode(t *testing.T) {
-	got := selectServeGraphMarkerFile("", "/repo/.sensei/graph-authority.json", true, false)
+// The four cases below were written against selectServeGraphMarkerFile, a helper that
+// G4 removed: once resolveServeGraphMarkerFile delegated to the single marker resolver,
+// that helper became reachable only from these tests. Four passing tests over
+// unreachable code are worse than none, because they report the contract as covered.
+//
+// They now call the function serve actually runs. Each needs a project root on disk,
+// because the contract being tested is precisely "which marker does this resolve to,
+// and does it depend on where I stood".
+
+func serveMarkerFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A bare .sensei directory is not a project; the marker resolver requires the
+	// same thing resolveProjectRoot searches for.
+	if err := os.WriteFile(filepath.Join(root, ".sensei", "config.yaml"), []byte("{}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+	return root
+}
+
+func TestServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode(t *testing.T) {
+	root := serveMarkerFixture(t)
+	if err := os.WriteFile(filepath.Join(root, ".sensei", "graph-authority.json"), []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := resolveServeGraphMarkerFile("", false)
+	if err != nil {
+		t.Fatalf("resolveServeGraphMarkerFile: %v", err)
+	}
 	if got != "" {
-		t.Fatalf("marker=%q, want empty in embedded-seed mode even when local runtime marker exists", got)
+		t.Fatalf("marker=%q, want empty in embedded-seed mode even when a local runtime marker exists", got)
 	}
 }
 
-func TestSelectServeGraphMarkerFile_SkipsMissingDefaultInSeedMode(t *testing.T) {
-	got := selectServeGraphMarkerFile("", "/repo/.sensei/graph-authority.json", false, false)
+func TestServeGraphMarkerFile_SkipsMissingDefaultInSeedMode(t *testing.T) {
+	serveMarkerFixture(t)
+	got, err := resolveServeGraphMarkerFile("", false)
+	if err != nil {
+		t.Fatalf("resolveServeGraphMarkerFile: %v", err)
+	}
 	if got != "" {
-		t.Fatalf("marker=%q, want empty when default marker is missing in embedded-seed mode", got)
+		t.Fatalf("marker=%q, want empty in embedded-seed mode", got)
 	}
 }
 
-func TestSelectServeGraphMarkerFile_UsesDefaultForNoSeed(t *testing.T) {
-	got := selectServeGraphMarkerFile("", "/repo/.sensei/graph-authority.json", false, true)
-	if got != "/repo/.sensei/graph-authority.json" {
-		t.Fatalf("marker=%q, want default marker with no-seed", got)
+func TestServeGraphMarkerFile_UsesDefaultForNoSeed(t *testing.T) {
+	root := serveMarkerFixture(t)
+	got, err := resolveServeGraphMarkerFile("", true)
+	if err != nil {
+		t.Fatalf("resolveServeGraphMarkerFile: %v", err)
+	}
+	want := filepath.Join(root, ".sensei", "graph-authority.json")
+	if got != want {
+		t.Fatalf("marker=%q, want %q with --no-seed", got, want)
 	}
 }
 
-func TestSelectServeGraphMarkerFile_ConfiguredPathWins(t *testing.T) {
-	got := selectServeGraphMarkerFile(" /custom/graph-authority.json ", "/repo/.sensei/graph-authority.json", true, false)
-	if got != "/custom/graph-authority.json" {
-		t.Fatalf("marker=%q, want configured marker", got)
+func TestServeGraphMarkerFile_ConfiguredPathWins(t *testing.T) {
+	serveMarkerFixture(t)
+	for _, noSeed := range []bool{true, false} {
+		got, err := resolveServeGraphMarkerFile(" /custom/graph-authority.json ", noSeed)
+		if err != nil {
+			t.Fatalf("noSeed=%v: %v", noSeed, err)
+		}
+		if got != "/custom/graph-authority.json" {
+			t.Fatalf("noSeed=%v: marker=%q, want the configured marker", noSeed, got)
+		}
 	}
 }
 
@@ -256,5 +302,27 @@ func TestResolveServeRepoContext(t *testing.T) {
 	// A missing root fails.
 	if _, _, err := resolveServeRepoContext(filepath.Join(dir, "missing"), "d"); err == nil {
 		t.Fatal("missing root must fail")
+	}
+}
+
+// Serve outside a project, both modes. These are the same two answers the resolver
+// gives, reached through serve's own entry point, and they are what makes the removal
+// of serve's dead "unresolvable root" branch safe: embedded mode never needed a
+// project, and --no-seed should not be allowed to invent one.
+func TestServeGraphMarkerFile_OutsideAProject(t *testing.T) {
+	t.Chdir(t.TempDir())
+
+	got, err := resolveServeGraphMarkerFile("", false)
+	if err != nil {
+		t.Errorf("embedded-seed mode outside a project: %v (it needs no marker file)", err)
+	}
+	if got != "" {
+		t.Errorf("embedded-seed mode resolved a marker file outside a project: %q", got)
+	}
+
+	// --no-seed makes the marker file the authority, so a marker under a directory
+	// that is not the project would certify a different graph from each directory.
+	if _, err := resolveServeGraphMarkerFile("", true); err == nil {
+		t.Error("--no-seed outside a project resolved a marker file instead of refusing")
 	}
 }

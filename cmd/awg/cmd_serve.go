@@ -455,34 +455,24 @@ func resolveServeRepoContext(root, domain string) (string, string, error) {
 	return resolved, domain, nil
 }
 
+// resolveServeGraphMarkerFile is serve's view of the one contract (G4).
+//
+// It keeps serve's own rule — embedded-seed mode uses the marker compiled into the
+// binary, so no FILE is consulted — by naming that rule to the single resolver
+// instead of implementing a second lifecycle beside it.
+//
+// It needs no special case for a missing project, and an earlier draft here had one
+// that could never execute: resolveProjectRoot only errors when os.Getwd() itself
+// fails. The ordering in the resolver already gives serve what it needs -- embedded
+// mode answers "no marker file" before any project is required, while --no-seed makes
+// the marker file the authority and so inherits the refusal.
 func resolveServeGraphMarkerFile(configured string, noSeed bool) (string, error) {
-	configured = strings.TrimSpace(configured)
-	if configured != "" {
-		return configured, nil
-	}
-	defaultPath, err := defaultRuntimeMarkerFile()
+	root, _ := resolveProjectRoot("")
+	path, _, err := resolveGraphMarkerFile(configured, root, !noSeed)
 	if err != nil {
-		if noSeed {
-			return "", err
-		}
-		return "", nil
+		return "", err
 	}
-	return selectServeGraphMarkerFile(configured, defaultPath, pathExists(defaultPath), noSeed), nil
-}
-
-func selectServeGraphMarkerFile(configured, defaultPath string, _ bool, noSeed bool) string {
-	configured = strings.TrimSpace(configured)
-	if configured != "" {
-		return configured
-	}
-	defaultPath = strings.TrimSpace(defaultPath)
-	if defaultPath == "" {
-		return ""
-	}
-	if noSeed {
-		return defaultPath
-	}
-	return ""
+	return path, nil
 }
 
 func syncDefaultRuntimeMarkerFromLiveStore(ctx context.Context, markerPath, queryURL string, out io.Writer) error {
