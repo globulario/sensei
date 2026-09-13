@@ -37,7 +37,7 @@ import (
 func runEditBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	depth := fs.String("depth", envOr("AWG_EDIT_BRIEF_DEPTH", "agent_compact"),
@@ -63,6 +63,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 0 // never wedge editing on a flag parse error
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 
 	// Resolve the edited file: the neutral --file flag first, else the Claude Code
 	// PreToolUse payload on stdin.

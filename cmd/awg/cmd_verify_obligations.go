@@ -34,7 +34,7 @@ func runVerifyObligations(args []string) int {
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description, passed through to preflight")
 	results := fs.String("results", "", "file containing `go test -json` output (- for stdin)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "emit the obligation report as JSON")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
 	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
@@ -77,6 +77,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *results == "" {
 		fmt.Fprintln(os.Stderr, "sensei verify-obligations: --results is required")
 		return 2

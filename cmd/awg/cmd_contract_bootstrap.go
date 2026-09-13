@@ -132,7 +132,7 @@ func runContractBootstrap(args []string) int {
 	taskFile := fs.String("task-file", "", "task JSON containing issue/domain/f2p_tests")
 	issue := fs.String("issue", "", "issue text when not using --task-file")
 	domain := fs.String("domain", "", "optional repo/domain scope for AWG cross-reference")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	format := fs.String("format", "text", "output format: text | json | prompt | scaffold")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	var tests stringSlice
@@ -153,6 +153,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}

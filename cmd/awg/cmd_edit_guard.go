@@ -35,7 +35,7 @@ import (
 func runEditGuard(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-guard", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	blockSeverity := fs.String("block-severity", envOr("AWG_EDIT_CHECK_BLOCK_SEVERITY", "critical,high"),
@@ -75,6 +75,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 0 // never wedge editing on a flag parse error
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *format != "claude" && *format != "json" && *format != "exit-code" {
 		fmt.Fprintf(os.Stderr, "sensei edit-guard: --format must be claude|json|exit-code, got %q\n", *format)
 		return 0

@@ -22,7 +22,7 @@ func runEditCheck(args []string) int {
 	content := fs.String("content", "", "proposed new content (inline)")
 	contentFile := fs.String("content-file", "", "read proposed content from this path ('-' for stdin)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei edit-check --file <path> [--content <text> | --content-file <path>|-] [flags]
@@ -39,6 +39,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *file == "" {
 		fmt.Fprintln(os.Stderr, "sensei edit-check: --file is required")
 		return 2

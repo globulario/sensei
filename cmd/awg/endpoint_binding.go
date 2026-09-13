@@ -380,3 +380,27 @@ func domainOrAny(domain string) string {
 	}
 	return domain
 }
+
+// productionReaderFor is the thin wiring every graph-reading command uses, so the
+// migration is one line per command rather than sixteen partial re-implementations.
+//
+// It resolves through the owner and announces a non-canonical override. Callers assign
+// the result's Addr over their own flag variable, which leaves every existing use site
+// untouched and makes the canonical endpoint the only value any of them can dial:
+//
+//	reader := productionReaderFor(fs, *domain, *addr)
+//	*addr = reader.Addr
+//
+// The project root is resolved here rather than plumbed through sixteen signatures.
+// resolveProjectRoot fails open to the working directory, which is acceptable for the
+// CONFIG tier specifically — reading a config that may not exist — and is what metadata
+// already did. Where a root must be proven (the graph marker), looksLikeProjectRoot is
+// asked instead.
+func productionReaderFor(fs *flag.FlagSet, domain, addrFlag string) graphReader {
+	root, _ := resolveProjectRoot("")
+	r := resolveGraphReader(fs, root, domain, addrFlag, DefaultDomainRegistryPath())
+	if notice := nonCanonicalReaderNotice(r); notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
+	}
+	return r
+}

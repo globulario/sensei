@@ -237,3 +237,181 @@ func TestBriefingVerifiesTheServedGenerationBeforeRendering(t *testing.T) {
 		t.Errorf("a refused generation does not end the briefing:\n%s", tail)
 	}
 }
+
+// THE INVARIANT, enforced once for the whole package rather than by sixteen weak
+// per-command checks:
+//
+//	For a governed repository/domain there is exactly ONE code path by which a
+//	production command chooses which graph to read, and that path is the G2 owner.
+//
+// A command carrying `defaultServiceAddr()` as its --addr default owns a graph choice,
+// whatever it does afterwards. So the mechanical form of the invariant is: no command
+// declares a default endpoint. Only the owner may name the built-in tier.
+//
+// This is the check that makes the migration finishable and keeps it finished: a new
+// command added next year with a default port fails here, which is the only way a
+// sixteen-file migration does not silently regrow.
+func TestNoProductionCommandDeclaresADefaultGraphEndpoint(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var offenders []string
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasPrefix(name, "cmd_") || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src := readCmdSource(t, name)
+		if strings.Contains(src, `fs.String("addr", defaultServiceAddr()`) {
+			offenders = append(offenders, name)
+		}
+	}
+	if len(offenders) > 0 {
+		t.Errorf("%d command(s) still declare a default graph endpoint, so each still owns a graph choice: %s\n"+
+			"Resolve through productionReader/resolveGraphReader and declare the flag with an empty default.",
+			len(offenders), strings.Join(offenders, ", "))
+	}
+}
+
+// The owner is the only place the built-in tier may be named, and it must still name it:
+// removing the final tier would make an unresolvable domain produce an empty address
+// rather than a truthful default.
+func TestOnlyTheOwnerNamesTheBuiltInDefault(t *testing.T) {
+	if !strings.Contains(readCmdSource(t, "endpoint_binding.go"), "defaultServiceAddr()") {
+		t.Error("the resolution owner no longer names the built-in default; an unresolvable domain would yield an empty endpoint")
+	}
+}
+
+// Every command that reaches the graph must resolve through the owner. Counted rather
+// than sampled, so a command that dials without resolving is named.
+func TestEveryGraphReachingCommandResolvesThroughTheOwner(t *testing.T) {
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var unresolved []string
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasPrefix(name, "cmd_") || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src := readCmdSource(t, name)
+		if !strings.Contains(src, `fs.String("addr",`) {
+			continue // not a graph reader
+		}
+		// `serve` is the exception with a reason: its --addr is the address it LISTENS
+		// on, not a graph it reads. Named explicitly rather than pattern-excluded, so a
+		// future reader cannot slip through by resembling it.
+		if name == "cmd_serve.go" {
+			continue
+		}
+		if !strings.Contains(src, "productionReaderFor(") && !strings.Contains(src, "resolveGraphReader(") {
+			unresolved = append(unresolved, name)
+		}
+	}
+	if len(unresolved) > 0 {
+		t.Errorf("%d graph-reading command(s) choose an endpoint without the G2 owner: %s",
+			len(unresolved), strings.Join(unresolved, ", "))
+	}
+}
+
+// Law 5 for every command that CAN check. Seven response types carry a GraphAuthority
+// (Briefing, Impact, Metadata, Preflight, Query, ReferenceSites, Resolve), so the
+// commands consuming them can compare the generation that answered against the declared
+// ACTIVE one. Those that cannot are named here rather than left as a silent gap.
+//
+// This is the check that stops the gap reopening: a command that gains an
+// authority-carrying response and forgets the comparison fails here.
+func TestEveryCommandThatCanVerifyTheServedGenerationDoes(t *testing.T) {
+	canVerify := map[string]string{
+		"cmd_briefing.go":  "Briefing",
+		"cmd_metadata.go":  "Metadata",
+		"cmd_impact.go":    "Impact",
+		"cmd_preflight.go": "Preflight",
+		"cmd_query.go":     "Query",
+		"cmd_resolve.go":   "Resolve",
+	}
+	for name, rpc := range canVerify {
+		src := readCmdSource(t, name)
+		if name == "cmd_metadata.go" {
+			// metadata REPORTS the verdict rather than refusing on it: its whole purpose
+			// is to describe a disagreement, so refusing would hide the one answer an
+			// operator ran it to get.
+			// The verdict is rendered by renderEndpointBlock (active_generation.go),
+			// which is where verifyActiveGeneration is called; metadata's obligation is
+			// to invoke it.
+			if !strings.Contains(src, "renderEndpointBlock(") {
+				t.Errorf("%s no longer renders the endpoint block that reports the generation verdict", name)
+			}
+			continue
+		}
+		if !strings.Contains(src, "reader.verifyServed(") {
+			t.Errorf("%s consumes a %sResponse carrying a GraphAuthority but never checks the generation that answered", name, rpc)
+		}
+	}
+}
+
+// And the commands that genuinely cannot: their RPCs carry no authority, so there is
+// nothing to compare. Recorded so the limit is explicit and countable rather than
+// discovered later as an oversight.
+func TestCommandsThatCannotVerifyAreNamed(t *testing.T) {
+	cannot := []string{
+		"cmd_edit_check.go", "cmd_gate.go", "cmd_verify_obligations.go", "cmd_edit_brief.go",
+		"cmd_edit_guard.go", "cmd_contract_bootstrap.go", "cmd_repair_plan.go",
+		"cmd_repair_report.go", "cmd_benchmark_brief.go", "cmd_benchmark_score.go",
+		"cmd_pattern_check.go", "cmd_synthesis_run.go",
+	}
+	for _, name := range cannot {
+		src := readCmdSource(t, name)
+		// They must still resolve through the owner — endpoint selection is closed for
+		// them even where generation verification is not available.
+		if !strings.Contains(src, "productionReaderFor(") {
+			t.Errorf("%s does not resolve through the G2 owner", name)
+		}
+	}
+	if len(cannot)+6 != 18 {
+		t.Errorf("the reader census is %d, expected 18 (6 verifying + 12 endpoint-only)", len(cannot)+6)
+	}
+}
+
+// The override notice must actually be EMITTED by the helper every command calls.
+// Testing nonCanonicalReaderNotice in isolation proved the sentence can be composed; a
+// mutant that deleted the emission survived exactly that gap, so this drives the real
+// helper and captures what it writes.
+func TestTheSharedHelperAnnouncesANonCanonicalOverride(t *testing.T) {
+	root := projectRoot(t, t.TempDir())
+	writeProjectConfig(t, root, "localhost:10122")
+	t.Chdir(root)
+
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.String("addr", "", "")
+	if err := fs.Parse([]string{"-addr", "localhost:19191"}); err != nil {
+		t.Fatal(err)
+	}
+
+	out := captureStderr(t, func() {
+		r := productionReaderFor(fs, "example.com/acme/thing", "localhost:19191")
+		if r.Addr != "localhost:19191" {
+			t.Errorf("the override was not honoured: %q", r.Addr)
+		}
+	})
+	if !strings.Contains(out, "non-canonical override") {
+		t.Errorf("the helper did not announce the override:\n%s", out)
+	}
+	if !strings.Contains(out, "localhost:19191") {
+		t.Errorf("the announcement does not name the endpoint it is reading:\n%s", out)
+	}
+
+	// And canonical resolution stays silent — a notice printed every run is a notice
+	// nobody reads.
+	quiet := captureStderr(t, func() {
+		fs2 := flag.NewFlagSet("test2", flag.ContinueOnError)
+		fs2.String("addr", "", "")
+		_ = fs2.Parse(nil)
+		productionReaderFor(fs2, "example.com/acme/thing", "")
+	})
+	if strings.Contains(quiet, "non-canonical") {
+		t.Errorf("canonical resolution announced itself as an override:\n%s", quiet)
+	}
+}

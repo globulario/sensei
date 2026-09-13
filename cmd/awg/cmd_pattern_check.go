@@ -19,7 +19,7 @@ import (
 func runPatternCheck(args []string) int {
 	fs := flag.NewFlagSet("sensei pattern-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	format := fs.String("format", "table", "output format: table | json")
 	failOnViolation := fs.Bool("fail-on-violation", true, "exit non-zero on violation")
 	fs.Usage = func() {
@@ -39,6 +39,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, "", *addr)
+	*addr = reader.Addr
 	if fs.NArg() == 0 {
 		fmt.Fprintln(os.Stderr, "sensei pattern-check: requires at least one file argument")
 		return 2
