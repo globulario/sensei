@@ -160,7 +160,8 @@ Transcribed from the front's brief, with the measurement each now rests on.
   load-bearing instead of advisory, and must stop declaring an unserved orphan as
   the default.
 - **G3 transactional publication.** Move the step 2–4 writes behind the boundary,
-  into staging. This is the fix for law 9.
+  into staging. This was believed to be the fix for law 9; the correction below
+  records why it was not.
 - **G4 unify CLI lifecycle.** One publication/identity primitive for build,
   import, refresh, bootstrap, rebuild. Delete the fabricated `--all` diagnosis.
 - **G5 doctor/status.** One read-only report; `sensei doctor`/`metadata` already
@@ -294,7 +295,7 @@ when the builder exits"* failure did **not** reproduce.
 
 | law | gap | fixed in |
 |---|---|---|
-| **9** | `import` steps 2–4 wrote the canonical checkout *before* the publication boundary | `37b6099d` — admissibility hoisted ahead of the first write; live-proved 0 → 0 changes |
+| **9** | `import` steps 2–4 wrote the canonical checkout *before* the publication boundary | `37b6099d` hoisted admissibility ahead of the first write. **That did not fix it** — see the correction below. Closed by `50319cb5`; live-proved 0 → 0 changes |
 | **10** read side | nothing compared the marker with the graph actually served | `10075941` — `metadata` now reports the verdict; live-proved as *agrees* from one repo and *DOES NOT match* from another, same address |
 | **11** | `rebuild` guarded a destructive shrink; **`build --all` did not** | `4835659d` — same guard, same tolerances |
 
@@ -302,30 +303,96 @@ when the builder exits"* failure did **not** reproduce.
 
 | law | state |
 |---|---|
-| 1 one ACTIVE identity per domain | **partial** — the registry can now name the endpoint (G2); an ACTIVE *generation* pointer still does not exist |
+| 1 one ACTIVE identity per domain | **done** — the registry names both the endpoint (G2) and the ACTIVE generation (`active_generation`), so the Phase 2 question has one answer that does not depend on where it is asked from |
 | 2 wrong instance must refuse | **done** for the consumer — sensei-code#173 |
 | 3 readers resolve through one owner | **done** — `resolveDomainServiceAddr`, registry above project config |
-| 4 a run pins an identity | **partial** — `graph_digest` is pinned; generation identity is not a first-class thing yet |
-| 5 every query proves it belongs | **not done** — needs law 1's pointer |
+| 4 a run pins an identity | **partial** — a run pins `graph_digest`, and that digest is now *checkable* against a declared ACTIVE generation. What is still missing is the run pinning the generation itself, so that it reads the pointer rather than merely being comparable to it |
+| 5 every query proves it belongs | **partial** — the pointer law 1 needed now exists, and `sensei metadata` proves agreement on demand. No per-query verification is wired into the governed read path, so a silent switch *between* two queries of one run is still undetected |
 | 6, 7 transactional, ACTIVE survives | **already held** on the scoped path |
 | 8 failed build does not mutate the active graph | **held** — `mutation_started: false` |
-| 9 failed publication does not rewrite the checkout | **done** for import |
+| 9 failed publication does not rewrite the checkout | **done** for import — `50319cb5`, after `37b6099d` was reported closed and was not (see the correction) |
 | 10 marker cannot certify another generation | **done** — write side already held, read side now reported |
 | 11 no destruction while referred to | **done** for `--all`'s shrink shape |
-| 12 ambiguity fails closed | **partial** — G1 fails closed on domain disagreement; two services claiming one domain is still undetected |
+| 12 ambiguity fails closed | **done** — G1 fails closed on domain disagreement, and `verifyActiveGeneration` refuses two claimants for one domain as an ambiguity rather than a choice |
 | 13 triple count is evidence, not identity | **enforced** in `markerAgreement`: an absent digest reports unverifiable, never agreement |
 | 14 raw `--store-url` is visibly non-canonical | **done** — `9ba1aa49` |
 
+## Correction: law 9 was reported closed by `37b6099d` and was not
+
+Recorded because the claim was published before it was measured.
+
+`37b6099d` hoisted the admissibility check ahead of the first write, and the
+reasoning was that an inadmissible import would then refuse before touching the
+checkout. The live run disagreed: **0 → 27 changed files with nothing loaded.**
+
+The hoisted check passes, because at that moment the corpus *is* clean. Extraction
+then writes candidates and generated contracts into `docs/awareness` — the very
+directory the domain publishes and requires clean — and the publication gate
+refuses what extraction just dirtied. The import defeats itself, and it does so
+*after* rewriting the checkout. Moving a guard earlier cannot help when the input
+it guards is created by the run itself.
+
+`50319cb5` closes it by refusing the run up front: if any extraction write root is
+an allowed corpus root and the domain requires a clean tree, the import cannot
+succeed, so nothing is run. Live-proved 0 → 0 on the same invocation that
+previously produced 0 → 27.
+
+The general shape, which is worth more than the fix: *a guard's position is part of
+its correctness, and a guard placed before a write is still useless if the thing it
+checks is produced by the write.*
+
+## The ACTIVE generation pointer — closed
+
+Phase 2's unanswered question was:
+
+> For domain `github.com/globulario/sensei-code`, which exact graph generation is
+> ACTIVE right now?
+
+It had no answer because a generation was identified only by a digest inside a
+marker *file*, whose path resolves from the current working directory. The answer
+therefore depended on where the asker stood, which is not an answer at all.
+
+The owner is the domain registry (`~/.sensei/domains.yaml`) — the Phase 2 rule:
+complete the existing owner rather than invent a competitor. It is the right one
+for the same reason it already owns `domain → endpoint`: operator-controlled and
+kept **outside** any published repository, so a repository cannot declare its own
+graph active any more than it may vouch for its own corpus.
+
+| piece | where |
+|---|---|
+| the declaration | `RegisteredDomain.ActiveGeneration` (`active_generation:`) |
+| the reader | `declaredActiveGeneration` |
+| the refusal | `verifyActiveGeneration` → `*activeGenerationMismatchError` |
+| the recorder | `recordActiveGeneration`, one call site, at the activation transition |
+| the report | the Endpoint block of `sensei metadata` |
+
+Three properties are deliberate:
+
+1. **Inert until declared.** No declaration contradicts nothing, so every existing
+   caller behaves exactly as it did. Adding this moves no one's graph today.
+2. **Absence is unverifiable, never agreement.** A declared generation with a
+   served graph that states none is refused — law 13's reason in another currency:
+   a matching triple count is not a matching graph, and neither is a missing digest.
+   A prefix is likewise not the generation, which matters because short digest forms
+   are printed throughout this codebase.
+3. **The refusal is stated as ambiguity, not staleness.** Two claimants for one
+   domain is an error and not a choice for the caller (law 12), so the message names
+   both values and refuses to prefer one.
+
+Recording happens *after* the marker is written, so the pointer can never name a
+generation whose marker was never published, and a failure to record does not fail
+a publication that genuinely succeeded — it warns, and the consequence of a stale
+pointer is that readers **refuse**. That fails closed, which is the point.
+
 ## What remains before Oxigraph is an implementation detail
 
-Two things, and they are the same thing twice:
+**`.sensei/project` cannot publish anywhere.** All three registered domains allow
+only `docs/awareness`, so the reconstruction output carrying code-symbol coverage is
+unpublishable by construction. Whether the allowlist or the output location is wrong
+is an owner's decision; until it is made, coverage cannot reach any graph and the W3
+knowledge limit stands.
 
-1. **An ACTIVE generation pointer.** Laws 1, 4, 5 and the rest of 12 all wait on it.
-   Today a generation is identified by a digest in a marker file; nothing records
-   *which* generation is active for a domain, so nothing can refuse a silent switch
-   or detect two claimants.
-2. **`.sensei/project` cannot publish anywhere.** All three registered domains allow
-   only `docs/awareness`, so the reconstruction output carrying code-symbol coverage
-   is unpublishable by construction. Whether the allowlist or the output location is
-   wrong is an owner's decision; until it is made, coverage cannot reach any graph and
-   the W3 knowledge limit stands.
+The `import` half of this is now honest rather than silently destructive — such a run
+refuses up front instead of rewriting the checkout and then failing — but refusing
+truthfully is not the same as being able to publish, and the owner's decision is
+still owed.

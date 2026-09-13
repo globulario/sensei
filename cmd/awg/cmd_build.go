@@ -735,6 +735,21 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
 		return 1
 	}
+	// The activation transition now RECORDS which generation it activated, so
+	// "which generation is ACTIVE for this domain" has one answer that does not
+	// depend on where the asker stands (laws 1, 4, 5, 12). It happens here, after
+	// the marker is written, so the pointer can never name a generation whose
+	// marker was never published.
+	//
+	// A failure to record does not fail the publication: the store holds the
+	// generation and its marker is written, so reporting failure would be untrue.
+	// It is stated loudly instead, and the consequence of a stale pointer is that
+	// readers REFUSE rather than silently accept — this fails closed, which is the
+	// whole point of the pointer existing.
+	if err := recordActiveGeneration(DefaultDomainRegistryPath(), domain, marker.Digest); err != nil {
+		fmt.Fprintf(os.Stderr, "  WARNING: published, but the ACTIVE generation pointer was NOT updated: %v\n", err)
+		fmt.Fprintf(os.Stderr, "           readers will refuse this graph until the registry declares %s for %s\n", marker.Digest, domain)
+	}
 	if err := writePublicationReceipt(markerPath, receipt, marker); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: publish domain receipt: %v\n", err)
 		return 1
