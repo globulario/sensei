@@ -328,13 +328,47 @@ func TestEveryGraphReachingCommandResolvesThroughTheOwner(t *testing.T) {
 	}
 }
 
+// classifyGraphCommands splits the census into its three groups. Extracted from the census so
+// the rule can be driven against synthetic inputs: every mutant of the census's real-tree
+// assertions survived, because on a healthy tree each of them is trivially satisfied and
+// disabling it changes nothing. A census whose mutants all survive is not evidence.
+func classifyGraphCommands(subjects map[string]graphCommandFacts) (verifies, unchecked, noOwner []string) {
+	for cmd, facts := range subjects {
+		if !facts.ResolvesOwner {
+			noOwner = append(noOwner, cmd)
+		}
+		if facts.VerifiesGeneration {
+			verifies = append(verifies, cmd)
+		} else {
+			unchecked = append(unchecked, cmd)
+		}
+	}
+	sort.Strings(verifies)
+	sort.Strings(unchecked)
+	sort.Strings(noOwner)
+	return verifies, unchecked, noOwner
+}
+
 // graphCommandsIn returns, per command entry point in dir, whether that function declares an
 // `addr` flag and whether it resolves through the owner. The unit is the FUNCTION, which is
 // what "command" means here: one file may define several.
 //
 // Parsed rather than regexed over the whole file, because the bug being prevented is precisely
 // one function's text being read as another's.
-func graphCommandsIn(t *testing.T, dir string) map[string]bool {
+// graphCommandFacts is what one command's body says about its own graph authority. Two
+// SEPARATE questions, never merged:
+//
+//	ResolvesOwner       who decides which graph instance is used (endpoint ownership)
+//	VerifiesGeneration  whether the graph answering is the one this domain declares ACTIVE
+//
+// runRepairGate closed the first and explicitly not the second, which is why one boolean
+// would have erased the distinction the whole front rests on.
+type graphCommandFacts struct {
+	ResolvesOwner      bool
+	VerifiesGeneration bool
+}
+
+func graphCommandsIn(t *testing.T, dir string) map[string]graphCommandFacts {
 	t.Helper()
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
@@ -344,7 +378,7 @@ func graphCommandsIn(t *testing.T, dir string) map[string]bool {
 	if err != nil {
 		t.Fatalf("parse %s: %v", dir, err)
 	}
-	out := map[string]bool{}
+	out := map[string]graphCommandFacts{}
 	for _, pkg := range pkgs {
 		for name, file := range pkg.Files {
 			base := filepath.Base(name)
@@ -359,7 +393,8 @@ func graphCommandsIn(t *testing.T, dir string) map[string]bool {
 				if !ok || fn.Body == nil || !strings.HasPrefix(fn.Name.Name, "run") {
 					continue
 				}
-				declaresAddr, resolves := false, false
+				declaresAddr := false
+				facts := graphCommandFacts{}
 				ast.Inspect(fn.Body, func(n ast.Node) bool {
 					call, ok := n.(*ast.CallExpr)
 					if !ok {
@@ -367,8 +402,13 @@ func graphCommandsIn(t *testing.T, dir string) map[string]bool {
 					}
 					switch f := call.Fun.(type) {
 					case *ast.Ident:
-						if f.Name == "productionReaderFor" || f.Name == "resolveGraphReader" {
-							resolves = true
+						switch f.Name {
+						case "productionReaderFor", "resolveGraphReader":
+							facts.ResolvesOwner = true
+						case "renderEndpointBlock", "verifyActiveGeneration":
+							// metadata REPORTS the verdict rather than refusing on it, which is
+							// its purpose; renderEndpointBlock is where it asks.
+							facts.VerifiesGeneration = true
 						}
 					case *ast.SelectorExpr:
 						// fs.String("addr", ...) — this function's own flag, not the file's.
@@ -377,18 +417,22 @@ func graphCommandsIn(t *testing.T, dir string) map[string]bool {
 								declaresAddr = true
 							}
 						}
+						// reader.verifyServed(...) — per FUNCTION, so one verifying command in a
+						// file cannot certify a sibling that does not.
+						if f.Sel.Name == "verifyServed" {
+							facts.VerifiesGeneration = true
+						}
 					}
 					return true
 				})
 				if declaresAddr {
-					out[base+":"+fn.Name.Name] = resolves
+					out[base+":"+fn.Name.Name] = facts
 				}
 			}
 		}
 	}
-	if len(out) == 0 {
-		t.Fatalf("no graph-reaching command found in %s; this census has lost its anchor", dir)
-	}
+	// Emptiness is RETURNED, not fataled: the census's own floor turns it into a failure, and a
+	// witness needs to be able to observe an empty discovery without the helper aborting it.
 	return out
 }
 
@@ -397,8 +441,8 @@ func graphCommandsIn(t *testing.T, dir string) map[string]bool {
 func unmigratedGraphCommands(t *testing.T, dir string) []string {
 	t.Helper()
 	var out []string
-	for cmd, resolves := range graphCommandsIn(t, dir) {
-		if !resolves {
+	for cmd, facts := range graphCommandsIn(t, dir) {
+		if !facts.ResolvesOwner {
 			out = append(out, cmd)
 		}
 	}
@@ -446,61 +490,73 @@ func TestEveryCommandThatCanVerifyTheServedGenerationDoes(t *testing.T) {
 	}
 }
 
-// The rest of the census, stated as three groups rather than two.
+// THE READER CENSUS, DERIVED AND COMMAND-SCOPED.
 //
-// It used to say "the commands that genuinely cannot: their RPCs carry no authority, so
-// there is nothing to compare". That sentence was true of the MESSAGES and false as a
-// statement about the commands, and the gap let `sensei gate` enforce a verdict from any
-// generation for as long as the list said gate could not check. Measured against the
-// response schema on 2026-09-13, nine of the twelve already hold a GraphAuthority.
+// Two corrections forced by an independent review of this head, and both were defects in this
+// census rather than in the readers:
 //
-// So the groups are now: verifies (above), HOLDS AUTHORITY AND DOES NOT CHECK IT (an open
-// finding, named here so it is countable rather than rediscovered), and consumes no
-// authority-bearing response at all (which is not the same as unable -- gate was in this
-// group and left it by spending one Metadata call).
+//  1. It listed cmd_edit_check.go and cmd_edit_guard.go as consuming "only EditCheck, which
+//     states no generation". THIS PR ADDED A GraphAuthority TO EditCheckResponse. The exemption
+//     rested on a premise the same commit falsified, so two commands were excused from
+//     generation verification on the strength of a stale sentence.
+//  2. It counted FILES and asserted a total of 18, while the migration census next door had
+//     already moved to commands. cmd_metadata.go holds runMetadata AND runDomains;
+//     cmd_repair_report.go holds runRepairReport AND runRepairGate. File scope hid four
+//     subjects and let a verifying command certify a sibling that does not verify.
+//
+// So the subject set is DERIVED, per command, and the groups are computed rather than listed.
+// A list is a claim about the world that silently stops being true.
+//
+// THE TWO QUESTIONS STAY SEPARATE. Endpoint ownership -- who chooses the graph instance -- is
+// closed for every command. Served-generation authority -- whether the graph answering is the
+// one this domain declares ACTIVE -- is not, and the gap is reported here as an open finding
+// with its exact membership rather than a remembered number.
 func TestTheReaderCensusStatesWhyEachReaderDoesOrDoesNotVerify(t *testing.T) {
-	// OPEN FINDING. Each of these already receives a GraphAuthority and never compares the
-	// generation that answered against the one the registry declares ACTIVE. Three of them
-	// call requireAuthoritativeGraph, which asks whether the graph is internally
-	// authoritative -- a different question: a graph can be perfectly authoritative and
-	// still be the wrong generation for this domain (law 13).
-	holdsAuthorityButDoesNotCheck := map[string]string{
-		"cmd_verify_obligations.go": "PreflightResponse.authority",
-		"cmd_edit_brief.go":         "BriefingResponse.authority",
-		"cmd_contract_bootstrap.go": "ImpactResponse.authority and PreflightResponse.authority",
-		"cmd_repair_plan.go":        "PreflightResponse.authority, kept in repairPlanResult.Authority",
-		"cmd_pattern_check.go":      "BriefingResponse.authority",
-		"cmd_repair_report.go":      "MetadataResponse.authority, already fetched via repairReportMetadata",
-		"cmd_benchmark_brief.go":    "PreflightResponse.authority, via buildAuthoritativeRepairPlan",
-		"cmd_benchmark_score.go":    "PreflightResponse.authority, via buildAuthoritativeRepairPlan",
-		"cmd_synthesis_run.go":      "MetadataResponse.authority, via composeSynthesisRunIdentity",
-	}
-	// These consume only EditCheck, which states no generation. Verifying costs them a
-	// separate Metadata call, exactly as it costs gate.
-	consumesNoAuthority := []string{"cmd_edit_check.go", "cmd_edit_guard.go"}
+	subjects := graphCommandsIn(t, ".")
 
-	for name := range holdsAuthorityButDoesNotCheck {
-		src := readCmdSource(t, name)
-		// Endpoint selection is closed for every reader, verified or not.
-		if !strings.Contains(src, "productionReaderFor(") {
-			t.Errorf("%s does not resolve through the G2 owner", name)
-		}
-		if strings.Contains(src, "reader.verifyServed(") {
-			t.Errorf("%s now verifies the served generation; move it into canVerify above and out of the open finding", name)
+	// ANTI-VACUITY. A census that discovers nothing passes, and zero coverage is
+	// indistinguishable from zero defects.
+	const floor = 15
+	if len(subjects) < floor {
+		t.Fatalf("the reader census discovered %d graph-reading command(s); %d+ are known, so it has stopped enumerating",
+			len(subjects), floor)
+	}
+
+	verifies, holdsAuthorityUnchecked, noOwner := classifyGraphCommands(subjects)
+
+	// ENDPOINT OWNERSHIP IS CLOSED. Every discovered command resolves through the owner.
+	if len(noOwner) != 0 {
+		t.Errorf("%d command(s) still choose an endpoint without the G2 owner: %s",
+			len(noOwner), strings.Join(noOwner, ", "))
+	}
+
+	// SERVED-GENERATION AUTHORITY IS NOT. Reported as an open finding with its membership, so
+	// the count cannot drift from the code. EditCheckResponse now carries an authority, so NO
+	// command is exempt for want of one -- every entry here is a command that receives a
+	// generation identity and does not compare it to the domain's ACTIVE one.
+	if len(holdsAuthorityUnchecked) == 0 {
+		t.Log("every graph-reading command now verifies the served generation; the open finding is closed and this branch may be removed")
+	} else {
+		t.Logf("OPEN FINDING — %d of %d graph-reading commands receive a graph authority and never compare it to the domain's ACTIVE generation:\n  %s",
+			len(holdsAuthorityUnchecked), len(subjects), strings.Join(holdsAuthorityUnchecked, "\n  "))
+	}
+
+	// REAL-TREE ANCHORS, evidence that the derived census REACHES known readers -- not the
+	// source of truth for who they are. Both files hold two commands each, which is what file
+	// scope could not see.
+	for _, want := range []string{
+		"cmd_briefing.go:runBriefing",
+		"cmd_repair_report.go:runRepairReport", "cmd_repair_report.go:runRepairGate",
+		"cmd_metadata.go:runMetadata", "cmd_metadata.go:runDomains",
+	} {
+		if _, ok := subjects[want]; !ok {
+			t.Errorf("the derived census does not reach %q (discovered %d)", want, len(subjects))
 		}
 	}
-	for _, name := range consumesNoAuthority {
-		src := readCmdSource(t, name)
-		if !strings.Contains(src, "productionReaderFor(") {
-			t.Errorf("%s does not resolve through the G2 owner", name)
-		}
-	}
-	// The count is stated, so a reader added or reclassified cannot pass unnoticed.
-	const verifying = 7
-	total := verifying + len(holdsAuthorityButDoesNotCheck) + len(consumesNoAuthority)
-	if total != 18 {
-		t.Errorf("the reader census is %d (%d verifying + %d holding authority unchecked + %d without authority), expected 18",
-			total, verifying, len(holdsAuthorityButDoesNotCheck), len(consumesNoAuthority))
+	// And the groups must partition the subjects: no command counted twice or lost.
+	if len(verifies)+len(holdsAuthorityUnchecked) != len(subjects) {
+		t.Errorf("the groups do not partition the census: %d + %d != %d",
+			len(verifies), len(holdsAuthorityUnchecked), len(subjects))
 	}
 }
 
@@ -637,5 +693,97 @@ func assertNamesOnly(t *testing.T, got []string, want ...string) {
 		if got[i] != want[i] {
 			t.Errorf("census[%d] = %q, want %q", i, got[i], want[i])
 		}
+	}
+}
+
+// The reader census must be FALSIFIABLE. Its real-tree assertions are all satisfied on a healthy
+// tree, so disabling any of them changes nothing -- every mutant survived. These drive the
+// census's own logic against inputs where it must fail.
+
+const verifyingCmd = `package main
+
+func runVerifier(args []string) int {
+	fs := newFlagSet()
+	addr := fs.String("addr", "", "")
+	domain := fs.String("domain", "", "")
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
+	if err := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); err != nil {
+		return 1
+	}
+	return 0
+}
+`
+
+const nonVerifyingCmd = `package main
+
+func runTruster(args []string) int {
+	fs := newFlagSet()
+	addr := fs.String("addr", "", "")
+	domain := fs.String("domain", "", "")
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
+	return 0
+}
+`
+
+// PER-FUNCTION VERIFICATION. A verifying command must not certify a non-verifying sibling, and
+// the case that matters is both in ONE file -- which is how cmd_edit_check and cmd_edit_guard
+// were excused and how runDomains stayed invisible.
+func TestVerificationIsDetectedPerCommandNotPerFile(t *testing.T) {
+	t.Run("separate files", func(t *testing.T) {
+		dir := censusFixture(t, map[string]string{"cmd_v.go": verifyingCmd, "cmd_t.go": nonVerifyingCmd})
+		assertCensusGroups(t, dir, []string{"cmd_v.go:runVerifier"}, []string{"cmd_t.go:runTruster"})
+	})
+	t.Run("same file", func(t *testing.T) {
+		dir := censusFixture(t, map[string]string{
+			"cmd_both.go": verifyingCmd + "\n" + strings.Replace(nonVerifyingCmd, "package main\n\n", "", 1),
+		})
+		assertCensusGroups(t, dir,
+			[]string{"cmd_both.go:runVerifier"}, []string{"cmd_both.go:runTruster"})
+	})
+}
+
+func assertCensusGroups(t *testing.T, dir string, wantVerifies, wantUnchecked []string) {
+	t.Helper()
+	verifies, unchecked, noOwner := classifyGraphCommands(graphCommandsIn(t, dir))
+	if len(noOwner) != 0 {
+		t.Errorf("both fixtures resolve through the owner, yet %v were reported as not doing so", noOwner)
+	}
+	assertNamesOnly(t, verifies, wantVerifies...)
+	assertNamesOnly(t, unchecked, wantUnchecked...)
+}
+
+// The groups must PARTITION the subjects. Driven against an input where a broken classification
+// would double-count or drop, which the real tree cannot exhibit.
+func TestTheCensusGroupsPartitionItsSubjects(t *testing.T) {
+	subjects := map[string]graphCommandFacts{
+		"a.go:runA": {ResolvesOwner: true, VerifiesGeneration: true},
+		"b.go:runB": {ResolvesOwner: true},
+		"c.go:runC": {},
+	}
+	verifies, unchecked, noOwner := classifyGraphCommands(subjects)
+	if len(verifies)+len(unchecked) != len(subjects) {
+		t.Errorf("groups do not partition: %d + %d != %d", len(verifies), len(unchecked), len(subjects))
+	}
+	assertNamesOnly(t, noOwner, "c.go:runC")
+	assertNamesOnly(t, verifies, "a.go:runA")
+	assertNamesOnly(t, unchecked, "b.go:runB", "c.go:runC")
+}
+
+// ANTI-VACUITY, driven rather than asserted about the real tree: the enumerator must discover
+// nothing in a directory with no commands, and the census's floor is what turns that into a
+// failure. Without this, removing the floor changes no test.
+func TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover(t *testing.T) {
+	dir := censusFixture(t, map[string]string{
+		"cmd_none.go": "package main\n\nfunc runNoGraph(args []string) int { return 0 }\n",
+	})
+	subjects := map[string]graphCommandFacts{}
+	func() {
+		defer func() { _ = recover() }()
+		subjects = graphCommandsIn(t, dir)
+	}()
+	if len(subjects) != 0 {
+		t.Errorf("a directory with no graph-reading command yielded %d subject(s): %v", len(subjects), subjects)
 	}
 }

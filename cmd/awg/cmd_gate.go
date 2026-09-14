@@ -58,10 +58,13 @@ func reportDegraded(domain, diff, reason string) int {
 // generation the registry declares ACTIVE for its domain.
 //
 // The comparison itself belongs to the G2 owner (graphReader.verifyServed) and is not
-// re-implemented here; this only obtains the served identity, which for gate needs its own
-// Metadata call because the RPC it consumes states none. An unreachable or failing Metadata
-// is NOT treated as agreement: not knowing which graph answered is exactly the condition
-// this refuses on.
+// re-implemented here; this only obtains the served identity.
+//
+// It spends its own Metadata call so the refusal can arrive BEFORE the first EditCheck. That is
+// the whole value of it: EditCheckResponse does now carry a GraphAuthority, so the per-file
+// check in the loop covers each verdict, but a pre-loop refusal costs nothing and means a wrong
+// generation is caught before any query runs. An unreachable or failing Metadata is NOT treated
+// as agreement: not knowing which graph answered is exactly the condition this refuses on.
 func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGraphClient, reader graphReader, timeout time.Duration) error {
 	if !reader.declaresGeneration() {
 		return nil
@@ -400,11 +403,11 @@ Flags:
 	// LAW 5, before anything is enforced, interpreted or printed.
 	//
 	// gate enforces a verdict the graph produced, so which graph produced it is part of
-	// the verdict. EditCheckResponse carries no GraphAuthority, which is why the reader
-	// census once recorded gate as unable to verify -- but that was a fact about the
-	// MESSAGE, not about the command: gate holds a connection on which Metadata answers
-	// with the served generation. Asking here, before the first EditCheck, is what makes
-	// the refusal a refusal rather than a late correction of a verdict already rendered.
+	// the verdict. EditCheckResponse carried no GraphAuthority when this check was written,
+	// which is why the reader census once recorded gate as unable to verify -- a fact about the
+	// MESSAGE read as a fact about the command. The message now carries one, and this pre-loop
+	// question is kept anyway: asking before the first EditCheck is what makes the refusal a
+	// refusal rather than a late correction of a verdict already rendered.
 	if verr := verifyGateServedGeneration(ctx, client, reader, *rpcTimeout); verr != nil {
 		if *reportOnly {
 			// report-only is fail-open by contract, so it exits 0 -- but DEGRADED states
@@ -468,10 +471,16 @@ Flags:
 		// while every subsequent EditCheck could be answered by G+1, and the gate enforced
 		// G+1's warnings as though G had produced them.
 		//
-		// EditCheckResponse now carries the authority of the graph that computed THESE
-		// warnings, so the interval closes structurally instead of being narrowed by a
-		// second sample taken at yet another moment. Absence is not agreement: a response
-		// that states no generation cannot support an enforced verdict.
+		// EditCheckResponse carries the authority of the graph that computed THESE warnings, so
+		// the interval closes structurally instead of being narrowed by a second sample taken
+		// at yet another moment. Absence is not agreement: a response that states no generation
+		// cannot support an enforced verdict.
+		//
+		// On a mismatch the run STOPS rather than continuing the diff. Under --report-only it
+		// still exits 0, keeping the fail-open contract, but it reports DEGRADED instead of a
+		// partial report: once the generation has moved, every remaining verdict would come from
+		// a graph this domain does not declare active, and printing those findings is precisely
+		// what this check exists to prevent.
 		if verr := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); verr != nil {
 			if *reportOnly {
 				return reportDegraded(*domain, *diff, verr.Error())
