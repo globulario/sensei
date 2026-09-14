@@ -976,3 +976,102 @@ func Forge() Records { return Records{{Deadline: time.Now()}} }
 			got.Outcome, got.Detail)
 	}
 }
+
+// Blind round 3 on 9917bd9a. Both findings HOLD, and both are in the round-2 repairs.
+
+// P1: AN INHERITED TYPE MEANS WHAT IT MEANT WHERE IT WAS WRITTEN. `exchange.Records{{...}}` gives
+// the elided child the element type `Record` as written in EXCHANGE's file; resolving that
+// unqualified name in the CONSTRUCTING package fails, so the construction was silently ignored
+// and the claim came back DERIVED. A type expression only means something together with the
+// imports of the file that wrote it.
+func TestConstructionConfined_AnOwnerDeclaredCollectionCarriesItsOwnScope(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg + "\ntype Records []Record\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/exchange"
+)
+
+func Forge() exchange.Records { return exchange.Records{{Deadline: time.Now()}} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided element of an OWNER-declared collection type was missed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "transport/transport.go") {
+		t.Errorf("the refutation does not name the construction site: %s", got.Detail)
+	}
+}
+
+// And the same shape where the collection is declared LOCALLY still works, so the scope change
+// did not simply relocate the failure.
+func TestConstructionConfined_ALocallyDeclaredCollectionStillResolves(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Records []exchange.Record\n\nfunc F() { s := Records{{Deadline: time.Now()}}; _ = s }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a locally declared collection stopped resolving: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// P2: A CHAIN KEEPS ITS POINTER-NESS. `type Ptr = *Record; type PtrAlias = Ptr` resolves to Record
+// through Ptr, and without carrying the mark `var p PtrAlias` was counted as a struct
+// construction -- the chain lost exactly the fact that makes it allocate nil.
+func TestConstructionConfined_AChainedPointerAliasStillConstructsNothing(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Ptr = *exchange.Record\ntype PtrAlias = Ptr\n\nfunc F() { var p PtrAlias; _ = p }"),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("a chained pointer alias was counted as constructing the owner: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// ITS OPPOSITE: a chained pointer alias used as an ELIDED ELEMENT type is still a construction,
+// because `[]PtrAlias{{…}}` means &Record{…}. Both directions, so neither repair can be satisfied
+// by disabling the other.
+func TestConstructionConfined_AnElidedElementOfAChainedPointerAliasIsAConstruction(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Ptr = *exchange.Record\ntype PtrAlias = Ptr\n\nfunc F() { s := []PtrAlias{{Deadline: time.Now()}}; _ = s }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided construction through a chained pointer alias was not observed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// The inherited scope must serve the ALIAS path too, not only the struct path. The owner declares
+// a collection of a pointer ALIAS; an outsider constructs it with elided elements. The child's type
+// is `Ptr` as written in the OWNER's file, so resolving it in the caller's scope finds nothing and
+// the construction disappears -- the same defect as the struct case, one resolution branch over.
+func TestConstructionConfined_AnInheritedAliasResolvesInItsOwnScope(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod": ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg + `
+type Ptr = *Record
+
+type Ptrs []Ptr
+`,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/exchange"
+)
+
+func Forge() exchange.Ptrs { return exchange.Ptrs{{Deadline: time.Now()}} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided element typed by an owner-declared ALIAS was missed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "transport/transport.go") {
+		t.Errorf("the refutation does not name the construction site: %s", got.Detail)
+	}
+}

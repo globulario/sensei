@@ -209,6 +209,13 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 				// it has, which is why this runs to a fixpoint rather than once.
 				if through, ok := canonical[target]; ok {
 					canonical[ref], progress = through, true
+					// AND ITS POINTER-NESS. `type Ptr = *Record; type PtrAlias = Ptr` resolves
+					// PtrAlias to Record through Ptr, and without carrying the mark
+					// `var p PtrAlias` was counted as a struct construction: the chain lost
+					// exactly the fact that makes it allocate nil.
+					if pointerAlias[target] {
+						pointerAlias[ref] = true
+					}
 					break
 				}
 			}
@@ -279,7 +286,7 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		// Limits() ever claimed: an outsider could write `[]exchange.Record{{Deadline: t}}`
 		// and the claim still came back DERIVED. Measured 2026-09-13 across seven elided
 		// shapes, all seven.
-		elided := map[*ast.CompositeLit]ast.Expr{}
+		elided := map[*ast.CompositeLit]elidedType{}
 		// ownerRef reports whether a bare type name denotes the owner, following aliases.
 		// ownerRef reports whether a bare type name denotes the owner, FOLLOWING GO'S SCOPING.
 		//
@@ -369,14 +376,19 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 				return true
 			}
 			typ := lit.Type
+			// A written type means what it means IN THIS FILE; an inherited one means what it
+			// meant where it was written, which may be another package.
+			typDir, typImports := dir, imports
 			if typ == nil {
-				typ = elided[lit] // nil when the enclosing type did not reveal it
+				if e, ok := elided[lit]; ok {
+					typ, typDir, typImports = e.expr, e.dir, e.imports
+				}
 			}
 			// Record what each elided CHILD inherits before deciding anything about this
 			// literal: the children are reached later, and one this never records becomes
 			// an unreadable construction rather than an ignored one.
 			if typ != nil {
-				noteElidedChildren(lit, typ, dir, imports, modulePath, named, elided)
+				noteElidedChildren(lit, typ, typDir, typImports, modulePath, named, elided)
 			} else {
 				// A literal whose type nothing in scope reveals cannot be shown to be the
 				// owner's, and cannot be shown NOT to be. That is the same completeness
@@ -385,11 +397,11 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 					filePath, fset.Position(lit.Pos()).Line))
 				return true
 			}
-			ref, ok := r.typeExpr(typ)
+			ref, ok := r.typeExprIn(typ, typDir, typImports)
 			if !ok {
 				// Not a struct declared in scope -- but it may be an ALIAS of one, under any
 				// of the directories an unqualified name could come from.
-				for _, aliasRef := range refCandidatesOfTypeName(typ, dir, imports, modulePath) {
+				for _, aliasRef := range refCandidatesOfTypeName(typ, typDir, typImports, modulePath) {
 					if through, cok := canonical[aliasRef]; cok {
 						ref, ok = through, true
 						break
@@ -500,6 +512,19 @@ type namedTypeDecl struct {
 	alias   bool // `type A = T` denotes T itself; `type A T` is a different type
 }
 
+// elidedType is the type an elided child literal inherits, WITH THE SCOPE IT WAS WRITTEN IN.
+//
+// The expression alone is not enough. `exchange.Records{{Deadline: t}}` gives the child the
+// element type `Record` as written in EXCHANGE's file, and resolving that unqualified name in
+// the constructing package fails -- so the construction was silently ignored and the claim came
+// back DERIVED. A type expression only means something together with the imports of the file
+// that wrote it.
+type elidedType struct {
+	expr    ast.Expr
+	dir     string
+	imports map[string]string
+}
+
 // noteElidedChildren records the type each elided child literal of lit inherits.
 //
 // Go allows the elision only for an array or slice ELEMENT and a map KEY or VALUE, so
@@ -507,10 +532,13 @@ type namedTypeDecl struct {
 // type, so a struct enclosing type yields nothing to inherit and any elided child under it
 // stays unresolved -- which is correct, because such code does not compile.
 func noteElidedChildren(lit *ast.CompositeLit, typ ast.Expr, dir string, imports map[string]string,
-	modulePath string, named map[typeRef]namedTypeDecl, elided map[*ast.CompositeLit]ast.Expr) {
+	modulePath string, named map[typeRef]namedTypeDecl, elided map[*ast.CompositeLit]elidedType) {
 
 	var keyT, elemT ast.Expr
-	switch x := underlyingCollection(typ, dir, imports, modulePath, named).(type) {
+	// The collection may be declared in ANOTHER package, and then its element type is written in
+	// that package's scope. underlyingCollection reports where it ended up.
+	collection, collDir, collImports := underlyingCollection(typ, dir, imports, modulePath, named)
+	switch x := collection.(type) {
 	case *ast.ArrayType:
 		elemT = x.Elt
 	case *ast.MapType:
@@ -523,7 +551,7 @@ func noteElidedChildren(lit *ast.CompositeLit, typ ast.Expr, dir string, imports
 			return
 		}
 		if c, ok := unparen(e).(*ast.CompositeLit); ok && c.Type == nil {
-			elided[c] = as
+			elided[c] = elidedType{expr: as, dir: collDir, imports: collImports}
 		}
 	}
 	for _, el := range lit.Elts {
@@ -545,13 +573,13 @@ func noteElidedChildren(lit *ast.CompositeLit, typ ast.Expr, dir string, imports
 // It returns its input unchanged when the declaration is not in scope, which is what makes
 // such an elided child UNRESOLVED rather than silently ignored.
 func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
-	modulePath string, named map[typeRef]namedTypeDecl) ast.Expr {
+	modulePath string, named map[typeRef]namedTypeDecl) (ast.Expr, string, map[string]string) {
 
 	cur, curDir, curImports := t, dir, imports
 	for i := 0; i < 8; i++ {
 		switch cur.(type) {
 		case *ast.ArrayType, *ast.MapType, *ast.StructType:
-			return cur
+			return cur, curDir, curImports
 		}
 		// Candidates, not one ref: an unqualified collection type name may come from a dot
 		// import, and resolving only the current directory left such an elided child untyped --
@@ -565,13 +593,13 @@ func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
 			}
 		}
 		if !found {
-			return cur
+			return cur, curDir, curImports
 		}
 		// A named type writes its own type expression through the imports of the file that
 		// DECLARES it, not those of the file constructing it.
 		cur, curDir, curImports = nt.expr, nt.dir, nt.imports
 	}
-	return cur
+	return cur, curDir, curImports
 }
 
 func literalInitializesField(lit *ast.CompositeLit, field string) fieldInitKind {
