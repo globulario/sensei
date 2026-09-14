@@ -526,17 +526,8 @@ func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string)
 	// this family reasons about fields, and a type whose fields were never read has none.
 	// Candidates rather than one ref, because an unqualified name in a file with a DOT
 	// IMPORT may belong to the imported package -- see refCandidatesOfTypeName.
-	cands := refCandidatesOfTypeName(t, dir, imports, r.modulePath)
-	// GO SHADOWING FIRST. If the unqualified name is declared in this package at all -- struct,
-	// alias or defined type -- that declaration is what the name means, and a dot import cannot
-	// reach past it. Only then does it bind, and only if it is a struct.
-	if len(cands) > 0 && r.declaredNames != nil && r.declaredNames[cands[0]] {
-		if _, ok := r.structs[cands[0]]; ok {
-			return cands[0], true
-		}
-		return typeRef{}, false
-	}
-	for _, ref := range cands {
+	// Scoping is applied by scopedCandidates; this only decides what binds.
+	for _, ref := range scopedCandidates(t, dir, imports, r.modulePath, r.declaredNames) {
 		if _, ok := r.structs[ref]; ok {
 			return ref, true
 		}
@@ -573,6 +564,34 @@ func refCandidatesOfTypeName(t ast.Expr, dir string, imports map[string]string, 
 		}
 	}
 	return nil
+}
+
+// scopedCandidates narrows refCandidatesOfTypeName by GO'S LEXICAL RULE: when the unqualified
+// name is declared in the current package, that declaration is the ONLY candidate, because a dot
+// import cannot reach past a local declaration.
+//
+// It exists because the rule had grown three implementations -- typeExprIn checked `structs`,
+// ownerRef checked a locally-built predicate, and the construction walk's alias fallback checked
+// nothing, so a local defined type was resolved through a dot-imported alias of the owner. Three
+// copies of one rule is three chances for one of them to be missing, and the missing one is the
+// defect. Consumers now differ only in what they do with the candidates, never in how scoping is
+// applied.
+//
+// `declared` names every type declared per directory, struct or not: a local ALIAS or defined type
+// shadows exactly as a local struct does. A nil map means declarations were not collected, and
+// scoping is then not applied -- the pre-existing behaviour, so a family that does not collect
+// them is unaffected.
+func scopedCandidates(t ast.Expr, dir string, imports map[string]string, modulePath string,
+	declared map[typeRef]bool) []typeRef {
+
+	cands := refCandidatesOfTypeName(t, dir, imports, modulePath)
+	if declared == nil || len(cands) == 0 {
+		return cands
+	}
+	if declared[cands[0]] {
+		return cands[:1]
+	}
+	return cands
 }
 
 // dotImportDirs lists the repository-relative directories a file dot-imports, sorted so

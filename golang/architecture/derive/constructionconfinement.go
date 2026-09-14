@@ -299,30 +299,16 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		// The composite-literal path never had this bug because it resolves through
 		// resolver.typeExpr, which checks declaration membership. My witness for local shadowing
 		// exercised that path only, and I applied its conclusion to this one.
-		declaredLocally := func(name string) bool { return declaredNames[typeRef{dir, name}] }
 		ownerRef := func(t ast.Expr) bool {
-			cands, ok := directTypeRefOf(t, dir, imports, modulePath)
-			if !ok || len(cands) == 0 {
+			if _, bare := directTypeRefOf(t, dir, imports, modulePath); !bare {
 				return false
 			}
-			local := cands[0]
-			if declaredLocally(local.name) {
-				// Go resolves the name here; a dot import cannot reach past it.
-				if local == owner {
-					return true
-				}
-				if pointerAlias[local] {
-					return false // denotes a pointer: allocates nil, constructs nothing
-				}
-				through, cok := canonical[local]
-				return cok && through == owner
-			}
-			for _, c := range cands {
+			for _, c := range scopedCandidates(t, dir, imports, modulePath, declaredNames) {
 				if c == owner {
 					return true
 				}
 				if pointerAlias[c] {
-					continue
+					continue // denotes a pointer: allocates nil, constructs nothing
 				}
 				if through, cok := canonical[c]; cok && through == owner {
 					return true
@@ -401,7 +387,7 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			if !ok {
 				// Not a struct declared in scope -- but it may be an ALIAS of one, under any
 				// of the directories an unqualified name could come from.
-				for _, aliasRef := range refCandidatesOfTypeName(typ, typDir, typImports, modulePath) {
+				for _, aliasRef := range scopedCandidates(typ, typDir, typImports, modulePath, declaredNames) {
 					if through, cok := canonical[aliasRef]; cok {
 						ref, ok = through, true
 						break
@@ -575,8 +561,13 @@ func noteElidedChildren(lit *ast.CompositeLit, typ ast.Expr, dir string, imports
 func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
 	modulePath string, named map[typeRef]namedTypeDecl) (ast.Expr, string, map[string]string) {
 
+	// Terminates on CONVERGENCE or a CYCLE, not on a step count. The adjacent alias resolution had
+	// already been converted to a fixpoint and this loop kept a hardcoded eight, so a chain of nine
+	// or more collection aliases truncated and left its elided element untyped -- reported
+	// UNRESOLVED rather than recognised. A larger constant would move the boundary, not remove it.
 	cur, curDir, curImports := t, dir, imports
-	for i := 0; i < 8; i++ {
+	visited := map[typeRef]bool{}
+	for {
 		switch cur.(type) {
 		case *ast.ArrayType, *ast.MapType, *ast.StructType:
 			return cur, curDir, curImports
@@ -588,6 +579,12 @@ func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
 		found := false
 		for _, ref := range refCandidatesOfTypeName(cur, curDir, curImports, modulePath) {
 			if n, ok := named[ref]; ok {
+				// A name already followed means the chain loops; stop where it started rather than
+				// spin. Such code does not compile, so there is nothing to resolve.
+				if visited[ref] {
+					return cur, curDir, curImports
+				}
+				visited[ref] = true
 				nt, found = n, true
 				break
 			}
@@ -599,7 +596,6 @@ func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
 		// DECLARES it, not those of the file constructing it.
 		cur, curDir, curImports = nt.expr, nt.dir, nt.imports
 	}
-	return cur, curDir, curImports
 }
 
 func literalInitializesField(lit *ast.CompositeLit, field string) fieldInitKind {
