@@ -586,3 +586,34 @@ witnessed too — nothing declared and a trustworthy domain still makes no call.
 
 **Mutation: 18 of 18 code mutants killed.** Two anchors moved as the ordering was unified and were
 re-aimed rather than counted.
+
+## A finding that did not hold: GraphGeneration's error propagation
+
+Blind review of #361 raised `cmd/awareness-mcp/main.go:2534`:
+
+> GraphGeneration returns `("", err)` instead of `("", nil)` … causing `EvaluateDiff` to fail with
+> an outage error instead of treating the missing generation identity as unverifiable.
+
+**The contract mismatch HELD; the failure scenario DOES NOT.** The docstring did promise `"", nil`
+for an unreachable service while the code returned the error — but `EvaluateDiff` does not fail on
+it. Measured, not read (`golang/architecture/diffaudit/graph_generation_outage_test.go`):
+
+| input | Availability | reason code | limitation |
+|---|---|---|---|
+| an RPC error | `cannot_verify` | `ReasonGraphUnavailable` | *"…could not be observed: `<err>`"* |
+| an empty digest | `cannot_verify` | `ReasonGraphUnavailable` | *"…was not observable"* |
+
+Same verdict either way, so no error here can turn a healthy graph into a refusal — the worry
+behind the promise does not arise. What differs is the **explanation**, and `observeGeneration`'s
+own comment says why that is kept: *"a reporting FAILURE and the absence of a reporter are
+different facts about different things, and only one of them names something an operator can fix."*
+
+So the promise was the wrong half, and **following the suggested repair would have been a
+regression** — collapsing *"the store is unreachable, here is why"* into *"no identity"*, which is
+evidence evaporating as structured truth narrows. The docstring was corrected to state what the
+code does and why; the code is unchanged.
+
+Because a corrected comment is not enforcement, the boundary is now pinned: the unreachable case
+propagates its error, the silent case does not, the field read is the live store digest and not the
+rule-snapshot commit, and metadata is asked about the audit's own domain. **5 of 5 mutants killed**,
+including the one that restores the old promise.

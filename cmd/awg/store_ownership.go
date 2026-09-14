@@ -156,14 +156,3 @@ func (r *DomainRegistry) validateStoreOwnership() error {
 		"publishes last owns the digest and the other's ACTIVE pointer is stale from that moment. "+
 		"Give each domain its own store.", strings.Join(problems, "\n  "))
 }
-
-// buildRegistryPath resolves the registry a build consults: the flag when given, else the
-// operator's default. Extracted so the pre-mutation store-ownership check and the
-// pre-mutation admission check cannot end up reading two different registries — which
-// would let one of them vouch for a world the other never saw.
-func buildRegistryPath(flagValue string) string {
-	if p := strings.TrimSpace(flagValue); p != "" {
-		return p
-	}
-	return DefaultDomainRegistryPath()
-}

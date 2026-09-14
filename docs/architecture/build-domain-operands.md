@@ -108,3 +108,78 @@ The served-generation authority family is untouched and its census is unchanged:
 20 owner-resolved / 20 generation-verified / GAP 0**. Two previously raised P2 findings
 (`cmd/awareness-mcp/main.go:2536`, `cmd_build.go:747` on `--domain-registry`) remain **open
 review evidence**; their absence from a later blind pass does not retire them.
+
+# One transaction, one registry
+
+The second preserved P2 on `cmd_build.go`, raised on multiple heads of #361. **HOLD.**
+
+## The claim, and the law it violates
+
+> With `sensei build --domain-registry /custom/domains.yaml`, publication admission and store
+> ownership checks use the custom registry, but `activateGeneration` updates the active pointer in
+> `~/.sensei/domains.yaml`. The custom registry is left unmodified with a stale or missing active
+> generation, causing readers relying on it to refuse the newly published graph.
+
+The law was **already written down**, in the doc comment of the path resolver this repair replaces:
+*"Extracted so the pre-mutation store-ownership check and the pre-mutation admission check cannot
+end up reading two different registries, which would let one of them vouch for a world the other
+never saw."* Activation was never counted as one of the operations that must agree — and it is the
+only one that **writes**.
+
+## Reproduced
+
+Measured on the tree at head `92055029`: within one build transaction, ownership (`:161`) and
+admission (`:178`) consumed `buildRegistryPath(*domainRegistry)`, while **both** activation sites
+named `DefaultDomainRegistryPath()`.
+
+One refinement the reviewer's line number hides: `:314` is on the `--all` path, where the governed
+domain is necessarily empty, so activation there reports *"NOT updated"* and writes nothing. **The
+reachable write is `:777`**, inside `runScopedRepoUpdate` — the ordinary `--repo` publication path,
+whose signature did not receive the registry at all. Both were repaired; only one could have
+written to the wrong file.
+
+## The invariant repaired
+
+> **one transaction → one resolved registry identity → every ownership, declaration and activation
+> operation consumes that identity**
+
+`domainRegistrySelection` resolves once, in `runBuild`, and is threaded to the ownership check, the
+admission call, `runScopedRepoUpdate`, and both activations. The duplicate path resolver is
+deleted, so there is one answer to "which registry". `activateGeneration` takes the **type**, so a
+bare `DefaultDomainRegistryPath()` cannot be substituted at one stage — the same compile-time seam
+used for the governed-domain operand, for the same reason: the defect was one string expression
+that read exactly like another.
+
+The three commands with no `--domain-registry` flag (`rebuild`, `governance`, `serve`) now state
+`selectDomainRegistry("")` explicitly rather than naming a default path, so every activation says
+which registry it writes.
+
+## Witnesses
+
+The writing operation follows its selection, with two registries disagreeing on both store URL and
+ACTIVE generation; a conflicting default is neither read nor written; a selected registry that does
+**not** declare the domain is not silently completed from the default (a publication may update an
+admission, never create one); no override preserves default behaviour; and — derived from the
+source rather than listed — the transaction names `DefaultDomainRegistryPath()` **zero** times,
+resolves exactly once, and `runScopedRepoUpdate`'s signature is checked to receive the selection so
+a future parameter cannot be dropped silently.
+
+Mutation added one more: replacing `selectDomainRegistry(*domainRegistry)` with
+`selectDomainRegistry("")` survived every witness above, because nothing checked that the **flag**
+reaches the selection. A driven witness now does, through the ownership check — the cheapest
+consumer to observe — with the custom registry declaring a foreign owner and the default registry
+empty, plus its opposite.
+
+**Mutants: 7 of 7 killed** — default restored at each activation, selected-for-default swapped at
+the final stage only, ownership-reads-selection-while-activation-reads-default (the original
+defect), the selection ignored at resolution, the constructor ignoring the operator's path, a
+missing declaration completed from the default, and the scoped update resolving its own registry.
+
+## The end-to-end gap, stated
+
+No fixture in this repository drives `runScopedRepoUpdate` through a store, and building an
+Oxigraph mock faithful enough for the scoped SPARQL update would mostly prove things about the
+mock. So the law is proven at the seam: unit witnesses that the writing operation honours its
+selection, plus a derived check that the transaction hands every operation the same one. The
+composition is complete; the store round trip is not covered, and that is recorded rather than
+implied.

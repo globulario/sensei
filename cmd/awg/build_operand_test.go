@@ -241,7 +241,7 @@ func TestActivationMovesThePointerForTheGovernedDomainAndClaimsNothingOtherwise(
 
 	var moved strings.Builder
 	if err := activateGeneration(&moved, filepath.Join(t.TempDir(), "m.json"), marker,
-		buildOwnedDomain, registry); err != nil {
+		buildOwnedDomain, selectDomainRegistry(registry)); err != nil {
 		t.Fatalf("activateGeneration: %v", err)
 	}
 	if got := declaredActiveGeneration(registry, buildOwnedDomain); got != declaredGen {
@@ -252,7 +252,7 @@ func TestActivationMovesThePointerForTheGovernedDomainAndClaimsNothingOtherwise(
 	registry = buildRegistryWorld(t)
 	var none strings.Builder
 	if err := activateGeneration(&none, filepath.Join(t.TempDir(), "m.json"), marker,
-		"", registry); err != nil {
+		"", selectDomainRegistry(registry)); err != nil {
 		t.Fatalf("activateGeneration: %v", err)
 	}
 	if !strings.Contains(none.String(), "NOT updated") {

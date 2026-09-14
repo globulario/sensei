@@ -113,6 +113,10 @@ Flags:
 	// So the kind now has a TYPE. Passing it where a governed domain name belongs does not
 	// compile, which is a guard a reader cannot forget and a later edit cannot quietly undo.
 	governedDomain := strings.TrimSpace(*repo)
+	// ONE TRANSACTION, ONE REGISTRY. Resolved here and consumed by every operation that reads a
+	// declaration or writes one, so ownership, admission and activation cannot answer for
+	// different registries.
+	registry := selectDomainRegistry(*domainRegistry)
 	nodeKind := nodeDomainKind(strings.TrimSpace(*domain))
 	if err := nodeKind.validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
@@ -158,7 +162,7 @@ Flags:
 		// Placed beside the agreement check rather than at the upload, because the damage
 		// this prevents lands on a domain the command does not mention -- and a refusal
 		// that arrives after the bytes are in is not a refusal.
-		if reg, rerr := LoadDomainRegistry(buildRegistryPath(*domainRegistry)); rerr == nil {
+		if reg, rerr := LoadDomainRegistry(registry.Path()); rerr == nil {
 			if err := verifyStoreOwnership(reg, governedDomain, *storeURL, flagPassed(fs, "store-url")); err != nil {
 				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 				return 1
@@ -175,7 +179,7 @@ Flags:
 	// single triple changes — the store was destructively replaced three times
 	// on 2026-08-05 while every later verdict was accurate but too late.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		registryPath := buildRegistryPath(*domainRegistry)
+		registryPath := registry.Path()
 		// A hosted runner has no operator registry. The attestation is offered
 		// only when the operator asked for it, so enabling CI admission is a
 		// visible decision in the workflow rather than a silent change of
@@ -210,7 +214,7 @@ Flags:
 	// finalize) so a managed-governance requirement or the global marker never
 	// gates a single-domain refresh. --output and --all fall through below.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
+		return runScopedRepoUpdate(governedDomain, registry, inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
 			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag)
 	}
 
@@ -311,7 +315,7 @@ Flags:
 	// --all, which is the honest answer: a whole-store load spans every domain and activates
 	// none, and activateGeneration says exactly that instead of claiming a generation for a
 	// domain named "repo".
-	if err := activateGeneration(os.Stderr, markerPath, marker, governedDomain, DefaultDomainRegistryPath()); err != nil {
+	if err := activateGeneration(os.Stderr, markerPath, marker, governedDomain, registry); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
@@ -569,7 +573,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
+func runScopedRepoUpdate(domain string, registry domainRegistrySelection, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -774,7 +778,7 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 			return 1
 		}
 	}
-	if err := activateGeneration(os.Stderr, markerPath, marker, domain, DefaultDomainRegistryPath()); err != nil {
+	if err := activateGeneration(os.Stderr, markerPath, marker, domain, registry); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}

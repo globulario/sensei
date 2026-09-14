@@ -2527,15 +2527,36 @@ func requiredTestPathFromID(id string) string {
 // first graph query and after the last, so an equal pair brackets every query the
 // audit made.
 //
-// An unreachable or silent service returns "" with no error: that is the absence of
-// an identity, which the evaluator already treats as unverifiable rather than as
-// agreement. Returning an error here would report an outage the service may not be
-// having.
+// A SILENT service -- one that answers and states no digest -- yields "" with no error: that is
+// the absence of an identity, which the evaluator treats as unverifiable rather than as agreement.
+//
+// AN UNREACHABLE ONE RETURNS ITS ERROR, and that is deliberate rather than an oversight. This
+// docstring used to promise "", nil for both, on the reasoning that an error "would report an
+// outage the service may not be having". Blind review of #361 read the promise, saw the code
+// return "", err, and raised the mismatch -- correctly. The promise was the wrong half.
+//
+// What the evaluator does with each, measured rather than assumed
+// (golang/architecture/diffaudit/graph_generation_outage_test.go):
+//
+//	an RPC error      Availability=cannot_verify, ReasonGraphUnavailable, and a limitation
+//	                  naming the failure: "the graph generation ... could not be observed: <err>"
+//	an empty digest   Availability=cannot_verify, ReasonGraphUnavailable, and a limitation saying
+//	                  it "was not observable"
+//
+// Same verdict either way, so no error here can turn a healthy graph into a refusal -- the worry
+// behind the old promise does not arise. What differs is the EXPLANATION, and observeGeneration's
+// own comment says why that is kept: "a reporting FAILURE and the absence of a reporter are
+// different facts about different things, and only one of them names something an operator can
+// fix." Swallowing the error would collapse "the store is unreachable, here is why" into "no
+// identity" -- narrowing a structured truth by evaporating the evidence beside it.
 func (c *mcpSingleFileChecker) GraphGeneration(ctx context.Context) (string, error) {
 	resp, err := c.bridge.client.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: strings.TrimSpace(c.domain)})
 	if err != nil {
+		// Propagated, not swallowed: the verdict is cannot_verify either way, and this is the
+		// only thing that tells an operator the store was unreachable.
 		return "", err
 	}
+	// A reachable service that states no digest: absence of an identity, not a failure.
 	return strings.TrimSpace(resp.GetLiveStoreGraphDigestSha256()), nil
 }
 

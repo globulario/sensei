@@ -267,7 +267,7 @@ Flags:
 		// is not updated and activateGeneration says so. Before this it was silent, and
 		// readers resolving through the registry refused a healthy graph with no
 		// explanation anywhere.
-		if err := activateGeneration(os.Stdout, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
+		if err := activateGeneration(os.Stdout, markerPath, marker, "", selectDomainRegistry("")); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
 			return 1
 		}
