@@ -768,3 +768,123 @@ func Forge() *Z { return &Z{Deadline: time.Now()} }
 		t.Errorf("the chained alias was not followed: %s / %s", first.Outcome, first.Detail)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Antigravity findings on this head. All three are in code added earlier in this same pass.
+
+// P1 (mutationconfinement.go:557): EVERY dot import must survive. importsOf keyed them all
+// under ".", so each overwrote the previous and an unqualified name from any but the last
+// dot-imported package resolved nowhere -- its constructions invisible, and DERIVED returned.
+func TestConstructionConfined_EveryDotImportIsResolved(t *testing.T) {
+	// The owner is dot-imported FIRST, so under the old keying it was overwritten by helper.
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"helper/helper.go":     "package helper\n\nfunc Help() int { return 1 }\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+	. "example.com/m/helper"
+)
+
+var _ = Help
+
+func Forge() *Record { return &Record{Deadline: time.Now()} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport", "helper"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a construction through the FIRST of two dot imports was not observed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// P1 (constructionconfinement.go:263): GO SCOPING. A locally declared name shadows a
+// dot-imported one, so a package that dot-imports the owner AND declares its own Record must
+// not have `var x Record` counted as constructing the owner's type.
+//
+// The composite-literal path never had this bug: it resolves through resolver.typeExpr, which
+// checks declaration membership. My witness for local shadowing exercised that path only and I
+// applied its conclusion to the zero-value path, which scans every candidate.
+func TestConstructionConfined_ALocalDeclarationShadowsADotImportInZeroValueForms(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+// transport's OWN Record. Go resolves the bare name to this one.
+type Record struct {
+	Val int
+}
+
+var _ = Open
+var _ = time.Now
+
+func F() { var x Record; _ = x }
+
+func G() { p := new(Record); _ = p }
+`,
+	})
+	// TYPE-LEVEL, where zero-value forms are sites: the local Record is not the owner's.
+	got, _ := Derive(src, ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome == Refuted {
+		t.Fatalf("a LOCAL type shadowing a dot-imported one was counted as the owner's: %s", got.Detail)
+	}
+}
+
+// And the same file shape WITHOUT a local declaration must still be observed, or the shadowing
+// repair would have disabled dot-import resolution for zero-value forms entirely.
+func TestConstructionConfined_ADotImportedZeroValueFormIsStillObserved(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+var _ = time.Now
+var _ = Open
+
+func F() { var x Record; _ = x }
+`,
+	})
+	got, _ := Derive(src, ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a dot-imported zero-value construction was not observed: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// P2 (constructionconfinement.go:189): A POINTER ALIAS IS NOT THE STRUCT. `type Ptr = *Record`
+// denotes a pointer type; `var p Ptr` allocates a nil pointer and constructs no Record. The name
+// resolvers strip a star, which is right for binding a field access and wrong for deciding what
+// an alias denotes.
+func TestConstructionConfined_APointerAliasConstructsNoValue(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Ptr = *exchange.Record\n\nfunc F() { var p Ptr; _ = p }"),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("a nil pointer through an alias was counted as constructing the owner: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// A VALUE alias still canonicalizes, so the pointer repair did not disable alias resolution.
+func TestConstructionConfined_AValueAliasStillCanonicalizesForZeroValueForms(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Val = exchange.Record\n\nfunc F() { var x Val; _ = x }"),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a value alias stopped resolving to the owner: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
