@@ -237,3 +237,43 @@ func TestBriefingVerifiesTheServedGenerationBeforeRendering(t *testing.T) {
 		t.Errorf("a refused generation does not end the briefing:\n%s", tail)
 	}
 }
+
+// BLIND-PASS FINDING (P2, cmd_briefing.go:87): briefing passed --repo as the project root.
+//
+// --repo means "repository checkout for --task active" and defaults to ".", so endpoint
+// resolution read ./.sensei/config.yaml. Run from a SUBDIRECTORY the config was not found and
+// resolution fell through, giving the same command a different endpoint depending on the working
+// directory. Every other reader walks up via productionReaderFor.
+//
+// Driven through the real runBriefing and observed at the address it DIALS -- the RPC failure
+// names it. A first version of this witness recomputed the resolution itself and passed either
+// way, which is the same helper-not-caller shape this front keeps producing.
+func TestBriefingDialsTheSameEndpointFromASubdirectory(t *testing.T) {
+	root := projectRoot(t, t.TempDir())
+	// An endpoint nothing is listening on, so the dial fails and names itself.
+	writeProjectConfig(t, root, "127.0.0.1:19191")
+	sub := filepath.Join(root, "golang", "deep")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "thing.go"), []byte("package deep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dialed := func(dir string) string {
+		t.Helper()
+		t.Chdir(dir)
+		_, so, se := captureStdoutStderr(t, func() int {
+			return runBriefing([]string{"--file", "golang/deep/thing.go", "--domain", "example.com/acme/thing"})
+		})
+		return so + se
+	}
+	fromRoot, fromSub := dialed(root), dialed(sub)
+	const want = "127.0.0.1:19191"
+	if !strings.Contains(fromRoot, want) {
+		t.Fatalf("from the project root, briefing did not dial the configured endpoint:\n%s", fromRoot)
+	}
+	if !strings.Contains(fromSub, want) {
+		t.Errorf("from a subdirectory, briefing dialed a DIFFERENT endpoint than from the root; the project config was not found:\n%s", fromSub)
+	}
+}
