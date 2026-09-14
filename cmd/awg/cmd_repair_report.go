@@ -229,6 +229,18 @@ Flags:
 	if *asJSON {
 		*format = "json"
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	//
+	// This command was missed by the reader migration because it shares a file with
+	// runRepairReport, which WAS migrated, and the census enumerated files. It consumes graph
+	// evidence through generateRepairReport, so it is a production reader like any other.
+	//
+	// It does NOT verify the served generation, and that is deliberate rather than forgotten:
+	// generateRepairReport reaches authority through repairReportMetadata and never compares
+	// it to the domain's ACTIVE generation. That gap is the separately tracked nine-reader
+	// finding, which covers this command among nine, and it is not repaired here.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 
 	var report governedRepairReport
 	if strings.TrimSpace(*reportPath) != "" {

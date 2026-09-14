@@ -21,8 +21,12 @@ package main
 
 import (
 	"flag"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -285,35 +289,121 @@ func TestOnlyTheOwnerNamesTheBuiltInDefault(t *testing.T) {
 
 // Every command that reaches the graph must resolve through the owner. Counted rather
 // than sampled, so a command that dials without resolving is named.
+// THE CENSUS MUST ENUMERATE THE UNIT ITS NAME CLAIMS.
+//
+// This enumerated FILES and asked whether the file contained "productionReaderFor(". Its name
+// says every graph-reaching COMMAND. cmd_repair_report.go holds two: runRepairReport was
+// migrated and runRepairGate was not, and one call certified the whole file -- so a command
+// that chose its own endpoint passed a census written to make that impossible, and the PR
+// claiming "no production command chooses a graph port" shipped with one that did. Found by an
+// independent reviewer, not by this test.
+//
+// It now enumerates FUNCTIONS. A file with runA migrated and runB dialing directly fails.
 func TestEveryGraphReachingCommandResolvesThroughTheOwner(t *testing.T) {
-	entries, err := os.ReadDir(".")
-	if err != nil {
-		t.Fatal(err)
+	// A FLOOR ON THE SUBJECTS, because a census that enumerates nothing passes. Zero coverage
+	// and zero defects are indistinguishable from the result alone, and this test is the
+	// evidence the reader migration is complete -- so it must fail if it stops looking.
+	subjects := graphCommandsIn(t, ".")
+	const floor = 10
+	if len(subjects) < floor {
+		t.Fatalf("the census found only %d graph-reaching command(s); it covered %d+ before, so it has stopped enumerating rather than found nothing to report",
+			len(subjects), floor)
 	}
-	var unresolved []string
-	for _, e := range entries {
-		name := e.Name()
-		if e.IsDir() || !strings.HasPrefix(name, "cmd_") || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
-			continue
-		}
-		src := readCmdSource(t, name)
-		if !strings.Contains(src, `fs.String("addr",`) {
-			continue // not a graph reader
-		}
-		// `serve` is the exception with a reason: its --addr is the address it LISTENS
-		// on, not a graph it reads. Named explicitly rather than pattern-excluded, so a
-		// future reader cannot slip through by resembling it.
-		if name == "cmd_serve.go" {
-			continue
-		}
-		if !strings.Contains(src, "productionReaderFor(") && !strings.Contains(src, "resolveGraphReader(") {
-			unresolved = append(unresolved, name)
+	// AND THE UNIT IS THE FUNCTION, asserted on the real tree rather than only on synthetic
+	// fixtures. cmd_repair_report.go is the file that carried the defect: it defines two
+	// graph-reaching commands, and both must appear as separate subjects. A census that
+	// enumerated files would list one key here, which is exactly how a bypassing command hid
+	// behind a migrated sibling.
+	for _, want := range []string{"cmd_repair_report.go:runRepairReport", "cmd_repair_report.go:runRepairGate"} {
+		if _, ok := subjects[want]; !ok {
+			t.Errorf("%q is not a census subject; the census is not enumerating commands (subjects: %d)",
+				want, len(subjects))
 		}
 	}
+
+	unresolved := unmigratedGraphCommands(t, ".")
 	if len(unresolved) > 0 {
-		t.Errorf("%d graph-reading command(s) choose an endpoint without the G2 owner: %s",
+		t.Errorf("%d graph-reaching command(s) choose an endpoint without the G2 owner: %s",
 			len(unresolved), strings.Join(unresolved, ", "))
 	}
+}
+
+// graphCommandsIn returns, per command entry point in dir, whether that function declares an
+// `addr` flag and whether it resolves through the owner. The unit is the FUNCTION, which is
+// what "command" means here: one file may define several.
+//
+// Parsed rather than regexed over the whole file, because the bug being prevented is precisely
+// one function's text being read as another's.
+func graphCommandsIn(t *testing.T, dir string) map[string]bool {
+	t.Helper()
+	fset := token.NewFileSet()
+	pkgs, err := parser.ParseDir(fset, dir, func(fi os.FileInfo) bool {
+		n := fi.Name()
+		return strings.HasPrefix(n, "cmd_") && strings.HasSuffix(n, ".go") && !strings.HasSuffix(n, "_test.go")
+	}, 0)
+	if err != nil {
+		t.Fatalf("parse %s: %v", dir, err)
+	}
+	out := map[string]bool{}
+	for _, pkg := range pkgs {
+		for name, file := range pkg.Files {
+			base := filepath.Base(name)
+			// `serve` is the exception with a reason: its --addr is the address it LISTENS on,
+			// not a graph it reads. Named explicitly rather than pattern-excluded, so a future
+			// reader cannot slip through by resembling it.
+			if base == "cmd_serve.go" {
+				continue
+			}
+			for _, d := range file.Decls {
+				fn, ok := d.(*ast.FuncDecl)
+				if !ok || fn.Body == nil || !strings.HasPrefix(fn.Name.Name, "run") {
+					continue
+				}
+				declaresAddr, resolves := false, false
+				ast.Inspect(fn.Body, func(n ast.Node) bool {
+					call, ok := n.(*ast.CallExpr)
+					if !ok {
+						return true
+					}
+					switch f := call.Fun.(type) {
+					case *ast.Ident:
+						if f.Name == "productionReaderFor" || f.Name == "resolveGraphReader" {
+							resolves = true
+						}
+					case *ast.SelectorExpr:
+						// fs.String("addr", ...) — this function's own flag, not the file's.
+						if f.Sel.Name == "String" && len(call.Args) > 0 {
+							if lit, ok := call.Args[0].(*ast.BasicLit); ok && lit.Value == `"addr"` {
+								declaresAddr = true
+							}
+						}
+					}
+					return true
+				})
+				if declaresAddr {
+					out[base+":"+fn.Name.Name] = resolves
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		t.Fatalf("no graph-reaching command found in %s; this census has lost its anchor", dir)
+	}
+	return out
+}
+
+// unmigratedGraphCommands names every command that declares an addr flag and does not resolve
+// through the owner.
+func unmigratedGraphCommands(t *testing.T, dir string) []string {
+	t.Helper()
+	var out []string
+	for cmd, resolves := range graphCommandsIn(t, dir) {
+		if !resolves {
+			out = append(out, cmd)
+		}
+	}
+	sort.Strings(out)
+	return out
 }
 
 // Law 5 for every command that CAN check. Seven response types carry a GraphAuthority
@@ -452,5 +542,100 @@ func TestTheSharedHelperAnnouncesANonCanonicalOverride(t *testing.T) {
 	})
 	if strings.Contains(quiet, "non-canonical") {
 		t.Errorf("canonical resolution announced itself as an override:\n%s", quiet)
+	}
+}
+
+// The census is now evidence, so it needs its own witnesses: a detector nobody has driven
+// against a known-bad input is an assumption. These run the enumerator over synthetic
+// command files, which is the only way to prove it FAILS when it should.
+func censusFixture(t *testing.T, files map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+const migratedCmd = `package main
+
+func runAlpha(args []string) int {
+	fs := newFlagSet()
+	addr := fs.String("addr", "", "")
+	domain := fs.String("domain", "", "")
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
+	return 0
+}
+`
+
+const bypassingCmd = `package main
+
+func runBeta(args []string) int {
+	fs := newFlagSet()
+	addr := fs.String("addr", "", "")
+	_ = dial(*addr)
+	return 0
+}
+`
+
+// 1. Both commands migrated: the census passes.
+func TestTheCensusPassesWhenEveryCommandIsMigrated(t *testing.T) {
+	dir := censusFixture(t, map[string]string{"cmd_a.go": migratedCmd})
+	if got := unmigratedGraphCommands(t, dir); len(got) != 0 {
+		t.Errorf("a migrated command was reported as unmigrated: %v", got)
+	}
+}
+
+// 2 and 3. THE DEFECT THIS CENSUS EXISTS FOR. One migrated command must not certify a
+// bypassing one -- neither in another file nor, the case that actually happened, in the SAME
+// file.
+func TestOneMigratedCommandCannotCertifyABypassingOne(t *testing.T) {
+	t.Run("different files", func(t *testing.T) {
+		dir := censusFixture(t, map[string]string{"cmd_a.go": migratedCmd, "cmd_b.go": bypassingCmd})
+		assertNamesOnly(t, unmigratedGraphCommands(t, dir), "cmd_b.go:runBeta")
+	})
+	t.Run("same file", func(t *testing.T) {
+		dir := censusFixture(t, map[string]string{
+			"cmd_both.go": migratedCmd + "\n" + strings.Replace(bypassingCmd, "package main\n\n", "", 1),
+		})
+		assertNamesOnly(t, unmigratedGraphCommands(t, dir), "cmd_both.go:runBeta")
+	})
+}
+
+// 4. A newly added graph-reaching command with no owner wiring fails, which is the census's
+// standing promise about the future.
+func TestANewlyAddedGraphReachingCommandWithoutTheOwnerFails(t *testing.T) {
+	dir := censusFixture(t, map[string]string{"cmd_a.go": migratedCmd, "cmd_new.go": strings.Replace(bypassingCmd, "runBeta", "runBrandNew", 1)})
+	assertNamesOnly(t, unmigratedGraphCommands(t, dir), "cmd_new.go:runBrandNew")
+}
+
+// A command with no addr flag is not a graph reader and must not be demanded to resolve one.
+func TestACommandWithNoEndpointFlagIsNotACensusSubject(t *testing.T) {
+	dir := censusFixture(t, map[string]string{
+		"cmd_a.go": migratedCmd,
+		"cmd_c.go": "package main\n\nfunc runGamma(args []string) int { return 0 }\n",
+	})
+	for _, name := range unmigratedGraphCommands(t, dir) {
+		if strings.Contains(name, "runGamma") {
+			t.Errorf("a command that reads no graph was demanded to resolve an endpoint: %s", name)
+		}
+	}
+	if _, listed := graphCommandsIn(t, dir)["cmd_c.go:runGamma"]; listed {
+		t.Error("runGamma declares no addr flag and must not be a census subject at all")
+	}
+}
+
+func assertNamesOnly(t *testing.T, got []string, want ...string) {
+	t.Helper()
+	if len(got) != len(want) {
+		t.Fatalf("census reported %v, want exactly %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("census[%d] = %q, want %q", i, got[i], want[i])
+		}
 	}
 }
