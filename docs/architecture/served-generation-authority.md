@@ -560,3 +560,29 @@ It also corroborates Finding 2 independently: `endpointReport.LiveDigest` reads
 the canonical served identity.
 
 **Mutation: 17 of 17 code mutants killed**, the eighteenth being the oracle mutation.
+
+### A fourth defect: the caller that decided first
+
+Blind review of head `202fafeb` raised `cmd_gate.go:68`. `verifyGateServedGeneration`
+short-circuited on `declaresGeneration()` before its Metadata round trip — correct as an
+optimisation, since an undeclared generation needs no call — but an **invalid** expected domain
+also reports no declared generation, so a malformed checkout identity skipped the round trip
+**and** the refusal `verifyServedMetadata` would have made.
+
+This front's recurring shape for the last time in this family: a property proven inside the
+owner's method, not enforced by a caller with its own ordering of the same two predicates. Two
+orderings drift, so there is now **one**:
+
+```go
+need, err := reader.requiresServedGenerationProof()
+if err != nil || !need { return err }   // refuse, or provably nothing to compare
+```
+
+Both owner comparisons (`verifyServedAuthority`, `verifyServedMetadata`) and `gate`'s pre-loop
+check use that single method, so the ordering cannot differ between them. Witnessed in both
+directions with a **nil client**: if the refusal happens before any RPC no client is needed, and
+a regression that reaches the round trip panics rather than passing quietly. The optimisation is
+witnessed too — nothing declared and a trustworthy domain still makes no call.
+
+**Mutation: 18 of 18 code mutants killed.** Two anchors moved as the ordering was unified and were
+re-aimed rather than counted.

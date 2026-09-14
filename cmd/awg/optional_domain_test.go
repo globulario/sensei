@@ -15,6 +15,7 @@ package main
 // given, which is why it is repaired at the owner and not in eleven commands.
 
 import (
+	"context"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -24,6 +25,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
@@ -315,5 +317,56 @@ func TestMetadataStillReportsARealGenerationDisagreement(t *testing.T) {
 	}
 	if !strings.Contains(out, declaredGen) {
 		t.Errorf("the report does not name the declared generation it compared against:\n%s", out)
+	}
+}
+
+// F1-SHORT-CIRCUIT. The caller that decided first. `gate` skipped its Metadata round trip when no
+// generation was declared -- correct as an optimisation -- but an INVALID expected domain also
+// reports no declared generation, so a malformed checkout identity skipped the round trip AND the
+// refusal the owner's comparison would have made. Raised at cmd_gate.go:68 by blind review of
+// head 202fafeb, and it is the family's recurring shape: proven in the owner, not enforced by a
+// caller with its own ordering.
+func TestGateDoesNotSkipVerificationWhenTheExpectedDomainIsInvalid(t *testing.T) {
+	root := servedWorld(t, declaredGen, "")
+	if err := os.WriteFile(filepath.Join(root, ".sensei", "config.yaml"),
+		[]byte("repository:\n    domain: \"unterminated\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	reader := productionReaderFor(emptyFlags(), "", "")
+	if reader.DomainInvalid == nil {
+		t.Fatal("the fixture produced a trustworthy expected domain; it cannot witness this case")
+	}
+	if reader.declaresGeneration() {
+		t.Fatal("an invalid-domain reader reports a declared generation, so the short-circuit " +
+			"under test would not be taken and this witness proves nothing")
+	}
+
+	// A nil client on purpose: if the repair holds, the refusal happens BEFORE any RPC, so no
+	// client is needed. A regression that reaches the round trip panics instead of passing.
+	err := verifyGateServedGeneration(context.Background(), nil, reader, time.Second)
+	if err == nil {
+		t.Fatal("gate proceeded with an untrusted expected domain, skipping both the round trip " +
+			"and the refusal")
+	}
+	if !strings.Contains(err.Error(), "cannot verify") {
+		t.Errorf("the refusal does not present itself as cannot-verify: %v", err)
+	}
+}
+
+// F1-SHORT-CIRCUIT-opposite. The optimisation must survive: with nothing declared and a
+// trustworthy domain, gate still makes no call and still proceeds. A repair that always dialled
+// would pass the test above and cost every run a round trip.
+func TestGateStillSkipsTheRoundTripWhenNothingIsDeclaredActive(t *testing.T) {
+	servedWorld(t, "", "")
+	reader := productionReaderFor(emptyFlags(), servedWitnessDomain, "")
+	if reader.DomainInvalid != nil {
+		t.Fatalf("the fixture domain is untrusted: %v", reader.DomainInvalid)
+	}
+	if reader.declaresGeneration() {
+		t.Fatal("the fixture declares a generation; it cannot witness the inert case")
+	}
+	// Nil client again: proceeding without a call is the property being asserted.
+	if err := verifyGateServedGeneration(context.Background(), nil, reader, time.Second); err != nil {
+		t.Errorf("gate refused, or dialled, while nothing is declared ACTIVE: %v", err)
 	}
 }

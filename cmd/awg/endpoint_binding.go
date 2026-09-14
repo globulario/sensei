@@ -438,11 +438,9 @@ func (r graphReader) verifyServed(servedDigest string) error {
 // It takes no surface name on purpose: every caller already names itself in the message it
 // prints, and a second name here would be a responsibility discharged twice.
 func (r graphReader) verifyServedAuthority(a *awarenesspb.GraphAuthority) error {
-	if err := r.cannotEstablishExpectedGeneration(); err != nil {
+	need, err := r.requiresServedGenerationProof()
+	if err != nil || !need {
 		return err
-	}
-	if !r.declaresGeneration() {
-		return nil
 	}
 	return r.verifyServed(a.GetLiveStoreGraphDigestSha256())
 }
@@ -481,11 +479,9 @@ func (r graphReader) verifyServedAuthority(a *awarenesspb.GraphAuthority) error 
 // certification -- are untouched here and stay with the helpers that own them
 // (requireAuthoritativeGraph, validateLiveBenchmarkAuthority). This answers identity only.
 func (r graphReader) verifyServedMetadata(resp *awarenesspb.MetadataResponse) error {
-	if err := r.cannotEstablishExpectedGeneration(); err != nil {
+	need, err := r.requiresServedGenerationProof()
+	if err != nil || !need {
 		return err
-	}
-	if !r.declaresGeneration() {
-		return nil
 	}
 	top := normalizeGeneration(resp.GetLiveStoreGraphDigestSha256())
 	auth := normalizeGeneration(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
@@ -503,6 +499,29 @@ func (r graphReader) verifyServedMetadata(resp *awarenesspb.MetadataResponse) er
 		served = auth
 	}
 	return r.verifyServed(served)
+}
+
+// requiresServedGenerationProof answers, in ONE place and ONE order, both questions a caller has
+// to settle before it consults a graph:
+//
+//	err  != nil   the expected domain cannot be trusted -- refuse now, whatever else is true
+//	need == false there is provably nothing to compare, so proceed exactly as before
+//	need == true  obtain the served generation and compare it
+//
+// It exists because `gate` asked only the second question. It short-circuited on
+// declaresGeneration() before its Metadata round trip -- a sensible optimisation, since an
+// undeclared generation needs no call -- and an INVALID expected domain also reports no declared
+// generation, so a malformed checkout identity skipped both the round trip and the refusal that
+// verifyServedMetadata would have made. Blind review found it at cmd_gate.go:68.
+//
+// That is this front's recurring shape once more: a property proven inside the owner's method and
+// not enforced by a caller that decided first. Two orderings of the same two predicates will
+// drift, so there is now one ordering and the owner's own comparisons use it too.
+func (r graphReader) requiresServedGenerationProof() (bool, error) {
+	if err := r.cannotEstablishExpectedGeneration(); err != nil {
+		return false, err
+	}
+	return r.declaresGeneration(), nil
 }
 
 // cannotEstablishExpectedGeneration refuses when a domain WAS stated and cannot be trusted.

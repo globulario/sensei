@@ -66,13 +66,17 @@ func reportDegraded(domain, diff, reason string) int {
 // generation is caught before any query runs. An unreachable or failing Metadata is NOT treated
 // as agreement: not knowing which graph answered is exactly the condition this refuses on.
 func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGraphClient, reader graphReader, timeout time.Duration) error {
-	if !reader.declaresGeneration() {
-		return nil
+	// One ordering, the owner's: refuse an untrusted expected domain, skip the round trip only
+	// when there is provably nothing to compare. Asking declaresGeneration() alone let a
+	// malformed checkout identity skip both the call and the refusal.
+	need, err := reader.requiresServedGenerationProof()
+	if err != nil || !need {
+		return err
 	}
 	mdCtx, cancel := gateFileContext(ctx, timeout)
 	defer cancel()
-	resp, err := c.Metadata(mdCtx, &awarenesspb.MetadataRequest{Domain: reader.Domain})
-	if err != nil {
+	resp, mdErr := c.Metadata(mdCtx, &awarenesspb.MetadataRequest{Domain: reader.Domain})
+	if err := mdErr; err != nil {
 		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, err)
 	}
 	return reader.verifyServedMetadata(resp)
