@@ -54,6 +54,27 @@ func reportDegraded(domain, diff, reason string) int {
 	return finalReportLine(0, reason)
 }
 
+// verifyGateServedGeneration proves the endpoint gate is about to consult serves the
+// generation the registry declares ACTIVE for its domain.
+//
+// The comparison itself belongs to the G2 owner (graphReader.verifyServed) and is not
+// re-implemented here; this only obtains the served identity, which for gate needs its own
+// Metadata call because the RPC it consumes states none. An unreachable or failing Metadata
+// is NOT treated as agreement: not knowing which graph answered is exactly the condition
+// this refuses on.
+func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGraphClient, reader graphReader, timeout time.Duration) error {
+	if !reader.declaresGeneration() {
+		return nil
+	}
+	mdCtx, cancel := gateFileContext(ctx, timeout)
+	defer cancel()
+	resp, err := c.Metadata(mdCtx, &awarenesspb.MetadataRequest{Domain: reader.Domain})
+	if err != nil {
+		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, err)
+	}
+	return reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+}
+
 // fileFinding is one changed file's EditCheck result: the advisory/blocking
 // warnings its added lines tripped, or a scope error if it could not be checked.
 type fileFinding struct {
@@ -375,6 +396,25 @@ Flags:
 	}
 	defer conn.Close()
 	client := awarenesspb.NewAwarenessGraphClient(conn)
+
+	// LAW 5, before anything is enforced, interpreted or printed.
+	//
+	// gate enforces a verdict the graph produced, so which graph produced it is part of
+	// the verdict. EditCheckResponse carries no GraphAuthority, which is why the reader
+	// census once recorded gate as unable to verify -- but that was a fact about the
+	// MESSAGE, not about the command: gate holds a connection on which Metadata answers
+	// with the served generation. Asking here, before the first EditCheck, is what makes
+	// the refusal a refusal rather than a late correction of a verdict already rendered.
+	if verr := verifyGateServedGeneration(ctx, client, reader, *rpcTimeout); verr != nil {
+		if *reportOnly {
+			// report-only is fail-open by contract, so it exits 0 -- but DEGRADED states
+			// that no verdict was produced. It must never print the other generation's
+			// findings, which is the whole point of refusing.
+			return reportDegraded(*domain, *diff, verr.Error())
+		}
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", verr)
+		return 1
+	}
 
 	// Per-repo enforcement policy (Pillar 2.3): resolve BEFORE evaluating so a
 	// repo can re-level or silence rules with no code change. A bad/missing

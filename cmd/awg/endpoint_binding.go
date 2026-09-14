@@ -357,10 +357,22 @@ func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, regist
 // domain does not declare active is worse than no briefing, because it carries the
 // authority of one graph and the content of another.
 func (r graphReader) verifyServed(servedDigest string) error {
-	if strings.TrimSpace(r.DeclaredGeneration) == "" {
+	if !r.declaresGeneration() {
 		return nil
 	}
 	return verifyActiveGeneration(r.Domain, r.DeclaredGeneration, servedDigest)
+}
+
+// declaresGeneration reports whether the registry states an ACTIVE generation for this
+// reader's domain, and so whether verifyServed has anything to compare.
+//
+// It exists because a caller whose own RPC carries no GraphAuthority must spend a
+// SEPARATE round trip to obtain the served identity, and asking this first keeps an
+// absent declaration free. It is the same inertness verifyServed applies, asked before
+// the round trip instead of after it -- one predicate, so the two cannot disagree about
+// what "nothing is declared" means.
+func (r graphReader) declaresGeneration() bool {
+	return strings.TrimSpace(r.DeclaredGeneration) != ""
 }
 
 // nonCanonicalReaderNotice states that a reader's endpoint was named rather than

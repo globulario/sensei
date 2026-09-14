@@ -331,6 +331,10 @@ func TestEveryCommandThatCanVerifyTheServedGenerationDoes(t *testing.T) {
 		"cmd_preflight.go": "Preflight",
 		"cmd_query.go":     "Query",
 		"cmd_resolve.go":   "Resolve",
+		// gate consumes EditCheck, which carries no authority, and asks Metadata on the
+		// same connection for the served generation. See verifyGateServedGeneration; the
+		// behaviour is pinned by the witnesses in gate_generation_test.go.
+		"cmd_gate.go": "Metadata",
 	}
 	for name, rpc := range canVerify {
 		src := readCmdSource(t, name)
@@ -352,26 +356,61 @@ func TestEveryCommandThatCanVerifyTheServedGenerationDoes(t *testing.T) {
 	}
 }
 
-// And the commands that genuinely cannot: their RPCs carry no authority, so there is
-// nothing to compare. Recorded so the limit is explicit and countable rather than
-// discovered later as an oversight.
-func TestCommandsThatCannotVerifyAreNamed(t *testing.T) {
-	cannot := []string{
-		"cmd_edit_check.go", "cmd_gate.go", "cmd_verify_obligations.go", "cmd_edit_brief.go",
-		"cmd_edit_guard.go", "cmd_contract_bootstrap.go", "cmd_repair_plan.go",
-		"cmd_repair_report.go", "cmd_benchmark_brief.go", "cmd_benchmark_score.go",
-		"cmd_pattern_check.go", "cmd_synthesis_run.go",
+// The rest of the census, stated as three groups rather than two.
+//
+// It used to say "the commands that genuinely cannot: their RPCs carry no authority, so
+// there is nothing to compare". That sentence was true of the MESSAGES and false as a
+// statement about the commands, and the gap let `sensei gate` enforce a verdict from any
+// generation for as long as the list said gate could not check. Measured against the
+// response schema on 2026-09-13, nine of the twelve already hold a GraphAuthority.
+//
+// So the groups are now: verifies (above), HOLDS AUTHORITY AND DOES NOT CHECK IT (an open
+// finding, named here so it is countable rather than rediscovered), and consumes no
+// authority-bearing response at all (which is not the same as unable -- gate was in this
+// group and left it by spending one Metadata call).
+func TestTheReaderCensusStatesWhyEachReaderDoesOrDoesNotVerify(t *testing.T) {
+	// OPEN FINDING. Each of these already receives a GraphAuthority and never compares the
+	// generation that answered against the one the registry declares ACTIVE. Three of them
+	// call requireAuthoritativeGraph, which asks whether the graph is internally
+	// authoritative -- a different question: a graph can be perfectly authoritative and
+	// still be the wrong generation for this domain (law 13).
+	holdsAuthorityButDoesNotCheck := map[string]string{
+		"cmd_verify_obligations.go": "PreflightResponse.authority",
+		"cmd_edit_brief.go":         "BriefingResponse.authority",
+		"cmd_contract_bootstrap.go": "ImpactResponse.authority and PreflightResponse.authority",
+		"cmd_repair_plan.go":        "PreflightResponse.authority, kept in repairPlanResult.Authority",
+		"cmd_pattern_check.go":      "BriefingResponse.authority",
+		"cmd_repair_report.go":      "MetadataResponse.authority, already fetched via repairReportMetadata",
+		"cmd_benchmark_brief.go":    "PreflightResponse.authority, via buildAuthoritativeRepairPlan",
+		"cmd_benchmark_score.go":    "PreflightResponse.authority, via buildAuthoritativeRepairPlan",
+		"cmd_synthesis_run.go":      "MetadataResponse.authority, via composeSynthesisRunIdentity",
 	}
-	for _, name := range cannot {
+	// These consume only EditCheck, which states no generation. Verifying costs them a
+	// separate Metadata call, exactly as it costs gate.
+	consumesNoAuthority := []string{"cmd_edit_check.go", "cmd_edit_guard.go"}
+
+	for name := range holdsAuthorityButDoesNotCheck {
 		src := readCmdSource(t, name)
-		// They must still resolve through the owner — endpoint selection is closed for
-		// them even where generation verification is not available.
+		// Endpoint selection is closed for every reader, verified or not.
+		if !strings.Contains(src, "productionReaderFor(") {
+			t.Errorf("%s does not resolve through the G2 owner", name)
+		}
+		if strings.Contains(src, "reader.verifyServed(") {
+			t.Errorf("%s now verifies the served generation; move it into canVerify above and out of the open finding", name)
+		}
+	}
+	for _, name := range consumesNoAuthority {
+		src := readCmdSource(t, name)
 		if !strings.Contains(src, "productionReaderFor(") {
 			t.Errorf("%s does not resolve through the G2 owner", name)
 		}
 	}
-	if len(cannot)+6 != 18 {
-		t.Errorf("the reader census is %d, expected 18 (6 verifying + 12 endpoint-only)", len(cannot)+6)
+	// The count is stated, so a reader added or reclassified cannot pass unnoticed.
+	const verifying = 7
+	total := verifying + len(holdsAuthorityButDoesNotCheck) + len(consumesNoAuthority)
+	if total != 18 {
+		t.Errorf("the reader census is %d (%d verifying + %d holding authority unchecked + %d without authority), expected 18",
+			total, verifying, len(holdsAuthorityButDoesNotCheck), len(consumesNoAuthority))
 	}
 }
 
