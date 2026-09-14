@@ -144,6 +144,17 @@ type Proposition struct {
 	SearchPaths []string `json:"search_paths,omitempty" yaml:"search_paths,omitempty"`
 }
 
+// String is the sentence the receipt and the established fact both carry, so it is the
+// wording a consumer actually reads.
+//
+// Every kind is matched BY NAME. The lock family used to sit in `default:`, which meant a
+// kind with no sentence of its own silently borrowed that one: the construction family,
+// registered later, rendered as "every access to ExchangeRecord.Deadline in
+// internal/ghbridge occurs while ExchangeRecord. is held" -- a lock-discipline claim, over
+// a derivation that examined no lock, with the empty Lock showing through as a dangling
+// dot. A DERIVED receipt stating a proposition stronger than and different from the one
+// derived is the worst failure this package can have, so an unnamed kind now says it has
+// no sentence instead of wearing another family's.
 func (p Proposition) String() string {
 	switch p.Kind {
 	case KindCommandInvocationConfinedTo:
@@ -152,9 +163,22 @@ func (p Proposition) String() string {
 	case KindStateMutationConfinedToOwner:
 		return fmt.Sprintf("every observable write to %s.%s under %s originates from its declaring package %s",
 			p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir)
-	default:
+	case KindConstructionConfinedToOwner:
+		// Field is optional for this family, and the two sentences are different claims:
+		// who may construct the TYPE at all, versus who may mint a value carrying one
+		// authority-bearing field.
+		if strings.TrimSpace(p.Field) != "" {
+			return fmt.Sprintf("every observable construction of %s initializing %s under %s originates from its declaring package %s",
+				p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir)
+		}
+		return fmt.Sprintf("every observable construction of %s under %s originates from its declaring package %s",
+			p.Type, strings.Join(p.SearchPaths, ", "), p.Dir)
+	case KindFieldAccessUnderLock:
 		return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
 			p.Type, p.Field, p.Dir, p.Type, p.Lock)
+	default:
+		return fmt.Sprintf("no proposition text is registered for kind %q (%s.%s in %s); this receipt states no claim",
+			p.Kind, p.Type, p.Field, p.Dir)
 	}
 }
 

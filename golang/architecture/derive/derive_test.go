@@ -496,3 +496,68 @@ func TestOnlyDerivedReceiptsCanGovernAnything(t *testing.T) {
 }
 
 func gitDirOf(src *GitSource) string { return src.Dir() }
+
+// ---------------------------------------------------------------------------
+// A receipt must state the proposition it derived, and no other.
+//
+// Found while running the real recipe through `sensei derive` during the
+// implicit-construction review: a DERIVED construction-confinement receipt printed
+// "every access to ExchangeRecord.Deadline in internal/ghbridge occurs while
+// ExchangeRecord. is held". Proposition.String matched the lock family in `default:`,
+// so a kind registered later silently inherited its sentence -- a lock-discipline claim,
+// over a derivation that examined no lock, with the empty Lock showing as a dangling dot.
+// Every kind is now matched by name and an unnamed one says so.
+
+func TestTheConstructionPropositionStatesAConstructionClaim(t *testing.T) {
+	p := Proposition{
+		Kind: KindConstructionConfinedToOwner, Dir: "internal/ghbridge",
+		Type: "ExchangeRecord", Field: "Deadline",
+		SearchPaths: []string{"internal/ghbridge", "cmd/sensei-code"},
+	}
+	got := p.String()
+	if !strings.Contains(got, "construction of ExchangeRecord initializing Deadline") {
+		t.Errorf("the sentence does not state what was derived: %q", got)
+	}
+	// The specific regression: it must not claim anything about a lock.
+	if strings.Contains(got, "is held") || strings.Contains(got, "access to") {
+		t.Errorf("a construction proposition is stating a lock-discipline claim: %q", got)
+	}
+	if strings.Contains(got, "ExchangeRecord.") {
+		t.Errorf("the empty Lock is showing through as a dangling qualifier: %q", got)
+	}
+}
+
+// Without a Field the claim is about the TYPE, and saying otherwise would overstate it.
+func TestTheConstructionPropositionWithoutAFieldAsksAboutTheType(t *testing.T) {
+	p := Proposition{Kind: KindConstructionConfinedToOwner, Dir: "internal/ghbridge",
+		Type: "ExchangeRecord", SearchPaths: []string{"internal/ghbridge"}}
+	got := p.String()
+	if !strings.Contains(got, "construction of ExchangeRecord under") {
+		t.Errorf("the sentence does not state the type-level claim: %q", got)
+	}
+	if strings.Contains(got, "initializing") {
+		t.Errorf("a claim with no field named is claiming something about one: %q", got)
+	}
+}
+
+// The lock family keeps its own sentence, now by name rather than by falling through.
+func TestTheLockPropositionKeepsItsOwnSentence(t *testing.T) {
+	p := Proposition{Kind: KindFieldAccessUnderLock, Dir: "golang/bus", Type: "Bus", Field: "subs", Lock: "mu"}
+	if got := p.String(); got != "every access to Bus.subs in golang/bus occurs while Bus.mu is held" {
+		t.Errorf("the lock sentence changed: %q", got)
+	}
+}
+
+// A kind with no registered sentence must state that it has none rather than wear
+// another family's. This is the guard that makes the next family's omission visible
+// instead of silently mislabelling its receipts.
+func TestAnUnregisteredKindStatesNoClaim(t *testing.T) {
+	p := Proposition{Kind: Kind("some_future_family"), Dir: "d", Type: "T", Field: "F", Lock: "mu"}
+	got := p.String()
+	if !strings.Contains(got, "no proposition text is registered") {
+		t.Errorf("an unregistered kind produced a claim: %q", got)
+	}
+	if strings.Contains(got, "is held") {
+		t.Errorf("an unregistered kind is wearing the lock family's sentence: %q", got)
+	}
+}

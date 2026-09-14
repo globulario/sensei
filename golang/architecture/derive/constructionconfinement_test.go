@@ -356,3 +356,191 @@ func Keyed() *exchange.Record      { return &exchange.Record{TaskID: "t9", Deadl
 		t.Fatalf("outcome=%s, want REFUTED — a proven counterexample outranks an unreadable site: %s", got.Outcome, got.Detail)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// The implicit-construction review finding (constructionconfinement.go:168).
+//
+// The question the reviewer asked was not "is the limit documented" but "can
+// DERIVED return while a caller mints an authority-bearing value outside the owner
+// through a form this does not observe". It was measured over 23 forms against
+// Record.Deadline, and the answer was yes for eight of them, all one shape: a
+// composite literal whose TYPE IS ELIDED, which `lit.Type == nil` skipped outright.
+// Limits() never claimed that one, so it was a silent bypass rather than a stated
+// boundary. The forms below are that measurement, kept as witnesses.
+//
+// The forms that still DERIVE are witnesses too, and just as important: `var x T`,
+// `new(T)`, an empty literal and an embedded zero initialize the field to nothing,
+// and what a later write puts there is the THIRD family's question. Counting them
+// would have destroyed the distinction T1 exists to make.
+
+// ctorElided builds the fixture for one outside construction form.
+func ctorElided(t *testing.T, outsideBody string) *GitSource {
+	t.Helper()
+	return pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": "package transport\n\nimport (\n\t\"time\"\n\n\t\"example.com/m/exchange\"\n)\n\nvar _ = time.Now\n\n" +
+			outsideBody + "\n",
+	})
+}
+
+// 12. THE FINDING. Every shape of elided literal is a construction, and an elided
+// literal outside the owner refutes confinement exactly as a written-out one does.
+func TestConstructionConfined_AnElidedLiteralTypeIsStillAConstruction(t *testing.T) {
+	forms := map[string]string{
+		"slice element":         `func F() { s := []exchange.Record{{Deadline: time.Now()}}; _ = s }`,
+		"pointer slice element": `func F() { s := []*exchange.Record{{Deadline: time.Now()}}; _ = s }`,
+		"array element":         `func F() { a := [1]exchange.Record{{Deadline: time.Now()}}; _ = a }`,
+		"map value":             `func F() { m := map[string]exchange.Record{"a": {Deadline: time.Now()}}; _ = m }`,
+		"map value, pointer":    `func F() { m := map[string]*exchange.Record{"a": {Deadline: time.Now()}}; _ = m }`,
+		"map key":               `func F() { m := map[exchange.Record]bool{{Deadline: time.Now()}: true}; _ = m }`,
+		"slice of slice":        `func F() { s := [][]exchange.Record{{{Deadline: time.Now()}}}; _ = s }`,
+	}
+	for name, body := range forms {
+		t.Run(name, func(t *testing.T) {
+			got, _ := Derive(ctorElided(t, body), ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+			if got.Outcome != Refuted {
+				t.Fatalf("an outsider minting a Deadline through an elided %s was not a counterexample: outcome=%s: %s",
+					name, got.Outcome, got.Detail)
+			}
+			if !strings.Contains(got.Detail, "transport/transport.go") {
+				t.Errorf("the refutation does not name the elided construction site: %s", got.Detail)
+			}
+		})
+	}
+}
+
+// 13. An elided literal that is ALSO unkeyed must not become readable by being nested.
+// Elision resolves the TYPE; it says nothing about which position is which field, so the
+// unkeyed boundary still applies and the answer is UNRESOLVED, not DERIVED and not
+// REFUTED.
+func TestConstructionConfined_AnElidedUnkeyedLiteralIsStillUnresolved(t *testing.T) {
+	got, _ := Derive(ctorElided(t, `func F() { s := []exchange.Record{{"x", time.Now()}}; _ = s }`),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Unresolved {
+		t.Fatalf("outcome=%s, want UNRESOLVED: %s", got.Outcome, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "unkeyed") {
+		t.Errorf("the unresolved report does not say the literal was positional: %s", got.Detail)
+	}
+}
+
+// 14. A NAMED collection type declared in scope reveals its element type, so an elided
+// element under it is observed.
+func TestConstructionConfined_ANamedCollectionTypeInScopeRevealsItsElementType(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Records []exchange.Record\n\nfunc F() { s := Records{{Deadline: time.Now()}}; _ = s }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided element of a named slice type was not observed: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// 15. THE COMPLETENESS BOUNDARY, and it fails toward UNRESOLVED rather than silence.
+// When the enclosing collection type is declared outside the scope searched, the element
+// type is whatever that declaration says and this does not guess. Being unable to read a
+// construction must never read as there being none.
+func TestConstructionConfined_AnUnresolvableElidedLiteralIsUnresolvedNotIgnored(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"elsewhere/types.go":   "package elsewhere\n\nimport \"example.com/m/exchange\"\n\ntype Records []exchange.Record\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/elsewhere"
+)
+
+func F() { s := elsewhere.Records{{Deadline: time.Now()}}; _ = s }
+`,
+	})
+	// elsewhere/ is deliberately NOT searched, so Records' element type is unknown here.
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Unresolved {
+		t.Fatalf("outcome=%s, want UNRESOLVED: a construction this cannot type was treated as though it were not one: %s",
+			got.Outcome, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "elided") || !strings.Contains(got.Detail, "transport/transport.go") {
+		t.Errorf("the unresolved report does not name the unreadable construction: %s", got.Detail)
+	}
+}
+
+// 16. A type ALIAS denotes the owner's own type, so constructing through one mints an
+// owner value wherever it is written.
+func TestConstructionConfined_AnAliasConstructsTheOwnersType(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Alias = exchange.Record\n\nfunc F() { p := Alias{Deadline: time.Now()}; _ = p }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a construction through an alias of the owner's type was not observed: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// 17. A DEFINED type is a DIFFERENT type, and following it would be over-refusal. The
+// repair must not widen the family to every syntax that mentions the owner.
+func TestConstructionConfined_ADefinedTypeIsNotTheOwnersType(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Named exchange.Record\n\nfunc F() { p := Named{Deadline: time.Now()}; _ = p }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("constructing a DIFFERENT named type was read as constructing the owner's: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// 18. THE DISTINCTION T1 EXISTS FOR, kept intact by the repair. A form that creates an
+// instance but initializes the field to nothing mints no authority, and what a later
+// write puts there belongs to state_mutation_confined_to_owner. Widening construction to
+// cover these would collapse the two families into one.
+func TestConstructionConfined_AZeroValueFormMintsNoAuthority(t *testing.T) {
+	forms := map[string]string{
+		"var declaration":                 `func F() { var x exchange.Record; _ = x }`,
+		"var then a later write":          `func F() { var x exchange.Record; x.Deadline = time.Now(); _ = x }`,
+		"new":                             `func F() { p := new(exchange.Record); _ = p }`,
+		"new then a later write":          `func F() { p := new(exchange.Record); p.Deadline = time.Now() }`,
+		"empty literal":                   `func F() { p := &exchange.Record{}; _ = p }`,
+		"empty then a later write":        `func F() { p := &exchange.Record{}; p.Deadline = time.Now() }`,
+		"a literal setting another field": `func F() { p := &exchange.Record{TaskID: "x"}; _ = p }`,
+		"embedded zero, promoted write":   "type outer struct{ exchange.Record }\n\nfunc F() { var o outer; o.Deadline = time.Now(); _ = o }",
+	}
+	for name, body := range forms {
+		t.Run(name, func(t *testing.T) {
+			got, _ := Derive(ctorElided(t, body), ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+			if got.Outcome != Derived {
+				t.Fatalf("%s initializes Deadline to nothing and must not be a site for the field claim: outcome=%s: %s",
+					name, got.Outcome, got.Detail)
+			}
+		})
+	}
+}
+
+// 19. "None found" and "none READABLE" are different facts. When nothing readable
+// constructed the type but something unreadable did, reporting UNKNOWN "nothing to
+// establish" would hide exactly the site this family exists to see.
+func TestConstructionConfined_NoReadableSiteIsNotTheSameAsNoSite(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod": ctorGoMod,
+		// The owner declares the type and constructs nothing.
+		"exchange/exchange.go": "package exchange\n\nimport \"time\"\n\ntype Record struct {\n\tTaskID   string\n\tDeadline time.Time\n}\n",
+		"elsewhere/types.go":   "package elsewhere\n\nimport \"example.com/m/exchange\"\n\ntype Records []exchange.Record\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/elsewhere"
+)
+
+func F() { s := elsewhere.Records{{Deadline: time.Now()}}; _ = s }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Unresolved {
+		t.Fatalf("outcome=%s, want UNRESOLVED: %s", got.Outcome, got.Detail)
+	}
+	if strings.Contains(got.Detail, "nothing to establish") {
+		t.Errorf("an unreadable construction was reported as no construction at all: %s", got.Detail)
+	}
+	if !strings.Contains(got.Detail, "could not be read") {
+		t.Errorf("the detail does not say the constructions were unreadable: %s", got.Detail)
+	}
+}
