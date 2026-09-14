@@ -53,6 +53,7 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/awg/active_generation.go
       - cmd/awg/audit_test_coverage.go
       - cmd/awg/authority_output.go
       - cmd/awg/authority_read_errors.go
@@ -204,9 +205,11 @@ components:
       - cmd/awg/promote_establish.go
       - cmd/awg/promote_evidence.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/publication_activation.go
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
+      - cmd/awg/store_ownership.go
       - cmd/awg/synthesis_run_identity.go
       - cmd/awg/synthesis_run_resume.go
       - cmd/awg/synthesis_run_stop.go
@@ -1144,6 +1147,7 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/derive/commandconfinement.go
+      - golang/architecture/derive/constructionconfinement.go
       - golang/architecture/derive/coverage.go
       - golang/architecture/derive/derive.go
       - golang/architecture/derive/gitsource.go
