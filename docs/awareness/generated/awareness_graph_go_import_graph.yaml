@@ -53,12 +53,14 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/awg/active_generation.go
       - cmd/awg/audit_test_coverage.go
       - cmd/awg/authority_output.go
       - cmd/awg/authority_read_errors.go
       - cmd/awg/bootstrap_candidates.go
       - cmd/awg/bootstrap_extract.go
       - cmd/awg/boundary_extract.go
+      - cmd/awg/build_domain_kind.go
       - cmd/awg/build_transaction.go
       - cmd/awg/builtin_skills.go
       - cmd/awg/cmd_admission_v2.go
@@ -186,6 +188,7 @@ components:
       - cmd/awg/domain_admission.go
       - cmd/awg/domain_admission_ci.go
       - cmd/awg/domain_closure.go
+      - cmd/awg/domain_registry_selection.go
       - cmd/awg/endpoint_binding.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
@@ -204,9 +207,11 @@ components:
       - cmd/awg/promote_establish.go
       - cmd/awg/promote_evidence.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/publication_activation.go
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
+      - cmd/awg/store_ownership.go
       - cmd/awg/synthesis_run_identity.go
       - cmd/awg/synthesis_run_resume.go
       - cmd/awg/synthesis_run_stop.go
