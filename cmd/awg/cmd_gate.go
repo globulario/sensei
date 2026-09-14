@@ -54,6 +54,34 @@ func reportDegraded(domain, diff, reason string) int {
 	return finalReportLine(0, reason)
 }
 
+// verifyGateServedGeneration proves the endpoint gate is about to consult serves the
+// generation the registry declares ACTIVE for its domain.
+//
+// The comparison itself belongs to the G2 owner (graphReader.verifyServed) and is not
+// re-implemented here; this only obtains the served identity.
+//
+// It spends its own Metadata call so the refusal can arrive BEFORE the first EditCheck. That is
+// the whole value of it: EditCheckResponse does now carry a GraphAuthority, so the per-file
+// check in the loop covers each verdict, but a pre-loop refusal costs nothing and means a wrong
+// generation is caught before any query runs. An unreachable or failing Metadata is NOT treated
+// as agreement: not knowing which graph answered is exactly the condition this refuses on.
+func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGraphClient, reader graphReader, timeout time.Duration) error {
+	// One ordering, the owner's: refuse an untrusted expected domain, skip the round trip only
+	// when there is provably nothing to compare. Asking declaresGeneration() alone let a
+	// malformed checkout identity skip both the call and the refusal.
+	need, err := reader.requiresServedGenerationProof()
+	if err != nil || !need {
+		return err
+	}
+	mdCtx, cancel := gateFileContext(ctx, timeout)
+	defer cancel()
+	resp, mdErr := c.Metadata(mdCtx, &awarenesspb.MetadataRequest{Domain: reader.Domain})
+	if err := mdErr; err != nil {
+		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, err)
+	}
+	return reader.verifyServedMetadata(resp)
+}
+
 // fileFinding is one changed file's EditCheck result: the advisory/blocking
 // warnings its added lines tripped, or a scope error if it could not be checked.
 type fileFinding struct {
@@ -236,7 +264,7 @@ func runGate(args []string) int {
 	fs.SetOutput(os.Stderr)
 	diff := fs.String("diff", "HEAD", "git diff range to gate, e.g. 'origin/main...HEAD' or 'HEAD' (working tree vs HEAD)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "path to the git repo to diff")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	reportOnly := fs.Bool("report-only", false, "CI mode: always exit 0 (fail-open on any error), print a non-blocking report with a summary line")
@@ -292,6 +320,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 
 	// Phase 9.4a/9.4b: the completion gate is a distinct read path — it consumes a task's
 	// completion projection envelope, not a diff. WITHOUT enforcement it is advisory only
@@ -373,6 +404,25 @@ Flags:
 	defer conn.Close()
 	client := awarenesspb.NewAwarenessGraphClient(conn)
 
+	// LAW 5, before anything is enforced, interpreted or printed.
+	//
+	// gate enforces a verdict the graph produced, so which graph produced it is part of
+	// the verdict. EditCheckResponse carried no GraphAuthority when this check was written,
+	// which is why the reader census once recorded gate as unable to verify -- a fact about the
+	// MESSAGE read as a fact about the command. The message now carries one, and this pre-loop
+	// question is kept anyway: asking before the first EditCheck is what makes the refusal a
+	// refusal rather than a late correction of a verdict already rendered.
+	if verr := verifyGateServedGeneration(ctx, client, reader, *rpcTimeout); verr != nil {
+		if *reportOnly {
+			// report-only is fail-open by contract, so it exits 0 -- but DEGRADED states
+			// that no verdict was produced. It must never print the other generation's
+			// findings, which is the whole point of refusing.
+			return reportDegraded(*domain, *diff, verr.Error())
+		}
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", verr)
+		return 1
+	}
+
 	// Per-repo enforcement policy (Pillar 2.3): resolve BEFORE evaluating so a
 	// repo can re-level or silence rules with no code change. A bad/missing
 	// explicit policy fails loudly (fail-open only under --report-only).
@@ -415,6 +465,32 @@ Flags:
 			findings = append(findings, fileFinding{File: f, ScopeError: err.Error()})
 			scopeErrs++
 			continue
+		}
+		// EACH VERDICT IS BOUND TO THE GENERATION THAT PRODUCED IT.
+		//
+		// The pre-loop check proves which generation was serving before any query. It
+		// cannot speak for the queries that follow it: the store is external and can be
+		// republished mid-run, and the gRPC connection pins the endpoint, never its
+		// contents. That was the re-review finding on this file -- Metadata verified G
+		// while every subsequent EditCheck could be answered by G+1, and the gate enforced
+		// G+1's warnings as though G had produced them.
+		//
+		// EditCheckResponse carries the authority of the graph that computed THESE warnings, so
+		// the interval closes structurally instead of being narrowed by a second sample taken
+		// at yet another moment. Absence is not agreement: a response that states no generation
+		// cannot support an enforced verdict.
+		//
+		// On a mismatch the run STOPS rather than continuing the diff. Under --report-only it
+		// still exits 0, keeping the fail-open contract, but it reports DEGRADED instead of a
+		// partial report: once the generation has moved, every remaining verdict would come from
+		// a graph this domain does not declare active, and printing those findings is precisely
+		// what this check exists to prevent.
+		if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+			if *reportOnly {
+				return reportDegraded(*domain, *diff, verr.Error())
+			}
+			fmt.Fprintf(os.Stderr, "sensei gate: %s: %v\n", f, verr)
+			return 1
 		}
 		// Apply the repo's enforcement policy: re-level per rule and drop any
 		// the policy set to "off". Downstream tally/print then reads the

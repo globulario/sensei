@@ -60,7 +60,7 @@ func TestRequireBenchmarkAuthority_UsesLiveCurrentCertifiedServer(t *testing.T) 
 		benchmarkAtomicGuard = prevAtomic
 	}()
 
-	if err := requireBenchmarkAuthority(context.Background(), "localhost:10120", "", ""); err != nil {
+	if err := requireBenchmarkAuthority(context.Background(), graphReader{Addr: "localhost:10120"}, "", ""); err != nil {
 		t.Fatalf("requireBenchmarkAuthority: %v", err)
 	}
 }
@@ -83,7 +83,7 @@ func TestRequireBenchmarkAuthority_FailsClosedWhenLiveServerStale(t *testing.T) 
 		benchmarkAtomicGuard = prevAtomic
 	}()
 
-	err := requireBenchmarkAuthority(context.Background(), "localhost:10120", "", "")
+	err := requireBenchmarkAuthority(context.Background(), graphReader{Addr: "localhost:10120"}, "", "")
 	if err == nil {
 		t.Fatal("expected stale live server to fail closed")
 	}
@@ -108,7 +108,7 @@ func TestRequireBenchmarkAuthority_FallsBackToLocalAtomicityWhenMetadataUnavaila
 		benchmarkAtomicGuard = prevAtomic
 	}()
 
-	if err := requireBenchmarkAuthority(context.Background(), "localhost:10120", "/ag", "/svc"); err != nil {
+	if err := requireBenchmarkAuthority(context.Background(), graphReader{Addr: "localhost:10120"}, "/ag", "/svc"); err != nil {
 		t.Fatalf("requireBenchmarkAuthority: %v", err)
 	}
 	if !called {

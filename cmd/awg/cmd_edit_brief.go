@@ -37,7 +37,7 @@ import (
 func runEditBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	depth := fs.String("depth", envOr("AWG_EDIT_BRIEF_DEPTH", "agent_compact"),
@@ -119,22 +119,20 @@ Flags:
 	// DIFFERENT repository's domain -- and a briefing served from the wrong
 	// graph is worse than none: it is confidently about something else.
 	//
-	// Precedence is the one endpoint_binding.go and repo_domain_binding.go
-	// already establish, so this command does not invent a fourth: an explicit
-	// flag is the operator naming the endpoint at the point of use and always
-	// wins; otherwise the project's own configuration decides; only then the
-	// built-in default.
-	resolvedAddr := *addr
-	if !flagPassed(fs, "addr") {
-		if cfg, cfgErr := loadEndpointConfig(projectRoot); cfgErr == nil {
-			if a := cfg.configuredServerAddr(); a != "" {
-				resolvedAddr = a
-			}
-		}
+	// LAW 3: that precedence is the G2 owner's, asked for HERE rather than after Parse and
+	// no longer re-implemented inline. The inline copy read THIS command's projectRoot while
+	// productionReaderFor resolves one from the working directory, so the two could name
+	// different endpoints -- and the reader would then hold the declared generation of a
+	// graph the RPC never contacted, which is a verification of the wrong thing. One
+	// resolution, given the root and the domain this command actually uses.
+	reader := resolveGraphReader(fs, projectRoot, resolvedDomain, *addr, DefaultDomainRegistryPath())
+	*addr = reader.Addr
+	if notice := nonCanonicalReaderNotice(reader); notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
-	out, err := editBriefRPC(ctx, resolvedAddr, rel, *depth, resolvedDomain)
+	out, err := editBriefRPC(ctx, reader.Addr, rel, *depth, resolvedDomain)
 	if err != nil {
 		// A briefing the backend can't serve is not a reason to annotate the
 		// edit. Never block on it. RECORD IT: an opportunity that produced no
@@ -143,6 +141,23 @@ Flags:
 		reason := firstLine(err.Error())
 		recordEditBrief(ledger, rel, resolvedDomain, editBriefOutcome{}, false, evidence.CoverageInProject, reason)
 		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing unavailable (allowing edit): %s\n", reason)
+		return 0
+	}
+
+	// LAW 5: a briefing from a generation this domain does not declare ACTIVE must not be
+	// delivered. This command PUSHES invariants and forbidden fixes into an agent's edit,
+	// so the wrong graph here does not merely misinform -- it injects another domain's
+	// architecture as the constraint on this one.
+	//
+	// The refusal is silence plus a ledger row, which is exactly this command's documented
+	// shape for an answer it cannot use (an unreachable backend takes the same path). It
+	// exits 0 and never wedges the edit. Recording it is the part that matters: an
+	// opportunity that produced no delivery is the row a delivery count would silently
+	// drop, and this campaign already lost a whole measurement that way.
+	if verr := reader.verifyServedAuthority(out.Authority); verr != nil {
+		reason := firstLine(verr.Error())
+		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject, reason)
+		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing not delivered (allowing edit): %s\n", reason)
 		return 0
 	}
 
@@ -252,7 +267,17 @@ type editBriefOutcome struct {
 	// evidence shows what the server said, not only what was acted on.
 	Wire       awarenesspb.BriefingStatus
 	Referenced []string
+	// Generation is the generation that ANSWERED -- live_store_graph_digest_sha256, the
+	// value evidence.Event.GraphGeneration is documented to carry ("the knowledge
+	// generation that answered, so a surfaced law can be traced to the publication that
+	// held it"). It previously carried graph_build_commit, the RULE SNAPSHOT's revision:
+	// right field name, wrong operand, and the ledger recorded one fact under another's
+	// name.
 	Generation string
+	// Authority is the authority the response carried, kept whole so the caller can
+	// compare it against the generation this domain declares ACTIVE. The digest above is
+	// evidence; this is what the comparison needs.
+	Authority *awarenesspb.GraphAuthority
 }
 
 // editBriefRPC fetches a compact briefing for a file; overridable in tests.
@@ -272,7 +297,8 @@ var editBriefRPC = func(ctx context.Context, addr, file, depth, domain string) (
 		Status:     preferFileStatus(resp.GetStatus(), resp.FileStatus),
 		Wire:       resp.GetStatus(),
 		Referenced: resp.GetReferencedIds(),
-		Generation: resp.GetAuthority().GetGraphBuildCommit(),
+		Generation: resp.GetAuthority().GetLiveStoreGraphDigestSha256(),
+		Authority:  resp.GetAuthority(),
 	}, nil
 }
 

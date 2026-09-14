@@ -83,7 +83,7 @@ func runBenchmarkScore(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-score", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address for authoritative repair-plan resolution")
+	addr := fs.String("addr", "", "Sensei gRPC server address for authoritative repair-plan resolution")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for cross-repo atomicity (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for cross-repo atomicity (auto-detect)")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/f2p_tests/files")
@@ -114,6 +114,11 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command. The empty domain
+	// is not "no domain": the owner resolves what this checkout states, because an unresolved
+	// expected domain makes the served-generation comparison structurally inert.
+	reader := productionReaderFor(fs, "", *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}
@@ -132,7 +137,7 @@ Flags:
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 	guardCtx, guardCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer guardCancel()
-	if err := benchmarkAuthorityGuard(guardCtx, *addr, agRepo, svcRepo); err != nil {
+	if err := benchmarkAuthorityGuard(guardCtx, reader, agRepo, svcRepo); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
@@ -147,7 +152,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
-	repairPlan, err := buildAuthoritativeRepairPlan(root, *addr, strings.TrimSpace(task.Issue), brief.LikelyImplementationFiles)
+	repairPlan, err := buildAuthoritativeRepairPlan(root, reader, strings.TrimSpace(task.Issue), brief.LikelyImplementationFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1

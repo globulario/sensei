@@ -25,7 +25,7 @@ var resolveRPC = func(ctx context.Context, addr, class, id, domain string) (*awa
 func runResolve(args []string) int {
 	fs := flag.NewFlagSet("sensei resolve", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", "", "optional domain/repo scope; a node outside this scope resolves to not-found")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -50,6 +50,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if fs.NArg() != 2 {
 		fmt.Fprintln(os.Stderr, "sensei resolve: requires exactly 2 args: <class> <id>")
 		return 2
@@ -63,6 +66,13 @@ Flags:
 	resp, err := resolveRPC(ctx, *addr, class, id, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei resolve: %s\n", formatReadSurfaceError("resolve", err))
+		return 1
+	}
+	// LAW 5: the generation that answered must be the one this domain declares
+	// ACTIVE. Checked before the response is used, from the digest the response
+	// itself carried -- one moment, one graph.
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei resolve: %v\n", verr)
 		return 1
 	}
 

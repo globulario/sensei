@@ -207,6 +207,18 @@ func TestAllDomainScopedSurfacesProjectTheSameAuthority(t *testing.T) {
 			}
 			return r.GetAuthority()
 		}},
+		// EDIT CHECK joined the authority-projecting surfaces when its response gained a
+		// GraphAuthority. It is domain-scoped like the rest -- it already resolved the
+		// requested domain for its rule scope -- so a future change that scoped its
+		// attestation differently from its rules must fail here.
+		{"editCheck", func() *awarenesspb.GraphAuthority {
+			r, err := s.EditCheck(ctx, &awarenesspb.EditCheckRequest{
+				File: "test/example.go", ProposedContent: "package example\n", Domain: d})
+			if err != nil {
+				t.Fatalf("editCheck: %v", err)
+			}
+			return r.GetAuthority()
+		}},
 		{"graphAuthorityFor", func() *awarenesspb.GraphAuthority {
 			return s.graphAuthorityFor(ctx, d)
 		}},

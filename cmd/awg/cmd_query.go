@@ -25,7 +25,7 @@ var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequ
 func runQuery(args []string) int {
 	fs := flag.NewFlagSet("sensei query", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	mode := fs.String("mode", "", "by_file | by_id | by_class | related (required)")
 	file := fs.String("file", "", "repo-relative path (for mode=by_file)")
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")
@@ -58,6 +58,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *mode == "" {
 		fmt.Fprintln(os.Stderr, "sensei query: --mode is required")
 		return 2
@@ -91,6 +94,13 @@ Flags:
 	resp, err := queryRPC(ctx, *addr, req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei query: %s\n", formatReadSurfaceError("query", err))
+		return 1
+	}
+	// LAW 5: the generation that answered must be the one this domain declares
+	// ACTIVE. Checked before the response is used, from the digest the response
+	// itself carried -- one moment, one graph.
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei query: %v\n", verr)
 		return 1
 	}
 

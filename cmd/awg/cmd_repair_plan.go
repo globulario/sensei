@@ -37,7 +37,7 @@ func runRepairPlan(args []string) int {
 	fs := flag.NewFlagSet("sensei repair-plan", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
@@ -67,6 +67,9 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}
@@ -114,6 +117,14 @@ Flags:
 		return 1
 	}
 	if err := requireAuthoritativeGraph(resp.GetAuthority(), "repair-plan"); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
+		return 1
+	}
+	// ... and that self-certification is NOT the same fact as being the generation this
+	// domain declares ACTIVE. A graph can answer the check above perfectly while serving
+	// another domain's publication: this command printed "authority: authoritative (current)"
+	// beside a live_digest the registry did not declare, and built a plan from it.
+	if err := reader.verifyServedAuthority(resp.GetAuthority()); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
 		return 1
 	}

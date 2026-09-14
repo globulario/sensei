@@ -28,6 +28,11 @@ const (
 	repairClassificationForbiddenMoveDetected   = "forbidden_move_detected"
 	repairClassificationProjectPlaneUnavailable = "project_plane_unavailable"
 	repairClassificationBackingStoreUnavailable = "backing_store_unavailable"
+	// The graph answered, and answered from a generation this domain does not declare
+	// ACTIVE. Distinct from stale_authority, which is the graph's own verdict about
+	// itself: this one is a disagreement between the graph and the registry, and no
+	// self-certification can detect it.
+	repairClassificationUndeclaredGeneration = "undeclared_generation"
 )
 
 type repairReportTarget struct {
@@ -110,7 +115,7 @@ func runRepairReport(args []string) int {
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task or issue summary")
 	issue := fs.String("issue", "", "issue summary override (defaults to --task)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	diff := fs.String("diff", "", "git diff range used to discover touched files")
 	outPath := fs.String("out", "", "write the machine-readable JSON report artifact to this path")
@@ -144,11 +149,15 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}
 
 	report, err := generateRepairReport(repairReportOptions{
+		Reader:     reader,
 		Task:       strings.TrimSpace(*task),
 		Issue:      strings.TrimSpace(*issue),
 		Addr:       *addr,
@@ -190,7 +199,7 @@ func runRepairGate(args []string) int {
 	reportPath := fs.String("report", "", "path to a JSON repair report artifact")
 	task := fs.String("task", "", "task or issue summary")
 	issue := fs.String("issue", "", "issue summary override (defaults to --task)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	diff := fs.String("diff", "", "git diff range used to discover touched files")
 	format := fs.String("format", "text", "output format: text | json")
@@ -226,6 +235,18 @@ Flags:
 	if *asJSON {
 		*format = "json"
 	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command.
+	//
+	// This command was missed by the reader migration because it shares a file with
+	// runRepairReport, which WAS migrated, and the census enumerated files. It consumes graph
+	// evidence through generateRepairReport, so it is a production reader like any other.
+	//
+	// The reader is passed WHOLE into generateRepairReport, which compares the generation
+	// that answered against the one this domain declares ACTIVE -- per response, and before
+	// any of it becomes report content. Both this command and runRepairReport consume graph
+	// evidence through that one function, so they share one verification rather than two.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 
 	var report governedRepairReport
 	if strings.TrimSpace(*reportPath) != "" {
@@ -241,6 +262,7 @@ Flags:
 	} else {
 		var err error
 		report, err = generateRepairReport(repairReportOptions{
+			Reader:     reader,
 			Task:       strings.TrimSpace(*task),
 			Issue:      strings.TrimSpace(*issue),
 			Addr:       *addr,
@@ -281,6 +303,11 @@ Flags:
 }
 
 type repairReportOptions struct {
+	// Reader is the resolved production reader: the endpoint, the domain, and the
+	// generation the registry declares ACTIVE for it. Passed whole rather than as an Addr
+	// because the report consumes graph evidence as authoritative and must be able to
+	// compare what was served. A zero graphReader declares no generation and is inert.
+	Reader     graphReader
 	Task       string
 	Issue      string
 	Addr       string
@@ -347,6 +374,21 @@ func generateRepairReport(opts repairReportOptions) (governedRepairReport, error
 		}
 		return governedRepairReport{}, fmt.Errorf("metadata: %w", metadataErr)
 	}
+	// The generation that answered must be the one this domain declares ACTIVE, checked
+	// before any of this response becomes report content. Reported as a classification
+	// rather than an error because that is this command's contract -- it always produces a
+	// verdict -- and undeclared_generation fails the gate closed like every other
+	// non-valid classification.
+	if verr := opts.Reader.verifyServedMetadata(metadataResp); verr != nil {
+		report.Authority = buildRepairAuthoritySummary(metadataResp, nil)
+		report.Authority.State = repairClassificationUndeclaredGeneration
+		report.Authority.Detail = verr.Error()
+		report.FinalClassification = repairClassificationUndeclaredGeneration
+		report.GoverningContract = repairContractSummary{Status: repairClassificationMissingContract}
+		report.Evidence.Status = "not_evaluated"
+		report.BlindSpots = []string{strings.TrimSpace(verr.Error())}
+		return report, nil
+	}
 
 	pfMode := awarenesspb.PreflightMode_PREFLIGHT_STANDARD
 	if strings.EqualFold(opts.Mode, "compact") {
@@ -379,6 +421,19 @@ func generateRepairReport(opts repairReportOptions) (governedRepairReport, error
 			return report, nil
 		}
 		return governedRepairReport{}, fmt.Errorf("preflight: %w", err)
+	}
+
+	// Per RESPONSE, not once per command: the store can be republished between the
+	// metadata call and this one, and nothing about a gRPC connection pins a generation.
+	if verr := opts.Reader.verifyServedAuthority(preflightResp.GetAuthority()); verr != nil {
+		report.Authority = buildRepairAuthoritySummary(metadataResp, preflightResp.GetAuthority())
+		report.Authority.State = repairClassificationUndeclaredGeneration
+		report.Authority.Detail = verr.Error()
+		report.FinalClassification = repairClassificationUndeclaredGeneration
+		report.GoverningContract = repairContractSummary{Status: repairClassificationMissingContract}
+		report.Evidence.Status = "not_evaluated"
+		report.BlindSpots = []string{strings.TrimSpace(verr.Error())}
+		return report, nil
 	}
 
 	report.PreflightStatus = strings.ToLower(strings.TrimPrefix(preflightResp.GetStatus().String(), "PREFLIGHT_STATUS_"))
@@ -648,6 +703,8 @@ func classifyRepairReport(report governedRepairReport) string {
 		return repairClassificationProjectPlaneUnavailable
 	case repairClassificationBackingStoreUnavailable:
 		return repairClassificationBackingStoreUnavailable
+	case repairClassificationUndeclaredGeneration:
+		return repairClassificationUndeclaredGeneration
 	}
 	if len(report.ForbiddenMoveFindings) > 0 {
 		return repairClassificationForbiddenMoveDetected
@@ -698,6 +755,9 @@ func evaluateRepairGate(report governedRepairReport, allowed []string) repairGat
 		return repairGateVerdict{Classification: classification, Pass: false, Reason: "the local project plane is unavailable"}
 	case repairClassificationBackingStoreUnavailable:
 		return repairGateVerdict{Classification: classification, Pass: false, Reason: "the backing store is unavailable"}
+	case repairClassificationUndeclaredGeneration:
+		return repairGateVerdict{Classification: classification, Pass: false,
+			Reason: "the graph that answered serves a generation this domain does not declare ACTIVE; gate fails closed"}
 	default:
 		return repairGateVerdict{Classification: classification, Pass: false, Reason: "repair classification is not permitted to pass"}
 	}

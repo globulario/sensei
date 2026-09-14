@@ -43,7 +43,7 @@ func runSynthesisRun(args []string) int {
 	fs.SetOutput(os.Stderr)
 
 	repoFlag := fs.String("repo", ".", "repository checkout")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	taskFlag := fs.String("task", "", "task directory (default: the active task from .sensei/tasks/active.yaml)")
 	interpretationPath := fs.String("interpretation", "", "path to an authored synthesis.Interpretation JSON file (required unless --resume carries an accepted one)")
 	resumeCheckpoint := fs.String("resume", "", "resume the exact checkpoint with this digest (64 hex chars); the durable boundary is selected explicitly, never by recency")
@@ -224,8 +224,26 @@ Flags:
 			"answer the blocker, or pass --force-unconverged to proceed anyway")
 	}
 
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- resolved for
+	// absRepo and for the domain THAT checkout states, not for the working directory and not
+	// for the empty domain. This command has no --domain flag, and an empty domain would make
+	// the served-generation comparison in step 4 structurally inert; a reader resolved from
+	// the working directory could name a different project's endpoint than the repository
+	// being run against, and would then carry the declared generation of a graph this run
+	// never contacts.
+	readerDomain := resolveRepositoryDomain(absRepo, "")
+	if readerDomain.Err != nil {
+		return resolutionStop(*format, stopGraphIdentityUnusable,
+			fmt.Sprintf("resolve repository domain: %v", readerDomain.Err), "")
+	}
+	reader := resolveGraphReader(fs, absRepo, readerDomain.Domain, *addr, DefaultDomainRegistryPath())
+	*addr = reader.Addr
+	if notice := nonCanonicalReaderNotice(reader); notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
+	}
+
 	// --- step 4: compose workspace identity via a live Metadata RPC ---
-	identity, endpointUnreachable, err := composeSynthesisRunIdentity(ctx, *addr, absRepo, taskDir)
+	identity, endpointUnreachable, err := composeSynthesisRunIdentity(ctx, reader, absRepo, taskDir)
 	if err != nil {
 		return resolutionStop(*format, stopGraphIdentityUnusable,
 			fmt.Sprintf("compose workspace identity: %v", err), "")

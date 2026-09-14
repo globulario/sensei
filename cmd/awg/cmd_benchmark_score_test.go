@@ -286,7 +286,7 @@ func TestQuery_RawSPARQLLikeInputRejected(t *testing.T) {}
 		}, nil
 	}
 	defer func() { repairPlanPreflight = prev }()
-	repairPlan, err := buildAuthoritativeRepairPlan(root, "localhost:10120", task.Issue, brief.LikelyImplementationFiles)
+	repairPlan, err := buildAuthoritativeRepairPlan(root, graphReader{Addr: "localhost:10120"}, task.Issue, brief.LikelyImplementationFiles)
 	if err != nil {
 		t.Fatalf("buildAuthoritativeRepairPlan: %v", err)
 	}
@@ -367,7 +367,7 @@ func TestBuildAuthoritativeRepairPlan_AllowsMissingLocalAuthorityMetadata(t *tes
 	}
 	defer func() { repairPlanPreflight = prev }()
 
-	res, err := buildAuthoritativeRepairPlan(root, "localhost:10120", "foreign repo task", []string{"pkg/demo.go"})
+	res, err := buildAuthoritativeRepairPlan(root, graphReader{Addr: "localhost:10120"}, "foreign repo task", []string{"pkg/demo.go"})
 	if err != nil {
 		t.Fatalf("buildAuthoritativeRepairPlan: %v", err)
 	}

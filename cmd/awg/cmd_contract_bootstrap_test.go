@@ -36,7 +36,7 @@ func Test_listRun(t *testing.T) {}
 func other() {}
 `)
 
-	res, err := buildContractBootstrap(root, "", "", bootstrapTask{
+	res, err := buildContractBootstrap(root, graphReader{}, "", bootstrapTask{
 		Issue:    "The command must use viewer.gists and preserve listRun visibility behavior.",
 		F2PTests: []string{"Test_listRun"},
 	}, "test")
@@ -114,7 +114,7 @@ func TestBuildContractBootstrap_MarksBackendDownDistinctly(t *testing.T) {
 	}
 	defer func() { contractBootstrapConnectAWG = prev }()
 
-	res, err := buildContractBootstrap(root, "127.0.0.1:10120", "", bootstrapTask{
+	res, err := buildContractBootstrap(root, graphReader{Addr: "127.0.0.1:10120"}, "", bootstrapTask{
 		Issue:    "The command must use viewer.gists and preserve listRun visibility behavior.",
 		F2PTests: []string{"Test_listRun"},
 	}, "test")
@@ -246,7 +246,7 @@ func TestEnrichBootstrapWithAWG_RequiresAuthoritativePreflight(t *testing.T) {
 		},
 	}
 
-	err := enrichBootstrapWithAWG(context.Background(), client, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
+	err := enrichBootstrapWithAWG(context.Background(), client, graphReader{}, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
 	if err == nil {
 		t.Fatalf("enrichBootstrapWithAWG error = nil, want authority failure")
 	}
@@ -264,7 +264,7 @@ func TestEnrichBootstrapWithAWG_DistinguishesBackendDownFromNoGuidance(t *testin
 		preflightErr: status.Error(codes.Unavailable, "connection refused"),
 	}
 
-	err := enrichBootstrapWithAWG(context.Background(), client, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
+	err := enrichBootstrapWithAWG(context.Background(), client, graphReader{}, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
 	if err == nil {
 		t.Fatalf("enrichBootstrapWithAWG error = nil, want backend-down failure")
 	}
@@ -304,7 +304,7 @@ func TestEnrichBootstrapWithAWG_DropsImpactEvidenceOnNonAuthoritativeImpact(t *t
 		},
 	}
 
-	err := enrichBootstrapWithAWG(context.Background(), client, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
+	err := enrichBootstrapWithAWG(context.Background(), client, graphReader{}, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res)
 	if err == nil {
 		t.Fatalf("enrichBootstrapWithAWG error = nil, want authority failure")
 	}
@@ -349,7 +349,7 @@ func TestEnrichBootstrapWithAWG_PopulatesAuthoritativeEvidence(t *testing.T) {
 		},
 	}
 
-	if err := enrichBootstrapWithAWG(context.Background(), client, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res); err != nil {
+	if err := enrichBootstrapWithAWG(context.Background(), client, graphReader{}, bootstrapTask{Issue: "repair task"}, "", []string{"a.go"}, []string{"a.go"}, &res); err != nil {
 		t.Fatalf("enrichBootstrapWithAWG: %v", err)
 	}
 	if res.AWGStatus != "AWG-authoritative" {

@@ -24,7 +24,7 @@ func TestUnreachableGraphEndpointIsReportedAsUnreachable(t *testing.T) {
 	writeFile(t, filepath.Join(repo, ".sensei", "config.yaml"), "repository:\n  domain: example.com/eval\n")
 
 	// A port nothing is serving.
-	_, unreachable, err := composeSynthesisRunIdentity(context.Background(), "127.0.0.1:1", repo, filepath.Join(repo, ".sensei", "tasks", "task.absent"))
+	_, unreachable, err := composeSynthesisRunIdentity(context.Background(), graphReader{Addr: "127.0.0.1:1"}, repo, filepath.Join(repo, ".sensei", "tasks", "task.absent"))
 	if err != nil {
 		t.Fatalf("composition must still return an identity: %v", err)
 	}

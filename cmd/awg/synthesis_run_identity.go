@@ -36,7 +36,7 @@ import (
 // same COVERAGE_STATE_EMPTY — and the caller then prescribed republishing a
 // graph that was healthy the whole time (#231). unreachable is empty whenever
 // the endpoint answered, whatever it answered.
-func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir string) (identity workspacecontract.Identity, unreachable string, err error) {
+func composeSynthesisRunIdentity(ctx context.Context, reader graphReader, absRepo, taskDir string) (identity workspacecontract.Identity, unreachable string, err error) {
 	var limitations []workspacecontract.Limitation
 
 	domain, domainErr := repodomain.Configured(absRepo)
@@ -70,7 +70,7 @@ func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir str
 		}
 	}
 
-	conn, connErr := connectAWG(addr)
+	conn, connErr := connectAWG(reader.Addr)
 	var graphAuthority *workspacecontract.GraphAuthority
 	coverageState := "COVERAGE_STATE_UNSPECIFIED"
 	if connErr != nil {
@@ -91,6 +91,15 @@ func composeSynthesisRunIdentity(ctx context.Context, addr, absRepo, taskDir str
 			}
 			limitations = append(limitations, workspacecontract.Limitation{
 				Source: "golang/server Metadata RPC", Scope: "graph_authority", Reason: metaErr.Error(), Blocking: true,
+			})
+		} else if verr := reader.verifyServedMetadata(metaResp); verr != nil {
+			// LAW 5. Recorded as a BLOCKING limitation rather than returned as an error,
+			// because that is this function's vocabulary for an identity it cannot
+			// establish -- and graphAuthority is deliberately left nil, so no part of a
+			// generation this domain does not declare ACTIVE reaches the composed identity
+			// or the durable receipt built from it.
+			limitations = append(limitations, workspacecontract.Limitation{
+				Source: "golang/server Metadata RPC", Scope: "graph_authority", Reason: verr.Error(), Blocking: true,
 			})
 		} else {
 			mv := awarenessclient.InterpretMetadataAuthority(metaResp)
