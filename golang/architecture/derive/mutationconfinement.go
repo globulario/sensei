@@ -509,16 +509,75 @@ func (r *resolver) typeExpr(t ast.Expr) (typeRef, bool) { return r.typeExprIn(t,
 // aliases of the file that WROTE the type expression -- the mutation-site
 // file for a binding, the declaring file for a struct field.
 func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string) (typeRef, bool) {
-	ref, ok := refOfTypeName(t, dir, imports, r.modulePath)
-	if !ok {
-		return typeRef{}, false
-	}
 	// A name that resolves to no struct DECLARATION in the scope searched binds nothing:
 	// this family reasons about fields, and a type whose fields were never read has none.
-	if _, ok := r.structs[ref]; !ok {
-		return typeRef{}, false
+	// Candidates rather than one ref, because an unqualified name in a file with a DOT
+	// IMPORT may belong to the imported package -- see refCandidatesOfTypeName.
+	for _, ref := range refCandidatesOfTypeName(t, dir, imports, r.modulePath) {
+		if _, ok := r.structs[ref]; ok {
+			return ref, true
+		}
 	}
-	return ref, true
+	return typeRef{}, false
+}
+
+// refCandidatesOfTypeName resolves a type NAME to every directory that could declare it, most
+// likely first.
+//
+// A qualified name has exactly one candidate. An UNQUALIFIED one has the current directory
+// and, when the file dot-imports packages, each of those: `import . "example.com/m/exchange"`
+// followed by `Record{…}` names the imported Record, and attributing it to the current
+// directory made a construction outside the owner invisible -- the analyzer returned DERIVED
+// where it should have REFUTED (review finding mutationconfinement.go:539).
+//
+// Candidates, not a guess: the caller keeps the first that is actually declared, so a local
+// type of the same name still wins over a dot-imported one exactly as Go resolves it.
+func refCandidatesOfTypeName(t ast.Expr, dir string, imports map[string]string, modulePath string) []typeRef {
+	switch x := t.(type) {
+	case *ast.StarExpr:
+		return refCandidatesOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.ParenExpr:
+		return refCandidatesOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.Ident:
+		out := []typeRef{{dir, x.Name}}
+		for _, d := range dotImportDirs(imports, modulePath) {
+			out = append(out, typeRef{d, x.Name})
+		}
+		return out
+	case *ast.SelectorExpr:
+		if ref, ok := refOfTypeName(t, dir, imports, modulePath); ok {
+			return []typeRef{ref}
+		}
+	}
+	return nil
+}
+
+// dotImportDirs lists the repository-relative directories a file dot-imports, sorted so
+// resolution never depends on map iteration order.
+func dotImportDirs(imports map[string]string, modulePath string) []string {
+	importPath, ok := imports["."]
+	if !ok || modulePath == "" {
+		return nil
+	}
+	if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
+		return nil
+	}
+	return []string{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/"))}
+}
+
+// directTypeRefOf resolves only a BARE type name -- an identifier or a qualified identifier,
+// possibly parenthesised. It deliberately refuses a pointer, slice, array or map type, because
+// `var x *T`, `var xs []T` and `new(*T)` construct no T: they create a nil pointer or an empty
+// container. refOfTypeName strips a star, which is right for binding a field access and wrong
+// for counting a construction.
+func directTypeRefOf(t ast.Expr, dir string, imports map[string]string, modulePath string) ([]typeRef, bool) {
+	switch t.(type) {
+	case *ast.ParenExpr:
+		return directTypeRefOf(t.(*ast.ParenExpr).X, dir, imports, modulePath)
+	case *ast.Ident, *ast.SelectorExpr:
+		return refCandidatesOfTypeName(t, dir, imports, modulePath), true
+	}
+	return nil, false
 }
 
 // refOfTypeName resolves a type NAME to the directory and identifier that declare it,
