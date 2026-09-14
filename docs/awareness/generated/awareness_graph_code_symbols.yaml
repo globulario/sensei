@@ -512,6 +512,23 @@ test_symbols:
     symbol: TestMCPAdmissionToolsDoNotRequireProtoChanges
     package: main
     language: go
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditAsksAboutTheDomainItIsAuditing
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditAsksAboutTheDomainItIsAuditing
+    package: main
+    language: go
+    doc: "The audit must ask about ITS OWN domain. Asking metadata about another domain\nwould compare this audit against a different graph and call the disagreement a\nswitch — a refusal for the wrong reason is not a passing grade."
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditRefusesWhenTheGraphGenerationChangesUnderneathIt
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditRefusesWhenTheGraphGenerationChangesUnderneathIt
+    package: main
+    language: go
+    doc: "The graph changes underneath one audit. Both digests are reachable and healthy;\nnothing is unavailable. It must still refuse."
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditReportsWhichGenerationAnsweredIt
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditReportsWhichGenerationAnsweredIt
+    package: main
+    language: go
   - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
     file: cmd/awareness-mcp/audit_identity_separation_test.go
     symbol: TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
@@ -542,6 +559,30 @@ test_symbols:
     package: main
     language: go
     doc: "The tool rejects caller-supplied claims both by schema (additionalProperties:false) and\nat runtime — a schema declaration alone is an advisory lock painted on the door."
+  - id: cmd/awareness-mcp/graph_generation_boundary_test.go:TestGraphGenerationAsksAboutTheAuditsOwnDomain
+    file: cmd/awareness-mcp/graph_generation_boundary_test.go
+    symbol: TestGraphGenerationAsksAboutTheAuditsOwnDomain
+    package: main
+    language: go
+    doc: "P2-2-MCP-D. And the audit asks about the DOMAIN IT IS AUDITING, or it compares two graphs."
+  - id: cmd/awareness-mcp/graph_generation_boundary_test.go:TestGraphGenerationPropagatesAnUnreachableServiceError
+    file: cmd/awareness-mcp/graph_generation_boundary_test.go
+    symbol: TestGraphGenerationPropagatesAnUnreachableServiceError
+    package: main
+    language: go
+    doc: "P2-2-MCP-A. AN UNREACHABLE SERVICE PROPAGATES ITS ERROR. This is the assertion the reviewer's\nsuggested repair would break."
+  - id: cmd/awareness-mcp/graph_generation_boundary_test.go:TestGraphGenerationReportsAbsenceWithoutAnError
+    file: cmd/awareness-mcp/graph_generation_boundary_test.go
+    symbol: TestGraphGenerationReportsAbsenceWithoutAnError
+    package: main
+    language: go
+    doc: "P2-2-MCP-B. A REACHABLE SERVICE THAT STATES NOTHING is the absence case, and it is NOT an\nerror: nothing failed, there is simply no identity to bind to. This is the half the docstring\nalways described correctly."
+  - id: cmd/awareness-mcp/graph_generation_boundary_test.go:TestGraphGenerationReportsTheLiveStoreDigestNotTheRuleSnapshotCommit
+    file: cmd/awareness-mcp/graph_generation_boundary_test.go
+    symbol: TestGraphGenerationReportsTheLiveStoreDigestNotTheRuleSnapshotCommit
+    package: main
+    language: go
+    doc: "P2-2-MCP-C. The healthy path, and the CANONICAL FIELD it reads. GraphGeneration must report the\nlive store digest -- not graph_build_commit, which identifies the rule snapshot and on this\ninstallation belongs to another repository, so two generations built from it are\nindistinguishable by it. Right position, wrong operand is the failure this forecloses."
   - id: cmd/awareness-mcp/main_test.go:TestAwarenessAddrs_LocalhostAddsFallback
     file: cmd/awareness-mcp/main_test.go
     symbol: TestAwarenessAddrs_LocalhostAddsFallback
@@ -1086,6 +1127,116 @@ test_symbols:
     symbol: TestWorkspaceVerifyAdmission_RequiresAllArguments
     package: main
     language: go
+  - id: cmd/awg/activation_test.go:TestAFailedMarkerWriteLeavesThePointerAlone
+    file: cmd/awg/activation_test.go
+    symbol: TestAFailedMarkerWriteLeavesThePointerAlone
+    package: main
+    language: go
+    doc: "The pointer must never name a generation whose marker was not published. Ordering is\nthe property, and a failed marker write is where it is observable."
+  - id: cmd/awg/activation_test.go:TestActivationReportsWhatItDid
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationReportsWhatItDid
+    package: main
+    language: go
+    doc: "A successful activation says so, with both facts a reader needs."
+  - id: cmd/awg/activation_test.go:TestActivationWithoutADomainSaysThePointerWasNotUpdated
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationWithoutADomainSaysThePointerWasNotUpdated
+    package: main
+    language: go
+    doc: "A command that activates a generation without knowing which domain it is for cannot\nupdate the pointer. That is not a silent skip: readers resolving through the registry\nwill refuse this graph, and the operator must be told why and what to do."
+  - id: cmd/awg/activation_test.go:TestActivationWritesTheMarkerAndRecordsThePointer
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationWritesTheMarkerAndRecordsThePointer
+    package: main
+    language: go
+  - id: cmd/awg/activation_test.go:TestNoCommandWritesAGraphMarkerOutsideTheActivationTransition
+    file: cmd/awg/activation_test.go
+    symbol: TestNoCommandWritesAGraphMarkerOutsideTheActivationTransition
+    package: main
+    language: go
+    doc: "THE UNIFICATION CLAIM ITSELF, and the only way to falsify it: no command may write a\ngraph marker except through the activation transition. A second writer is a second\nlifecycle, which is exactly what G4 exists to remove — and it would be invisible in\nbehaviour, because the marker it writes looks identical."
+  - id: cmd/awg/activation_test.go:TestTheScopedPublicationPathActivatesUnderItsOwnDomain
+    file: cmd/awg/activation_test.go
+    symbol: TestTheScopedPublicationPathActivatesUnderItsOwnDomain
+    package: main
+    language: go
+    doc: "The scoped publication path is the one caller that KNOWS its domain, and passing \"\" there\nwould silently degrade every scoped build to \"pointer not updated\" — a message that looks\nlike the honest report rebuild and serve correctly emit. Behaviour cannot separate them,\nbecause both produce a marker and a note; only the argument differs.\n\nA source-anchored check, and labelled as one: the scoped path needs a live Oxigraph store\nto reach. It anchors on the receipt write, which only that path performs, so it cannot\naccidentally inspect the whole-store call above it."
+  - id: cmd/awg/active_generation_test.go:TestAPrefixIsNotTheGeneration
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAPrefixIsNotTheGeneration
+    package: main
+    language: go
+    doc: "A prefix is a different string. Short digest forms are printed everywhere in\nthis codebase (marker.Digest[:12]), so a comparison that accepted a prefix would\nlet a 7-character coincidence pass for a generation — exactly the \"triple count\nis evidence, not identity\" mistake (law 13) in another currency."
+  - id: cmd/awg/active_generation_test.go:TestAServedGenerationMatchingTheRegistryIsActive
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAServedGenerationMatchingTheRegistryIsActive
+    package: main
+    language: go
+  - id: cmd/awg/active_generation_test.go:TestAServedGenerationTheRegistryDoesNotDeclareActiveIsRefused
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAServedGenerationTheRegistryDoesNotDeclareActiveIsRefused
+    package: main
+    language: go
+    doc: "Law 12: two claimants for one domain is an error, not a choice for the caller."
+  - id: cmd/awg/active_generation_test.go:TestActivationDoesNotAdmitAnUnregisteredDomain
+    file: cmd/awg/active_generation_test.go
+    symbol: TestActivationDoesNotAdmitAnUnregisteredDomain
+    package: main
+    language: go
+    doc: "A domain with no entry is not given one. The registry states what an operator\nadmitted; a publication may update a declaration, not create an admission."
+  - id: cmd/awg/active_generation_test.go:TestActivationRecordsTheGenerationItActivated
+    file: cmd/awg/active_generation_test.go
+    symbol: TestActivationRecordsTheGenerationItActivated
+    package: main
+    language: go
+    doc: "The activation transition (law 6) records the generation it activated. Only the\ntransactional publication path may do this — it is the one caller that has just\nproven the store holds what the marker certifies."
+  - id: cmd/awg/active_generation_test.go:TestAnUndeclaredGenerationIsInertNotAgreement
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAnUndeclaredGenerationIsInertNotAgreement
+    package: main
+    language: go
+    doc: "Inert while unset, in BOTH directions of absence — and absence is reported as\nunverifiable rather than as agreement, the same rule markerAgreement follows."
+  - id: cmd/awg/active_generation_test.go:TestGenerationComparisonIgnoresTransportNoise
+    file: cmd/awg/active_generation_test.go
+    symbol: TestGenerationComparisonIgnoresTransportNoise
+    package: main
+    language: go
+    doc: "Case and surrounding whitespace are transport noise, not identity."
+  - id: cmd/awg/active_generation_test.go:TestTheEndpointReportNamesTheMarkerItChoseOrRefusesToNameOne
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheEndpointReportNamesTheMarkerItChoseOrRefusesToNameOne
+    package: main
+    language: go
+    doc: "G4 in the report: the Endpoint block must say WHICH marker it used and refuse to\nname one whose path would depend on the caller's directory."
+  - id: cmd/awg/active_generation_test.go:TestTheEndpointReportStatesWhetherTheServedGraphIsTheActiveGeneration
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheEndpointReportStatesWhetherTheServedGraphIsTheActiveGeneration
+    package: main
+    language: go
+    doc: "This is behavioural rather than structural: renderEndpointBlock is the function\n`sensei metadata` calls, so what it writes here is what that command prints."
+  - id: cmd/awg/active_generation_test.go:TestTheRegistryAnswersWhichGenerationIsActive
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheRegistryAnswersWhichGenerationIsActive
+    package: main
+    language: go
+  - id: cmd/awg/all_shrink_guard_test.go:TestBuildAllRefusesToClobberASubstantiallyLargerLiveStore
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestBuildAllRefusesToClobberASubstantiallyLargerLiveStore
+    package: main
+    language: go
+  - id: cmd/awg/all_shrink_guard_test.go:TestBuildAllStillAllowsAColdStart
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestBuildAllStillAllowsAColdStart
+    package: main
+    language: go
+    doc: "The guard must keep its documented tolerances, or a cold start becomes impossible."
+  - id: cmd/awg/all_shrink_guard_test.go:TestTheShrinkRefusalNamesBothCounts
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestTheShrinkRefusalNamesBothCounts
+    package: main
+    language: go
+    doc: "The refusal has to name the numbers, or an operator cannot tell a real shrink from\na misdirected endpoint — which, with three live stores, is the likelier cause."
   - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
     file: cmd/awg/anti_clobber_guard_test.go
     symbol: TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
@@ -1234,12 +1385,102 @@ test_symbols:
     package: main
     language: go
     doc: "A project that correctly installs the principle pack holds a mirror it does\nnot author. Custody refuses to publish that mirror under the project's own\ndomain, so closure must not expect the project to project its identities —\notherwise the correct state is unprovable and every such repository reports\nits whole mirror missing.\n\nObserved live while running issue #176's regression matrix: sensei-code\nreported 23/161 projected with 138 missing, which is exactly the pack's\nprinciple count, and could never become authoritative."
+  - id: cmd/awg/build_operand_test.go:TestActivationMovesThePointerForTheGovernedDomainAndClaimsNothingOtherwise
+    file: cmd/awg/build_operand_test.go
+    symbol: TestActivationMovesThePointerForTheGovernedDomainAndClaimsNothingOtherwise
+    package: main
+    language: go
+    doc: "W5. ACTIVATION, both directions. Given the governed domain name the pointer moves; given the\nempty domain -- which is what --all supplies, honestly, because a whole-store load spans every\ndomain and activates none -- it says so and moves nothing.\n\nAt head 50762d33 this call received the tagging kind, so recordActiveGeneration left the\nunregistered domain \"repo\" alone and returned nil while the command printed \"ACTIVE\ngeneration: <digest> for repo\": law 6 activation silently not happening, reported as success."
+  - id: cmd/awg/build_operand_test.go:TestBuildDoesNotRefuseADomainFromItsOwnDeclaredStore
+    file: cmd/awg/build_operand_test.go
+    symbol: TestBuildDoesNotRefuseADomainFromItsOwnDeclaredStore
+    package: main
+    language: go
+    doc: "W2. DRIVEN, the case the defect broke: publishing into the store this domain itself declares.\nAt head 50762d33 this printed the ownership refusal, naming its own domain as the foreign\nowner of its own store."
+  - id: cmd/awg/build_operand_test.go:TestBuildRefusesAGovernedDomainNameInTheTaggingKindFlag
+    file: cmd/awg/build_operand_test.go
+    symbol: TestBuildRefusesAGovernedDomainNameInTheTaggingKindFlag
+    package: main
+    language: go
+    doc: "W7-driven. And the refusal reaches an operator running the real command."
+  - id: cmd/awg/build_operand_test.go:TestBuildStillRefusesADomainFromAnotherDomainsStore
+    file: cmd/awg/build_operand_test.go
+    symbol: TestBuildStillRefusesADomainFromAnotherDomainsStore
+    package: main
+    language: go
+    doc: "W3. DRIVEN, the case the check exists for: publishing into a store another domain declares.\nThe opposite witness -- without it, a repair that simply stopped checking would pass W2."
+  - id: cmd/awg/build_operand_test.go:TestStoreOwnershipIsAboutGovernedDomainNames
+    file: cmd/awg/build_operand_test.go
+    symbol: TestStoreOwnershipIsAboutGovernedDomainNames
+    package: main
+    language: go
+    doc: "W1. THE OPERAND CONTRACT, stated positively. verifyStoreOwnership compares against registry\nKEYS, which are governed domain names, so the operand is a domain name and nothing else.\nAsserted in all three directions -- allowed, refused, and swapped -- with values that differ\nfrom each other so no assertion can pass by coincidence."
+  - id: cmd/awg/build_operand_test.go:TestTheNodeTaggingKindDoesNotAffectTheOwnershipVerdict
+    file: cmd/awg/build_operand_test.go
+    symbol: TestTheNodeTaggingKindDoesNotAffectTheOwnershipVerdict
+    package: main
+    language: go
+    doc: "W4. DRIVEN, and the sharpest of the four: the tagging kind must have NO influence on the\nownership verdict. Both outcomes must be identical with and without --domain, which is only\ntrue once the verdict stops reading that flag. A witness that omitted --domain would have\npassed at the defective head too, because the flag's default is also not a domain name."
+  - id: cmd/awg/build_operand_test.go:TestTheTaggingKindAcceptsOnlyItsRecognisedValues
+    file: cmd/awg/build_operand_test.go
+    symbol: TestTheTaggingKindAcceptsOnlyItsRecognisedValues
+    package: main
+    language: go
+    doc: "W7. THE KIND'S OWN VOCABULARY, read by membership. --domain accepted any string, so a governed\ndomain name typed there was silently adopted as the default tag for every untagged node. That\nis the permissive direction this repository has recorded repeatedly, and it is also what made\nthe confusion between the two flags survivable: both accepted each other's values."
+  - id: cmd/awg/build_operand_test.go:TestTheTaggingKindCrossesToAStringInExactlyOnePlace
+    file: cmd/awg/build_operand_test.go
+    symbol: TestTheTaggingKindCrossesToAStringInExactlyOnePlace
+    package: main
+    language: go
+    doc: "W6. THE TYPE IS THE GUARD. The tagging kind is a defined type, so handing it to a governed\ndomain-name consumer does not compile -- a guard a reader cannot forget. What a type cannot\ncatch is a deliberate .String(), so that crossing is confined to ONE method and asserted here\nto be the only one in production code."
   - id: cmd/awg/build_publishes_generation_test.go:TestBothStoreLoadPathsPublishTheGeneration
     file: cmd/awg/build_publishes_generation_test.go
     symbol: TestBothStoreLoadPathsPublishTheGeneration
     package: main
     language: go
     doc: "EVERY PATH THAT LOADS THE STORE PUBLISHES THE GENERATION THAT DESCRIBES IT.\n\nThere are two: the domain-scoped --repo update and the cold-start --all\nreplace. Only --repo published a proof set, so --all rewrote every triple in\nthe store and left ~/.sensei/graph/<store> naming the previous publication.\nexpectedGraphMarker prefers that store-scoped record over the marker file, so\nbriefing and preflight compared the live store against a generation it was\nnot built to and refused.\n\nThe refusal was correct in FORM and false in FACT, which is the worst kind:\nindistinguishable from a genuinely stale store, so the honest reaction --\nrebuild -- was the one that did not help. Measured 2026-09-02 on a new store\nwhose port had last been used three days earlier.\n\nA source-level check rather than an integration one, deliberately. Driving\nthe real path needs a live Oxigraph, and a test that skips when one is absent\nis not a check -- it would have been absent in CI for exactly the same reason\nthe defect survived."
+  - id: cmd/awg/build_registry_identity_test.go:TestAConflictingDefaultRegistryNeitherReadsNorAbsorbsTheActivation
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestAConflictingDefaultRegistryNeitherReadsNorAbsorbsTheActivation
+    package: main
+    language: go
+    doc: "W2. A CONFLICTING DEFAULT HAS NO INFLUENCE, and the selected registry's own previous pointer is\nREPLACED -- activation is the transition, and the point of one pointer is that the previous\nvalue stops being current."
+  - id: cmd/awg/build_registry_identity_test.go:TestASelectedRegistryMissingTheDomainIsNotCompletedFromTheDefault
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestASelectedRegistryMissingTheDomainIsNotCompletedFromTheDefault
+    package: main
+    language: go
+    doc: "W3. A SELECTED REGISTRY WITH NO DECLARATION FOR THE DOMAIN must not be silently completed from\nthe default. recordActiveGeneration deliberately leaves an unregistered domain alone -- the\nregistry records what an operator ADMITTED, and a publication may update a declaration but must\nnot create an admission. So the selected registry stays empty, and the DEFAULT one, which does\ndeclare the domain, must not be written instead."
+  - id: cmd/awg/build_registry_identity_test.go:TestActivationWritesTheSelectedRegistryAndNotTheDefault
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestActivationWritesTheSelectedRegistryAndNotTheDefault
+    package: main
+    language: go
+    doc: "W1. THE WRITING OPERATION FOLLOWS ITS SELECTION. activateGeneration is the only operation in a\npublication that WRITES a declaration, and it must write the registry the transaction selected.\nTwo registries, deliberately disagreeing on both store URL and ACTIVE generation, so reading\nthe wrong file gives a visibly wrong answer rather than the same answer."
+  - id: cmd/awg/build_registry_identity_test.go:TestTheBuildActuallyReadsTheDomainRegistryFlag
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestTheBuildActuallyReadsTheDomainRegistryFlag
+    package: main
+    language: go
+    doc: "W6. THE FLAG REACHES THE SELECTION, driven. W5 proves the transaction resolves once and names\nno default; it cannot see whether the resolution actually reads --domain-registry. Found by\nmutation: replacing selectDomainRegistry(*domainRegistry) with selectDomainRegistry(\"\")\nsurvived every witness above.\n\nThe ownership check is the cheapest consumer to observe -- it runs before anything is compiled\nor dialled -- so the CUSTOM registry declares the target store as belonging to a foreign domain\nwhile the DEFAULT registry declares nothing at all. A build that honours the flag refuses; one\nthat ignores it proceeds."
+  - id: cmd/awg/build_registry_identity_test.go:TestTheBuildTransactionNamesOneRegistryExactlyOnce
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestTheBuildTransactionNamesOneRegistryExactlyOnce
+    package: main
+    language: go
+    doc: "W5. ONE TRANSACTION, ONE REGISTRY -- derived from the source rather than listed.\n\nThis is the property the finding was about, and W1-W4 cannot prove it: they show the writing\noperation honours whatever selection it is given, not that the build hands every operation the\nSAME one. The defect was precisely a transaction that resolved a registry for ownership and\nadmission and then named the default again at activation.\n\nSo: no function in the build transaction may name DefaultDomainRegistryPath(). The selection\nresolves it exactly once, in selectDomainRegistry, and every operation consumes that."
+  - id: cmd/awg/build_registry_identity_test.go:TestWithNoOverrideActivationWritesTheDefaultRegistry
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestWithNoOverrideActivationWritesTheDefaultRegistry
+    package: main
+    language: go
+    doc: "W4. NO OVERRIDE preserves the default behaviour, or the repair has broken every operator who\nnever passes the flag."
+  - id: cmd/awg/build_registry_identity_test.go:TestWithoutTheFlagTheBuildReadsTheDefaultRegistry
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestWithoutTheFlagTheBuildReadsTheDefaultRegistry
+    package: main
+    language: go
+    doc: "W6-opposite. And the same run without the flag must NOT refuse: the default registry declares\nnothing, so a build that ignored the flag in the other direction -- always reading the custom\npath -- would be caught here."
   - id: cmd/awg/build_transaction_test.go:TestEvaluateBuildTransactionFreshness_Current
     file: cmd/awg/build_transaction_test.go
     symbol: TestEvaluateBuildTransactionFreshness_Current
@@ -1522,6 +1763,35 @@ test_symbols:
     package: main
     language: go
     doc: "Field order inside an entry is not a fact about the entry, and a neighbour's\nformatting must never change an entry's obligation.\n\nThe stream-based parser attached a `status:` that preceded its own `id:` to\nthe PREVIOUS entry: the candidate stayed required, and the canonical\nneighbour was excused from closure -- a fail-open in the closure check\nitself, triggered by formatting."
+  - id: cmd/awg/canonical_state_test.go:TestSeedStatusDeclaresItselfNonCanonical
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestSeedStatusDeclaresItselfNonCanonical
+    package: main
+    language: go
+  - id: cmd/awg/canonical_state_test.go:TestSeedStatusPrintsItsTransportCaveatInBothRenderings
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestSeedStatusPrintsItsTransportCaveatInBothRenderings
+    package: main
+    language: go
+    doc: "The caveat must actually be PRINTED, in both renderings. Testing the function that\ncomposes the sentence proves nothing about whether anything emits it — a mutant that\nsimply stopped setting the field survived exactly that gap."
+  - id: cmd/awg/canonical_state_test.go:TestTheCanonicalReportGathersEveryDisagreementInOnePlace
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheCanonicalReportGathersEveryDisagreementInOnePlace
+    package: main
+    language: go
+    doc: "The consolidated verdict line. Every disagreement the canonical report can detect\nmust appear in ONE place, because a reader checking a graph should not have to know\nwhich of five lines carries a complaint.\n\nEach case below is ISOLATED so the complaint under test is the ONLY one present. An\nearlier version asserted merely that the summary was not \"none\", and three mutants\nthat deleted a single gatherer survived it: the other complaints in those scenarios\nkept the summary non-empty, so the assertion could not tell which gatherer ran."
+  - id: cmd/awg/canonical_state_test.go:TestTheSeedStatusCommandSetsTheTransportCaveat
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheSeedStatusCommandSetsTheTransportCaveat
+    package: main
+    language: go
+    doc: "The COMMAND must set the caveat, not merely be capable of composing one. The test\nabove builds its own result, so a mutant that simply stopped populating the field in\nrunSeedStatus survived it — the same gap in a different place: proving a sentence can\nbe written proves nothing about whether anything writes it."
+  - id: cmd/awg/canonical_state_test.go:TestTheSummaryNeverContradictsTheFieldsAboveIt
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheSummaryNeverContradictsTheFieldsAboveIt
+    package: main
+    language: go
+    doc: "Every complaint the report prints in a per-field line must also reach the summary.\nA summary that can say \"none\" while a field above it says otherwise is worse than\nno summary, because it is the line a reader will trust."
   - id: cmd/awg/cmd_admission_v2_test.go:TestAdmitChangeV2Admits
     file: cmd/awg/cmd_admission_v2_test.go
     symbol: TestAdmitChangeV2Admits
@@ -4683,24 +4953,30 @@ test_symbols:
     symbol: TestResolveServeRepoContext
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_ConfiguredPathWins
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_ConfiguredPathWins
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_ConfiguredPathWins
+    symbol: TestServeGraphMarkerFile_ConfiguredPathWins
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
+    symbol: TestServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_OutsideAProject
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+    symbol: TestServeGraphMarkerFile_OutsideAProject
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_UsesDefaultForNoSeed
+    doc: "Serve outside a project, both modes. These are the same two answers the resolver\ngives, reached through serve's own entry point, and they are what makes the removal\nof serve's dead \"unresolvable root\" branch safe: embedded mode never needed a\nproject, and --no-seed should not be allowed to invent one."
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_UsesDefaultForNoSeed
+    symbol: TestServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+    package: main
+    language: go
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_UsesDefaultForNoSeed
+    file: cmd/awg/cmd_serve_test.go
+    symbol: TestServeGraphMarkerFile_UsesDefaultForNoSeed
     package: main
     language: go
   - id: cmd/awg/cmd_serve_test.go:TestSyncDefaultRuntimeMarkerFromLiveStore_RefreshesStaleMarker
@@ -5805,6 +6081,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
+  - id: cmd/awg/domain_endpoint_test.go:TestASilentRegistryLeavesTheExistingPrecedenceIntact
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestASilentRegistryLeavesTheExistingPrecedenceIntact
+    package: main
+    language: go
+    doc: "A registry that declares no endpoint changes nothing. This is what keeps the\nfield inert until an operator fills it, so adding it cannot move any existing\ncaller's endpoint."
+  - id: cmd/awg/domain_endpoint_test.go:TestAnExplicitFlagOutranksEvenTheRegistry
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestAnExplicitFlagOutranksEvenTheRegistry
+    package: main
+    language: go
+    doc: "An explicit flag still wins: an operator naming an endpoint at the point of use is\nthe one authority above the registry, and it is visible in the command they ran."
+  - id: cmd/awg/domain_endpoint_test.go:TestTheRegistryOutranksTheProjectConfiguration
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestTheRegistryOutranksTheProjectConfiguration
+    package: main
+    language: go
+    doc: "The registry outranks the project's own configuration, for the reason the\nregistry exists: it is the operator-controlled authority kept outside the\nrepository, and a repository must not be able to redirect its own graph."
   - id: cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
     file: cmd/awg/edit_brief_coverage_test.go
     symbol: TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
@@ -5901,6 +6195,72 @@ test_symbols:
     symbol: TestRequireStoreURLAgreementYieldsToAnExplicitFlag
     package: main
     language: go
+  - id: cmd/awg/gate_generation_test.go:TestGateDoesNotFallBackToAReachableWrongGeneration
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateDoesNotFallBackToAReachableWrongGeneration
+    package: main
+    language: go
+    doc: "4. NO FALLBACK. When the reachable endpoint serves another generation, gate must refuse\nrather than degrade into using it -- a fallback here would make the wrong graph the\nanswer whenever the right one is down."
+  - id: cmd/awg/gate_generation_test.go:TestGateEnforcesWhenTheServedGenerationIsTheDeclaredActiveOne
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateEnforcesWhenTheServedGenerationIsTheDeclaredActiveOne
+    package: main
+    language: go
+    doc: "1. HEALTHY PATH: the served generation is the declared ACTIVE one, so gate behaves\nexactly as before -- it evaluates the diff and enforces the blocking verdict."
+  - id: cmd/awg/gate_generation_test.go:TestGateIsUnchangedWhenNoGenerationIsDeclared
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateIsUnchangedWhenNoGenerationIsDeclared
+    package: main
+    language: go
+    doc: "7. INERT WITHOUT A DECLARATION. An absent ACTIVE pointer contradicts nothing, so gate\nmust behave exactly as it did before this check existed. Without this, the repair could\npass every test above by refusing unconditionally."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesAHealthyServiceServingAnotherGeneration
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesAHealthyServiceServingAnotherGeneration
+    package: main
+    language: go
+    doc: "3. A healthy service serving the wrong domain's graph is still the wrong graph."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesAVerdictFromAnUndeclaredGeneration
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesAVerdictFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "2. THE FINDING. A valid-looking verdict from a generation the domain does not declare\nACTIVE must be refused -- and refused BEFORE the verdict is consulted at all."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesAVerdictProducedByAGenerationOtherThanTheDeclaredOne
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesAVerdictProducedByAGenerationOtherThanTheDeclaredOne
+    package: main
+    language: go
+    doc: "THE RE-REVIEW FINDING (P1, cmd_gate.go:75): \"Bind each gate verdict to the verified\ngeneration.\"\n\nOne Metadata call verified G and every subsequent EditCheck could be answered by G+1: the\nconnection pins the ENDPOINT, never the external store's contents. The reviewer asked for\nexactly this witness -- change the served generation after Metadata and before EditCheck --\nand it reproduced: gate printed [BLOCK] from the republished generation.\n\nDOMAIN OF THE CLAIM, now that EditCheckResponse carries its own authority: the generation\nreported is the one that COMPUTED those warnings, so the binding covers the verdict itself\nrather than an interval around it. Nothing is inferred from a sample taken at another\nmoment."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesAVerdictThatStatesNoGeneration
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesAVerdictThatStatesNoGeneration
+    package: main
+    language: go
+    doc: "A response that states NO generation cannot support an enforced verdict. Absence is not\nagreement -- and an older server is exactly how absence arrives."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesAVerdictWhoseGenerationSwitchedAndReturned
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesAVerdictWhoseGenerationSwitchedAndReturned
+    package: main
+    language: go
+    doc: "SWITCH AND RETURN. The store moves to another generation, produces the verdict, and is\nback before anything could sample again. A pre-loop sample and an adjacent post-loop\nsample both see the declared generation; only the verdict's own authority shows the truth."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesWhenTheEndpointStatesNoAuthority
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesWhenTheEndpointStatesNoAuthority
+    package: main
+    language: go
+    doc: "6. MISSING AUTHORITY, per the actual contract rather than a guess.\nverifyActiveGeneration compares a declared generation against the served one and an\nabsent served value is not equal to it, so a response carrying no GraphAuthority\nREFUSES. That is the direction the Phase 7 proof demanded: the served-digest field was\nblank exactly when the served graph was wrong."
+  - id: cmd/awg/gate_generation_test.go:TestGateRefusesWhenTheServedGenerationCannotBeObtained
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateRefusesWhenTheServedGenerationCannotBeObtained
+    package: main
+    language: go
+    doc: "8. NOT KNOWING is not agreement. When the endpoint cannot say which generation it\nserves, gate has not proven the verdict belongs to this domain's ACTIVE graph, so it\nmust refuse. A mutant that returned nil here survived every other witness."
+  - id: cmd/awg/gate_generation_test.go:TestGateVerifiesTheGenerationEvenUnderAnExplicitAddr
+    file: cmd/awg/gate_generation_test.go
+    symbol: TestGateVerifiesTheGenerationEvenUnderAnExplicitAddr
+    package: main
+    language: go
+    doc: "5. An explicit non-canonical --addr is an operator naming an endpoint, not a licence to\nskip proving which generation it serves. The override changes WHERE, never WHETHER."
   - id: cmd/awg/gate_policy_test.go:TestApplyGatePolicy_OffDropsFinding
     file: cmd/awg/gate_policy_test.go
     symbol: TestApplyGatePolicy_OffDropsFinding
@@ -5938,11 +6298,183 @@ test_symbols:
     package: main
     language: go
     doc: "TestGovernanceCertificationSpine_EndToEnd freezes the full local governance\nflow:\n 1. proof-plan exposes the runtime-required checklist for a lifecycle surface\n 2. certify blocks when runtime evidence is missing\n 3. certify passes when mapped evidence satisfies the obligation\n 4. certify blocks again when a forbidden move is detected, even at score 100"
+  - id: cmd/awg/graph_marker_contract_test.go:TestALegacyStateDirectoryIsUsedAndNamed
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestALegacyStateDirectoryIsUsedAndNamed
+    package: main
+    language: go
+    doc: "A repository initialized before the rename keeps working, and the source says so —\na caller looking for .sensei/graph-authority.json and finding nothing needs to be\ntold the marker is in .awg rather than concluding none exists."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAMarkerIsRefusedForADirectoryThatIsNotAProject
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAMarkerIsRefusedForADirectoryThatIsNotAProject
+    package: main
+    language: go
+    doc: "The tier-4 refusal above is only as good as its trigger, and measuring the trigger\nfound the real defect: resolveProjectRoot NEVER reports \"not in a project\". Its\nsearch walks up looking for docs/awareness or <statedir>/config.yaml, and when it\nfinds neither it returns the CURRENT WORKING DIRECTORY with a nil error.\n\nSo `root == \"\"` almost never happens, and the default marker silently becomes\n<cwd>/.sensei/graph-authority.json for a caller standing anywhere at all —\nprecisely the cwd-dependent marker the refusal exists to prevent, arriving through\na door the refusal does not watch.\n\nChanging resolveProjectRoot is out of scope: 34 non-test callers depend on its\nfail-open walk. The invariant goes at the choke point instead. The marker resolver\nrequires the root to satisfy the SAME definition of a project resolveProjectRoot\nsearches for, so a root that matched only by exhaustion is refused rather than\nsilently used."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAMarkerPathThatDependsOnTheWorkingDirectoryIsRefused
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAMarkerPathThatDependsOnTheWorkingDirectoryIsRefused
+    package: main
+    language: go
+    doc: "Tier 4, fail-closed. A marker path that resolves against the current directory\ncertifies a different graph depending on where the command ran, which is not a\ncertification at all."
+  - id: cmd/awg/graph_marker_contract_test.go:TestARelativeProjectRootStillYieldsAnAbsoluteMarkerPath
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestARelativeProjectRootStillYieldsAnAbsoluteMarkerPath
+    package: main
+    language: go
+    doc: "A RELATIVE root carries the same defect as no root: the marker it names resolves\nagainst the caller's directory. t.TempDir() is already absolute, so the absolute-path\nassertion above cannot see whether anything absolutised it — this is the case that\ncan."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAnExplicitMarkerFlagIsAlwaysHonored
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAnExplicitMarkerFlagIsAlwaysHonored
+    package: main
+    language: go
+  - id: cmd/awg/graph_marker_contract_test.go:TestAnOrphanedLegacyMarkerIsReported
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAnOrphanedLegacyMarkerIsReported
+    package: main
+    language: go
+    doc: "Both directories present: one marker is authoritative and the other is ORPHANED,\ncertifying a generation nothing serves. Law 10's read side — a marker cannot\ncertify a different generation than the one being served — cannot be checked\nagainst a marker nobody knows is there."
+  - id: cmd/awg/graph_marker_contract_test.go:TestServeInEmbeddedSeedModeStatesThatItUsesNoMarkerFile
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestServeInEmbeddedSeedModeStatesThatItUsesNoMarkerFile
+    package: main
+    language: go
+    doc: "Tier 2: serve in embedded-seed mode uses the marker compiled into the binary, so\nthere is deliberately NO file. That is a real contract and it stays — but it is now\nstated, because \"no marker file\" and \"the default marker file\" were the same empty\nstring before, and only one of them means the embedded marker is in force."
+  - id: cmd/awg/graph_marker_contract_test.go:TestTheDefaultMarkerLivesInTheProjectsStateDirectory
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestTheDefaultMarkerLivesInTheProjectsStateDirectory
+    package: main
+    language: go
   - id: cmd/awg/graph_publication_lock_test.go:TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     file: cmd/awg/graph_publication_lock_test.go
     symbol: TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     package: main
     language: go
+  - id: cmd/awg/graph_reader_test.go:TestACommandWithNoEndpointFlagIsNotACensusSubject
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestACommandWithNoEndpointFlagIsNotACensusSubject
+    package: main
+    language: go
+    doc: "A command with no addr flag is not a graph reader and must not be demanded to resolve one."
+  - id: cmd/awg/graph_reader_test.go:TestANewProductionGraphCommandIsDiscoveredAsUnverified
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestANewProductionGraphCommandIsDiscoveredAsUnverified
+    package: main
+    language: go
+    doc: "A NEWLY INTRODUCED production graph-reading command must be DISCOVERED and must appear as\nunverified until it verifies. This is the census's standing promise about the future, and it is\nthe one the family's completion condition rests on: the set of covered commands is whatever the\ncensus derives, not a number anyone maintains."
+  - id: cmd/awg/graph_reader_test.go:TestANewlyAddedGraphReachingCommandWithoutTheOwnerFails
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestANewlyAddedGraphReachingCommandWithoutTheOwnerFails
+    package: main
+    language: go
+    doc: "4. A newly added graph-reaching command with no owner wiring fails, which is the census's\nstanding promise about the future."
+  - id: cmd/awg/graph_reader_test.go:TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
+    package: main
+    language: go
+    doc: "A. The domain resolves to service A while the netcfg default (:10120) would be B.\nThe reader must use A."
+  - id: cmd/awg/graph_reader_test.go:TestAReaderRefusesAResponseFromAnUndeclaredGeneration
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAReaderRefusesAResponseFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "D. The endpoint answers, but with a generation other than the declared ACTIVE one.\nThe reader must refuse rather than report findings from a graph the domain does not\ndeclare."
+  - id: cmd/awg/graph_reader_test.go:TestAVerifyingCommandLeavesTheGapSet
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAVerifyingCommandLeavesTheGapSet
+    package: main
+    language: go
+    doc: "And once it DOES verify, the census moves it -- so the gap count tracks the code rather than a\nmaintained list. Without this the previous assertion could be satisfied by a census that calls\neverything unverified."
+  - id: cmd/awg/graph_reader_test.go:TestAnExplicitOverrideIsPossibleAndVisiblyNonCanonical
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAnExplicitOverrideIsPossibleAndVisiblyNonCanonical
+    package: main
+    language: go
+    doc: "E. A test/dev override stays possible and must announce itself. An override that\nlooked like canonical resolution would be the port choice returning through a flag."
+  - id: cmd/awg/graph_reader_test.go:TestBriefingVerifiesTheServedGenerationBeforeRendering
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestBriefingVerifiesTheServedGenerationBeforeRendering
+    package: main
+    language: go
+    doc: "The generation check must be WIRED, and wired before the briefing is rendered: a\nverdict from an undeclared graph must never be read as findings about this domain.\n\nSource-anchored and labelled as such — driving a full briefing needs a live awareness\nservice. Witness D above proves the predicate; this proves the call exists, runs before\nthe render, and is given the response's OWN authority digest rather than some other\nvalue that would always agree."
+  - id: cmd/awg/graph_reader_test.go:TestEveryGraphReachingCommandResolvesThroughTheOwner
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestEveryGraphReachingCommandResolvesThroughTheOwner
+    package: main
+    language: go
+    doc: "Every command that reaches the graph must resolve through the owner. Counted rather\nthan sampled, so a command that dials without resolving is named.\nTHE CENSUS MUST ENUMERATE THE UNIT ITS NAME CLAIMS.\n\nThis enumerated FILES and asked whether the file contained \"productionReaderFor(\". Its name\nsays every graph-reaching COMMAND. cmd_repair_report.go holds two: runRepairReport was\nmigrated and runRepairGate was not, and one call certified the whole file -- so a command\nthat chose its own endpoint passed a census written to make that impossible, and the PR\nclaiming \"no production command chooses a graph port\" shipped with one that did. Found by an\nindependent reviewer, not by this test.\n\nIt now enumerates FUNCTIONS. A file with runA migrated and runB dialing directly fails."
+  - id: cmd/awg/graph_reader_test.go:TestMetadataAndBriefingResolveThroughTheSameOwner
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestMetadataAndBriefingResolveThroughTheSameOwner
+    package: main
+    language: go
+    doc: "F. metadata and briefing must resolve the same endpoint and identity for one domain.\nAsserted by construction: both call the same owner, and the test proves there is only\none resolver reachable from the reader paths."
+  - id: cmd/awg/graph_reader_test.go:TestNoProductionCommandDeclaresADefaultGraphEndpoint
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestNoProductionCommandDeclaresADefaultGraphEndpoint
+    package: main
+    language: go
+    doc: "THE INVARIANT, enforced once for the whole package rather than by sixteen weak\nper-command checks:\n\n\tFor a governed repository/domain there is exactly ONE code path by which a\n\tproduction command chooses which graph to read, and that path is the G2 owner.\n\nA command carrying `defaultServiceAddr()` as its --addr default owns a graph choice,\nwhatever it does afterwards. So the mechanical form of the invariant is: no command\ndeclares a default endpoint. Only the owner may name the built-in tier.\n\nThis is the check that makes the migration finishable and keeps it finished: a new\ncommand added next year with a default port fails here, which is the only way a\nsixteen-file migration does not silently regrow."
+  - id: cmd/awg/graph_reader_test.go:TestOneMigratedCommandCannotCertifyABypassingOne
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestOneMigratedCommandCannotCertifyABypassingOne
+    package: main
+    language: go
+    doc: "2 and 3. THE DEFECT THIS CENSUS EXISTS FOR. One migrated command must not certify a\nbypassing one -- neither in another file nor, the case that actually happened, in the SAME\nfile."
+  - id: cmd/awg/graph_reader_test.go:TestOnlyTheOwnerNamesTheBuiltInDefault
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestOnlyTheOwnerNamesTheBuiltInDefault
+    package: main
+    language: go
+    doc: "The owner is the only place the built-in tier may be named, and it must still name it:\nremoving the final tier would make an unresolvable domain produce an empty address\nrather than a truthful default."
+  - id: cmd/awg/graph_reader_test.go:TestReachabilityIsNotIdentity
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestReachabilityIsNotIdentity
+    package: main
+    language: go
+    doc: "B. :10120 may be perfectly healthy and belong to another graph. Reachability is not\nidentity, so nothing may select it merely because it answers."
+  - id: cmd/awg/graph_reader_test.go:TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    package: main
+    language: go
+    doc: "ANTI-VACUITY, driven rather than asserted about the real tree: the enumerator must discover\nnothing in a directory with no commands, and the census's floor is what turns that into a\nfailure. Without this, removing the floor changes no test."
+  - id: cmd/awg/graph_reader_test.go:TestTheCensusGroupsPartitionItsSubjects
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheCensusGroupsPartitionItsSubjects
+    package: main
+    language: go
+    doc: "The groups must PARTITION the subjects. Driven against an input where a broken classification\nwould double-count or drop, which the real tree cannot exhibit."
+  - id: cmd/awg/graph_reader_test.go:TestTheCensusPassesWhenEveryCommandIsMigrated
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheCensusPassesWhenEveryCommandIsMigrated
+    package: main
+    language: go
+    doc: "1. Both commands migrated: the census passes."
+  - id: cmd/awg/graph_reader_test.go:TestTheReaderCensusStatesWhyEachReaderDoesOrDoesNotVerify
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheReaderCensusStatesWhyEachReaderDoesOrDoesNotVerify
+    package: main
+    language: go
+    doc: "THE READER CENSUS, DERIVED AND COMMAND-SCOPED.\n\nTwo corrections forced by an independent review of this head, and both were defects in this\ncensus rather than in the readers:\n\n 1. It listed cmd_edit_check.go and cmd_edit_guard.go as consuming \"only EditCheck, which\n    states no generation\". THIS PR ADDED A GraphAuthority TO EditCheckResponse. The exemption\n    rested on a premise the same commit falsified, so two commands were excused from\n    generation verification on the strength of a stale sentence.\n 2. It counted FILES and asserted a total of 18, while the migration census next door had\n    already moved to commands. cmd_metadata.go holds runMetadata AND runDomains;\n    cmd_repair_report.go holds runRepairReport AND runRepairGate. File scope hid four\n    subjects and let a verifying command certify a sibling that does not verify.\n\nSo the subject set is DERIVED, per command, and the groups are computed rather than listed.\nA list is a claim about the world that silently stops being true.\n\nTHE TWO QUESTIONS STAY SEPARATE, and both are now closed. Endpoint ownership -- who chooses\nthe graph instance -- and served-generation authority -- whether the graph answering is the\none this domain declares ACTIVE. They are still two facts, not one boolean, because\nrunRepairGate once closed the first and explicitly not the second.\n\nThis is the served-generation authority family's COMPLETION CONDITION, and it is an\nassertion rather than a log line. What it enforces:\n\n\tproduction graph-reading subjects == subjects whose authoritative consumption is\n\t                                    generation-verified\n\nA new production graph-reading command that consumes graph authority without comparing it\nFAILS HERE, without anyone editing a list. That is the property the whole family was for:\nthe gap was not thirteen bugs, it was one invariant with no instrument behind it.\n\nThe set is NOT exempt-able. There is no allowlist, because the way this gap opened was a\nsentence claiming two commands consumed no authority -- true when written, falsified by the\ncommit that added GraphAuthority to EditCheckResponse, and never re-checked. A subject whose\nresult genuinely may not be trusted must say so in code the census can read, not in prose."
+  - id: cmd/awg/graph_reader_test.go:TestTheSharedHelperAnnouncesANonCanonicalOverride
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheSharedHelperAnnouncesANonCanonicalOverride
+    package: main
+    language: go
+    doc: "The override notice must actually be EMITTED by the helper every command calls.\nTesting nonCanonicalReaderNotice in isolation proved the sentence can be composed; a\nmutant that deleted the emission survived exactly that gap, so this drives the real\nhelper and captures what it writes."
+  - id: cmd/awg/graph_reader_test.go:TestThereIsNoFallbackEndpoint
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestThereIsNoFallbackEndpoint
+    package: main
+    language: go
+    doc: "C. When the resolved endpoint is unavailable the reader fails closed. There is no\nsecond port to try, because trying one would be choosing a graph by liveness."
+  - id: cmd/awg/graph_reader_test.go:TestVerificationIsDetectedPerCommandNotPerFile
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestVerificationIsDetectedPerCommandNotPerFile
+    package: main
+    language: go
+    doc: "PER-FUNCTION VERIFICATION. A verifying command must not certify a non-verifying sibling, and\nthe case that matters is both in ONE file -- which is how cmd_edit_check and cmd_edit_guard\nwere excused and how runDomains stayed invisible."
   - id: cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
     file: cmd/awg/graph_refresh_test.go
     symbol: TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
@@ -6016,6 +6548,67 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
+  - id: cmd/awg/import_input_filter_test.go:TestAnUnconstrainedDomainKeepsEveryInput
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestAnUnconstrainedDomainKeepsEveryInput
+    package: main
+    language: go
+    doc: "An empty allowlist means the domain constrains nothing, and filtering must not\ninvent a constraint the registry did not state."
+  - id: cmd/awg/import_input_filter_test.go:TestInputsAreFilteredToWhatTheDomainAdmits
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestInputsAreFilteredToWhatTheDomainAdmits
+    package: main
+    language: go
+  - id: cmd/awg/import_input_filter_test.go:TestTheDroppedInputsAreReportedWithTheirCost
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestTheDroppedInputsAreReportedWithTheirCost
+    package: main
+    language: go
+    doc: "Dropping the reconstruction output is not free, and the notice must say so. A\nsilent filter would turn \"your coverage was not published\" into \"the load\nsucceeded\"."
+  - id: cmd/awg/import_load_failure_test.go:TestImportLoadFailureNoticeDoesNotFabricateACause
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportLoadFailureNoticeDoesNotFabricateACause
+    package: main
+    language: go
+  - id: cmd/awg/import_load_failure_test.go:TestImportLoadFailureNoticeWarnsAgainstTheDestructiveRemedy
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportLoadFailureNoticeWarnsAgainstTheDestructiveRemedy
+    package: main
+    language: go
+    doc: "--all must never read as the remedy for an uninterpreted exit code. If it is\nnamed at all, it must be named as a warning."
+  - id: cmd/awg/import_load_failure_test.go:TestImportRefusesALoadTheGateMustRefuse
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportRefusesALoadTheGateMustRefuse
+    package: main
+    language: go
+    doc: "import must not construct a load the publication gate is certain to refuse.\n\nMeasured 2026-09-13: import's step 5 always passes `.sensei/project` as a corpus\ninput (cmd_import.go:205,224), and this domain's registry allows only\n`[docs/awareness]`, so domain_admission.go:316 refuses every time. Removing that\none input and changing nothing else turns PUBLICATION_REFUSED into exit 0 with\n35,255 triples loaded. The refusal arrived AFTER bootstrap, cold-bootstrap and\nproject reconstruction had already rewritten the canonical checkout.\n\nChecking admissibility first costs nothing and is read-only: AdmitPublication\nalready exists for exactly this question."
+  - id: cmd/awg/import_load_failure_test.go:TestTheMarkerNoteNamesTheCwdHazardNotAFalseConsequence
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestTheMarkerNoteNamesTheCwdHazardNotAFalseConsequence
+    package: main
+    language: go
+    doc: "The marker note must describe the real contract, not a consequence it got wrong.\n\nIt said \"no --graph-marker-file given; a live/served store may report\nfreshness-stale for briefing until re-certified\". But build DOES default the\nmarker — cmd_build.go:242 and :705 call defaultRuntimeMarkerFile() when the flag\nis empty — so the marker is written and freshness is not necessarily stale. The\nreal hazard is different and worse: defaultRuntimeMarkerFile resolves via\nresolveProjectRoot(\"\"), i.e. from the CURRENT DIRECTORY, so the marker is bound\nto whatever project cwd happens to name, which need not be the checkout being\nrefreshed."
+  - id: cmd/awg/import_self_defeat_test.go:TestADomainThatDoesNotPublishTheWrittenRootIsNotDefeated
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestADomainThatDoesNotPublishTheWrittenRootIsNotDefeated
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestADomainThatPermitsADirtyWorktreeIsNotDefeated
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestADomainThatPermitsADirtyWorktreeIsNotDefeated
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestImportRefusesWhenItsOwnExtractionWouldDefeatIt
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestImportRefusesWhenItsOwnExtractionWouldDefeatIt
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestTheImportCommandRefusesBeforeWritingAnything
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestTheImportCommandRefusesBeforeWritingAnything
+    package: main
+    language: go
+    doc: "End to end: the command refuses and writes nothing.\n\nHONEST LIMIT OF THIS TEST. It does NOT bind the call site. Deleting the refusal\nstill passes it, because in a synthetic repository the extraction stages write\nnothing to begin with — there is no Go source to extract and no managed skills to\nregenerate — so no assertion here can distinguish \"refused early\" from \"ran and\nproduced nothing\". Building a repository realistic enough to write would be a\ndisproportionate fixture.\n\nThe WIRING is proven live instead, on this repository, and that evidence is\nstronger than a synthetic fixture would be: the same invocation that previously\nturned a clean checkout into 27 changes with nothing loaded now prints the refusal\nand leaves git status empty, 0 -> 0. Recorded in\nsensei/docs/architecture/graph-identity-audit.md.\n\nWhat this test does bind: that the command exits non-zero and, when it refuses,\nleaves the worktree clean — checked with git status rather than an entry count,\nbecause most of the 27 observed writes were MODIFICATIONS and an entry count cannot\nsee those. An assertion that cannot see the damage it exists to detect is not an\nassertion."
   - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
     symbol: TestAResponseWithNoBuildCommitReportsUnknown
@@ -6043,6 +6636,54 @@ test_symbols:
     symbol: TestDispatchExposesPhase10Investigation
     package: main
     language: go
+  - id: cmd/awg/metadata_identity_test.go:TestACorrectAuthorityDigestIsSufficientWithAnEmptyTopLevelField
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestACorrectAuthorityDigestIsSufficientWithAnEmptyTopLevelField
+    package: main
+    language: go
+    doc: "F2-CASE-3. Authority present and correct, top level empty. The server proved identity through\nthe composed verdict and not through the marker field; still sufficient."
+  - id: cmd/awg/metadata_identity_test.go:TestACorrectTopLevelDigestIsSufficientWithNoAuthorityStructure
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestACorrectTopLevelDigestIsSufficientWithNoAuthorityStructure
+    package: main
+    language: go
+    doc: "F2-CASE-1. Canonical top-level digest correct, Authority absent. THE HOLDING CASE: an older\nserver states which generation answered and carries no authority structure. It must verify."
+  - id: cmd/awg/metadata_identity_test.go:TestAResponseEstablishingNoServedIdentityIsRefused
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestAResponseEstablishingNoServedIdentityIsRefused
+    package: main
+    language: go
+    doc: "F2-CASE-5. NEITHER representation establishes identity. Refuse: unestablished must never read\nas established, which is the family's own absence rule."
+  - id: cmd/awg/metadata_identity_test.go:TestAWrongTopLevelDigestRefusesEvenWithNoAuthorityStructure
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestAWrongTopLevelDigestRefusesEvenWithNoAuthorityStructure
+    package: main
+    language: go
+    doc: "F2-CASE-2. Canonical top-level digest present and WRONG, Authority absent. Must refuse -- the\nnil authority must not become a reason to skip the comparison either."
+  - id: cmd/awg/metadata_identity_test.go:TestDomainsAcceptsAnOlderServerThatStatesOnlyTheCanonicalDigest
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestDomainsAcceptsAnOlderServerThatStatesOnlyTheCanonicalDigest
+    package: main
+    language: go
+    doc: "F2-DRIVEN. The older-server case at a real command, because the repair must be visible where\nthe refusal was: `domains` consumes a MetadataResponse and nothing else, so a server stating\nonly the canonical field is exactly the input that head 59372102 refused."
+  - id: cmd/awg/metadata_identity_test.go:TestDomainsStillRefusesAnOlderServerServingAnUndeclaredGeneration
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestDomainsStillRefusesAnOlderServerServingAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "F2-DRIVEN-opposite. The same older server serving the WRONG generation must still be refused:\naccepting the canonical field must not become accepting whatever it says."
+  - id: cmd/awg/metadata_identity_test.go:TestTheMetadataSeamIsInertWhenNothingIsDeclaredActive
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestTheMetadataSeamIsInertWhenNothingIsDeclaredActive
+    package: main
+    language: go
+    doc: "F2-INERT. The inert direction still holds for this seam too: with nothing declared ACTIVE,\nevery shape above proceeds. Without this, the repair could be a blanket refusal and cases 2, 4\nand 5 would all still pass."
+  - id: cmd/awg/metadata_identity_test.go:TestTwoDisagreeingIdentityRepresentationsAreRefusedInBothOrderings
+    file: cmd/awg/metadata_identity_test.go
+    symbol: TestTwoDisagreeingIdentityRepresentationsAreRefusedInBothOrderings
+    package: main
+    language: go
+    doc: "F2-CASE-4. BOTH present and INCONSISTENT. Neither is preferred: a response describing two\ngenerations attests to neither, so it is refused in both orderings -- a preference rule would\npass one of them and the choice of which would be arbitrary."
   - id: cmd/awg/observed_change_test.go:TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
     file: cmd/awg/observed_change_test.go
     symbol: TestVerifyAdmissionRecordsChangeObservedBeforeScopeVerified
@@ -6061,6 +6702,72 @@ test_symbols:
     package: main
     language: go
     doc: "Crash after change_observed but before scope_verified: a re-run with an\nidentical observation resumes from the recorded change without appending a\nsecond change_observed."
+  - id: cmd/awg/optional_domain_test.go:TestAnInvalidExplicitDomainIsRefusedLikeAMalformedConfiguration
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestAnInvalidExplicitDomainIsRefusedLikeAMalformedConfiguration
+    package: main
+    language: go
+    doc: "F1-INVALID-EXPLICIT. An invalid domain an OPERATOR typed is refused the same way a malformed\nconfig is: the tier it came from does not change that an identity was claimed and cannot be\ntrusted. Without this, --domain would be the one tier that could smuggle an untrusted value in."
+  - id: cmd/awg/optional_domain_test.go:TestAnOmittedOptionalDomainLeavesTheComparisonIncapable
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestAnOmittedOptionalDomainLeavesTheComparisonIncapable
+    package: main
+    language: go
+    doc: "F1-REPRODUCER. The whole chain, at the level the defect lives: a project that states its\ndomain, a registry that declares a generation ACTIVE for it, and a reader built from an\nomitted optional flag. The reader resolves fine. It just cannot detect anything."
+  - id: cmd/awg/optional_domain_test.go:TestAnUnboundCheckoutAndAnInvalidDomainAreDifferentFacts
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestAnUnboundCheckoutAndAnInvalidDomainAreDifferentFacts
+    package: main
+    language: go
+    doc: "F1-THREE-STATES. Two absences that used to be one empty string, now separate facts. This is\nwhat blind review asked to be distinguished, and each has a different consequence."
+  - id: cmd/awg/optional_domain_test.go:TestEditCheckWithTheDomainFlagOmittedStillRefusesAnUndeclaredGeneration
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestEditCheckWithTheDomainFlagOmittedStillRefusesAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "F1-END-TO-END, at the exact surface blind review named. edit-check's --domain is optional, and\nthe whole point is that an operator who omits it is not opting out of authority. Driven\nagainst a real server so the finding is closed where it was raised, not only at the owner."
+  - id: cmd/awg/optional_domain_test.go:TestEditCheckWithTheDomainFlagOmittedStillReportsWhenTheGenerationAgrees
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestEditCheckWithTheDomainFlagOmittedStillReportsWhenTheGenerationAgrees
+    package: main
+    language: go
+    doc: "F1-END-TO-END-opposite. Omitting the flag must not become a refusal either: the resolved\ndomain has to be USED, and used correctly, or the repair is just a new way to fail."
+  - id: cmd/awg/optional_domain_test.go:TestGateDoesNotSkipVerificationWhenTheExpectedDomainIsInvalid
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestGateDoesNotSkipVerificationWhenTheExpectedDomainIsInvalid
+    package: main
+    language: go
+    doc: "F1-SHORT-CIRCUIT. The caller that decided first. `gate` skipped its Metadata round trip when no\ngeneration was declared -- correct as an optimisation -- but an INVALID expected domain also\nreports no declared generation, so a malformed checkout identity skipped the round trip AND the\nrefusal the owner's comparison would have made. Raised at cmd_gate.go:68 by blind review of\nhead 202fafeb, and it is the family's recurring shape: proven in the owner, not enforced by a\ncaller with its own ordering."
+  - id: cmd/awg/optional_domain_test.go:TestGateStillSkipsTheRoundTripWhenNothingIsDeclaredActive
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestGateStillSkipsTheRoundTripWhenNothingIsDeclaredActive
+    package: main
+    language: go
+    doc: "F1-SHORT-CIRCUIT-opposite. The optimisation must survive: with nothing declared and a\ntrustworthy domain, gate still makes no call and still proceeds. A repair that always dialled\nwould pass the test above and cost every run a round trip."
+  - id: cmd/awg/optional_domain_test.go:TestMetadataReportsTheGenerationVerdictForTheResolvedDomain
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestMetadataReportsTheGenerationVerdictForTheResolvedDomain
+    package: main
+    language: go
+    doc: "F1-REPORT. The same defect at the one consumer that REPORTS the comparison rather than making\nit. runMetadata built its endpoint report from the raw --domain flag while the reader beside it\nresolved one, so with the flag omitted the report said \"NOT DECLARED\" and printed a\ndisagreement about a domain nobody named -- contradicting the check it exists to explain.\n\nThis was a regression introduced BY the owner-resolution repair: before it, the reader and the\nreport were both handed \"\" and were consistently inert. Found by blind review of head\n3b204813, and it is the same Pattern A as the family itself -- a property established at the\nowner and not carried by one caller."
+  - id: cmd/awg/optional_domain_test.go:TestMetadataStillReportsARealGenerationDisagreement
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestMetadataStillReportsARealGenerationDisagreement
+    package: main
+    language: go
+    doc: "F1-REPORT-opposite. metadata REPORTS a real disagreement rather than refusing on it -- that is\nits documented role, and a repair that made it refuse would hide the one answer an operator\nran it to get."
+  - id: cmd/awg/optional_domain_test.go:TestOnlyTheOwnerConstructsAProductionGraphReader
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestOnlyTheOwnerConstructsAProductionGraphReader
+    package: main
+    language: go
+    doc: "F1-CENSUS. The repair is at the owner, so \"hands the owner a raw flag\" stopped being the\ndefect -- passing the raw flag is now correct, because the owner resolves it. The universal\nclaim is assembled from two derived facts instead, and neither is a list:\n\n 1. every subject resolves through the owner -- already derived, per command, by\n    TestTheReaderCensusStatesWhyEachReaderDoesOrDoesNotVerify;\n 2. the owner ALWAYS resolves the expected domain, and is the ONLY place a graphReader is\n    constructed, so there is no second way to obtain one with an unresolved domain.\n\nThis is the second half. A reader built anywhere else could carry any Domain the writer felt\nlike, including \"\", with nothing to say it had not been resolved -- which is exactly the state\nblind review found reaching the comparison."
+  - id: cmd/awg/optional_domain_test.go:TestTheOwnerResolvesTheExpectedDomainAndAnExplicitOneStillWins
+    file: cmd/awg/optional_domain_test.go
+    symbol: TestTheOwnerResolvesTheExpectedDomainAndAnExplicitOneStillWins
+    package: main
+    language: go
+    doc: "F1-OWNER. The owner resolves, in both directions: an omitted domain becomes the checkout's,\nand an explicitly-named one wins over it. Without the second half a repair that always used\nthe configured domain would pass the first and silently ignore every --domain an operator\ntyped."
   - id: cmd/awg/oxigraph_serve_args_test.go:TestOxigraphServeArgs
     file: cmd/awg/oxigraph_serve_args_test.go
     symbol: TestOxigraphServeArgs
@@ -6233,6 +6940,24 @@ test_symbols:
     symbol: TestVerifyAdmissionV2RenameFailsClosed
     package: main
     language: go
+  - id: cmd/awg/repair_gate_reader_test.go:TestRepairGateHasNoEndpointOfItsOwn
+    file: cmd/awg/repair_gate_reader_test.go
+    symbol: TestRepairGateHasNoEndpointOfItsOwn
+    package: main
+    language: go
+    doc: "3. NO FALLBACK. With no project config and no flag the command still resolves through the\nowner -- which yields the owner's built-in default, the ONLY place that default may come\nfrom -- rather than inventing one locally or dialing nothing."
+  - id: cmd/awg/repair_gate_reader_test.go:TestRepairGateHonoursAnExplicitEndpointAndAnnouncesIt
+    file: cmd/awg/repair_gate_reader_test.go
+    symbol: TestRepairGateHonoursAnExplicitEndpointAndAnnouncesIt
+    package: main
+    language: go
+    doc: "2. An explicit endpoint is honoured, and announced as a non-canonical override -- the\noverride changes WHERE, never WHETHER resolution happened."
+  - id: cmd/awg/repair_gate_reader_test.go:TestRepairGateResolvesItsEndpointThroughTheOwner
+    file: cmd/awg/repair_gate_reader_test.go
+    symbol: TestRepairGateResolvesItsEndpointThroughTheOwner
+    package: main
+    language: go
+    doc: "1. THE FINDING. With no --addr the command must dial the endpoint the owner resolves, never\nthe empty string."
   - id: cmd/awg/repo_domain_binding_test.go:TestEstablishRepositoryDomain_ExistingConfigNotRewrittenOnRemoteChange
     file: cmd/awg/repo_domain_binding_test.go
     symbol: TestEstablishRepositoryDomain_ExistingConfigNotRewrittenOnRemoteChange
@@ -6555,6 +7280,211 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/served_authority_test.go:TestARepositoryScopedReaderRefusesAMalformedDomainConfiguration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestARepositoryScopedReaderRefusesAMalformedDomainConfiguration
+    package: main
+    language: go
+    doc: "B1-opposite. A malformed repository configuration must be REFUSED rather than fall through to\nthe empty domain. Falling through would restore exactly the permanent inertness this\nrepair removes, while looking like a reader that simply had nothing to check -- and\ncheckout identity is an authority boundary, so it fails visibly."
+  - id: cmd/awg/served_authority_test.go:TestASubjectThatPassesNoDomainStillGetsAResolvedExpectedDomain
+    file: cmd/awg/served_authority_test.go
+    symbol: TestASubjectThatPassesNoDomainStillGetsAResolvedExpectedDomain
+    package: main
+    language: go
+    doc: "B1. Four subjects hand the owner an EMPTY domain, so the comparison is not omitted --\nit is structurally impossible. declaredActiveGeneration reads reg.Domains[\"\"], the zero\nvalue, so DeclaredGeneration is \"\" and verifyServed is permanently inert. Adding the\ncheck at those call sites would change nothing, which is why they are a separate repair\nshape: the domain must be resolved first.\n\nThe same project resolves a domain that DOES declare a generation, which is what makes\nthis a defect rather than a configuration gap."
+  - id: cmd/awg/served_authority_test.go:TestDomainsDoesNotPrintAListFromAnUndeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestDomainsDoesNotPrintAListFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "A6. THE PICKER. `sensei domains` prints the domain set a graph offers, and whoever picks\nfrom it runs a governed operation against the choice. A list from a graph this project does\nnot declare active is therefore consumed authoritatively one step later."
+  - id: cmd/awg/served_authority_test.go:TestDomainsStillPrintsTheListWhenTheGenerationAgrees
+    file: cmd/awg/served_authority_test.go
+    symbol: TestDomainsStillPrintsTheListWhenTheGenerationAgrees
+    package: main
+    language: go
+    doc: "A6-opposite."
+  - id: cmd/awg/served_authority_test.go:TestEditBriefDeliversNothingFromAnUndeclaredGenerationAndRecordsWhy
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditBriefDeliversNothingFromAnUndeclaredGenerationAndRecordsWhy
+    package: main
+    language: go
+    doc: "A8. THE WITHHELD DELIVERY. edit-brief pushes invariants and forbidden fixes into an agent's\nedit. It exits 0 always and must not wedge editing, so the refusal is silence -- and a\nLEDGER ROW, because an opportunity that produced no delivery is the row a delivery count\nsilently drops. That is how a whole campaign was once measured as clean."
+  - id: cmd/awg/served_authority_test.go:TestEditBriefStillDeliversWhenTheGenerationAgrees
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditBriefStillDeliversWhenTheGenerationAgrees
+    package: main
+    language: go
+    doc: "A8-opposite. The push must still happen when the generation agrees, or the hook is dead."
+  - id: cmd/awg/served_authority_test.go:TestEditCheckDoesNotPrintACleanVerdictFromAnUndeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditCheckDoesNotPrintACleanVerdictFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "A5. THE FALSE CLEAN. edit-check is warning-only and exits 0 either way, so the danger is\nnot a wrong warning -- it is printing \"no advisory rule tripped for this edit.\" about a\ndomain whose rules were never consulted. An agent reads that as permission."
+  - id: cmd/awg/served_authority_test.go:TestEditCheckStillReportsWhenTheGenerationAgrees
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditCheckStillReportsWhenTheGenerationAgrees
+    package: main
+    language: go
+    doc: "A5-opposite. The clean verdict must still be printed when the generation agrees, including\nthrough --json, which is a second output path and therefore a second chance to bypass."
+  - id: cmd/awg/served_authority_test.go:TestEditGuardDeniesAWriteOnRulesFromAnUndeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditGuardDeniesAWriteOnRulesFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "A2. `edit-guard` BLOCKS a write. A deny derived from another generation's forbidden-fix\nrules is the strongest authoritative consumption in the family: it stops work, and the\nagent it stops cannot see which graph decided."
+  - id: cmd/awg/served_authority_test.go:TestEditGuardDeniesAWriteOnRulesWhoseGenerationIsUnestablished
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditGuardDeniesAWriteOnRulesWhoseGenerationIsUnestablished
+    package: main
+    language: go
+    doc: "A4. Absence, on a subject that has NO self-certification gate. A3 is refused today, but\nby requireAuthoritativeGraph and for its own reason -- and only four of the thirteen call\nit. The other nine consume an answer whose generation is entirely unestablished. Here a\nwrite is BLOCKED on rules from a graph that stated no generation at all."
+  - id: cmd/awg/served_authority_test.go:TestEditGuardStillBlocksOnRulesFromTheDeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestEditGuardStillBlocksOnRulesFromTheDeclaredGeneration
+    package: main
+    language: go
+    doc: "A2-opposite. The guard must still BLOCK when the rule comes from the declared ACTIVE\ngeneration. A repair that simply stopped blocking would pass A2 and destroy the command."
+  - id: cmd/awg/served_authority_test.go:TestRepairGateFailsClosedOnAnUndeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestRepairGateFailsClosedOnAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "A7. THE CLASSIFICATION. repair-report and repair-gate always produce a verdict -- that is\ntheir contract -- so the refusal is a classification rather than an error. It must be its\nOWN classification: folding it into stale_authority would claim the graph said something\nabout itself that it did not, and the two have different repairs."
+  - id: cmd/awg/served_authority_test.go:TestRepairGateVerifiesEachResponseNotJustTheFirst
+    file: cmd/awg/served_authority_test.go
+    symbol: TestRepairGateVerifiesEachResponseNotJustTheFirst
+    package: main
+    language: go
+    doc: "A9. VERIFIED ONCE IS NOT VERIFIED. The store is republished after Metadata answers, so the\npreflight that follows on the SAME connection comes from a different generation. A command\nthat compares once, at the start, has verified a response it did not use.\n\nFound by mutation: deleting the per-response preflight comparison in generateRepairReport\nsurvived, because the metadata comparison fired first in every witness that existed."
+  - id: cmd/awg/served_authority_test.go:TestRepairPlanBuildsThePlanWhenTheServedGenerationIsTheDeclaredOne
+    file: cmd/awg/served_authority_test.go
+    symbol: TestRepairPlanBuildsThePlanWhenTheServedGenerationIsTheDeclaredOne
+    package: main
+    language: go
+    doc: "A1-opposite. The same command, the same declaration, everything the same -- except the\ngraph serves the generation the domain declares. It must produce the plan. Without this, a\nrepair that refused unconditionally would pass A1 and be indistinguishable from one that\nworks."
+  - id: cmd/awg/served_authority_test.go:TestRepairPlanConsumesAPlanBuiltFromAnUndeclaredGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestRepairPlanConsumesAPlanBuiltFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "A1. THE SHARPEST CASE IN THE FAMILY. `repair-plan` documents itself as failing closed\n\"if the server cannot prove the graph is current and authoritative\", and it enforces\nthat with requireAuthoritativeGraph -- which asks whether the graph certifies ITSELF.\nA graph can answer that perfectly and still be the wrong generation for this domain, so\nthe existing shared seam is INSUFFICIENT rather than absent. The plan an implementer\nthen executes was built from rules this domain does not declare active."
+  - id: cmd/awg/served_authority_test.go:TestRepairPlanConsumesAnAnswerThatStatesNoGenerationAtAll
+    file: cmd/awg/served_authority_test.go
+    symbol: TestRepairPlanConsumesAnAnswerThatStatesNoGenerationAtAll
+    package: main
+    language: go
+    doc: "A3. Absence is a third outcome, not a skipped check. A server that carries NO authority\nleaves which generation answered unestablished, and unestablished must never read as\nestablished."
+  - id: cmd/awg/served_authority_test.go:TestTheOwnerComparesTheServedGenerationNotTheRuleSnapshotRevision
+    file: cmd/awg/served_authority_test.go
+    symbol: TestTheOwnerComparesTheServedGenerationNotTheRuleSnapshotRevision
+    package: main
+    language: go
+    doc: "The field the owner reads is the one that can detect the fault. GraphAuthority carries\ntwo commit-shaped strings: live_store_graph_digest_sha256 (the generation that answered)\nand graph_build_commit (the RULE SNAPSHOT's revision). Comparing the second against a\ndeclared generation would be the right position, the right predicate and the wrong\noperand -- a check that reads as enforcement and can never fire.\n\ncmd_edit_brief.go had already read graph_build_commit into a field it called\n\"Generation\", which is why this is pinned rather than assumed. It also replaces the half\nof each call site's source anchor that the seam absorbed."
+  - id: cmd/awg/served_authority_test.go:TestTheOwnerRefusesAnAuthorityThatEstablishesNoGeneration
+    file: cmd/awg/served_authority_test.go
+    symbol: TestTheOwnerRefusesAnAuthorityThatEstablishesNoGeneration
+    package: main
+    language: go
+    doc: "Absence is refused, and a nil authority is not a different answer from an empty one. A\nself-certifying response is not exempt either: authoritative + CURRENT says the graph\nvouches for itself, which is not the same fact as being the generation this domain\ndeclares."
+  - id: cmd/awg/served_authority_test.go:TestWithNoDeclarationEveryReaderProceedsUnchanged
+    file: cmd/awg/served_authority_test.go
+    symbol: TestWithNoDeclarationEveryReaderProceedsUnchanged
+    package: main
+    language: go
+    doc: "C1. Inertness, in the direction that must keep working. When the registry declares no\nACTIVE generation there is nothing to contradict, and every subject must behave exactly\nas it did before this family existed. A repair that refused here would take the\nunconfigured case out of service, which is the failure mode the pointer's own contract\nforbids."
+  - id: cmd/awg/service_addr_resolution_test.go:TestAnExplicitFlagAlwaysWins
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestAnExplicitFlagAlwaysWins
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheBuiltInDefaultIsUsedOnlyWhenNothingElseSpeaks
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheBuiltInDefaultIsUsedOnlyWhenNothingElseSpeaks
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheProjectConfigBeatsTheBuiltInDefault
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheProjectConfigBeatsTheBuiltInDefault
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheReportNamesTheEndpointAndWhereItCameFrom
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheReportNamesTheEndpointAndWhereItCameFrom
+    package: main
+    language: go
+    doc: "G5 also requires the report to say WHICH endpoint answered and where that choice\ncame from. Without it, two runs from different directories print different numbers\nand the output does not say why — which is the confusion this whole front is about."
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheReportSaysWhetherTheMarkerAgreesWithTheServedGraph
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheReportSaysWhetherTheMarkerAgreesWithTheServedGraph
+    package: main
+    language: go
+    doc: "Law 10: a marker cannot certify a different generation/store than the one being\nserved. Today nothing compares them, so a divergence is invisible — measured on\n2026-09-13, a disposable generation wrote digest 230a74f6…/35,255 while the live\nmarker still said c0b660fc…/35,268, and no command would have said so."
+  - id: cmd/awg/store_ownership_test.go:TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    package: main
+    language: go
+    doc: "A domain that declares a store must publish into it. Targeting a DIFFERENT, unowned\nstore is the accident the netcfg default causes — :7878 is reachable and belongs to\nnobody — so it is refused unless the operator named it explicitly."
+  - id: cmd/awg/store_ownership_test.go:TestADisposableStoreIsOneNoDomainClaims
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADisposableStoreIsOneNoDomainClaims
+    package: main
+    language: go
+    doc: "A disposable store is one no domain declares — that is the non-production opt-out, and\nit is explicit in the registry rather than a flag that disables the check."
+  - id: cmd/awg/store_ownership_test.go:TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    package: main
+    language: go
+    doc: "Two governed domains may not declare the same store. Refused at LOAD, so every command\ninherits it rather than each publication path having to remember."
+  - id: cmd/awg/store_ownership_test.go:TestActivationCannotStrandAnotherDomainsPointer
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestActivationCannotStrandAnotherDomainsPointer
+    package: main
+    language: go
+    doc: "Activation cannot strand a neighbour, which follows from the above: a publication that\nwould land in another domain's store never runs, so no activation can move a store\nanother domain's pointer names."
+  - id: cmd/awg/store_ownership_test.go:TestAnUndeclaredDomainIsUnconstrained
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestAnUndeclaredDomainIsUnconstrained
+    package: main
+    language: go
+    doc: "Inert until declared: a domain with no store_url behaves exactly as before, which is\nwhat keeps this from breaking every existing caller and every disposable store."
+  - id: cmd/awg/store_ownership_test.go:TestPublishingIntoAnotherDomainsStoreIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestPublishingIntoAnotherDomainsStoreIsRefused
+    package: main
+    language: go
+    doc: "Publishing domain B into the store domain A owns is refused, always — an explicit\noverride cannot license stranding a neighbour's pointer."
+  - id: cmd/awg/store_ownership_test.go:TestStoreIdentityIgnoresSpelling
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestStoreIdentityIgnoresSpelling
+    package: main
+    language: go
+    doc: "Spelling is not identity: the same store written two ways is still one store."
+  - id: cmd/awg/store_ownership_test.go:TestTheOwnershipCheckPrecedesEveryStoreMutation
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestTheOwnershipCheckPrecedesEveryStoreMutation
+    package: main
+    language: go
+    doc: "The check must be wired, and wired BEFORE the store is touched. Source-anchored and\nlabelled so: the publication path needs a live store. The behavioural witnesses above\nprove the predicate; this proves where it runs."
+  - id: cmd/awg/store_url_noncanonical_test.go:TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical
+    package: main
+    language: go
+  - id: cmd/awg/store_url_noncanonical_test.go:TestAnAgreeingExplicitStoreURLIsNotWarnedAbout
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestAnAgreeingExplicitStoreURLIsNotWarnedAbout
+    package: main
+    language: go
+  - id: cmd/awg/store_url_noncanonical_test.go:TestAnUnconfiguredStoreIsSaidToBeUnverifiable
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestAnUnconfiguredStoreIsSaidToBeUnverifiable
+    package: main
+    language: go
+    doc: "A config that names no store is not agreement. Silence must not read as assent."
   - id: cmd/awg/synthesis_run_addr_test.go:TestBackendUnreachableSeparatesTransportFromService
     file: cmd/awg/synthesis_run_addr_test.go
     symbol: TestBackendUnreachableSeparatesTransportFromService
@@ -12690,6 +13620,59 @@ test_symbols:
     package: diffaudit
     language: go
     doc: "TestEvaluatorFailureCarriesItsCause is issue #260's first finding.\n\nEvery other failure path in EvaluateDiff records why it failed. The\nCheckFile path recorded only the reason CODE, so a caller saw\n\"cannot_verify / evaluator_unavailable / limitations: none\" and could not\ntell an unreachable graph from a rejected RPC from a panicking rule.\n\nThat mattered beyond tidiness: with the cause carried, the second defect in\n#260 would have reported itself instead of taking twenty minutes to corner."
+  - id: golang/architecture/diffaudit/graph_generation_outage_test.go:TestAGenerationRPCErrorDegradesTheAuditRatherThanFailingIt
+    file: golang/architecture/diffaudit/graph_generation_outage_test.go
+    symbol: TestAGenerationRPCErrorDegradesTheAuditRatherThanFailingIt
+    package: diffaudit
+    language: go
+    doc: "P2-2-A. AN RPC ERROR IS NOT A FAILURE. The audit completes, and its verdict is cannot_verify."
+  - id: golang/architecture/diffaudit/graph_generation_outage_test.go:TestAGenerationRPCErrorKeepsTheReasonAnOperatorCanAct
+    file: golang/architecture/diffaudit/graph_generation_outage_test.go
+    symbol: TestAGenerationRPCErrorKeepsTheReasonAnOperatorCanAct
+    package: diffaudit
+    language: go
+    doc: "P2-2-B. THE ERROR TEXT SURVIVES, which is the whole reason the error is returned rather than\nswallowed. An operator reading this audit must be able to tell \"the store is unreachable\" from\n\"the checker cannot report generations at all\"; only the first names something they can fix.\n\nThis is the witness that the suggested repair -- return \"\", nil -- must not pass."
+  - id: golang/architecture/diffaudit/graph_generation_outage_test.go:TestAReachableGenerationStillProducesAnAvailableAudit
+    file: golang/architecture/diffaudit/graph_generation_outage_test.go
+    symbol: TestAReachableGenerationStillProducesAnAvailableAudit
+    package: diffaudit
+    language: go
+    doc: "P2-2-D. And the healthy path is unaffected, or the three above would pass against a build that\nhad stopped observing generations at all."
+  - id: golang/architecture/diffaudit/graph_generation_outage_test.go:TestAReportingFailureAndAnAbsentIdentityAgreeOnTheVerdictAndDifferInTheExplanation
+    file: golang/architecture/diffaudit/graph_generation_outage_test.go
+    symbol: TestAReportingFailureAndAnAbsentIdentityAgreeOnTheVerdictAndDifferInTheExplanation
+    package: diffaudit
+    language: go
+    doc: "P2-2-C. THE TWO ABSENCES REMAIN DISTINGUISHABLE while agreeing on the verdict. Equal\navailability, equal reason code, different explanation -- the shape observeGeneration's comment\nprescribes. Collapsing them is what the reviewer's repair direction would do."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAGenerationSwitchDuringTheAuditRefusesTheResult
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAGenerationSwitchDuringTheAuditRefusesTheResult
+    package: diffaudit
+    language: go
+    doc: "The law's own words: a silent generation switch is forbidden."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAuditRecordsWhichGenerationAnsweredIt
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAuditRecordsWhichGenerationAnsweredIt
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAuditThatCannotObserveItsGenerationIsNotAvailable
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAuditThatCannotObserveItsGenerationIsNotAvailable
+    package: diffaudit
+    language: go
+    doc: "Unobservable is not agreement. This is law 13's rule in another currency and the\nsame one markerAgreement follows: an identity that cannot be checked is not a\nmatching one."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAvailableResultMustBeBoundToAGeneration
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAvailableResultMustBeBoundToAGeneration
+    package: diffaudit
+    language: go
+    doc: "The structural lock, mirroring the one graph_commit already has: a result that\nclaims availability must be bound to the generation that produced it, so a future\ncaller cannot construct an \"available\" verdict anchored to nothing."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestTheGenerationParticipatesInTheResultDigest
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestTheGenerationParticipatesInTheResultDigest
+    package: diffaudit
+    language: go
+    doc: "The generation participates in the result's identity. Two audits that differ only\nby which graph answered are not the same record — that is what #134 could not\nreplay, because nothing recorded which generation had answered."
   - id: golang/architecture/diffaudit/model_test.go:TestAuditResult_ComputeDigest_Deterministic
     file: golang/architecture/diffaudit/model_test.go
     symbol: TestAuditResult_ComputeDigest_Deterministic
@@ -28178,6 +29161,18 @@ test_symbols:
     package: main
     language: go
     doc: "-no-seed is how the deployments with the most to lose are started: the\nappliance entrypoint and the documented project flow both use it, and it\nskips enforceCurrentSeed entirely. Whether a domain's published knowledge is\nstill in the store is a question about the STORE, so the report must not live\nin the branch that those deployments skip."
+  - id: golang/server/edit_check_test.go:TestEditCheckAuthorityAnswersTheRequestedDomain
+    file: golang/server/edit_check_test.go
+    symbol: TestEditCheckAuthorityAnswersTheRequestedDomain
+    package: main
+    language: go
+    doc: "And it must be the authority for the domain the caller ASKED about. Answering with the\nserver's home domain would produce a well-formed receipt for a different question, which is\nexactly the evidence a careless consumer accepts."
+  - id: golang/server/edit_check_test.go:TestEditCheckStatesWhichGraphProducedTheWarnings
+    file: golang/server/edit_check_test.go
+    symbol: TestEditCheckStatesWhichGraphProducedTheWarnings
+    package: main
+    language: go
+    doc: "An EditCheck verdict must say WHICH GRAPH produced it.\n\nAdded with the field. A consumer that enforces these warnings -- `sensei gate --enforce`,\nthe diff-audit evaluator -- previously had to ask a SEPARATE Metadata call which generation\nwas serving, and the store can be republished between that call and this response. Carrying\nthe identity on the response is what closes the interval, so an absent field here would\nsilently reopen it."
   - id: golang/server/edit_check_test.go:TestEditCheck_BadShape_WarnsInCaddyDomain
     file: golang/server/edit_check_test.go
     symbol: TestEditCheck_BadShape_WarnsInCaddyDomain
@@ -29815,6 +30810,42 @@ test_symbols:
     package: main
     language: go
     doc: "Command-path contract: rebuilding from inside awareness-graph must preserve\nthe paired services corpus in the embedded offline seed, or Preflight loses\nstrong repair guidance for service-owned files."
+  - id: golang/server/served_generation_test.go:TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
+    package: main
+    language: go
+    doc: "A store whose marker count contradicts the actual live graph count is the same class:\nself-inconsistent, so no identity."
+  - id: golang/server/served_generation_test.go:TestAnEmptyStoreReportsNoServedGeneration
+    file: golang/server/served_generation_test.go
+    symbol: TestAnEmptyStoreReportsNoServedGeneration
+    package: main
+    language: go
+    doc: "An empty store invents nothing."
+  - id: golang/server/served_generation_test.go:TestAnIncoherentMarkerIsNotAServedIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestAnIncoherentMarkerIsNotAServedIdentity
+    package: main
+    language: go
+    doc: "An integrity-failed store carries a digest in its observation, and it must NOT become\na served identity. Its self-description is exactly what cannot be trusted: a marker\nwhose subject IRI disagrees with its own digest is not \"an older graph\", it is a\ncontradiction, and handing that digest downstream would make it comparable — the\nwrong graph passing an equality check is the failure this whole front exists to stop."
+  - id: golang/server/served_generation_test.go:TestTheHealthyPathDoesNoExtraDiscovery
+    file: golang/server/served_generation_test.go
+    symbol: TestTheHealthyPathDoesNoExtraDiscovery
+    package: main
+    language: go
+    doc: "The cost rule: a healthy store is asked nothing extra."
+  - id: golang/server/served_generation_test.go:TestTheServedGenerationIsReportedWhenItIsNotTheExpectedOne
+    file: golang/server/served_generation_test.go
+    symbol: TestTheServedGenerationIsReportedWhenItIsNotTheExpectedOne
+    package: main
+    language: go
+    doc: "THE DEFECT. The store serves generation S while the marker file expects E."
+  - id: golang/server/served_generation_test.go:TestTwoServedGenerationsReportNoIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestTwoServedGenerationsReportNoIdentity
+    package: main
+    language: go
+    doc: "Law 12: two instances claiming the same domain are an error, not a choice. Two\nmarkers in one store is the same fault inside one instance, and the report must not\npick one."
   - id: golang/server/service_test.go:TestMonitorBackendHealth_TransitionsToNotServing
     file: golang/server/service_test.go
     symbol: TestMonitorBackendHealth_TransitionsToNotServing
