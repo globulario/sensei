@@ -239,7 +239,12 @@ Flags:
 		filepath.Join(checkout, "docs", "awareness", "generated"),
 		filepath.Join(checkout, ".sensei", "project"),
 	}
-	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, allInputs, allowedRoots)
+	// Existence first, then the allowlist: a root a later stage has not written yet
+	// carries nothing to certify, and the two reasons must stay separable so an operator
+	// told "not published" knows which one it was.
+	presentInputs, absentInputs := existingCorpusInputs(allInputs)
+	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, presentInputs, allowedRoots)
+	droppedInputs = append(droppedInputs, absentInputs...)
 
 	if *storeURL != "" {
 		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
@@ -1833,6 +1838,37 @@ func admissibleCorpusInputs(checkout string, inputs, allowedRoots []string) (kep
 		dropped = append(dropped, in)
 	}
 	return kept, dropped
+}
+
+// existingCorpusInputs drops planned roots that do not exist yet.
+//
+// A PATH WITH NO BYTES IS NOT AN INPUT FOR THIS RUN, whatever the domain admits. Review
+// finding (#359): the one-command import-and-load flow bootstraps a foreign checkout, so
+// docs/awareness/generated and .sensei/project do not exist until later stages create
+// them -- and AdmitPublication's ResolveSourceIdentity runs `git -C <dir>` per directory,
+// which refuses a nonexistent path as "not inside a git repository". Admission therefore
+// refused the very flow the self-defeat gate is written to allow, for a reason that has
+// nothing to do with governance.
+//
+// Kept SEPARATE from the allowlist filter, deliberately. The allowlist is a pure function
+// of paths and a domain's declaration; existence is a fact about the filesystem at this
+// moment. Folding them together made a pure predicate depend on the disk and broke two
+// fixtures that expressed the allowlist rule with synthetic paths -- correctly, because
+// those fixtures are about the rule, not about what happens to be on disk.
+//
+// Admission's own rule is untouched: it is still asked about every path that exists, and a
+// path that exists and is inadmissible is still refused for the governance reason.
+// Teaching admission to tolerate absent directories would have made "the corpus is not
+// there" indistinguishable from "the corpus is not governed".
+func existingCorpusInputs(inputs []string) (present, absent []string) {
+	for _, in := range inputs {
+		if _, err := os.Stat(in); err != nil {
+			absent = append(absent, in)
+			continue
+		}
+		present = append(present, in)
+	}
+	return present, absent
 }
 
 // droppedInputsNotice says what was not published and what that costs.

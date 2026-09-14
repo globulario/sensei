@@ -15,6 +15,8 @@ package main
 // hide the fact that code-symbol coverage is not being published.
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -62,5 +64,121 @@ func TestTheDroppedInputsAreReportedWithTheirCost(t *testing.T) {
 	// Nothing dropped, nothing said.
 	if droppedInputsNotice(nil, []string{"docs/awareness"}) != "" {
 		t.Error("a notice was produced when nothing was dropped")
+	}
+}
+
+// REVIEW FINDING (P1, chatgpt-codex-connector, cmd_import.go:216):
+// "Avoid admitting generated directories before creating them."
+//
+// The advertised one-command import-and-load flow bootstraps a foreign checkout: the
+// generated corpus and the reconstruction output do not exist until stages 2-4 create
+// them. The preflight nevertheless hands those paths to AdmitPublication, whose
+// ResolveSourceIdentity runs `git -C <dir> rev-parse --show-toplevel` per directory and
+// refuses a path that is not inside a repository -- which a nonexistent directory is not.
+//
+// So admission refuses the very flow importWouldDefeatItself is written to allow, and it
+// refuses it for a reason that has nothing to do with governance: the directory has not
+// been written yet.
+//
+// The fix must not relax admission. A planned root that does not exist yet carries no
+// bytes to certify, so it cannot be a corpus root for THIS run -- it is simply not part
+// of the input set, and the set is what admission must be asked about.
+func TestAPlannedRootThatDoesNotExistYetIsNotAnInputForThisRun(t *testing.T) {
+	repo := gitRepo(t, "git@github.com:acme/thing.git")
+	present := filepath.Join(repo, "docs", "awareness")
+	future := filepath.Join(repo, "docs", "awareness", "generated") // created by a later stage
+	absent := filepath.Join(repo, ".sensei", "project")             // ditto
+
+	// Precondition: the fixture really has only the first of the three.
+	for _, p := range []string{future, absent} {
+		if _, err := os.Stat(p); err == nil {
+			t.Fatalf("fixture error: %s already exists", p)
+		}
+	}
+
+	// The composition the command performs: existence, then the allowlist.
+	present2, absent2 := existingCorpusInputs([]string{present, future, absent})
+	inputs, dropped := admissibleCorpusInputs(repo, present2, []string{"docs/awareness"})
+	dropped = append(dropped, absent2...)
+	for _, in := range inputs {
+		if in == future || in == absent {
+			t.Errorf("a directory that does not exist yet was offered to admission as a corpus root: %s", in)
+		}
+	}
+	if len(inputs) == 0 {
+		t.Fatal("the present corpus root was dropped too; admission would have nothing to admit")
+	}
+	_ = dropped
+}
+
+// And the consequence the reviewer actually cares about: admission must SUCCEED for a
+// bootstrap-shaped run, rather than refusing because a later stage has not written yet.
+func TestAdmissionSucceedsWhenOnlyTheExistingCorpusIsOffered(t *testing.T) {
+	repo := gitRepo(t, "git@github.com:acme/thing.git")
+	registry := writeRegistryFixture(t, `domains:
+    github.com/acme/thing:
+        repository_identity: acme/thing
+        allowed_corpus_roots:
+            - docs/awareness
+`)
+	all := []string{
+		filepath.Join(repo, "docs", "awareness"),
+		filepath.Join(repo, "docs", "awareness", "generated"),
+		filepath.Join(repo, ".sensei", "project"),
+	}
+	presentAll, _ := existingCorpusInputs(all)
+	inputs, _ := admissibleCorpusInputs(repo, presentAll, []string{"docs/awareness"})
+	if err := AdmitPublication("github.com/acme/thing", inputs, registry); err != nil {
+		t.Fatalf("admission refused a bootstrap-shaped run: %v", err)
+	}
+}
+
+// The regression this must not cause: a path that exists and is NOT admitted by the
+// domain is still dropped for the governance reason, not silently kept.
+func TestAnExistingButInadmissibleRootIsStillDropped(t *testing.T) {
+	repo := gitRepo(t, "git@github.com:acme/thing.git")
+	other := filepath.Join(repo, "docs", "elsewhere")
+	if err := os.MkdirAll(other, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	inputs, dropped := admissibleCorpusInputs(repo, []string{filepath.Join(repo, "docs", "awareness"), other}, []string{"docs/awareness"})
+	for _, in := range inputs {
+		if in == other {
+			t.Errorf("an existing root the domain does not admit was kept: %s", in)
+		}
+	}
+	if len(dropped) == 0 {
+		t.Error("the inadmissible root was dropped silently")
+	}
+}
+
+// The command must COMPOSE the two filters, in order. A mutant that fed allInputs straight
+// to the allowlist survived the behavioural witnesses above, because they perform the
+// composition themselves — the seventh instance this session of a property proven in a
+// helper and unasserted at the call site.
+func TestTheImportCommandFiltersAbsentRootsBeforeAdmission(t *testing.T) {
+	src := readCmdSource(t, "cmd_import.go")
+	ex := strings.Index(src, "existingCorpusInputs(allInputs)")
+	if ex < 0 {
+		t.Fatal("the command does not filter absent roots; admission will be asked about directories a later stage has not written")
+	}
+	adm := strings.Index(src, "admissibleCorpusInputs(checkout,")
+	if adm < 0 {
+		t.Fatal("the allowlist filter is gone")
+	}
+	if ex > adm {
+		t.Errorf("absent roots are filtered AFTER the allowlist (%d > %d); the two reasons stop being separable", ex, adm)
+	}
+	// The allowlist must be given the PRESENT set, not the raw one.
+	line := src[adm:]
+	if i := strings.IndexByte(line, '\n'); i >= 0 {
+		line = line[:i]
+	}
+	if !strings.Contains(line, "presentInputs") {
+		t.Errorf("the allowlist is not given the existence-filtered set: %s", strings.TrimSpace(line))
+	}
+	// And what was absent must still be reported, or a silent drop returns.
+	if !strings.Contains(src, "append(droppedInputs, absentInputs...)") {
+		t.Error("absent roots are dropped without being reported")
 	}
 }
