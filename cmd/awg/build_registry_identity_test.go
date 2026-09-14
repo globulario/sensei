@@ -323,3 +323,56 @@ func TestWithoutTheFlagTheBuildReadsTheDefaultRegistry(t *testing.T) {
 		t.Fatalf("the build refused against an EMPTY default registry:\n%s", out)
 	}
 }
+
+// W7. AN UNREADABLE REGISTRY REFUSES; A MISSING ONE STAYS INERT.
+//
+// The ownership check read `if reg, rerr := LoadDomainRegistry(...); rerr == nil`, so an
+// unparseable registry SKIPPED it entirely -- a check that skips is not a check, and it
+// contradicted the registry's own load-time validation, which exists so that a registry binding
+// one store to two domains refuses everywhere.
+//
+// Found while converging this branch against #360, whose b768ef67 had already repaired it from a
+// Codex P1. This branch's stated base is #360 and its git ancestry is not, so it still carried
+// the skip. The two absences are kept apart: no registry is no declaration; an unreadable one is
+// a declaration nobody can evaluate.
+func TestAnUnreadableOwnershipRegistryRefusesAndAMissingOneDoesNot(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	// (a) UNREADABLE: a registry that exists and cannot be parsed must refuse, before anything is
+	// written, and must say which file it could not read.
+	bad := filepath.Join(t.TempDir(), "broken-domains.yaml")
+	if err := os.WriteFile(bad, []byte("domains: [this is not a map\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out := buildOwnershipStderr(t, "--repo", buildOwnedDomain,
+		"--store-url", buildOwnedStore, "--domain-registry", bad)
+	if code != 1 {
+		t.Errorf("an unreadable registry exited %d, want 1", code)
+	}
+	if !strings.Contains(out, "unreadable domain registry") {
+		t.Fatalf("the build proceeded past a registry it could not read:\n%s", out)
+	}
+	if !strings.Contains(out, bad) {
+		t.Errorf("the refusal does not name the registry it could not read:\n%s", out)
+	}
+	if strings.Contains(out, pastTheGuardMarker) {
+		t.Errorf("the build continued past the guard after refusing:\n%s", out)
+	}
+
+	// (b) MISSING: an operator with no registry has declared no ownership, so the check is inert
+	// and the build proceeds. Without this half the repair would be a blanket refusal that takes
+	// every unconfigured operator out of service.
+	absent := filepath.Join(t.TempDir(), "no-such-registry.yaml")
+	code2, out2 := buildOwnershipStderr(t, "--repo", buildOwnedDomain,
+		"--store-url", buildOwnedStore, "--domain-registry", absent)
+	if strings.Contains(out2, "unreadable domain registry") {
+		t.Fatalf("an ABSENT registry was refused as unreadable (exit=%d):\n%s", code2, out2)
+	}
+	if !strings.Contains(out2, pastTheGuardMarker) {
+		t.Errorf("the build did not reach the stage after the guard with no registry present:\n%s", out2)
+	}
+}

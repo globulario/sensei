@@ -162,7 +162,28 @@ Flags:
 		// Placed beside the agreement check rather than at the upload, because the damage
 		// this prevents lands on a domain the command does not mention -- and a refusal
 		// that arrives after the bytes are in is not a refusal.
-		if reg, rerr := LoadDomainRegistry(registry.Path()); rerr == nil {
+		// AN UNREADABLE REGISTRY REFUSES; A MISSING ONE STAYS INERT.
+		//
+		// This read `if reg, rerr := LoadDomainRegistry(...); rerr == nil`, which SKIPPED the
+		// ownership check whenever the registry could not be parsed -- and a check that skips is
+		// not a check. It also contradicted this registry's own load-time validation, which
+		// exists so that a registry binding one store to two domains refuses everywhere;
+		// proceeding past an unparseable one was the single door that validation did not cover.
+		//
+		// The two absences are different facts. An operator with NO registry has declared no
+		// ownership, so there is nothing to violate. An operator whose registry cannot be read
+		// has declared something nobody can evaluate, and publishing past it is publishing on a
+		// rule nobody can read.
+		//
+		// Ported from #360's b768ef67, which repaired this from a Codex P1 while this branch --
+		// whose stated base is #360 but whose git ancestry is not -- still carried the skip.
+		reg, rerr := LoadDomainRegistry(registry.Path())
+		switch {
+		case rerr != nil && !os.IsNotExist(rerr):
+			fmt.Fprintf(os.Stderr, "sensei build: refusing to publish against an unreadable domain "+
+				"registry %s, so nothing has been written: %v\n", registry.Path(), rerr)
+			return 1
+		case rerr == nil:
 			if err := verifyStoreOwnership(reg, governedDomain, *storeURL, flagPassed(fs, "store-url")); err != nil {
 				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 				return 1

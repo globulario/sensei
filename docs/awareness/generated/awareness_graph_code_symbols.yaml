@@ -1457,6 +1457,12 @@ test_symbols:
     package: main
     language: go
     doc: "W1. THE WRITING OPERATION FOLLOWS ITS SELECTION. activateGeneration is the only operation in a\npublication that WRITES a declaration, and it must write the registry the transaction selected.\nTwo registries, deliberately disagreeing on both store URL and ACTIVE generation, so reading\nthe wrong file gives a visibly wrong answer rather than the same answer."
+  - id: cmd/awg/build_registry_identity_test.go:TestAnUnreadableOwnershipRegistryRefusesAndAMissingOneDoesNot
+    file: cmd/awg/build_registry_identity_test.go
+    symbol: TestAnUnreadableOwnershipRegistryRefusesAndAMissingOneDoesNot
+    package: main
+    language: go
+    doc: "W7. AN UNREADABLE REGISTRY REFUSES; A MISSING ONE STAYS INERT.\n\nThe ownership check read `if reg, rerr := LoadDomainRegistry(...); rerr == nil`, so an\nunparseable registry SKIPPED it entirely -- a check that skips is not a check, and it\ncontradicted the registry's own load-time validation, which exists so that a registry binding\none store to two domains refuses everywhere.\n\nFound while converging this branch against #360, whose b768ef67 had already repaired it from a\nCodex P1. This branch's stated base is #360 and its git ancestry is not, so it still carried\nthe skip. The two absences are kept apart: no registry is no declaration; an unreadable one is\na declaration nobody can evaluate."
   - id: cmd/awg/build_registry_identity_test.go:TestTheBuildActuallyReadsTheDomainRegistryFlag
     file: cmd/awg/build_registry_identity_test.go
     symbol: TestTheBuildActuallyReadsTheDomainRegistryFlag
