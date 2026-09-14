@@ -540,3 +540,23 @@ assertion to a log line, which no test can detect.
 
 **Census after repair: 20 subjects / 20 owner-resolved / 20 generation-verified / GAP 0**,
 derived per command from behaviour, with the recognised-name sets still read by membership.
+
+### A third defect, from the repair itself
+
+Blind review of head `3b204813` raised `cmd_metadata.go:151`: `runMetadata` built its endpoint
+report from the **raw** `--domain` flag while the reader beside it resolved one. With the flag
+omitted the report said `NOT DECLARED` and printed *"the served graph is not the declared ACTIVE
+generation"* about a domain nobody had named — contradicting the very check it exists to explain.
+
+**This was introduced by the Finding 1 repair.** Before it, the reader and the report were both
+handed `""` and were consistently inert; resolving at the owner made them disagree. It is the
+family's own Pattern A one more time — a property established at the owner and not carried by one
+caller — and it is fixed by giving the report `reader.Domain`, witnessed in both directions
+(`metadata` must still REPORT a real disagreement rather than refuse on it, because stating the
+verdict is its purpose).
+
+It also corroborates Finding 2 independently: `endpointReport.LiveDigest` reads
+`live_store_graph_digest_sha256` from the **top level**, a second consumer treating field 46 as
+the canonical served identity.
+
+**Mutation: 17 of 17 code mutants killed**, the eighteenth being the oracle mutation.

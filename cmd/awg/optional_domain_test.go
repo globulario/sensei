@@ -255,3 +255,65 @@ func TestEditCheckWithTheDomainFlagOmittedStillReportsWhenTheGenerationAgrees(t 
 			"(exit=%d):\n%s", code, out)
 	}
 }
+
+// F1-REPORT. The same defect at the one consumer that REPORTS the comparison rather than making
+// it. runMetadata built its endpoint report from the raw --domain flag while the reader beside it
+// resolved one, so with the flag omitted the report said "NOT DECLARED" and printed a
+// disagreement about a domain nobody named -- contradicting the check it exists to explain.
+//
+// This was a regression introduced BY the owner-resolution repair: before it, the reader and the
+// report were both handed "" and were consistently inert. Found by blind review of head
+// 3b204813, and it is the same Pattern A as the family itself -- a property established at the
+// owner and not carried by one caller.
+func TestMetadataReportsTheGenerationVerdictForTheResolvedDomain(t *testing.T) {
+	// statesTopLevelDigest because endpointReport reads live_store_graph_digest_sha256 from the
+	// top level, which is the canonical field a real server always fills -- corroborating
+	// Finding 2's reading of the response contract from a second, independent consumer.
+	addr := startServedAdversary(t, &servedAdversary{
+		servedGeneration: declaredGen, statesTopLevelDigest: true,
+	})
+	servedWorld(t, declaredGen, addr)
+
+	// NO --domain: the project states it, so the report must be about that domain.
+	out := captureStdout(t, func() {
+		if code := runMetadata(nil); code != 0 {
+			t.Fatalf("metadata exited %d", code)
+		}
+	})
+	if strings.Contains(out, "NOT DECLARED") {
+		t.Errorf("metadata reported the ACTIVE generation as NOT DECLARED with --domain omitted, "+
+			"while %s declares %s:\n%s", servedWitnessDomain, declaredGen, out)
+	}
+	if !strings.Contains(out, servedWitnessDomain) {
+		t.Errorf("the endpoint report never names the resolved domain it answered for:\n%s", out)
+	}
+	// And it must still be a REPORT, not a refusal: metadata's whole purpose is to state the
+	// verdict rather than act on it.
+	if !strings.Contains(out, declaredGen) {
+		t.Errorf("the report does not state the generation it compared:\n%s", out)
+	}
+}
+
+// F1-REPORT-opposite. metadata REPORTS a real disagreement rather than refusing on it -- that is
+// its documented role, and a repair that made it refuse would hide the one answer an operator
+// ran it to get.
+func TestMetadataStillReportsARealGenerationDisagreement(t *testing.T) {
+	addr := startServedAdversary(t, &servedAdversary{
+		servedGeneration: foreignGen, statesTopLevelDigest: true,
+	})
+	servedWorld(t, declaredGen, addr)
+
+	var code int
+	out := captureStdout(t, func() { code = runMetadata(nil) })
+	if code != 0 {
+		t.Errorf("metadata refused a generation disagreement instead of reporting it (exit=%d)", code)
+	}
+	// The PROPERTY, not the renderer's exact wording: the disagreement is stated, and it is
+	// stated about the declared generation this domain actually named.
+	if !strings.Contains(out, "not the declared ACTIVE generation") {
+		t.Errorf("the report does not state the disagreement it found:\n%s", out)
+	}
+	if !strings.Contains(out, declaredGen) {
+		t.Errorf("the report does not name the declared generation it compared against:\n%s", out)
+	}
+}

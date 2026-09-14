@@ -146,9 +146,14 @@ Flags:
 	// graphs and both be right; without this the output cannot be told apart from
 	// a graph having changed.
 	renderEndpointBlock(os.Stdout, endpointReport{
-		Root:         root,
-		RootError:    rootErr,
-		Domain:       *domain,
+		Root:      root,
+		RootError: rootErr,
+		// The RESOLVED domain, not the raw flag. renderEndpointBlock asks the registry what is
+		// ACTIVE for this value, so a raw "" makes it report NOT DECLARED and print a
+		// disagreement about a domain nobody named -- while the reader beside it resolved one
+		// and compared correctly. The report and the comparison must answer for the same domain
+		// or the report contradicts the check it exists to explain.
+		Domain:       reader.Domain,
 		ResolvedAddr: resolvedAddr,
 		AddrSource:   addrSource,
 		RegistryPath: DefaultDomainRegistryPath(),
