@@ -284,7 +284,8 @@ Flags:
 		return 1
 	}
 
-	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
+	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes, storeMutationIntent{
+		Domain: publishedDomain(*repo, *domain), Overridden: flagPassed(fs, "store-url"), Reason: "sensei build"}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
 		return 1
@@ -484,7 +485,11 @@ func normalizeStoreURL(raw string) (string, error) {
 	return u.String(), nil
 }
 
-func uploadNTriples(httpClient *http.Client, endpoint string, ntBytes []byte) error {
+func uploadNTriples(httpClient *http.Client, endpoint string, ntBytes []byte, intent storeMutationIntent) error {
+	// The seam: no caller reaches the PUT without stating what this mutation is.
+	if err := guardStoreMutation(endpoint, intent); err != nil {
+		return err
+	}
 	req, err := http.NewRequest(http.MethodPut, endpoint, bytes.NewReader(ntBytes))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)

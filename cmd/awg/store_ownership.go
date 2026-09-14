@@ -37,10 +37,28 @@ import (
 // targets and normalising them together would merge things that are genuinely distinct.
 // An unparseable URL is returned trimmed and lowercased rather than dropped: a value this
 // cannot read must still be comparable, or a malformed entry would silently own nothing.
+// normalizeStoreIdentity is the identity two declarations are compared BY, so it must
+// canonicalize exactly as far as publication does and no further.
+//
+// It used to lowercase scheme and host and keep the path verbatim, while normalizeStoreURL
+// -- the form actually written to -- fills an empty path with /store, rewrites a /query
+// suffix to /store, and defaults the query to `default`. So `http://host:7881` and
+// `http://host:7881/store?default` named ONE store and compared as TWO owners, and a second
+// domain spelling the endpoint the other way evaded both registry validation and the
+// foreign-owner check before overwriting the first domain's store (review finding
+// store_ownership.go:51).
+//
+// The fix is to ask the existing owner of store-URL semantics rather than to add a second
+// normalization vocabulary: whatever normalizeStoreURL says publication will address IS the
+// store's identity. A value it cannot parse as a store endpoint keeps the old lowercased
+// form, because a declaration this cannot interpret must still compare equal to itself.
 func normalizeStoreIdentity(raw string) string {
 	s := strings.TrimSpace(raw)
 	if s == "" {
 		return ""
+	}
+	if canonical, err := normalizeStoreURL(s); err == nil {
+		s = canonical
 	}
 	u, err := url.Parse(s)
 	if err != nil || u.Host == "" {

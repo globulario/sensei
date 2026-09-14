@@ -328,6 +328,18 @@ func admissionPossibleBeforeMutation(domain, checkout string, planned, allowedRo
 			Reason: "repository/domain identity mismatch: checkout " + checkout + " does not belong to this domain",
 		}
 	}
+	// A planned root that ALREADY EXISTS is fully admissible-or-not right now, including
+	// its cleanliness -- dirtiness is unknowable only for a directory this run has yet to
+	// create. So the complete admission runs pre-mutation over exactly those roots. Without
+	// this, a refresh over an already-dirty governed corpus ran all four extraction stages,
+	// writing more, before refusing for a reason that was true before it started.
+	if present, _ := existingCorpusInputs(planned); len(present) > 0 {
+		if kept, _ := admissibleCorpusInputs(checkout, present, allowedRoots); len(kept) > 0 {
+			if err := admitAgainst(domain, kept, rd); err != nil {
+				return err
+			}
+		}
+	}
 	// And whether this domain admits ANY root this run could write. If it admits none, no
 	// amount of extraction can produce a publishable corpus, so writing first would be
 	// pointless damage.

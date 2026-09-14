@@ -254,4 +254,10 @@ func TestADirtyGovernedRootIsStillRefusedAtPublication(t *testing.T) {
 	if !strings.Contains(out, "uncommitted changes") {
 		t.Errorf("a dirty governed corpus was not refused:\n%s", out)
 	}
+	// A root that ALREADY EXISTS is fully judgeable before mutation, cleanliness included,
+	// so this refusal must precede extraction rather than follow four stages of writing.
+	if !strings.Contains(out, "== [2/5] structural extraction ==") {
+		return // refused before extraction, which is the requirement
+	}
+	t.Errorf("extraction ran before a refusal whose cause (a dirty existing corpus) was true before the command started:\n%s", out)
 }

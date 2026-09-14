@@ -304,3 +304,68 @@ func TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed(t *testing.T) {
 		}
 	}
 }
+
+// RE-REVIEW FINDING (P1, store_ownership.go:51): "Canonicalize store identity like the
+// publication endpoint."
+//
+// Two spellings of one store must be ONE owner. normalizeStoreURL is the form publication
+// actually addresses, so it defines what "the same store" means; an identity that
+// canonicalized less than it let a second domain spell the endpoint differently and evade
+// both the registry validation and the foreign-owner check.
+//
+// DOMAIN OF THIS CLAIM: textual spellings of an http(s) store endpoint. It says nothing
+// about two distinct endpoints that happen to proxy one backing store, which no URL
+// comparison can see.
+func TestEquivalentStoreSpellingsAreOneOwner(t *testing.T) {
+	same := [][2]string{
+		{"http://host:7881", "http://host:7881/store?default"},
+		{"http://host:7881/", "http://host:7881/store?default"},
+		{"http://host:7881/store", "http://host:7881/store?default"},
+		{"http://host:7881/query", "http://host:7881/store?default"},
+		{"http://host:7881/query?default", "http://host:7881/store"},
+		{"HTTP://HOST:7881", "http://host:7881/store?default"},
+	}
+	for _, pair := range same {
+		a, b := normalizeStoreIdentity(pair[0]), normalizeStoreIdentity(pair[1])
+		if a != b {
+			t.Errorf("%q and %q name one store but compare as two owners: %q vs %q", pair[0], pair[1], a, b)
+		}
+		// And the identity must BE the published form, so it cannot drift from it.
+		canonical, err := normalizeStoreURL(pair[0])
+		if err != nil {
+			t.Fatalf("normalizeStoreURL(%q): %v", pair[0], err)
+		}
+		if a != normalizeStoreIdentity(canonical) {
+			t.Errorf("the identity of %q is not the identity of the endpoint publication writes to", pair[0])
+		}
+	}
+}
+
+// The other direction, so the repair cannot pass by collapsing everything.
+func TestGenuinelyDifferentStoresRemainDifferentOwners(t *testing.T) {
+	different := [][2]string{
+		{"http://host:7881/store", "http://host:7882/store"},
+		{"http://host-a:7881/store", "http://host-b:7881/store"},
+		{"http://host:7881/store", "https://host:7881/store"},
+		{"http://host:7881/store", "http://host:7881/other/store"},
+		{"http://host:7881/store?default", "http://host:7881/store?graph=x"},
+	}
+	for _, pair := range different {
+		if a, b := normalizeStoreIdentity(pair[0]), normalizeStoreIdentity(pair[1]); a == b {
+			t.Errorf("%q and %q are different stores but compare as one owner: %q", pair[0], pair[1], a)
+		}
+	}
+}
+
+// A value that is not a store endpoint must still compare equal to itself, or a registry
+// entry this cannot interpret would stop matching its own declaration.
+func TestAnUninterpretableStoreDeclarationStillMatchesItself(t *testing.T) {
+	for _, raw := range []string{"not a url", "ftp://host/store", "://broken", "  "} {
+		if a, b := normalizeStoreIdentity(raw), normalizeStoreIdentity(raw); a != b {
+			t.Errorf("%q does not compare equal to itself: %q vs %q", raw, a, b)
+		}
+	}
+	if normalizeStoreIdentity("  ") != "" {
+		t.Error("blank must stay blank, or an absent declaration would acquire an identity")
+	}
+}

@@ -53,7 +53,7 @@ func TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples(t *testing.T) {
 	}, "\n") + "\n"))
 	artifactB, markerB := seedmeta.AppendMarker([]byte("<https://example.test/s> <https://example.test/p> <https://example.test/x> .\n"))
 
-	if err := reloadOxigraphStore(artifactA, ts.URL+"/store?default"); err != nil {
+	if err := reloadOxigraphStore(artifactA, ts.URL+"/store?default", storeMutationIntent{Reason: "test"}); err != nil {
 		t.Fatalf("load A: %v", err)
 	}
 	if err := verifyLoadedGraph(ts.URL+"/store?default", artifactA); err != nil {
@@ -63,7 +63,7 @@ func TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples(t *testing.T) {
 		t.Fatal("artifact A should contain stale candidate triple Y before replacement")
 	}
 
-	if err := reloadOxigraphStore(artifactB, ts.URL+"/store?default"); err != nil {
+	if err := reloadOxigraphStore(artifactB, ts.URL+"/store?default", storeMutationIntent{Reason: "test"}); err != nil {
 		t.Fatalf("load B: %v", err)
 	}
 	if err := verifyLoadedGraph(ts.URL+"/store?default", artifactB); err != nil {
