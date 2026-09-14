@@ -22,6 +22,7 @@ package derive
 // are considered, which is the authority-bearing-field case.
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -542,5 +543,228 @@ func F() { s := elsewhere.Records{{Deadline: time.Now()}}; _ = s }
 	}
 	if !strings.Contains(got.Detail, "could not be read") {
 		t.Errorf("the detail does not say the constructions were unreadable: %s", got.Detail)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Re-review findings on this head. Three, and the first is the one that matters most
+// because it is a claim proven for one proposition SHAPE and applied to another.
+
+// RELEVANCE DEPENDS ON THE PROPOSITION'S SHAPE (constructionconfinement.go:233, P1).
+//
+// With a Field named, `var x T` and `new(T)` initialize no field, mint no authority, and are
+// correctly not sites. WITHOUT a Field the claim is "every construction of T originates in the
+// owner", and both ARE constructions of T. My Limits() text justified the exclusion "with a
+// Field named" while the analyzer applied it to both shapes.
+//
+// DOMAIN OF THIS CLAIM: the type-level proposition. The field-level one is unchanged, and the
+// witnesses below assert both directions so neither can drift into the other.
+func TestConstructionConfined_TypeLevelClaimsCountZeroValueConstructions(t *testing.T) {
+	forms := map[string]string{
+		"var declaration": `func F() { var x exchange.Record; _ = x }`,
+		"new":             `func F() { p := new(exchange.Record); _ = p }`,
+		"var inside a block": `func F() {
+	if true {
+		var x exchange.Record
+		_ = x
+	}
+}`,
+	}
+	for name, body := range forms {
+		t.Run(name, func(t *testing.T) {
+			src := ctorElided(t, body)
+			// TYPE-LEVEL: no field named.
+			got, _ := Derive(src, ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+			if got.Outcome != Refuted {
+				t.Errorf("type-level: %s outside the owner is a construction of the type: outcome=%s: %s",
+					name, got.Outcome, got.Detail)
+			}
+			// FIELD-LEVEL: unchanged, because it initializes no field.
+			gotField, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+			if gotField.Outcome != Derived {
+				t.Errorf("field-level: %s mints no Deadline and must not be a site: outcome=%s: %s",
+					name, gotField.Outcome, gotField.Detail)
+			}
+		})
+	}
+}
+
+// Forms that construct NO T must not become sites even type-level, or the repair is
+// over-refusal wearing a fix's clothes.
+func TestConstructionConfined_TypeLevelClaimsIgnoreFormsThatConstructNoValue(t *testing.T) {
+	forms := map[string]string{
+		"nil pointer declaration": `func F() { var p *exchange.Record; _ = p }`,
+		"empty slice":             `func F() { var xs []exchange.Record; _ = xs }`,
+		"empty map":               `func F() { var m map[string]exchange.Record; _ = m }`,
+		"new of a pointer":        `func F() { p := new(*exchange.Record); _ = p }`,
+		"new of a slice":          `func F() { p := new([]exchange.Record); _ = p }`,
+	}
+	for name, body := range forms {
+		t.Run(name, func(t *testing.T) {
+			got, _ := Derive(ctorElided(t, body), ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+			if got.Outcome != Derived {
+				t.Errorf("%s constructs no Record and must not be a site: outcome=%s: %s", name, got.Outcome, got.Detail)
+			}
+		})
+	}
+}
+
+// A declaration WITH an initialiser must count once, not twice: the value's own construction is
+// the site.
+func TestConstructionConfined_AnInitialisedDeclarationIsOneConstruction(t *testing.T) {
+	// An EXPLICIT type and an initialiser: the shape where a declaration and its value could
+	// both be counted. `var x = T{}` has no explicit type, so it never exercised this.
+	got, _ := Derive(ctorElided(t, `func F() { var x exchange.Record = exchange.Record{}; _ = x }`),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("outcome=%s, want REFUTED: %s", got.Outcome, got.Detail)
+	}
+	// The owner constructs twice; the outsider once. Four would mean the declaration and its
+	// literal were both counted.
+	if !strings.Contains(got.Detail, "1 of 3") {
+		t.Errorf("the construction count suggests one site was counted twice: %s", got.Detail)
+	}
+}
+
+// DOT IMPORTS (mutationconfinement.go:539, P1). An unqualified name in a file that dot-imports
+// the owner denotes the owner's type, and attributing it to the current directory made the
+// construction invisible.
+func TestConstructionConfined_ADotImportedTypeNameResolvesToTheOwner(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+func Forge() *Record { return &Record{Deadline: time.Now()} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a construction through a dot import was not observed: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+	if !strings.Contains(got.Detail, "transport/transport.go") {
+		t.Errorf("the refutation does not name the dot-imported construction site: %s", got.Detail)
+	}
+}
+
+// A LOCAL type of the same name still wins, exactly as Go resolves it. Without this the repair
+// would attribute every unqualified name in a dot-importing file to the imported package.
+func TestConstructionConfined_ALocalTypeOutranksADotImportedOneOfTheSameName(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+// A DIFFERENT Record, declared here. Constructing it mints no exchange.Record.
+type Record struct {
+	Deadline time.Time
+}
+
+var _ = Open
+
+func Local() *Record { return &Record{Deadline: time.Now()} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("a LOCAL type of the same name was read as the dot-imported one: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// ALIAS CHAINS RESOLVE TO A FIXPOINT (constructionconfinement.go:150, P2). The chain here is
+// longer than the eight passes the old implementation allowed, so it fails mechanically against
+// that version rather than by argument.
+func TestConstructionConfined_AnAliasChainLongerThanTheOldBoundStillResolves(t *testing.T) {
+	const n = 40
+	var b strings.Builder
+	b.WriteString("package transport\n\nimport (\n\t\"time\"\n\n\t\"example.com/m/exchange\"\n)\n\nvar _ = time.Now\n\n")
+	// DESCENDING: A00 = A01, A01 = A02, ... A39 = exchange.Record. Zero-padded so the sorted
+	// order is A00..A39 -- the REVERSE of dependency order, so only the last link can resolve
+	// on the first pass and the chain needs n passes. An ascending chain sorted into dependency
+	// order resolves in ONE pass, which is why the first version of this witness did not
+	// exercise the bound it was written to defeat.
+	for i := 0; i < n-1; i++ {
+		fmt.Fprintf(&b, "type A%02d = A%02d\n", i, i+1)
+	}
+	fmt.Fprintf(&b, "type A%02d = exchange.Record\n", n-1)
+	b.WriteString("\nfunc Forge() *A00 { return &A00{Deadline: time.Now()} }\n")
+
+	src := pinned(t, map[string]string{
+		"go.mod":                 ctorGoMod,
+		"exchange/exchange.go":   ctorOwnerPkg,
+		"transport/transport.go": b.String(),
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a %d-link alias chain to the owner was not followed: outcome=%s: %s", n, got.Outcome, got.Detail)
+	}
+}
+
+// An alias CYCLE terminates and resolves nothing. It does not compile in Go, so the only
+// requirement is that the analyzer does not spin or invent an identity.
+func TestConstructionConfined_AnAliasCycleTerminatesWithoutResolving(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import "example.com/m/exchange"
+
+type Loop = Other
+type Other = Loop
+
+var _ = exchange.Open
+
+func F() { var x Loop; _ = x }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	// Whatever it concludes, it must terminate and must not claim the cycle is the owner.
+	if got.Outcome == Refuted && strings.Contains(got.Detail, "transport/transport.go") {
+		t.Errorf("an alias cycle was resolved to the owner's type: %s", got.Detail)
+	}
+}
+
+// The result must not depend on map iteration order.
+func TestConstructionConfined_AliasResolutionIsDeterministic(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/exchange"
+)
+
+type Z = Y
+type Y = X
+type X = exchange.Record
+
+func Forge() *Z { return &Z{Deadline: time.Now()} }
+`,
+	})
+	first, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	for i := 0; i < 40; i++ {
+		got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+		if got.Outcome != first.Outcome || got.Detail != first.Detail {
+			t.Fatalf("run %d disagreed with the first: %s / %s vs %s / %s", i, got.Outcome, got.Detail, first.Outcome, first.Detail)
+		}
+	}
+	if first.Outcome != Refuted {
+		t.Errorf("the chained alias was not followed: %s / %s", first.Outcome, first.Detail)
 	}
 }
