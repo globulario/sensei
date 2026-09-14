@@ -142,6 +142,8 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	// that did not change underneath the answers.
 	generationReporter, _ := checker.(GraphGenerationReporter)
 	generationBefore, generationErr := observeGeneration(ctx, generationReporter)
+	ledger := &generationLedger{}
+	ledger.note("the opening sample", generationBefore)
 
 	var allContracts []Requirement
 	var allTests []Requirement
@@ -160,6 +162,10 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		// 1. Gather file impact (required tests, contracts, relevant rules, and
 		//    the observed authority commit of the rule snapshot).
 		tests, contracts, rules, graphCommit, err := checker.GetFileImpact(ctx, readPath, opts.Domain)
+		// Bind THIS query, not just the audit. See generationLedger.
+		if gen, gerr := observeGeneration(ctx, generationReporter); gerr == nil {
+			ledger.note("the impact query for "+readPath, gen)
+		}
 		if err != nil {
 			result.Availability = AvailabilityCannotVerify
 			result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
@@ -234,6 +240,11 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 				}
 			} else if proposedContent != "" {
 				fileFindings, err := checker.CheckFile(ctx, patch.Path, proposedContent, opts.Domain)
+				// Bind THIS query. EditCheckResponse states no generation, so this is the
+				// observation adjacent to the call rather than the call's own identity.
+				if gen, gerr := observeGeneration(ctx, generationReporter); gerr == nil {
+					ledger.note("the rule evaluation for "+patch.Path, gen)
+				}
 				if err != nil {
 					result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
 					result.Availability = AvailabilityCannotVerify
@@ -328,6 +339,8 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	// Placed before the decision is computed, so a switch degrades the decision
 	// rather than being appended to a verdict already announced as pass.
 	generationAfter, afterErr := observeGeneration(ctx, generationReporter)
+	ledger.note("the closing sample", generationAfter)
+	switchedA, switchedB, switched := ledger.disagreement()
 	switch {
 	case generationErr != nil || afterErr != nil:
 		err := generationErr
@@ -347,12 +360,16 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 		result.Limitations = append(result.Limitations,
 			"the graph generation answering this audit was not observable, so this result cannot be bound to the graph that produced it")
-	case generationBefore != generationAfter:
+	case switched:
+		// Any two contributing queries naming different generations refuses the verdict,
+		// which subsumes the old before != after test: the brackets are two of the
+		// observations, so a pair that disagrees is still caught here, and so now is a
+		// rollback that leaves them equal.
 		result.Availability = AvailabilityCannotVerify
 		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphGenerationSwitched)
 		result.Limitations = append(result.Limitations,
-			fmt.Sprintf("the graph generation changed while this audit ran: %s answered the first query, %s the last; a silent generation switch is forbidden",
-				generationBefore, generationAfter))
+			fmt.Sprintf("this audit's queries were not all answered by one graph generation: %s answered %s, %s answered %s; a silent generation switch is forbidden",
+				switchedA.generation, switchedA.query, switchedB.generation, switchedB.query))
 	default:
 		result.GraphGeneration = generationBefore
 	}
@@ -536,6 +553,49 @@ func applyHunks(base string, hunks []DiffHunk, isAdd bool) (string, error) {
 // distinction is kept because a reporting FAILURE and the absence of a reporter are
 // different facts about different things, and only one of them names something an
 // operator can fix.
+// generationLedger is the ONE place the audit's generation rule lives: every graph-backed
+// query contributing to one verdict must have been answered by the same generation.
+//
+// It exists because a before/after bracket cannot prove what happened between its ends.
+// The review finding named the counterexample: a publish-and-rollback G1 -> G2 -> G1
+// leaves both brackets reading G1 while the queries in between were answered by G2, and
+// the evaluator emitted a PASS bound to G1 (reproduced 2026-09-13,
+// TestAnAuditRefusesWhenAQueryWasAnsweredByAnotherGeneration).
+//
+// WHAT THIS PROVES, exactly. Every observation is recorded with the query it belongs to,
+// and one disagreement refuses the whole verdict. An Impact-backed query states the
+// generation carried ON ITS OWN RESPONSE, which is per-response proof. An EditCheck-backed
+// query cannot: EditCheckResponse carries no GraphAuthority, so its identity is the
+// observation taken adjacent to that single call. That narrows the unproven window from
+// the whole audit to one RPC; it does not close it. Closing it needs a GraphAuthority on
+// EditCheckResponse, which is a wire change and is deliberately NOT made here.
+type generationLedger struct {
+	seen []generationObservation
+}
+
+type generationObservation struct {
+	generation string
+	query      string // what was asked, so a disagreement names the query, not just the value
+}
+
+func (l *generationLedger) note(query, generation string) {
+	generation = strings.TrimSpace(generation)
+	if generation == "" {
+		return
+	}
+	l.seen = append(l.seen, generationObservation{generation: generation, query: query})
+}
+
+// disagreement returns the first two observations that name different generations.
+func (l *generationLedger) disagreement() (a, b generationObservation, found bool) {
+	for i := range l.seen {
+		if l.seen[i].generation != l.seen[0].generation {
+			return l.seen[0], l.seen[i], true
+		}
+	}
+	return generationObservation{}, generationObservation{}, false
+}
+
 func observeGeneration(ctx context.Context, r GraphGenerationReporter) (string, error) {
 	if r == nil {
 		return "", nil
