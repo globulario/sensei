@@ -161,6 +161,36 @@ Flags:
 	// 1) Contracts FIRST for fresh imports — on the pristine clone, before
 	// bootstrap scaffolds. Refresh reuses an existing checkout, so this stage is
 	// a re-grounding pass over current files rather than a pristine-clone pass.
+	// THE SELF-DEFEAT GATE RUNS BEFORE ANYTHING WRITES, and that ordering is the whole
+	// point of it.
+	//
+	// It used to sit after stage 1. Stage 1 is `intent-mine --adopt`, which creates and
+	// updates files under docs/awareness -- so on `--depth full` with a drafter available
+	// the refusal printed "nothing has been run and the checkout is untouched" AFTER the
+	// checkout had been modified. The sentence was false in exactly the configuration the
+	// gate exists for (review finding, #359).
+	//
+	// My own live proof of this gate used --depth basic, which skips stage 1, so it
+	// measured the one configuration where the claim happens to hold. A guard whose
+	// refusal asserts a fact about the filesystem has to run before anything can falsify
+	// it; moving the sentence would have kept the defect and described it.
+	//
+	// One registry read feeds both the gate and the input filter, so they cannot disagree
+	// about which roots this domain publishes.
+	var allowedRoots []string
+	var allowDirty bool
+	if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
+		if rd, ok := reg.Domains[dom]; ok {
+			allowedRoots, allowDirty = rd.AllowedCorpusRoots, rd.AllowDirtyWorktree
+		}
+	}
+	if *storeURL != "" {
+		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
+			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
+			return 1
+		}
+	}
+
 	if wantContracts {
 		stage := "contract extraction (pristine clone)"
 		if *refresh {
@@ -204,34 +234,12 @@ Flags:
 	// corpus, so a domain that allows only docs/awareness refuses it -- correctly.
 	// Filtering here means import builds a command the gate can accept, and the
 	// admissibility check below is asked about the set it will actually use.
-	var allowedRoots []string
-	if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
-		if rd, ok := reg.Domains[dom]; ok {
-			allowedRoots = rd.AllowedCorpusRoots
-		}
-	}
 	allInputs := []string{
 		filepath.Join(checkout, "docs", "awareness"),
 		filepath.Join(checkout, "docs", "awareness", "generated"),
 		filepath.Join(checkout, ".sensei", "project"),
 	}
 	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, allInputs, allowedRoots)
-
-	// LAW 9, the form that actually bit. Refusing here is the only place it can be
-	// caught: an admissibility check cannot see dirtiness this run has not created
-	// yet, and by the time the gate sees it the checkout is already rewritten.
-	if *storeURL != "" {
-		var allowDirty bool
-		if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
-			if rd, ok := reg.Domains[dom]; ok {
-				allowDirty = rd.AllowDirtyWorktree
-			}
-		}
-		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
-			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
-			return 1
-		}
-	}
 
 	if *storeURL != "" {
 		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
