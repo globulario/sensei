@@ -114,8 +114,14 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command.
-	reader := productionReaderFor(fs, "", *addr)
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- and for the
+	// DOMAIN THIS REPOSITORY STATES, because this command has no --domain flag and an empty
+	// domain makes the served-generation comparison structurally inert.
+	reader, derr := productionReaderForRepository(fs, *addr)
+	if derr != nil {
+		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", derr)
+		return 2
+	}
 	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
@@ -135,7 +141,7 @@ Flags:
 	agRepo, _ := resolveAGRepo(*agRepoFlag, svcRepo)
 	guardCtx, guardCancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer guardCancel()
-	if err := benchmarkAuthorityGuard(guardCtx, *addr, agRepo, svcRepo); err != nil {
+	if err := benchmarkAuthorityGuard(guardCtx, reader, agRepo, svcRepo); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
@@ -150,7 +156,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1
 	}
-	repairPlan, err := buildAuthoritativeRepairPlan(root, *addr, strings.TrimSpace(task.Issue), brief.LikelyImplementationFiles)
+	repairPlan, err := buildAuthoritativeRepairPlan(root, reader, strings.TrimSpace(task.Issue), brief.LikelyImplementationFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-score: %v\n", err)
 		return 1

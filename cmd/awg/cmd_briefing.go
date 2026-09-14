@@ -111,7 +111,7 @@ Flags:
 	// The generation that answered must be the one this domain declares ACTIVE. Checked
 	// before the briefing is rendered, so findings from an undeclared graph are never
 	// read as findings about this domain.
-	if err := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); err != nil {
+	if err := reader.verifyServedAuthority(resp.GetAuthority()); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei briefing: %v\n", err)
 		return 1
 	}

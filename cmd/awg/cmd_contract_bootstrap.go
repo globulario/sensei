@@ -153,9 +153,6 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command.
-	reader := productionReaderFor(fs, *domain, *addr)
-	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}
@@ -174,7 +171,15 @@ Flags:
 		*domain = strings.TrimSpace(task.Domain)
 	}
 
-	result, err := buildContractBootstrap(root, *addr, *domain, task, source)
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- resolved HERE
+	// rather than right after Parse, because the task file can supply the domain and the
+	// owner's answer is per-domain. A reader resolved before the task file was read would
+	// carry the endpoint and the declared generation of a DIFFERENT domain (usually none),
+	// and would then verify nothing while appearing to.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
+
+	result, err := buildContractBootstrap(root, reader, *domain, task, source)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei contract-bootstrap: %v\n", err)
 		return 1
@@ -222,7 +227,7 @@ func loadBootstrapTask(taskFile, issue string, tests []string) (bootstrapTask, s
 	return task, "flags", nil
 }
 
-func buildContractBootstrap(repoRoot, addr, domain string, task bootstrapTask, source string) (bootstrapResult, error) {
+func buildContractBootstrap(repoRoot string, reader graphReader, domain string, task bootstrapTask, source string) (bootstrapResult, error) {
 	testFiles, evidence, err := collectTestAnchors(repoRoot, task.F2PTests)
 	if err != nil {
 		return bootstrapResult{}, err
@@ -253,14 +258,14 @@ func buildContractBootstrap(repoRoot, addr, domain string, task bootstrapTask, s
 	}
 	res.ProofProvenance = proposedProofProvenance(task.F2PTests, res.RequiredTestPathsProposed)
 	res.ProofRequiredProposed = len(res.RequiredTestPathsProposed) > 0 || len(res.RequiredTestSymbolsProposed) > 0
-	if strings.TrimSpace(addr) == "" {
+	if strings.TrimSpace(reader.Addr) == "" {
 		res.ContractScaffold = buildBootstrapContractScaffold(task, res)
 		return res, nil
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	c, err := contractBootstrapConnectAWG(addr)
+	c, err := contractBootstrapConnectAWG(reader.Addr)
 	if err != nil {
 		res.AWGStatus = "AWG-down"
 		res.BlindSpots = dedupeStrings(append(res.BlindSpots, bootstrapAWGDownMessage(err)))
@@ -268,14 +273,14 @@ func buildContractBootstrap(repoRoot, addr, domain string, task bootstrapTask, s
 	}
 	defer c.Close()
 	res.AWGStatus = "AWG-check-error"
-	if err := enrichBootstrapWithAWG(ctx, c.Stub(), task, domain, likelyImpl, candidates, &res); err != nil {
+	if err := enrichBootstrapWithAWG(ctx, c.Stub(), reader, task, domain, likelyImpl, candidates, &res); err != nil {
 		res.BlindSpots = dedupeStrings(append(res.BlindSpots, err.Error()))
 	}
 	res.ContractScaffold = buildBootstrapContractScaffold(task, res)
 	return res, nil
 }
 
-func enrichBootstrapWithAWG(ctx context.Context, client bootstrapAWGClient, task bootstrapTask, domain string, likelyImpl, candidates []string, res *bootstrapResult) error {
+func enrichBootstrapWithAWG(ctx context.Context, client bootstrapAWGClient, reader graphReader, task bootstrapTask, domain string, likelyImpl, candidates []string, res *bootstrapResult) error {
 	pf, err := client.Preflight(ctx, &awarenesspb.PreflightRequest{
 		Task:   task.Issue,
 		Files:  dedupeStrings(append(append([]string{}, likelyImpl...), candidates...)),
@@ -289,6 +294,12 @@ func enrichBootstrapWithAWG(ctx context.Context, client bootstrapAWGClient, task
 	if err := requireAuthoritativeGraph(pf.GetAuthority(), "contract-bootstrap preflight"); err != nil {
 		res.AWGStatus = "AWG-non-authoritative"
 		return err
+	}
+	// Self-certification is not identity: the scaffolding this command writes must not be
+	// derived from a generation this domain does not declare ACTIVE.
+	if err := reader.verifyServedAuthority(pf.GetAuthority()); err != nil {
+		res.AWGStatus = "AWG-undeclared-generation"
+		return fmt.Errorf("contract-bootstrap preflight: %w", err)
 	}
 	res.AWGStatus = "AWG-authoritative"
 	res.RequiredActions = dedupeStrings(pf.GetRequiredActions())
@@ -305,6 +316,12 @@ func enrichBootstrapWithAWG(ctx context.Context, client bootstrapAWGClient, task
 		if err := requireAuthoritativeGraph(resp.GetAuthority(), "contract-bootstrap impact"); err != nil {
 			res.AWGStatus = "AWG-non-authoritative"
 			return fmt.Errorf("%w (file: %s)", err, file)
+		}
+		// Per response, not once for the command: the store can be republished between two
+		// calls on one connection, and nothing about a gRPC connection pins a generation.
+		if err := reader.verifyServedAuthority(resp.GetAuthority()); err != nil {
+			res.AWGStatus = "AWG-undeclared-generation"
+			return fmt.Errorf("contract-bootstrap impact: %w (file: %s)", err, file)
 		}
 		entry := bootstrapAWGFile{File: file}
 		entry.Architecture = collectNodeIDs(resp.GetDirectArchitecture())

@@ -38,6 +38,7 @@ import (
 	"strconv"
 	"strings"
 
+	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/statedir"
 	"gopkg.in/yaml.v3"
 )
@@ -363,6 +364,38 @@ func (r graphReader) verifyServed(servedDigest string) error {
 	return verifyActiveGeneration(r.Domain, r.DeclaredGeneration, servedDigest)
 }
 
+// verifyServedAuthority is the ONE place a production reader compares the authority it was
+// SERVED against the generation it resolved.
+//
+// It exists because the comparison was spelled out by hand at every call site:
+//
+//	reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+//
+// Six times, identically, and about to be nineteen. Which field of GraphAuthority carries
+// the generation is a fact that belongs to the owner once, not to nineteen callers -- and it
+// had already drifted: cmd_edit_brief.go read GetGraphBuildCommit(), the RULE SNAPSHOT's
+// revision, into a field it called Generation. A reader that compared that one would compare
+// the wrong thing and always agree.
+//
+// This centralizes a rule that already existed; it does not introduce a second one. The
+// comparison is still verifyActiveGeneration's, the inertness is still declaresGeneration's.
+//
+// A nil authority is NOT a pass. When a generation is declared and the response states
+// none, which graph answered is unestablished, and unestablished must never read as
+// established -- the same rule markerAgreement applies to an absent marker digest, and the
+// same reason law 13 forbids a triple count from standing in for identity. (verifyServed
+// already refuses a blank digest; the nil case is named here so a caller cannot reach the
+// comparison through a nil pointer and get a different answer than an empty one.)
+//
+// It takes no surface name on purpose: every caller already names itself in the message it
+// prints, and a second name here would be a responsibility discharged twice.
+func (r graphReader) verifyServedAuthority(a *awarenesspb.GraphAuthority) error {
+	if !r.declaresGeneration() {
+		return nil
+	}
+	return r.verifyServed(a.GetLiveStoreGraphDigestSha256())
+}
+
 // declaresGeneration reports whether the registry states an ACTIVE generation for this
 // reader's domain, and so whether verifyServed has anything to compare.
 //
@@ -408,6 +441,36 @@ func domainOrAny(domain string) string {
 // CONFIG tier specifically — reading a config that may not exist — and is what metadata
 // already did. Where a root must be proven (the graph marker), looksLikeProjectRoot is
 // asked instead.
+// productionReaderForRepository is productionReaderFor for a command that has no --domain
+// flag, resolving instead the domain THIS REPOSITORY states.
+//
+// Four commands -- benchmark-brief, benchmark-score, pattern-check, synthesis-run --
+// resolved the owner with an EMPTY domain. That is not a smaller version of resolving one:
+// declaredActiveGeneration reads reg.Domains[""], the zero value, so DeclaredGeneration is
+// always "" and verifyServed is permanently inert. Adding the comparison at their call
+// sites would have changed nothing and looked like a repair.
+//
+// None of the four needs a new flag. resolveRepositoryDomain already answers "which domain
+// is this checkout" from the project's own configuration, then SENSEI_DOMAIN, then
+// AWG_DOMAIN -- the same owner briefing and verify-obligations ask.
+//
+// A MALFORMED configuration is an error, not a fall-through to the empty domain. Checkout
+// identity is an authority boundary: silently treating an unparseable config as "no domain"
+// would restore exactly the inertness this exists to remove, and repo_domain_binding.go
+// already settled that such a value must fail visibly.
+func productionReaderForRepository(fs *flag.FlagSet, addrFlag string) (graphReader, error) {
+	root, _ := resolveProjectRoot("")
+	resolved := resolveRepositoryDomain(root, "")
+	if resolved.Err != nil {
+		return graphReader{}, resolved.Err
+	}
+	r := resolveGraphReader(fs, root, resolved.Domain, addrFlag, DefaultDomainRegistryPath())
+	if notice := nonCanonicalReaderNotice(r); notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
+	}
+	return r, nil
+}
+
 func productionReaderFor(fs *flag.FlagSet, domain, addrFlag string) graphReader {
 	root, _ := resolveProjectRoot("")
 	r := resolveGraphReader(fs, root, domain, addrFlag, DefaultDomainRegistryPath())

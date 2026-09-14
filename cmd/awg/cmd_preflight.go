@@ -94,7 +94,7 @@ Flags:
 	// LAW 5: the generation that answered must be the one this domain declares
 	// ACTIVE. Checked before the response is used, from the digest the response
 	// itself carried -- one moment, one graph.
-	if verr := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); verr != nil {
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", verr)
 		return 1
 	}

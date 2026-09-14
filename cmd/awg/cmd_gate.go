@@ -75,7 +75,7 @@ func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGrap
 	if err != nil {
 		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, err)
 	}
-	return reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+	return reader.verifyServedAuthority(resp.GetAuthority())
 }
 
 // fileFinding is one changed file's EditCheck result: the advisory/blocking
@@ -481,7 +481,7 @@ Flags:
 		// partial report: once the generation has moved, every remaining verdict would come from
 		// a graph this domain does not declare active, and printing those findings is precisely
 		// what this check exists to prevent.
-		if verr := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); verr != nil {
+		if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
 			if *reportOnly {
 				return reportDegraded(*domain, *diff, verr.Error())
 			}

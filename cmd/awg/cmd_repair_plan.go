@@ -120,6 +120,14 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
 		return 1
 	}
+	// ... and that self-certification is NOT the same fact as being the generation this
+	// domain declares ACTIVE. A graph can answer the check above perfectly while serving
+	// another domain's publication: this command printed "authority: authoritative (current)"
+	// beside a live_digest the registry did not declare, and built a plan from it.
+	if err := reader.verifyServedAuthority(resp.GetAuthority()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei repair-plan: %v\n", err)
+		return 1
+	}
 
 	proof, err := buildProofPlanForFiles(root, authorities, proofDoc, forbiddenFixes, files)
 	if err != nil {

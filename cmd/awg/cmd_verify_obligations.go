@@ -77,9 +77,6 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command.
-	reader := productionReaderFor(fs, *domain, *addr)
-	*addr = reader.Addr
 	if *results == "" {
 		fmt.Fprintln(os.Stderr, "sensei verify-obligations: --results is required")
 		return 2
@@ -95,12 +92,20 @@ Flags:
 		return 2
 	}
 
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- resolved
+	// AFTER the domain, and with the SAME domain the preflight request carries. Resolved
+	// from *domain it would have carried the endpoint and declared generation of a
+	// different domain (usually none) while asking the graph about this one, and would then
+	// have verified nothing while appearing to.
+	reader := productionReaderFor(fs, resolvedDomain.Domain, *addr)
+	*addr = reader.Addr
+
 	modulePath := strings.TrimSpace(*module)
 	if modulePath == "" {
 		modulePath = readModulePath(*repo)
 	}
 
-	anchors, rc := preflightRequiredTests(*addr, *task, files, resolvedDomain.Domain)
+	anchors, rc := preflightRequiredTests(reader, *task, files)
 	if rc != 0 {
 		return rc
 	}
@@ -124,13 +129,20 @@ Flags:
 }
 
 // preflightRequiredTests asks the graph which tests this change must pass.
-func preflightRequiredTests(addr, task string, files []string, domain string) ([]string, int) {
+//
+// It takes the resolved reader rather than an address because the answer is consumed as
+// authoritative: these are the tests a PASS verdict claims to have covered, and a
+// requirement list from a generation this domain does not declare ACTIVE would produce a
+// confident verdict about obligations nobody declared. Exit 2 is this command's
+// usage/connection code -- the graph could not be consulted usefully, which is what an
+// unverifiable answer amounts to, and is deliberately not 0 (PASS) or 1 (FAIL).
+func preflightRequiredTests(reader graphReader, task string, files []string) ([]string, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	conn, err := client.DialConn(addr)
+	conn, err := client.DialConn(reader.Addr)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "sensei verify-obligations: connect %s: %v\n", addr, err)
+		fmt.Fprintf(os.Stderr, "sensei verify-obligations: connect %s: %v\n", reader.Addr, err)
 		return nil, 2
 	}
 	defer conn.Close()
@@ -139,10 +151,14 @@ func preflightRequiredTests(addr, task string, files []string, domain string) ([
 		Task:   task,
 		Files:  files,
 		Mode:   awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
-		Domain: domain,
+		Domain: reader.Domain,
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", err)
+		return nil, 2
+	}
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", verr)
 		return nil, 2
 	}
 	return resp.GetTestsToRun(), 0

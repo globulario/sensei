@@ -78,6 +78,15 @@ Flags:
 		return 1
 	}
 
+	// LAW 5: before ANY verdict is printed, including the clean one. The danger here is not
+	// a false warning but "no advisory rule tripped for this edit." -- a clean statement
+	// about a domain whose rules were never consulted, which an agent reads as permission.
+	// Checked ahead of the --json branch too, so no output shape can bypass it.
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei edit-check: %v\n", verr)
+		return 1
+	}
+
 	if *asJSON {
 		return emitProtoJSON(resp)
 	}

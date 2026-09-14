@@ -39,8 +39,14 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command.
-	reader := productionReaderFor(fs, "", *addr)
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- and for the
+	// DOMAIN THIS REPOSITORY STATES, because this command has no --domain flag and an empty
+	// domain makes the served-generation comparison structurally inert.
+	reader, derr := productionReaderForRepository(fs, *addr)
+	if derr != nil {
+		fmt.Fprintf(os.Stderr, "sensei pattern-check: %v\n", derr)
+		return 2
+	}
 	*addr = reader.Addr
 	if fs.NArg() == 0 {
 		fmt.Fprintln(os.Stderr, "sensei pattern-check: requires at least one file argument")
@@ -60,7 +66,7 @@ Flags:
 	var results []pcFileResult
 	totalViolations := 0
 	for _, file := range fs.Args() {
-		fr := pcCheckOneFile(ctx, c.Stub(), file)
+		fr := pcCheckOneFile(ctx, c.Stub(), reader, file)
 		totalViolations += fr.violationCount()
 		results = append(results, fr)
 	}
@@ -110,7 +116,7 @@ func (r pcFileResult) violationCount() int {
 
 // ── core ─────────────────────────────────────────────────────────────────
 
-func pcCheckOneFile(ctx context.Context, stub awarenesspb.AwarenessGraphClient, file string) pcFileResult {
+func pcCheckOneFile(ctx context.Context, stub awarenesspb.AwarenessGraphClient, reader graphReader, file string) pcFileResult {
 	out := pcFileResult{File: file}
 
 	content, err := os.ReadFile(file)
@@ -125,6 +131,16 @@ func pcCheckOneFile(ctx context.Context, stub awarenesspb.AwarenessGraphClient, 
 	})
 	if err != nil {
 		out.Error = "briefing: " + err.Error()
+		return out
+	}
+
+	// LAW 5: per FILE, because each file is a separate response and the store can be
+	// republished between two calls on one connection. Recorded as this file's error rather
+	// than aborting the run: the command reports per-file results, and a file whose patterns
+	// could not be trusted is a result, not a silence. It still counts no violations, so it
+	// cannot contribute to the --fail-on-violation exit.
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		out.Error = "briefing: " + verr.Error()
 		return out
 	}
 

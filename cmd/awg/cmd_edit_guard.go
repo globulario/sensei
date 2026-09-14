@@ -111,6 +111,22 @@ Flags:
 		return 0
 	}
 
+	// LAW 5: a rule match from a generation this domain does not declare ACTIVE must not
+	// decide this edit. The guard's own contract says how: it FAILS OPEN -- an unreachable
+	// backend allows the edit -- and an answer whose generation cannot be reconciled is the
+	// same kind of not-having-an-answer. So the BLOCK is withheld and the edit proceeds.
+	//
+	// Withholding the block, not printing a caveat beside it, is the point. A denial
+	// derived from another domain's forbidden-fix rules stops work that nothing in this
+	// domain forbids, and the agent it stops cannot see which graph decided. The reason
+	// goes to stderr because that is where this command's advisories already go, and it
+	// explains a decision already taken rather than asking a reader to enforce one.
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei edit-guard: not enforcing this edit-check result (allowing edit): %s\n",
+			firstLine(verr.Error()))
+		return 0
+	}
+
 	opts := guardOptions{advisory: *advisory, blockSeverity: parseBlockSeverity(*blockSeverity)}
 	decision := decideGuard(rel, resp.GetWarnings(), opts)
 	emitGuardEvent(*eventLog, rel, *domain, decision, resp.GetWarnings(), opts)

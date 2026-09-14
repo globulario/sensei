@@ -46,14 +46,32 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	root, _ := resolveProjectRoot("")
-	// One owner, same as every other production reader (law 3). This variant asks about
-	// no particular domain, so it resolves without one rather than through a different
-	// function.
-	resolvedAddr := resolveGraphReader(fs, root, "", *addr, DefaultDomainRegistryPath()).Addr
-	resp, err := metadataRPC(ctx, resolvedAddr, "")
+	// One owner, same as every other production reader (law 3).
+	//
+	// The QUESTION spans every domain -- which scopes does this graph offer -- but the
+	// ANSWER is still a graph's answer, and this command resolves for the domain THIS
+	// repository states so there is something to hold it to. That referent exists: the
+	// project's own configuration names its domain, and the registry may declare a
+	// generation ACTIVE for it.
+	//
+	// It was tempting to classify this one non-authoritative and exempt it. The list is a
+	// picker, after all. But the picker chooses the domain a governed operation then runs
+	// against, so a list from a graph this project does not declare active is consumed
+	// authoritatively one step later, by whoever picks from it. `sensei metadata` remains
+	// the surface that REPORTS a generation disagreement instead of refusing on it; this
+	// one is not a diagnostic.
+	reader, derr := productionReaderForRepository(fs, *addr)
+	if derr != nil {
+		fmt.Fprintf(os.Stderr, "sensei domains: %v\n", derr)
+		return 2
+	}
+	resp, err := metadataRPC(ctx, reader.Addr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
+		return 1
+	}
+	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+		fmt.Fprintf(os.Stderr, "sensei domains: %v\n", verr)
 		return 1
 	}
 

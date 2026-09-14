@@ -15,8 +15,8 @@ import (
 var benchmarkAtomicGuard = requireAtomicCrossRepoGraphState
 var benchmarkAuthorityGuard = requireBenchmarkAuthority
 
-func requireBenchmarkAuthority(ctx context.Context, addr, agRepo, svcRepo string) error {
-	addr = strings.TrimSpace(addr)
+func requireBenchmarkAuthority(ctx context.Context, reader graphReader, agRepo, svcRepo string) error {
+	addr := strings.TrimSpace(reader.Addr)
 	if addr != "" {
 		metaCtx := ctx
 		if metaCtx == nil {
@@ -24,8 +24,16 @@ func requireBenchmarkAuthority(ctx context.Context, addr, agRepo, svcRepo string
 			metaCtx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 			defer cancel()
 		}
-		resp, err := metadataRPC(metaCtx, addr, "")
+		resp, err := metadataRPC(metaCtx, addr, reader.Domain)
 		if err == nil {
+			// Two separate questions, and the graph can only answer the first about itself:
+			// validateLiveBenchmarkAuthority asks whether it is current and
+			// transaction-certified, verifyServedAuthority asks whether it is the generation
+			// this domain declares ACTIVE. A graph passing the first while failing the second
+			// is precisely the case no self-certification can detect.
+			if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+				return verr
+			}
 			return validateLiveBenchmarkAuthority(resp)
 		}
 	}

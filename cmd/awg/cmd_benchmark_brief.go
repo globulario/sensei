@@ -123,8 +123,14 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command.
-	reader := productionReaderFor(fs, "", *addr)
+	// LAW 3: the endpoint comes from the G2 owner, never from this command -- and for the
+	// DOMAIN THIS REPOSITORY STATES, because this command has no --domain flag and an empty
+	// domain makes the served-generation comparison structurally inert.
+	reader, derr := productionReaderForRepository(fs, *addr)
+	if derr != nil {
+		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", derr)
+		return 2
+	}
 	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
@@ -151,7 +157,7 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 1
 	}
-	repairPlan, err := buildAuthoritativeRepairPlan(root, *addr, strings.TrimSpace(task.Issue), res.LikelyImplementationFiles)
+	repairPlan, err := buildAuthoritativeRepairPlan(root, reader, strings.TrimSpace(task.Issue), res.LikelyImplementationFiles)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", err)
 		return 1
@@ -621,7 +627,7 @@ func renderBenchmarkBriefText(res benchmarkBriefResult) string {
 	return b.String()
 }
 
-func buildAuthoritativeRepairPlan(repoRoot, addr, task string, files []string) (repairPlanResult, error) {
+func buildAuthoritativeRepairPlan(repoRoot string, reader graphReader, task string, files []string) (repairPlanResult, error) {
 	authPath, proofObPath, forbiddenFixPath := defaultProofPlanPaths(repoRoot, "", "", "")
 	authorities, err := loadAuthoritySurfaces(authPath)
 	if err != nil {
@@ -641,7 +647,7 @@ func buildAuthoritativeRepairPlan(repoRoot, addr, task string, files []string) (
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resp, err := repairPlanPreflight(ctx, addr, &awarenesspb.PreflightRequest{
+	resp, err := repairPlanPreflight(ctx, reader.Addr, &awarenesspb.PreflightRequest{
 		Task:  task,
 		Files: dedupeStrings(files),
 		Mode:  awarenesspb.PreflightMode_PREFLIGHT_STANDARD,
@@ -651,6 +657,11 @@ func buildAuthoritativeRepairPlan(repoRoot, addr, task string, files []string) (
 	}
 	if err := requireAuthoritativeGraph(resp.GetAuthority(), "benchmark-brief"); err != nil {
 		return repairPlanResult{}, err
+	}
+	// ... and self-certification is not identity: the plan this returns drives a benchmark
+	// verdict, so it must come from the generation this domain declares ACTIVE.
+	if err := reader.verifyServedAuthority(resp.GetAuthority()); err != nil {
+		return repairPlanResult{}, fmt.Errorf("benchmark-brief: %w", err)
 	}
 	proof, err := buildProofPlanForFiles(repoRoot, authorities, proofDoc, forbiddenFixes, dedupeStrings(files))
 	if err != nil {
