@@ -2416,6 +2416,12 @@ type mcpSingleFileChecker struct {
 	// question the impact queries are scoped to. Asking metadata about a
 	// different domain than the one being audited would compare two graphs.
 	domain string
+	// lastImpactGeneration is the generation carried by the most recent impact RESPONSE,
+	// which is provenance rather than a sample taken beside the call.
+	lastImpactGeneration string
+	// lastCheckGeneration is the generation carried by the most recent EditCheck RESPONSE,
+	// which is what closes the interval a separate sample could only narrow.
+	lastCheckGeneration string
 }
 
 func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (string, bool, error) {
@@ -2469,7 +2475,11 @@ func (c *mcpSingleFileChecker) ReadBaseFile(ctx context.Context, path string) (s
 	return string(data), true, nil
 }
 
+// LastCheckGeneration is the generation carried by the most recent rule-evaluation RESPONSE.
+func (c *mcpSingleFileChecker) LastCheckGeneration() string { return c.lastCheckGeneration }
+
 func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, content string, domain string) ([]diffaudit.AuditFinding, error) {
+	c.lastCheckGeneration = ""
 	resp, err := c.bridge.client.EditCheck(ctx, &awarenesspb.EditCheckRequest{
 		File:            file,
 		ProposedContent: content,
@@ -2478,6 +2488,8 @@ func (c *mcpSingleFileChecker) CheckFile(ctx context.Context, file string, conte
 	if err != nil {
 		return nil, err
 	}
+	// The generation that produced THESE findings, from the response's own authority.
+	c.lastCheckGeneration = strings.TrimSpace(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
 	var findings []diffaudit.AuditFinding
 	for _, w := range resp.GetWarnings() {
 		disp := "review"
@@ -2539,7 +2551,15 @@ func (c *mcpSingleFileChecker) GraphGeneration(ctx context.Context) (string, err
 	return strings.TrimSpace(resp.GetLiveStoreGraphDigestSha256()), nil
 }
 
+// LastImpactGeneration is the generation carried by the most recent impact RESPONSE.
+//
+// Not a fresh Metadata call: the point is that this identity belongs to the response whose
+// facts the audit is using, so it cannot describe a different moment. Cleared before each
+// query so a stale value can never stand in for a missing one.
+func (c *mcpSingleFileChecker) LastImpactGeneration() string { return c.lastImpactGeneration }
+
 func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, domain string) ([]diffaudit.Requirement, []diffaudit.Requirement, []string, string, error) {
+	c.lastImpactGeneration = ""
 	resp, err := c.bridge.client.Impact(ctx, &awarenesspb.ImpactRequest{
 		File:   file,
 		Domain: domain,
@@ -2575,6 +2595,12 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	//    Both fail-closed rules that DO apply are kept and are independent:
 	//    a modified file still requires a caller-pinned repository base, and an
 	//    authoritative graph still requires an exact source/build commit.
+	// THE GENERATION THIS RESPONSE WAS PRODUCED BY, from its own authority, and recorded only
+	// once the response has passed the gates above. A refused response establishes nothing, so
+	// it must leave no generation behind -- otherwise a later query with no identity of its own
+	// would inherit one from a response the audit rejected.
+	c.lastImpactGeneration = strings.TrimSpace(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+
 	graphCommit := resp.GetAuthority().GetSourceRepoCommit()
 	if graphCommit == "" {
 		graphCommit = resp.GetAuthority().GetGraphBuildCommit()

@@ -104,6 +104,11 @@ func (s *server) EditCheck(ctx context.Context, req *awarenesspb.EditCheckReques
 		Warnings:       warnings,
 		RulesEvaluated: int32(evaluated),
 		GeneratedInMs:  time.Since(start).Milliseconds(),
+		// WHICH GRAPH PRODUCED THESE WARNINGS. Resolved for the domain the caller asked
+		// about, exactly as Briefing and Preflight do, so an enforcing consumer can bind the
+		// verdict to the generation that computed it instead of to a separate sample taken at
+		// another moment.
+		Authority: s.graphAuthorityFor(ctx, requestedDomain),
 	}, nil
 }
 

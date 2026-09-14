@@ -26,6 +26,37 @@ type SingleFileChecker interface {
 	GetFileImpact(ctx context.Context, file string, domain string) (requiredTests []Requirement, contracts []Requirement, RelevantRules []string, graphCommit string, err error)
 }
 
+// ImpactGenerationReporter states which generation produced the response to the impact
+// query it most recently answered.
+//
+// Separate from GraphGenerationReporter, and the difference is the whole point: that one
+// samples which generation is serving NOW, at some moment adjacent to a query, while this
+// reports the identity carried ON the response that produced the facts being used. Only the
+// second is provenance; the first is a guess about an interval.
+//
+// ImpactResponse already carries a GraphAuthority, so for that query the exact identity was
+// on the wire and was being discarded in favour of an adjacent sample -- which is what the
+// review finding names. A checker that cannot implement this leaves its impact queries
+// UNVERIFIABLE, which is not the same as agreeing.
+type ImpactGenerationReporter interface {
+	// LastImpactGeneration is the generation carried by the most recent GetFileImpact
+	// response, or "" when that response stated none.
+	LastImpactGeneration() string
+}
+
+// CheckGenerationReporter is the same contract for the rule-evaluation query.
+//
+// Separate from ImpactGenerationReporter because the two responses are separate facts and a
+// checker may be able to state one and not the other -- which is exactly the situation at
+// this revision: ImpactResponse carries a GraphAuthority and EditCheckResponse does not. A
+// checker that cannot implement this leaves its rule evaluations UNVERIFIABLE, and the audit
+// says so instead of quietly resting on an adjacent sample.
+type CheckGenerationReporter interface {
+	// LastCheckGeneration is the generation carried by the most recent CheckFile response,
+	// or "" when that response stated none.
+	LastCheckGeneration() string
+}
+
 // GraphGenerationReporter reports which graph GENERATION is answering right now.
 //
 // Law 5 of the graph-identity front: every graph query a run uses must prove it
@@ -141,6 +172,8 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	// query this audit makes: a generation that is the same before and after is one
 	// that did not change underneath the answers.
 	generationReporter, _ := checker.(GraphGenerationReporter)
+	impactReporter, _ := checker.(ImpactGenerationReporter)
+	checkReporter, _ := checker.(CheckGenerationReporter)
 	generationBefore, generationErr := observeGeneration(ctx, generationReporter)
 	ledger := &generationLedger{}
 	ledger.note("the opening sample", generationBefore)
@@ -162,9 +195,14 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		// 1. Gather file impact (required tests, contracts, relevant rules, and
 		//    the observed authority commit of the rule snapshot).
 		tests, contracts, rules, graphCommit, err := checker.GetFileImpact(ctx, readPath, opts.Domain)
-		// Bind THIS query, not just the audit. See generationLedger.
-		if gen, gerr := observeGeneration(ctx, generationReporter); gerr == nil {
-			ledger.note("the impact query for "+readPath, gen)
+		// THE RESPONSE'S OWN IDENTITY, not a sample taken beside it. ImpactResponse carries a
+		// GraphAuthority, so the generation that produced these facts is on the wire; taking
+		// an adjacent Metadata reading instead described a different moment.
+		if impactReporter != nil {
+			ledger.note("the impact query for "+readPath, impactReporter.LastImpactGeneration())
+		} else {
+			ledger.noteUnverifiable("the impact query for "+readPath,
+				"this checker does not report the generation carried by its impact responses")
 		}
 		if err != nil {
 			result.Availability = AvailabilityCannotVerify
@@ -240,10 +278,20 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 				}
 			} else if proposedContent != "" {
 				fileFindings, err := checker.CheckFile(ctx, patch.Path, proposedContent, opts.Domain)
-				// Bind THIS query. EditCheckResponse states no generation, so this is the
-				// observation adjacent to the call rather than the call's own identity.
-				if gen, gerr := observeGeneration(ctx, generationReporter); gerr == nil {
-					ledger.note("the rule evaluation for "+patch.Path, gen)
+				// EditCheckResponse carries no GraphAuthority at this revision, so the
+				// generation that produced these findings CANNOT be established. That is
+				// recorded as unverifiable rather than approximated by an adjacent sample: a
+				// reading taken after the call describes the store at that later moment, not
+				// the graph that computed the findings.
+				//
+				// The repair is a wire change -- GraphAuthority on EditCheckResponse -- made
+				// on the sibling branch that owns the enforcing gate. Until the stack
+				// integrates, a rule-evaluating audit is honestly unverifiable here.
+				if checkReporter != nil {
+					ledger.note("the rule evaluation for "+patch.Path, checkReporter.LastCheckGeneration())
+				} else {
+					ledger.noteUnverifiable("the rule evaluation for "+patch.Path,
+						"this checker cannot state which generation produced these findings; at this revision EditCheckResponse carries no graph authority")
 				}
 				if err != nil {
 					result.ReasonCodes = append(result.ReasonCodes, ReasonEvaluatorUnavailable)
@@ -342,6 +390,15 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	ledger.note("the closing sample", generationAfter)
 	switchedA, switchedB, switched := ledger.disagreement()
 	switch {
+	case len(ledger.unverifiable) != 0:
+		// A contributing query whose provenance is unknown. Reported BEFORE the switch case
+		// because "I could not tell" must never be resolved into "they agreed".
+		result.Availability = AvailabilityCannotVerify
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+		for _, u := range ledger.unverifiable {
+			result.Limitations = append(result.Limitations,
+				fmt.Sprintf("%s cannot be bound to a graph generation: %s", u.query, u.generation))
+		}
 	case generationErr != nil || afterErr != nil:
 		err := generationErr
 		if err == nil {
@@ -570,7 +627,11 @@ func applyHunks(base string, hunks []DiffHunk, isAdd bool) (string, error) {
 // the whole audit to one RPC; it does not close it. Closing it needs a GraphAuthority on
 // EditCheckResponse, which is a wire change and is deliberately NOT made here.
 type generationLedger struct {
+	// seen are the queries whose generation is KNOWN.
 	seen []generationObservation
+	// unverifiable are the contributing queries whose generation could not be
+	// established. generation holds the reason rather than an identity.
+	unverifiable []generationObservation
 }
 
 type generationObservation struct {
@@ -578,12 +639,24 @@ type generationObservation struct {
 	query      string // what was asked, so a disagreement names the query, not just the value
 }
 
+// note records a query whose generation IS known.
 func (l *generationLedger) note(query, generation string) {
 	generation = strings.TrimSpace(generation)
 	if generation == "" {
+		l.noteUnverifiable(query, "no generation identity was reported")
 		return
 	}
 	l.seen = append(l.seen, generationObservation{generation: generation, query: query})
+}
+
+// noteUnverifiable records a contributing query whose generation could NOT be established.
+//
+// THIS IS A THIRD STATE, not a quiet variant of agreement. "No disagreement observed" and
+// "identity proven" are different facts, and an audit that becomes authoritative from the
+// first is claiming provenance it never had -- the review finding's words. A verdict that
+// requires graph authority must not be AVAILABLE while any contributing query is here.
+func (l *generationLedger) noteUnverifiable(query, why string) {
+	l.unverifiable = append(l.unverifiable, generationObservation{query: query, generation: why})
 }
 
 // disagreement returns the first two observations that name different generations.
