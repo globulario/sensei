@@ -555,14 +555,22 @@ func refCandidatesOfTypeName(t ast.Expr, dir string, imports map[string]string, 
 // dotImportDirs lists the repository-relative directories a file dot-imports, sorted so
 // resolution never depends on map iteration order.
 func dotImportDirs(imports map[string]string, modulePath string) []string {
-	importPath, ok := imports["."]
-	if !ok || modulePath == "" {
+	if modulePath == "" {
 		return nil
 	}
-	if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
-		return nil
+	var out []string
+	for key, importPath := range imports {
+		if !strings.HasPrefix(key, ".") {
+			continue
+		}
+		if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
+			continue
+		}
+		out = append(out, cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/")))
 	}
-	return []string{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/"))}
+	// Sorted, so resolution never depends on map iteration order.
+	sort.Strings(out)
+	return out
 }
 
 // directTypeRefOf resolves only a BARE type name -- an identifier or a qualified identifier,
@@ -643,6 +651,15 @@ func importsOf(f *ast.File) map[string]string {
 		alias := path.Base(p)
 		if imp.Name != nil {
 			alias = imp.Name.Name
+		}
+		if alias == "." {
+			// EVERY dot import, not the last one. Go allows several, and keying them all under
+			// "." meant each overwrote the previous, so an unqualified name from any but the
+			// final dot-imported package resolved nowhere and its constructions were invisible.
+			// Keyed by PATH, which no Go identifier can collide with because an alias never
+			// starts with a dot.
+			out["."+p] = p
+			continue
 		}
 		out[alias] = p
 	}

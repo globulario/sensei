@@ -184,6 +184,14 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 				continue
 			}
 			nt := named[ref]
+			// A POINTER ALIAS IS NOT THE STRUCT. `type Ptr = *Record` denotes a pointer type:
+			// `var p Ptr` allocates a nil pointer and constructs no Record. The name resolvers
+			// strip a star, which is right for binding a field access and wrong for deciding
+			// what an alias denotes, so an alias whose target is not a BARE name is not
+			// canonicalized to the struct at all.
+			if _, bare := directTypeRefOf(nt.expr, nt.dir, nt.imports, modulePath); !bare {
+				continue
+			}
 			for _, target := range refCandidatesOfTypeName(nt.expr, nt.dir, nt.imports, modulePath) {
 				if _, ok := structs[target]; ok {
 					canonical[ref], progress = target, true
@@ -255,10 +263,38 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		// shapes, all seven.
 		elided := map[*ast.CompositeLit]ast.Expr{}
 		// ownerRef reports whether a bare type name denotes the owner, following aliases.
+		// ownerRef reports whether a bare type name denotes the owner, FOLLOWING GO'S SCOPING.
+		//
+		// A name declared in this package shadows a dot-imported one of the same name, so the
+		// local declaration is checked first and, if it exists, the dot-imported candidates are
+		// not considered at all. Scanning every candidate for a match let a package that
+		// dot-imports the owner AND declares its own Record have `var x Record` counted as
+		// constructing the owner's type -- a FALSE refutation.
+		//
+		// The composite-literal path never had this bug because it resolves through
+		// resolver.typeExpr, which checks declaration membership. My witness for local shadowing
+		// exercised that path only, and I applied its conclusion to this one.
+		declaredLocally := func(name string) bool {
+			ref := typeRef{dir, name}
+			if _, ok := structs[ref]; ok {
+				return true
+			}
+			_, ok := named[ref]
+			return ok
+		}
 		ownerRef := func(t ast.Expr) bool {
 			cands, ok := directTypeRefOf(t, dir, imports, modulePath)
-			if !ok {
+			if !ok || len(cands) == 0 {
 				return false
+			}
+			local := cands[0]
+			if declaredLocally(local.name) {
+				// Go resolves the name here; a dot import cannot reach past it.
+				if local == owner {
+					return true
+				}
+				through, cok := canonical[local]
+				return cok && through == owner
 			}
 			for _, c := range cands {
 				if c == owner {
