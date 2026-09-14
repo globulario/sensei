@@ -177,6 +177,10 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		return aliasRefs[i].name < aliasRefs[j].name
 	})
 	canonical := map[typeRef]typeRef{}
+	// Aliases whose target is not a bare struct name -- `type Ptr = *Record`, `type L = []Record`.
+	// They still canonicalize, so an elided element literal through them is observed; the
+	// zero-value path consults this to refuse `var p Ptr`, which allocates no struct.
+	pointerAlias := map[typeRef]bool{}
 	for {
 		progress := false
 		for _, ref := range aliasRefs {
@@ -184,13 +188,17 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 				continue
 			}
 			nt := named[ref]
-			// A POINTER ALIAS IS NOT THE STRUCT. `type Ptr = *Record` denotes a pointer type:
-			// `var p Ptr` allocates a nil pointer and constructs no Record. The name resolvers
-			// strip a star, which is right for binding a field access and wrong for deciding
-			// what an alias denotes, so an alias whose target is not a BARE name is not
-			// canonicalized to the struct at all.
+			// A POINTER ALIAS IS RECORDED, AND MARKED. `type Ptr = *Record` denotes a pointer,
+			// so `var p Ptr` allocates nil and constructs no Record -- but `[]Ptr{{Deadline: t}}`
+			// DOES construct one, because an elided element of a pointer slice means
+			// &Record{...}. Excluding pointer aliases from canonical altogether fixed the first
+			// case and silently reopened the second: an elided construction through a pointer
+			// alias became invisible.
+			//
+			// So the alias resolves like any other and the ZERO-VALUE path rejects it, which is
+			// the path where "constructs nothing" is the actual rule.
 			if _, bare := directTypeRefOf(nt.expr, nt.dir, nt.imports, modulePath); !bare {
-				continue
+				pointerAlias[ref] = true
 			}
 			for _, target := range refCandidatesOfTypeName(nt.expr, nt.dir, nt.imports, modulePath) {
 				if _, ok := structs[target]; ok {
@@ -208,6 +216,15 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		if !progress {
 			break
 		}
+	}
+
+	// Every declared type name in scope, struct or not, for Go's shadowing rule.
+	declaredNames := map[typeRef]bool{}
+	for ref := range structs {
+		declaredNames[ref] = true
+	}
+	for ref := range named {
+		declaredNames[ref] = true
 	}
 
 	field := strings.TrimSpace(p.Field)
@@ -249,7 +266,8 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		filePath := read[i]
 		dir := cleanDir(path.Dir(filePath))
 		imports := importsOf(f)
-		r := &resolver{structs: structs, imports: imports, modulePath: modulePath, dir: dir}
+		r := &resolver{structs: structs, imports: imports, modulePath: modulePath, dir: dir,
+			declaredNames: declaredNames}
 		// An ELIDED composite literal -- the `{Deadline: t}` in `[]Record{{Deadline: t}}`
 		// -- names no type of its own. Go permits that elision in exactly three places:
 		// the element of an array or slice literal, and the key or value of a map literal
@@ -274,14 +292,7 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		// The composite-literal path never had this bug because it resolves through
 		// resolver.typeExpr, which checks declaration membership. My witness for local shadowing
 		// exercised that path only, and I applied its conclusion to this one.
-		declaredLocally := func(name string) bool {
-			ref := typeRef{dir, name}
-			if _, ok := structs[ref]; ok {
-				return true
-			}
-			_, ok := named[ref]
-			return ok
-		}
+		declaredLocally := func(name string) bool { return declaredNames[typeRef{dir, name}] }
 		ownerRef := func(t ast.Expr) bool {
 			cands, ok := directTypeRefOf(t, dir, imports, modulePath)
 			if !ok || len(cands) == 0 {
@@ -293,12 +304,18 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 				if local == owner {
 					return true
 				}
+				if pointerAlias[local] {
+					return false // denotes a pointer: allocates nil, constructs nothing
+				}
 				through, cok := canonical[local]
 				return cok && through == owner
 			}
 			for _, c := range cands {
 				if c == owner {
 					return true
+				}
+				if pointerAlias[c] {
+					continue
 				}
 				if through, cok := canonical[c]; cok && through == owner {
 					return true
@@ -536,12 +553,18 @@ func underlyingCollection(t ast.Expr, dir string, imports map[string]string,
 		case *ast.ArrayType, *ast.MapType, *ast.StructType:
 			return cur
 		}
-		ref, ok := refOfTypeName(cur, curDir, curImports, modulePath)
-		if !ok {
-			return cur
+		// Candidates, not one ref: an unqualified collection type name may come from a dot
+		// import, and resolving only the current directory left such an elided child untyped --
+		// reported UNRESOLVED rather than recognised.
+		var nt namedTypeDecl
+		found := false
+		for _, ref := range refCandidatesOfTypeName(cur, curDir, curImports, modulePath) {
+			if n, ok := named[ref]; ok {
+				nt, found = n, true
+				break
+			}
 		}
-		nt, ok := named[ref]
-		if !ok {
+		if !found {
 			return cur
 		}
 		// A named type writes its own type expression through the imports of the file that

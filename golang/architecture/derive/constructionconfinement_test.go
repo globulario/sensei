@@ -888,3 +888,91 @@ func TestConstructionConfined_AValueAliasStillCanonicalizesForZeroValueForms(t *
 		t.Fatalf("a value alias stopped resolving to the owner: outcome=%s: %s", got.Outcome, got.Detail)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Blind-pass findings on 4fc451ce. All three are in repairs made hours earlier in this pass.
+
+// P1: A LOCAL ALIAS SHADOWS A DOT IMPORT TOO. typeExprIn checked only `structs`, so a local
+// alias or defined type -- which lives in `named`, not `structs` -- did not shadow a
+// dot-imported struct of the same name. Go's rule is about declarations, not about which kind.
+func TestConstructionConfined_ALocalAliasShadowsADotImportedStruct(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"other/other.go":       "package other\n\nimport \"time\"\n\ntype Thing struct {\n\tDeadline time.Time\n}\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+// A local ALIAS named Record, to something that is not the owner's type.
+type Record = otherRecord
+
+type otherRecord struct {
+	Deadline time.Time
+}
+
+var _ = Open
+var _ = time.Now
+
+func F() { p := &Record{Deadline: time.Now()}; _ = p }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport", "other"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome == Refuted {
+		t.Fatalf("a LOCAL alias was read as the dot-imported owner's type: %s", got.Detail)
+	}
+}
+
+// P1: A POINTER ALIAS STILL CARRIES ELIDED CONSTRUCTIONS. `[]Ptr{{Deadline: t}}` means
+// &Record{Deadline: t}, so it IS a construction -- excluding pointer aliases from canonical
+// altogether fixed `var p Ptr` and silently reopened this.
+func TestConstructionConfined_AnElidedElementOfAPointerAliasIsAConstruction(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Ptr = *exchange.Record\n\nfunc F() { s := []Ptr{{Deadline: time.Now()}}; _ = s }"),
+		ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided construction through a pointer alias was not observed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// AND ITS OPPOSITE, which is why the two must be separated rather than traded off: the same
+// pointer alias declared as a variable still constructs nothing.
+func TestConstructionConfined_APointerAliasDeclarationStillConstructsNothing(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Ptr = *exchange.Record\n\nfunc F() { var p Ptr; _ = p }"),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("a nil pointer through an alias was counted as constructing the owner: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
+
+// P2: A DOT-IMPORTED NAMED COLLECTION TYPE must reveal its element type. underlyingCollection
+// resolved only the current directory, so an elided child under such a type was reported
+// UNRESOLVED instead of recognised.
+func TestConstructionConfined_ADotImportedCollectionTypeRevealsItsElements(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg + "\ntype Records []Record\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	. "example.com/m/exchange"
+)
+
+var _ = Open
+
+func Forge() Records { return Records{{Deadline: time.Now()}} }
+`,
+	})
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("an elided element under a dot-imported collection type was not observed: outcome=%s: %s",
+			got.Outcome, got.Detail)
+	}
+}
