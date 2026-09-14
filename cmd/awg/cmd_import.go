@@ -184,9 +184,25 @@ Flags:
 			allowedRoots, allowDirty = rd.AllowedCorpusRoots, rd.AllowDirtyWorktree
 		}
 	}
+	// The three roots this run may publish. Declared here, before anything writes,
+	// because WHICH roots are admissible is knowable now while WHICH EXIST is not:
+	// stages 2 and 4 create them.
+	plannedInputs := []string{
+		filepath.Join(checkout, "docs", "awareness"),
+		filepath.Join(checkout, "docs", "awareness", "generated"),
+		filepath.Join(checkout, ".sensei", "project"),
+	}
 	if *storeURL != "" {
 		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
 			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
+			return 1
+		}
+		// Every admission fact that does NOT depend on generated output existing is
+		// asked here, before extraction writes. Review finding cmd_import.go:185: an
+		// unreadable registry, an unregistered domain, or a checkout belonging to another
+		// repository were all discovered only after stage 1 had modified the checkout.
+		if aerr := admissionPossibleBeforeMutation(dom, checkout, plannedInputs, allowedRoots, DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
 			return 1
 		}
 	}
@@ -225,34 +241,6 @@ Flags:
 	// .sensei/project.lock behind -- from a run that loaded nothing and truthfully
 	// reported mutation_started: false.
 	//
-	// The gate answers this read-only and the inputs are known from `checkout`
-	// alone, so there is no reason to write anything first. This is law 9 of the
-	// graph-identity front: a failed publication must not leave the canonical
-	// checkout rewritten merely because staging was attempted.
-	// The inputs this import will publish, filtered to what the domain admits.
-	// `.sensei/project` is generated reconstruction output rather than authored
-	// corpus, so a domain that allows only docs/awareness refuses it -- correctly.
-	// Filtering here means import builds a command the gate can accept, and the
-	// admissibility check below is asked about the set it will actually use.
-	allInputs := []string{
-		filepath.Join(checkout, "docs", "awareness"),
-		filepath.Join(checkout, "docs", "awareness", "generated"),
-		filepath.Join(checkout, ".sensei", "project"),
-	}
-	// Existence first, then the allowlist: a root a later stage has not written yet
-	// carries nothing to certify, and the two reasons must stay separable so an operator
-	// told "not published" knows which one it was.
-	presentInputs, absentInputs := existingCorpusInputs(allInputs)
-	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, presentInputs, allowedRoots)
-	droppedInputs = append(droppedInputs, absentInputs...)
-
-	if *storeURL != "" {
-		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
-			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
-			return 1
-		}
-	}
-
 	fmt.Fprintln(os.Stderr, "\n== [2/5] structural extraction ==")
 	if rc := runBootstrap([]string{"--path", checkout, "--skip-history", "--skip-build"}); rc != 0 {
 		fmt.Fprintln(os.Stderr, "sensei import: structural extraction failed")
@@ -291,9 +279,20 @@ Flags:
 		fmt.Fprintln(os.Stderr, "  (fresh store? seed once with `sensei build --all` first.)")
 	} else {
 		fmt.Fprintln(os.Stderr, "\n== [5/5] load domain-scoped slice ==")
-		// Re-asked here as a last-line guard. The hoisted check above is the one
-		// that protects the checkout; this one catches an input set that became
-		// inadmissible while the extraction stages ran.
+		// RECOMPUTED FROM THE POST-BOOTSTRAP FILESYSTEM, never from a pre-stage snapshot.
+		//
+		// "declared and admissible" was settled before mutation. "exists and is
+		// publishable" is a different fact about a different moment, and for output this
+		// command creates it cannot be known until stages 2 and 4 have run. Freezing the
+		// earlier answer refused a fresh repository its own bootstrap (review finding
+		// cmd_import.go:247) and, where only some roots were initially absent, silently
+		// withheld reconstruction output the domain allows.
+		//
+		// Existence first, then the allowlist, so an operator told "not published" can
+		// tell which of the two reasons applied.
+		presentInputs, absentInputs := existingCorpusInputs(plannedInputs)
+		publishInputs, droppedInputs := admissibleCorpusInputs(checkout, presentInputs, allowedRoots)
+		droppedInputs = append(droppedInputs, absentInputs...)
 		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
 			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
 			return 1

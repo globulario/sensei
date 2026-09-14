@@ -269,6 +269,79 @@ func gitOut(dir string, args ...string) (string, error) {
 // unresolvable source identity, a mismatched repository, a corpus root outside
 // the allowed list, or an unexpectedly dirty tree all refuse. "I could not
 // verify" is never treated as "verified".
+// admissionPossibleBeforeMutation answers the part of publication admission that is
+// knowable BEFORE this command writes anything, so a run that can never publish refuses
+// with the checkout untouched.
+//
+// # Why a separate question rather than an early AdmitPublication
+//
+// AdmitPublication asks per corpus DIRECTORY, and three of its four checks need that
+// directory to exist: ResolveSourceIdentity shells `git -C <dir>`, the identity comparison
+// reads its result, and dirtiness is a property of tracked content. For a root this command
+// is about to CREATE, none of that is knowable yet — and asking anyway is what refused an
+// ordinary fresh repository its own bootstrap, because the corpus it was about to write did
+// not exist when it was asked about.
+//
+// The fourth check is different: whether a root is inside the domain's allowed roots is
+// pure path arithmetic, settled by the declaration alone. So is whether the registry
+// resolves, whether the domain is registered, and whether this CHECKOUT belongs to it.
+// Those four are asked here; existence and cleanliness are asked after generation, by
+// AdmitPublication, over what actually exists.
+//
+//	declared and admissible (before)  !=  exists and publishable (after)
+//
+// Two facts, two moments. Collapsing them is a defect in whichever direction it is done.
+//
+// It deliberately reuses admissibleCorpusInputs and the registry loader rather than
+// restating either rule, so the pre-mutation and post-generation answers cannot disagree
+// about what a domain admits.
+func admissionPossibleBeforeMutation(domain, checkout string, planned, allowedRoots []string, registryPath string) error {
+	domain = strings.TrimSpace(domain)
+	if domain == "" {
+		return nil // not a domain-scoped publication
+	}
+	reg, err := LoadDomainRegistry(registryPath)
+	if err != nil {
+		return &AdmissionRefusedError{
+			RequestedDomain: domain,
+			Reason: fmt.Sprintf("no readable domain registry at %s (%v) — refusing before extraction "+
+				"writes, because a registry that cannot be read cannot admit anything", registryPath, err),
+		}
+	}
+	rd, ok := reg.Domains[domain]
+	if !ok {
+		return &AdmissionRefusedError{
+			RequestedDomain: domain,
+			Reason:          "domain is not registered; register it before publishing to it",
+		}
+	}
+	// The checkout exists now, so its repository identity is knowable now. This is the
+	// canonical refusal — publishing one repository's corpus under another domain — and it
+	// must not wait for a directory a later stage creates.
+	id, ierr := ResolveSourceIdentity(checkout)
+	if ierr != nil {
+		return &AdmissionRefusedError{RequestedDomain: domain, Expected: rd.RepositoryIdentity, Reason: ierr.Error()}
+	}
+	if !strings.EqualFold(id.RepositoryIdentity, rd.RepositoryIdentity) {
+		return &AdmissionRefusedError{
+			RequestedDomain: domain, Expected: rd.RepositoryIdentity, Actual: id.RepositoryIdentity,
+			Reason: "repository/domain identity mismatch: checkout " + checkout + " does not belong to this domain",
+		}
+	}
+	// And whether this domain admits ANY root this run could write. If it admits none, no
+	// amount of extraction can produce a publishable corpus, so writing first would be
+	// pointless damage.
+	if kept, _ := admissibleCorpusInputs(checkout, planned, allowedRoots); len(kept) == 0 {
+		return &AdmissionRefusedError{
+			RequestedDomain: domain, Expected: rd.RepositoryIdentity, Actual: id.RepositoryIdentity,
+			Reason: fmt.Sprintf("none of the corpus roots this import would write is inside the domain's "+
+				"allowed roots %v, so no extraction it performs could produce a publishable corpus",
+				rd.AllowedCorpusRoots),
+		}
+	}
+	return nil
+}
+
 func AdmitPublication(domain string, inputDirs []string, registryPath string) error {
 	_, err := AdmitPublicationFromSource(domain, inputDirs, registryPath, nil)
 	return err

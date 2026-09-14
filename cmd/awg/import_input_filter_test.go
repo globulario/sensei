@@ -156,29 +156,41 @@ func TestAnExistingButInadmissibleRootIsStillDropped(t *testing.T) {
 // to the allowlist survived the behavioural witnesses above, because they perform the
 // composition themselves — the seventh instance this session of a property proven in a
 // helper and unasserted at the call site.
-func TestTheImportCommandFiltersAbsentRootsBeforeAdmission(t *testing.T) {
+// The RECOMPUTATION must happen after the stages that create the corpus.
+//
+// This replaces an earlier version of this witness that asserted the filter appeared before
+// admission. That ordering was true and insufficient: it said nothing about WHEN relative to
+// the stages, and the filter sat before them, so a fresh repository was refused its own
+// bootstrap. Structural, and deliberately narrow -- the behavioural claim is carried by
+// TestAFreshRepositoryReachesTheStageThatCreatesItsCorpus and
+// TestTheImportCommandAdmitsTheRecomputedInputsAtTheLoadStep, which drive the real command.
+func TestTheImportCommandRecomputesPublicationInputsAfterExtraction(t *testing.T) {
 	src := readCmdSource(t, "cmd_import.go")
-	ex := strings.Index(src, "existingCorpusInputs(allInputs)")
-	if ex < 0 {
-		t.Fatal("the command does not filter absent roots; admission will be asked about directories a later stage has not written")
+	extraction := strings.Index(src, "runBootstrap([]string{\"--path\", checkout")
+	if extraction < 0 {
+		t.Fatal("structural extraction is gone; this check has lost its anchor")
 	}
-	adm := strings.Index(src, "admissibleCorpusInputs(checkout,")
+	filter := strings.Index(src, "existingCorpusInputs(plannedInputs)")
+	if filter < 0 {
+		t.Fatal("publication inputs are no longer recomputed from the filesystem")
+	}
+	if filter < extraction {
+		t.Errorf("the existence filter runs at %d, BEFORE extraction at %d: a fresh repository would be refused because the corpus this command creates did not exist yet",
+			filter, extraction)
+	}
+	adm := strings.Index(src[filter:], "admissibleCorpusInputs(checkout, presentInputs")
 	if adm < 0 {
-		t.Fatal("the allowlist filter is gone")
+		t.Error("the allowlist is not applied to the recomputed present set")
 	}
-	if ex > adm {
-		t.Errorf("absent roots are filtered AFTER the allowlist (%d > %d); the two reasons stop being separable", ex, adm)
-	}
-	// The allowlist must be given the PRESENT set, not the raw one.
-	line := src[adm:]
-	if i := strings.IndexByte(line, '\n'); i >= 0 {
-		line = line[:i]
-	}
-	if !strings.Contains(line, "presentInputs") {
-		t.Errorf("the allowlist is not given the existence-filtered set: %s", strings.TrimSpace(line))
-	}
-	// And what was absent must still be reported, or a silent drop returns.
 	if !strings.Contains(src, "append(droppedInputs, absentInputs...)") {
 		t.Error("absent roots are dropped without being reported")
+	}
+	// And the pre-mutation question must still be asked, before anything writes.
+	pre := strings.Index(src, "admissionPossibleBeforeMutation(")
+	if pre < 0 {
+		t.Fatal("no pre-mutation admission check: registry and identity failures would be found only after extraction writes")
+	}
+	if pre > extraction {
+		t.Errorf("the pre-mutation check runs at %d, AFTER extraction at %d", pre, extraction)
 	}
 }

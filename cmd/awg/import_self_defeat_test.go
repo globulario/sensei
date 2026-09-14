@@ -172,6 +172,19 @@ func porcelain(t *testing.T, root string) string {
 // The repair is ordering, not wording: a gate whose refusal asserts an untouched checkout
 // must run before anything writes. Weakening the sentence instead would keep the defect
 // and describe it.
+// THE QUANTIFIED DOMAIN OF THIS WITNESS, measured 2026-09-14 and stated because
+// over-reading it is what let a regression through.
+//
+// This asserts LEXICAL ordering in the source: the gate appears before stage 1's writer.
+// It is not a behavioural proof that the refusal precedes a stage-1 write, and it cannot
+// be one here: `intent-mine --adopt` needs a drafter, and with none available it reports
+// "no candidates to ground" and writes nothing, so a behavioural assertion over stage 1 is
+// vacuous in this environment. Measured directly -- porcelain is byte-identical before and
+// after runIntentMine with 4 candidates present.
+//
+// The behavioural half of the claim is carried by
+// TestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction, which refuses ahead of
+// stage 2 (runBootstrap), a stage that demonstrably writes.
 func TestTheSelfDefeatGateRunsBeforeAnyExtractionWrites(t *testing.T) {
 	raw, err := os.ReadFile("cmd_import.go")
 	if err != nil {
