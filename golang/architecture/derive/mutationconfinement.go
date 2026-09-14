@@ -99,6 +99,9 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	// Struct declarations in scope, by declaring directory and name, each
 	// with the imports of the file that declared it.
 	structs := map[typeRef]structDecl{}
+	// EVERY declared type name, struct or not, for Go's shadowing rule: a local alias or
+	// defined type hides a dot-imported name just as a local struct does.
+	declaredNames := map[typeRef]bool{}
 	for i, f := range files {
 		dir := cleanDir(path.Dir(read[i]))
 		imports := importsOf(f)
@@ -109,6 +112,7 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			}
 			for _, sp := range gd.Specs {
 				ts := sp.(*ast.TypeSpec)
+				declaredNames[typeRef{dir, ts.Name.Name}] = true
 				if st, ok := ts.Type.(*ast.StructType); ok {
 					structs[typeRef{dir, ts.Name.Name}] = structDecl{st: st, imports: imports}
 				}
@@ -126,7 +130,8 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	for i, f := range files {
 		filePath := read[i]
 		dir := cleanDir(path.Dir(filePath))
-		r := &resolver{structs: structs, imports: importsOf(f), modulePath: modulePath, dir: dir}
+		r := &resolver{structs: structs, imports: importsOf(f), modulePath: modulePath, dir: dir,
+			declaredNames: declaredNames}
 		w := &walker{r: r, field: p.Field, owner: owner, fset: fset, filePath: filePath, dir: dir,
 			sites: &sites, subjects: &subjects, outside: &outside, unresolved: &unresolved}
 		for _, d := range f.Decls {
@@ -457,6 +462,14 @@ type resolver struct {
 	imports    map[string]string // alias -> import path
 	modulePath string
 	dir        string // directory of the file being read
+	// declaredNames is EVERY type name declared per directory in the scope searched, struct or
+	// not. It exists for Go's shadowing rule: a name declared in this package hides a
+	// dot-imported one, and a LOCAL ALIAS or defined type shadows just as a local struct does.
+	// Checking only `structs` let a dot-imported struct win over a local alias of the same name.
+	//
+	// Optional: a nil map means "declarations not collected", and resolution then behaves as it
+	// did before, so a family that does not populate it is unaffected.
+	declaredNames map[typeRef]bool
 }
 
 // typeOfIn binds an expression to a struct type under a scope chain, or
@@ -513,7 +526,17 @@ func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string)
 	// this family reasons about fields, and a type whose fields were never read has none.
 	// Candidates rather than one ref, because an unqualified name in a file with a DOT
 	// IMPORT may belong to the imported package -- see refCandidatesOfTypeName.
-	for _, ref := range refCandidatesOfTypeName(t, dir, imports, r.modulePath) {
+	cands := refCandidatesOfTypeName(t, dir, imports, r.modulePath)
+	// GO SHADOWING FIRST. If the unqualified name is declared in this package at all -- struct,
+	// alias or defined type -- that declaration is what the name means, and a dot import cannot
+	// reach past it. Only then does it bind, and only if it is a struct.
+	if len(cands) > 0 && r.declaredNames != nil && r.declaredNames[cands[0]] {
+		if _, ok := r.structs[cands[0]]; ok {
+			return cands[0], true
+		}
+		return typeRef{}, false
+	}
+	for _, ref := range cands {
 		if _, ok := r.structs[ref]; ok {
 			return ref, true
 		}
