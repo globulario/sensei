@@ -512,6 +512,23 @@ test_symbols:
     symbol: TestMCPAdmissionToolsDoNotRequireProtoChanges
     package: main
     language: go
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditAsksAboutTheDomainItIsAuditing
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditAsksAboutTheDomainItIsAuditing
+    package: main
+    language: go
+    doc: "The audit must ask about ITS OWN domain. Asking metadata about another domain\nwould compare this audit against a different graph and call the disagreement a\nswitch — a refusal for the wrong reason is not a passing grade."
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditRefusesWhenTheGraphGenerationChangesUnderneathIt
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditRefusesWhenTheGraphGenerationChangesUnderneathIt
+    package: main
+    language: go
+    doc: "The graph changes underneath one audit. Both digests are reachable and healthy;\nnothing is unavailable. It must still refuse."
+  - id: cmd/awareness-mcp/audit_generation_test.go:TestTheAuditReportsWhichGenerationAnsweredIt
+    file: cmd/awareness-mcp/audit_generation_test.go
+    symbol: TestTheAuditReportsWhichGenerationAnsweredIt
+    package: main
+    language: go
   - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
     file: cmd/awareness-mcp/audit_identity_separation_test.go
     symbol: TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
@@ -1086,6 +1103,116 @@ test_symbols:
     symbol: TestWorkspaceVerifyAdmission_RequiresAllArguments
     package: main
     language: go
+  - id: cmd/awg/activation_test.go:TestAFailedMarkerWriteLeavesThePointerAlone
+    file: cmd/awg/activation_test.go
+    symbol: TestAFailedMarkerWriteLeavesThePointerAlone
+    package: main
+    language: go
+    doc: "The pointer must never name a generation whose marker was not published. Ordering is\nthe property, and a failed marker write is where it is observable."
+  - id: cmd/awg/activation_test.go:TestActivationReportsWhatItDid
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationReportsWhatItDid
+    package: main
+    language: go
+    doc: "A successful activation says so, with both facts a reader needs."
+  - id: cmd/awg/activation_test.go:TestActivationWithoutADomainSaysThePointerWasNotUpdated
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationWithoutADomainSaysThePointerWasNotUpdated
+    package: main
+    language: go
+    doc: "A command that activates a generation without knowing which domain it is for cannot\nupdate the pointer. That is not a silent skip: readers resolving through the registry\nwill refuse this graph, and the operator must be told why and what to do."
+  - id: cmd/awg/activation_test.go:TestActivationWritesTheMarkerAndRecordsThePointer
+    file: cmd/awg/activation_test.go
+    symbol: TestActivationWritesTheMarkerAndRecordsThePointer
+    package: main
+    language: go
+  - id: cmd/awg/activation_test.go:TestNoCommandWritesAGraphMarkerOutsideTheActivationTransition
+    file: cmd/awg/activation_test.go
+    symbol: TestNoCommandWritesAGraphMarkerOutsideTheActivationTransition
+    package: main
+    language: go
+    doc: "THE UNIFICATION CLAIM ITSELF, and the only way to falsify it: no command may write a\ngraph marker except through the activation transition. A second writer is a second\nlifecycle, which is exactly what G4 exists to remove — and it would be invisible in\nbehaviour, because the marker it writes looks identical."
+  - id: cmd/awg/activation_test.go:TestTheScopedPublicationPathActivatesUnderItsOwnDomain
+    file: cmd/awg/activation_test.go
+    symbol: TestTheScopedPublicationPathActivatesUnderItsOwnDomain
+    package: main
+    language: go
+    doc: "The scoped publication path is the one caller that KNOWS its domain, and passing \"\" there\nwould silently degrade every scoped build to \"pointer not updated\" — a message that looks\nlike the honest report rebuild and serve correctly emit. Behaviour cannot separate them,\nbecause both produce a marker and a note; only the argument differs.\n\nA source-anchored check, and labelled as one: the scoped path needs a live Oxigraph store\nto reach. It anchors on the receipt write, which only that path performs, so it cannot\naccidentally inspect the whole-store call above it."
+  - id: cmd/awg/active_generation_test.go:TestAPrefixIsNotTheGeneration
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAPrefixIsNotTheGeneration
+    package: main
+    language: go
+    doc: "A prefix is a different string. Short digest forms are printed everywhere in\nthis codebase (marker.Digest[:12]), so a comparison that accepted a prefix would\nlet a 7-character coincidence pass for a generation — exactly the \"triple count\nis evidence, not identity\" mistake (law 13) in another currency."
+  - id: cmd/awg/active_generation_test.go:TestAServedGenerationMatchingTheRegistryIsActive
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAServedGenerationMatchingTheRegistryIsActive
+    package: main
+    language: go
+  - id: cmd/awg/active_generation_test.go:TestAServedGenerationTheRegistryDoesNotDeclareActiveIsRefused
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAServedGenerationTheRegistryDoesNotDeclareActiveIsRefused
+    package: main
+    language: go
+    doc: "Law 12: two claimants for one domain is an error, not a choice for the caller."
+  - id: cmd/awg/active_generation_test.go:TestActivationDoesNotAdmitAnUnregisteredDomain
+    file: cmd/awg/active_generation_test.go
+    symbol: TestActivationDoesNotAdmitAnUnregisteredDomain
+    package: main
+    language: go
+    doc: "A domain with no entry is not given one. The registry states what an operator\nadmitted; a publication may update a declaration, not create an admission."
+  - id: cmd/awg/active_generation_test.go:TestActivationRecordsTheGenerationItActivated
+    file: cmd/awg/active_generation_test.go
+    symbol: TestActivationRecordsTheGenerationItActivated
+    package: main
+    language: go
+    doc: "The activation transition (law 6) records the generation it activated. Only the\ntransactional publication path may do this — it is the one caller that has just\nproven the store holds what the marker certifies."
+  - id: cmd/awg/active_generation_test.go:TestAnUndeclaredGenerationIsInertNotAgreement
+    file: cmd/awg/active_generation_test.go
+    symbol: TestAnUndeclaredGenerationIsInertNotAgreement
+    package: main
+    language: go
+    doc: "Inert while unset, in BOTH directions of absence — and absence is reported as\nunverifiable rather than as agreement, the same rule markerAgreement follows."
+  - id: cmd/awg/active_generation_test.go:TestGenerationComparisonIgnoresTransportNoise
+    file: cmd/awg/active_generation_test.go
+    symbol: TestGenerationComparisonIgnoresTransportNoise
+    package: main
+    language: go
+    doc: "Case and surrounding whitespace are transport noise, not identity."
+  - id: cmd/awg/active_generation_test.go:TestTheEndpointReportNamesTheMarkerItChoseOrRefusesToNameOne
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheEndpointReportNamesTheMarkerItChoseOrRefusesToNameOne
+    package: main
+    language: go
+    doc: "G4 in the report: the Endpoint block must say WHICH marker it used and refuse to\nname one whose path would depend on the caller's directory."
+  - id: cmd/awg/active_generation_test.go:TestTheEndpointReportStatesWhetherTheServedGraphIsTheActiveGeneration
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheEndpointReportStatesWhetherTheServedGraphIsTheActiveGeneration
+    package: main
+    language: go
+    doc: "This is behavioural rather than structural: renderEndpointBlock is the function\n`sensei metadata` calls, so what it writes here is what that command prints."
+  - id: cmd/awg/active_generation_test.go:TestTheRegistryAnswersWhichGenerationIsActive
+    file: cmd/awg/active_generation_test.go
+    symbol: TestTheRegistryAnswersWhichGenerationIsActive
+    package: main
+    language: go
+  - id: cmd/awg/all_shrink_guard_test.go:TestBuildAllRefusesToClobberASubstantiallyLargerLiveStore
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestBuildAllRefusesToClobberASubstantiallyLargerLiveStore
+    package: main
+    language: go
+  - id: cmd/awg/all_shrink_guard_test.go:TestBuildAllStillAllowsAColdStart
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestBuildAllStillAllowsAColdStart
+    package: main
+    language: go
+    doc: "The guard must keep its documented tolerances, or a cold start becomes impossible."
+  - id: cmd/awg/all_shrink_guard_test.go:TestTheShrinkRefusalNamesBothCounts
+    file: cmd/awg/all_shrink_guard_test.go
+    symbol: TestTheShrinkRefusalNamesBothCounts
+    package: main
+    language: go
+    doc: "The refusal has to name the numbers, or an operator cannot tell a real shrink from\na misdirected endpoint — which, with three live stores, is the likelier cause."
   - id: cmd/awg/anti_clobber_guard_test.go:TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
     file: cmd/awg/anti_clobber_guard_test.go
     symbol: TestGuardAgainstLiveShrink_AllowsGrowthAndSmallChange
@@ -1522,6 +1649,35 @@ test_symbols:
     package: main
     language: go
     doc: "Field order inside an entry is not a fact about the entry, and a neighbour's\nformatting must never change an entry's obligation.\n\nThe stream-based parser attached a `status:` that preceded its own `id:` to\nthe PREVIOUS entry: the candidate stayed required, and the canonical\nneighbour was excused from closure -- a fail-open in the closure check\nitself, triggered by formatting."
+  - id: cmd/awg/canonical_state_test.go:TestSeedStatusDeclaresItselfNonCanonical
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestSeedStatusDeclaresItselfNonCanonical
+    package: main
+    language: go
+  - id: cmd/awg/canonical_state_test.go:TestSeedStatusPrintsItsTransportCaveatInBothRenderings
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestSeedStatusPrintsItsTransportCaveatInBothRenderings
+    package: main
+    language: go
+    doc: "The caveat must actually be PRINTED, in both renderings. Testing the function that\ncomposes the sentence proves nothing about whether anything emits it — a mutant that\nsimply stopped setting the field survived exactly that gap."
+  - id: cmd/awg/canonical_state_test.go:TestTheCanonicalReportGathersEveryDisagreementInOnePlace
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheCanonicalReportGathersEveryDisagreementInOnePlace
+    package: main
+    language: go
+    doc: "The consolidated verdict line. Every disagreement the canonical report can detect\nmust appear in ONE place, because a reader checking a graph should not have to know\nwhich of five lines carries a complaint.\n\nEach case below is ISOLATED so the complaint under test is the ONLY one present. An\nearlier version asserted merely that the summary was not \"none\", and three mutants\nthat deleted a single gatherer survived it: the other complaints in those scenarios\nkept the summary non-empty, so the assertion could not tell which gatherer ran."
+  - id: cmd/awg/canonical_state_test.go:TestTheSeedStatusCommandSetsTheTransportCaveat
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheSeedStatusCommandSetsTheTransportCaveat
+    package: main
+    language: go
+    doc: "The COMMAND must set the caveat, not merely be capable of composing one. The test\nabove builds its own result, so a mutant that simply stopped populating the field in\nrunSeedStatus survived it — the same gap in a different place: proving a sentence can\nbe written proves nothing about whether anything writes it."
+  - id: cmd/awg/canonical_state_test.go:TestTheSummaryNeverContradictsTheFieldsAboveIt
+    file: cmd/awg/canonical_state_test.go
+    symbol: TestTheSummaryNeverContradictsTheFieldsAboveIt
+    package: main
+    language: go
+    doc: "Every complaint the report prints in a per-field line must also reach the summary.\nA summary that can say \"none\" while a field above it says otherwise is worse than\nno summary, because it is the line a reader will trust."
   - id: cmd/awg/cmd_admission_v2_test.go:TestAdmitChangeV2Admits
     file: cmd/awg/cmd_admission_v2_test.go
     symbol: TestAdmitChangeV2Admits
@@ -4683,24 +4839,30 @@ test_symbols:
     symbol: TestResolveServeRepoContext
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_ConfiguredPathWins
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_ConfiguredPathWins
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_ConfiguredPathWins
+    symbol: TestServeGraphMarkerFile_ConfiguredPathWins
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
+    symbol: TestServeGraphMarkerFile_IgnoresExistingDefaultInEmbeddedSeedMode
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_OutsideAProject
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+    symbol: TestServeGraphMarkerFile_OutsideAProject
     package: main
     language: go
-  - id: cmd/awg/cmd_serve_test.go:TestSelectServeGraphMarkerFile_UsesDefaultForNoSeed
+    doc: "Serve outside a project, both modes. These are the same two answers the resolver\ngives, reached through serve's own entry point, and they are what makes the removal\nof serve's dead \"unresolvable root\" branch safe: embedded mode never needed a\nproject, and --no-seed should not be allowed to invent one."
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
     file: cmd/awg/cmd_serve_test.go
-    symbol: TestSelectServeGraphMarkerFile_UsesDefaultForNoSeed
+    symbol: TestServeGraphMarkerFile_SkipsMissingDefaultInSeedMode
+    package: main
+    language: go
+  - id: cmd/awg/cmd_serve_test.go:TestServeGraphMarkerFile_UsesDefaultForNoSeed
+    file: cmd/awg/cmd_serve_test.go
+    symbol: TestServeGraphMarkerFile_UsesDefaultForNoSeed
     package: main
     language: go
   - id: cmd/awg/cmd_serve_test.go:TestSyncDefaultRuntimeMarkerFromLiveStore_RefreshesStaleMarker
@@ -5656,6 +5818,24 @@ test_symbols:
     package: main
     language: go
     doc: "Ownership is provenance, not current existence — pinned permanently.\n\nTwo earlier answers used the filesystem AS IT IS NOW to decide ORIGIN, and\nboth had a bypass: `os.Stat(file)` let a DELETED cited test look foreign, and\n`os.Stat(topLevelDir)` let a foreign path look home because we share a `cmd/`\ndirectory, while deleting a home-only directory restored the first bypass.\n\nThe manual experiment that found this — delete a file, run, restore — is not\na test. Without this, re-adding an existence gate breaks nothing that fails."
+  - id: cmd/awg/derive_wiring_test.go:TestTheDeriveCommandRefusesAnElidedConstructionOutsideTheOwner
+    file: cmd/awg/derive_wiring_test.go
+    symbol: TestTheDeriveCommandRefusesAnElidedConstructionOutsideTheOwner
+    package: main
+    language: go
+    doc: "THE WIRING CLAIM. An outsider minting a Deadline through an ELIDED literal must reach\nthe command as a counterexample: exit 1, REFUTED, naming the site."
+  - id: cmd/awg/derive_wiring_test.go:TestTheDeriveCommandStatesAConstructionPropositionNotALockOne
+    file: cmd/awg/derive_wiring_test.go
+    symbol: TestTheDeriveCommandStatesAConstructionPropositionNotALockOne
+    package: main
+    language: go
+    doc: "The command must state the proposition it derived. It printed a lock-discipline\nsentence for this family until Proposition.String matched every kind by name."
+  - id: cmd/awg/derive_wiring_test.go:TestTheDeriveCommandStillDerivesWhenNoOutsiderMintsTheField
+    file: cmd/awg/derive_wiring_test.go
+    symbol: TestTheDeriveCommandStillDerivesWhenNoOutsiderMintsTheField
+    package: main
+    language: go
+    doc: "The other direction, so the test above cannot pass because the command refuses\neverything. A zero-value construction outside the owner mints no authority and the\ncommand must still report DERIVED."
   - id: cmd/awg/domain_admission_ci_test.go:TestAttestationCannotSpeakForAnotherDomain
     file: cmd/awg/domain_admission_ci_test.go
     symbol: TestAttestationCannotSpeakForAnotherDomain
@@ -5805,6 +5985,24 @@ test_symbols:
     package: main
     language: go
     doc: "TestWrongWorkspacePublicationFailsClosure replays the incident: the slice is\ninternally perfect, but it is the wrong repository's corpus.\n\nThis is the case where every other signal said \"current\" and \"authoritative\"."
+  - id: cmd/awg/domain_endpoint_test.go:TestASilentRegistryLeavesTheExistingPrecedenceIntact
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestASilentRegistryLeavesTheExistingPrecedenceIntact
+    package: main
+    language: go
+    doc: "A registry that declares no endpoint changes nothing. This is what keeps the\nfield inert until an operator fills it, so adding it cannot move any existing\ncaller's endpoint."
+  - id: cmd/awg/domain_endpoint_test.go:TestAnExplicitFlagOutranksEvenTheRegistry
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestAnExplicitFlagOutranksEvenTheRegistry
+    package: main
+    language: go
+    doc: "An explicit flag still wins: an operator naming an endpoint at the point of use is\nthe one authority above the registry, and it is visible in the command they ran."
+  - id: cmd/awg/domain_endpoint_test.go:TestTheRegistryOutranksTheProjectConfiguration
+    file: cmd/awg/domain_endpoint_test.go
+    symbol: TestTheRegistryOutranksTheProjectConfiguration
+    package: main
+    language: go
+    doc: "The registry outranks the project's own configuration, for the reason the\nregistry exists: it is the operator-controlled authority kept outside the\nrepository, and a repository must not be able to redirect its own graph."
   - id: cmd/awg/edit_brief_coverage_test.go:TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
     file: cmd/awg/edit_brief_coverage_test.go
     symbol: TestAnObservedEditIsCountableEvenWhenItIsNotBriefed
@@ -5938,11 +6136,135 @@ test_symbols:
     package: main
     language: go
     doc: "TestGovernanceCertificationSpine_EndToEnd freezes the full local governance\nflow:\n 1. proof-plan exposes the runtime-required checklist for a lifecycle surface\n 2. certify blocks when runtime evidence is missing\n 3. certify passes when mapped evidence satisfies the obligation\n 4. certify blocks again when a forbidden move is detected, even at score 100"
+  - id: cmd/awg/graph_marker_contract_test.go:TestALegacyStateDirectoryIsUsedAndNamed
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestALegacyStateDirectoryIsUsedAndNamed
+    package: main
+    language: go
+    doc: "A repository initialized before the rename keeps working, and the source says so —\na caller looking for .sensei/graph-authority.json and finding nothing needs to be\ntold the marker is in .awg rather than concluding none exists."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAMarkerIsRefusedForADirectoryThatIsNotAProject
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAMarkerIsRefusedForADirectoryThatIsNotAProject
+    package: main
+    language: go
+    doc: "The tier-4 refusal above is only as good as its trigger, and measuring the trigger\nfound the real defect: resolveProjectRoot NEVER reports \"not in a project\". Its\nsearch walks up looking for docs/awareness or <statedir>/config.yaml, and when it\nfinds neither it returns the CURRENT WORKING DIRECTORY with a nil error.\n\nSo `root == \"\"` almost never happens, and the default marker silently becomes\n<cwd>/.sensei/graph-authority.json for a caller standing anywhere at all —\nprecisely the cwd-dependent marker the refusal exists to prevent, arriving through\na door the refusal does not watch.\n\nChanging resolveProjectRoot is out of scope: 34 non-test callers depend on its\nfail-open walk. The invariant goes at the choke point instead. The marker resolver\nrequires the root to satisfy the SAME definition of a project resolveProjectRoot\nsearches for, so a root that matched only by exhaustion is refused rather than\nsilently used."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAMarkerPathThatDependsOnTheWorkingDirectoryIsRefused
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAMarkerPathThatDependsOnTheWorkingDirectoryIsRefused
+    package: main
+    language: go
+    doc: "Tier 4, fail-closed. A marker path that resolves against the current directory\ncertifies a different graph depending on where the command ran, which is not a\ncertification at all."
+  - id: cmd/awg/graph_marker_contract_test.go:TestARelativeProjectRootStillYieldsAnAbsoluteMarkerPath
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestARelativeProjectRootStillYieldsAnAbsoluteMarkerPath
+    package: main
+    language: go
+    doc: "A RELATIVE root carries the same defect as no root: the marker it names resolves\nagainst the caller's directory. t.TempDir() is already absolute, so the absolute-path\nassertion above cannot see whether anything absolutised it — this is the case that\ncan."
+  - id: cmd/awg/graph_marker_contract_test.go:TestAnExplicitMarkerFlagIsAlwaysHonored
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAnExplicitMarkerFlagIsAlwaysHonored
+    package: main
+    language: go
+  - id: cmd/awg/graph_marker_contract_test.go:TestAnOrphanedLegacyMarkerIsReported
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestAnOrphanedLegacyMarkerIsReported
+    package: main
+    language: go
+    doc: "Both directories present: one marker is authoritative and the other is ORPHANED,\ncertifying a generation nothing serves. Law 10's read side — a marker cannot\ncertify a different generation than the one being served — cannot be checked\nagainst a marker nobody knows is there."
+  - id: cmd/awg/graph_marker_contract_test.go:TestServeInEmbeddedSeedModeStatesThatItUsesNoMarkerFile
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestServeInEmbeddedSeedModeStatesThatItUsesNoMarkerFile
+    package: main
+    language: go
+    doc: "Tier 2: serve in embedded-seed mode uses the marker compiled into the binary, so\nthere is deliberately NO file. That is a real contract and it stays — but it is now\nstated, because \"no marker file\" and \"the default marker file\" were the same empty\nstring before, and only one of them means the embedded marker is in force."
+  - id: cmd/awg/graph_marker_contract_test.go:TestTheDefaultMarkerLivesInTheProjectsStateDirectory
+    file: cmd/awg/graph_marker_contract_test.go
+    symbol: TestTheDefaultMarkerLivesInTheProjectsStateDirectory
+    package: main
+    language: go
   - id: cmd/awg/graph_publication_lock_test.go:TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     file: cmd/awg/graph_publication_lock_test.go
     symbol: TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     package: main
     language: go
+  - id: cmd/awg/graph_reader_test.go:TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
+    package: main
+    language: go
+    doc: "A. The domain resolves to service A while the netcfg default (:10120) would be B.\nThe reader must use A."
+  - id: cmd/awg/graph_reader_test.go:TestAReaderRefusesAResponseFromAnUndeclaredGeneration
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAReaderRefusesAResponseFromAnUndeclaredGeneration
+    package: main
+    language: go
+    doc: "D. The endpoint answers, but with a generation other than the declared ACTIVE one.\nThe reader must refuse rather than report findings from a graph the domain does not\ndeclare."
+  - id: cmd/awg/graph_reader_test.go:TestAnExplicitOverrideIsPossibleAndVisiblyNonCanonical
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestAnExplicitOverrideIsPossibleAndVisiblyNonCanonical
+    package: main
+    language: go
+    doc: "E. A test/dev override stays possible and must announce itself. An override that\nlooked like canonical resolution would be the port choice returning through a flag."
+  - id: cmd/awg/graph_reader_test.go:TestBriefingVerifiesTheServedGenerationBeforeRendering
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestBriefingVerifiesTheServedGenerationBeforeRendering
+    package: main
+    language: go
+    doc: "The generation check must be WIRED, and wired before the briefing is rendered: a\nverdict from an undeclared graph must never be read as findings about this domain.\n\nSource-anchored and labelled as such — driving a full briefing needs a live awareness\nservice. Witness D above proves the predicate; this proves the call exists, runs before\nthe render, and is given the response's OWN authority digest rather than some other\nvalue that would always agree."
+  - id: cmd/awg/graph_reader_test.go:TestCommandsThatCannotVerifyAreNamed
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestCommandsThatCannotVerifyAreNamed
+    package: main
+    language: go
+    doc: "And the commands that genuinely cannot: their RPCs carry no authority, so there is\nnothing to compare. Recorded so the limit is explicit and countable rather than\ndiscovered later as an oversight."
+  - id: cmd/awg/graph_reader_test.go:TestEveryCommandThatCanVerifyTheServedGenerationDoes
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestEveryCommandThatCanVerifyTheServedGenerationDoes
+    package: main
+    language: go
+    doc: "Law 5 for every command that CAN check. Seven response types carry a GraphAuthority\n(Briefing, Impact, Metadata, Preflight, Query, ReferenceSites, Resolve), so the\ncommands consuming them can compare the generation that answered against the declared\nACTIVE one. Those that cannot are named here rather than left as a silent gap.\n\nThis is the check that stops the gap reopening: a command that gains an\nauthority-carrying response and forgets the comparison fails here."
+  - id: cmd/awg/graph_reader_test.go:TestEveryGraphReachingCommandResolvesThroughTheOwner
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestEveryGraphReachingCommandResolvesThroughTheOwner
+    package: main
+    language: go
+    doc: "Every command that reaches the graph must resolve through the owner. Counted rather\nthan sampled, so a command that dials without resolving is named."
+  - id: cmd/awg/graph_reader_test.go:TestMetadataAndBriefingResolveThroughTheSameOwner
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestMetadataAndBriefingResolveThroughTheSameOwner
+    package: main
+    language: go
+    doc: "F. metadata and briefing must resolve the same endpoint and identity for one domain.\nAsserted by construction: both call the same owner, and the test proves there is only\none resolver reachable from the reader paths."
+  - id: cmd/awg/graph_reader_test.go:TestNoProductionCommandDeclaresADefaultGraphEndpoint
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestNoProductionCommandDeclaresADefaultGraphEndpoint
+    package: main
+    language: go
+    doc: "THE INVARIANT, enforced once for the whole package rather than by sixteen weak\nper-command checks:\n\n\tFor a governed repository/domain there is exactly ONE code path by which a\n\tproduction command chooses which graph to read, and that path is the G2 owner.\n\nA command carrying `defaultServiceAddr()` as its --addr default owns a graph choice,\nwhatever it does afterwards. So the mechanical form of the invariant is: no command\ndeclares a default endpoint. Only the owner may name the built-in tier.\n\nThis is the check that makes the migration finishable and keeps it finished: a new\ncommand added next year with a default port fails here, which is the only way a\nsixteen-file migration does not silently regrow."
+  - id: cmd/awg/graph_reader_test.go:TestOnlyTheOwnerNamesTheBuiltInDefault
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestOnlyTheOwnerNamesTheBuiltInDefault
+    package: main
+    language: go
+    doc: "The owner is the only place the built-in tier may be named, and it must still name it:\nremoving the final tier would make an unresolvable domain produce an empty address\nrather than a truthful default."
+  - id: cmd/awg/graph_reader_test.go:TestReachabilityIsNotIdentity
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestReachabilityIsNotIdentity
+    package: main
+    language: go
+    doc: "B. :10120 may be perfectly healthy and belong to another graph. Reachability is not\nidentity, so nothing may select it merely because it answers."
+  - id: cmd/awg/graph_reader_test.go:TestTheSharedHelperAnnouncesANonCanonicalOverride
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestTheSharedHelperAnnouncesANonCanonicalOverride
+    package: main
+    language: go
+    doc: "The override notice must actually be EMITTED by the helper every command calls.\nTesting nonCanonicalReaderNotice in isolation proved the sentence can be composed; a\nmutant that deleted the emission survived exactly that gap, so this drives the real\nhelper and captures what it writes."
+  - id: cmd/awg/graph_reader_test.go:TestThereIsNoFallbackEndpoint
+    file: cmd/awg/graph_reader_test.go
+    symbol: TestThereIsNoFallbackEndpoint
+    package: main
+    language: go
+    doc: "C. When the resolved endpoint is unavailable the reader fails closed. There is no\nsecond port to try, because trying one would be choosing a graph by liveness."
   - id: cmd/awg/graph_refresh_test.go:TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
     file: cmd/awg/graph_refresh_test.go
     symbol: TestReloadOxigraphStore_ReplacesGraphAndRemovesStaleTriples
@@ -6016,6 +6338,67 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
+  - id: cmd/awg/import_input_filter_test.go:TestAnUnconstrainedDomainKeepsEveryInput
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestAnUnconstrainedDomainKeepsEveryInput
+    package: main
+    language: go
+    doc: "An empty allowlist means the domain constrains nothing, and filtering must not\ninvent a constraint the registry did not state."
+  - id: cmd/awg/import_input_filter_test.go:TestInputsAreFilteredToWhatTheDomainAdmits
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestInputsAreFilteredToWhatTheDomainAdmits
+    package: main
+    language: go
+  - id: cmd/awg/import_input_filter_test.go:TestTheDroppedInputsAreReportedWithTheirCost
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestTheDroppedInputsAreReportedWithTheirCost
+    package: main
+    language: go
+    doc: "Dropping the reconstruction output is not free, and the notice must say so. A\nsilent filter would turn \"your coverage was not published\" into \"the load\nsucceeded\"."
+  - id: cmd/awg/import_load_failure_test.go:TestImportLoadFailureNoticeDoesNotFabricateACause
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportLoadFailureNoticeDoesNotFabricateACause
+    package: main
+    language: go
+  - id: cmd/awg/import_load_failure_test.go:TestImportLoadFailureNoticeWarnsAgainstTheDestructiveRemedy
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportLoadFailureNoticeWarnsAgainstTheDestructiveRemedy
+    package: main
+    language: go
+    doc: "--all must never read as the remedy for an uninterpreted exit code. If it is\nnamed at all, it must be named as a warning."
+  - id: cmd/awg/import_load_failure_test.go:TestImportRefusesALoadTheGateMustRefuse
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestImportRefusesALoadTheGateMustRefuse
+    package: main
+    language: go
+    doc: "import must not construct a load the publication gate is certain to refuse.\n\nMeasured 2026-09-13: import's step 5 always passes `.sensei/project` as a corpus\ninput (cmd_import.go:205,224), and this domain's registry allows only\n`[docs/awareness]`, so domain_admission.go:316 refuses every time. Removing that\none input and changing nothing else turns PUBLICATION_REFUSED into exit 0 with\n35,255 triples loaded. The refusal arrived AFTER bootstrap, cold-bootstrap and\nproject reconstruction had already rewritten the canonical checkout.\n\nChecking admissibility first costs nothing and is read-only: AdmitPublication\nalready exists for exactly this question."
+  - id: cmd/awg/import_load_failure_test.go:TestTheMarkerNoteNamesTheCwdHazardNotAFalseConsequence
+    file: cmd/awg/import_load_failure_test.go
+    symbol: TestTheMarkerNoteNamesTheCwdHazardNotAFalseConsequence
+    package: main
+    language: go
+    doc: "The marker note must describe the real contract, not a consequence it got wrong.\n\nIt said \"no --graph-marker-file given; a live/served store may report\nfreshness-stale for briefing until re-certified\". But build DOES default the\nmarker — cmd_build.go:242 and :705 call defaultRuntimeMarkerFile() when the flag\nis empty — so the marker is written and freshness is not necessarily stale. The\nreal hazard is different and worse: defaultRuntimeMarkerFile resolves via\nresolveProjectRoot(\"\"), i.e. from the CURRENT DIRECTORY, so the marker is bound\nto whatever project cwd happens to name, which need not be the checkout being\nrefreshed."
+  - id: cmd/awg/import_self_defeat_test.go:TestADomainThatDoesNotPublishTheWrittenRootIsNotDefeated
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestADomainThatDoesNotPublishTheWrittenRootIsNotDefeated
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestADomainThatPermitsADirtyWorktreeIsNotDefeated
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestADomainThatPermitsADirtyWorktreeIsNotDefeated
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestImportRefusesWhenItsOwnExtractionWouldDefeatIt
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestImportRefusesWhenItsOwnExtractionWouldDefeatIt
+    package: main
+    language: go
+  - id: cmd/awg/import_self_defeat_test.go:TestTheImportCommandRefusesBeforeWritingAnything
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestTheImportCommandRefusesBeforeWritingAnything
+    package: main
+    language: go
+    doc: "End to end: the command refuses and writes nothing.\n\nHONEST LIMIT OF THIS TEST. It does NOT bind the call site. Deleting the refusal\nstill passes it, because in a synthetic repository the extraction stages write\nnothing to begin with — there is no Go source to extract and no managed skills to\nregenerate — so no assertion here can distinguish \"refused early\" from \"ran and\nproduced nothing\". Building a repository realistic enough to write would be a\ndisproportionate fixture.\n\nThe WIRING is proven live instead, on this repository, and that evidence is\nstronger than a synthetic fixture would be: the same invocation that previously\nturned a clean checkout into 27 changes with nothing loaded now prints the refusal\nand leaves git status empty, 0 -> 0. Recorded in\nsensei/docs/architecture/graph-identity-audit.md.\n\nWhat this test does bind: that the command exits non-zero and, when it refuses,\nleaves the worktree clean — checked with git status rather than an entry count,\nbecause most of the 27 observed writes were MODIFICATIONS and an entry count cannot\nsee those. An assertion that cannot see the damage it exists to detect is not an\nassertion."
   - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
     symbol: TestAResponseWithNoBuildCommitReportsUnknown
@@ -6555,6 +6938,97 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestAnExplicitFlagAlwaysWins
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestAnExplicitFlagAlwaysWins
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheBuiltInDefaultIsUsedOnlyWhenNothingElseSpeaks
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheBuiltInDefaultIsUsedOnlyWhenNothingElseSpeaks
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheProjectConfigBeatsTheBuiltInDefault
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheProjectConfigBeatsTheBuiltInDefault
+    package: main
+    language: go
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheReportNamesTheEndpointAndWhereItCameFrom
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheReportNamesTheEndpointAndWhereItCameFrom
+    package: main
+    language: go
+    doc: "G5 also requires the report to say WHICH endpoint answered and where that choice\ncame from. Without it, two runs from different directories print different numbers\nand the output does not say why — which is the confusion this whole front is about."
+  - id: cmd/awg/service_addr_resolution_test.go:TestTheReportSaysWhetherTheMarkerAgreesWithTheServedGraph
+    file: cmd/awg/service_addr_resolution_test.go
+    symbol: TestTheReportSaysWhetherTheMarkerAgreesWithTheServedGraph
+    package: main
+    language: go
+    doc: "Law 10: a marker cannot certify a different generation/store than the one being\nserved. Today nothing compares them, so a divergence is invisible — measured on\n2026-09-13, a disposable generation wrote digest 230a74f6…/35,255 while the live\nmarker still said c0b660fc…/35,268, and no command would have said so."
+  - id: cmd/awg/store_ownership_test.go:TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    package: main
+    language: go
+    doc: "A domain that declares a store must publish into it. Targeting a DIFFERENT, unowned\nstore is the accident the netcfg default causes — :7878 is reachable and belongs to\nnobody — so it is refused unless the operator named it explicitly."
+  - id: cmd/awg/store_ownership_test.go:TestADisposableStoreIsOneNoDomainClaims
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADisposableStoreIsOneNoDomainClaims
+    package: main
+    language: go
+    doc: "A disposable store is one no domain declares — that is the non-production opt-out, and\nit is explicit in the registry rather than a flag that disables the check."
+  - id: cmd/awg/store_ownership_test.go:TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    package: main
+    language: go
+    doc: "Two governed domains may not declare the same store. Refused at LOAD, so every command\ninherits it rather than each publication path having to remember."
+  - id: cmd/awg/store_ownership_test.go:TestActivationCannotStrandAnotherDomainsPointer
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestActivationCannotStrandAnotherDomainsPointer
+    package: main
+    language: go
+    doc: "Activation cannot strand a neighbour, which follows from the above: a publication that\nwould land in another domain's store never runs, so no activation can move a store\nanother domain's pointer names."
+  - id: cmd/awg/store_ownership_test.go:TestAnUndeclaredDomainIsUnconstrained
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestAnUndeclaredDomainIsUnconstrained
+    package: main
+    language: go
+    doc: "Inert until declared: a domain with no store_url behaves exactly as before, which is\nwhat keeps this from breaking every existing caller and every disposable store."
+  - id: cmd/awg/store_ownership_test.go:TestPublishingIntoAnotherDomainsStoreIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestPublishingIntoAnotherDomainsStoreIsRefused
+    package: main
+    language: go
+    doc: "Publishing domain B into the store domain A owns is refused, always — an explicit\noverride cannot license stranding a neighbour's pointer."
+  - id: cmd/awg/store_ownership_test.go:TestStoreIdentityIgnoresSpelling
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestStoreIdentityIgnoresSpelling
+    package: main
+    language: go
+    doc: "Spelling is not identity: the same store written two ways is still one store."
+  - id: cmd/awg/store_ownership_test.go:TestTheOwnershipCheckPrecedesEveryStoreMutation
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestTheOwnershipCheckPrecedesEveryStoreMutation
+    package: main
+    language: go
+    doc: "The check must be wired, and wired BEFORE the store is touched. Source-anchored and\nlabelled so: the publication path needs a live store. The behavioural witnesses above\nprove the predicate; this proves where it runs."
+  - id: cmd/awg/store_url_noncanonical_test.go:TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical
+    package: main
+    language: go
+  - id: cmd/awg/store_url_noncanonical_test.go:TestAnAgreeingExplicitStoreURLIsNotWarnedAbout
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestAnAgreeingExplicitStoreURLIsNotWarnedAbout
+    package: main
+    language: go
+  - id: cmd/awg/store_url_noncanonical_test.go:TestAnUnconfiguredStoreIsSaidToBeUnverifiable
+    file: cmd/awg/store_url_noncanonical_test.go
+    symbol: TestAnUnconfiguredStoreIsSaidToBeUnverifiable
+    package: main
+    language: go
+    doc: "A config that names no store is not agreement. Silence must not read as assent."
   - id: cmd/awg/synthesis_run_addr_test.go:TestBackendUnreachableSeparatesTransportFromService
     file: cmd/awg/synthesis_run_addr_test.go
     symbol: TestBackendUnreachableSeparatesTransportFromService
@@ -12042,6 +12516,288 @@ test_symbols:
     package: derive
     language: go
     doc: "A real boundary violation is refuted, with the sites named."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AChainedPointerAliasStillConstructsNothing
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AChainedPointerAliasStillConstructsNothing
+    package: derive
+    language: go
+    doc: "P2: A CHAIN KEEPS ITS POINTER-NESS. `type Ptr = *Record; type PtrAlias = Ptr` resolves to Record\nthrough Ptr, and without carrying the mark `var p PtrAlias` was counted as a struct\nconstruction -- the chain lost exactly the fact that makes it allocate nil."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ACollectionAliasChainResolvesAtAnyDepth
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ACollectionAliasChainResolvesAtAnyDepth
+    package: derive
+    language: go
+    doc: "P2: THE COLLECTION WALK TERMINATES ON CONVERGENCE, NOT A STEP COUNT. The adjacent alias\nresolution had already become a fixpoint while this loop kept a hardcoded eight, so a chain of\nnine or more truncated and left the elided element untyped -- UNRESOLVED rather than recognised.\nA larger constant would move the boundary, not remove it, so the depths here straddle the old\nbound and go well past it."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ACollectionAliasCycleTerminates
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ACollectionAliasCycleTerminates
+    package: derive
+    language: go
+    doc: "A CYCLE terminates instead of spinning, and resolves nothing. Such code does not compile, so the\nonly requirement is that the analyzer returns."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ACounterexampleOutranksAnUnreadableSite
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ACounterexampleOutranksAnUnreadableSite
+    package: derive
+    language: go
+    doc: "A KEYED counterexample outranks an unreadable one: a proven violation is a stronger\nfact than an unexamined site."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ADefinedTypeIsNotTheOwnersType
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ADefinedTypeIsNotTheOwnersType
+    package: derive
+    language: go
+    doc: "17. A DEFINED type is a DIFFERENT type, and following it would be over-refusal. The\nrepair must not widen the family to every syntax that mentions the owner."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ADotImportedAliasWithNoLocalShadowStillResolves
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ADotImportedAliasWithNoLocalShadowStillResolves
+    package: derive
+    language: go
+    doc: "ITS OPPOSITE: with NO local declaration, the dot-imported alias must still resolve to the owner.\nOtherwise the repair would have disabled alias resolution rather than ordered it."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ADotImportedCollectionTypeRevealsItsElements
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ADotImportedCollectionTypeRevealsItsElements
+    package: derive
+    language: go
+    doc: "P2: A DOT-IMPORTED NAMED COLLECTION TYPE must reveal its element type. underlyingCollection\nresolved only the current directory, so an elided child under such a type was reported\nUNRESOLVED instead of recognised."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ADotImportedTypeNameResolvesToTheOwner
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ADotImportedTypeNameResolvesToTheOwner
+    package: derive
+    language: go
+    doc: "DOT IMPORTS (mutationconfinement.go:539, P1). An unqualified name in a file that dot-imports\nthe owner denotes the owner's type, and attributing it to the current directory made the\nconstruction invisible."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ADotImportedZeroValueFormIsStillObserved
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ADotImportedZeroValueFormIsStillObserved
+    package: derive
+    language: go
+    doc: "And the same file shape WITHOUT a local declaration must still be observed, or the shadowing\nrepair would have disabled dot-import resolution for zero-value forms entirely."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AFieldNoConstructionInitializesEstablishesNothing
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AFieldNoConstructionInitializesEstablishesNothing
+    package: derive
+    language: go
+    doc: "A field named but never initialized at any construction site: the constructions exist,\nnone touches the field, so there is nothing about THAT field to establish."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ALocalAliasShadowsADotImportedStruct
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ALocalAliasShadowsADotImportedStruct
+    package: derive
+    language: go
+    doc: "P1: A LOCAL ALIAS SHADOWS A DOT IMPORT TOO. typeExprIn checked only `structs`, so a local\nalias or defined type -- which lives in `named`, not `structs` -- did not shadow a\ndot-imported struct of the same name. Go's rule is about declarations, not about which kind."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ALocalDeclarationShadowsADotImportInZeroValueForms
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ALocalDeclarationShadowsADotImportInZeroValueForms
+    package: derive
+    language: go
+    doc: "P1 (constructionconfinement.go:263): GO SCOPING. A locally declared name shadows a\ndot-imported one, so a package that dot-imports the owner AND declares its own Record must\nnot have `var x Record` counted as constructing the owner's type.\n\nThe composite-literal path never had this bug: it resolves through resolver.typeExpr, which\nchecks declaration membership. My witness for local shadowing exercised that path only and I\napplied its conclusion to the zero-value path, which scans every candidate."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ALocalDefinedTypeOutranksADotImportedAlias
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ALocalDefinedTypeOutranksADotImportedAlias
+    package: derive
+    language: go
+    doc: "P1: GO'S LEXICAL RULE OUTRANKS DOT-IMPORT FALLBACK, in the alias branch too.\n\nThe rule had grown three implementations -- typeExprIn checked `structs`, ownerRef checked its\nown predicate, and the walk's alias fallback checked NOTHING. So a local DEFINED type, which\nlands in `named` rather than `structs`, made typeExprIn return false and the fallback then\nmatched the dot-imported alias: a construction of transport's own type was reported as a\ncounterexample to the owner's confinement.\n\nRepaired by centralizing, not by writing a third copy: scopedCandidates applies the rule once\nand all three consumers differ only in what they do with the candidates."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ALocalTypeOutranksADotImportedOneOfTheSameName
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ALocalTypeOutranksADotImportedOneOfTheSameName
+    package: derive
+    language: go
+    doc: "A LOCAL type of the same name still wins, exactly as Go resolves it. Without this the repair\nwould attribute every unqualified name in a dot-importing file to the imported package."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ALocallyDeclaredCollectionStillResolves
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ALocallyDeclaredCollectionStillResolves
+    package: derive
+    language: go
+    doc: "And the same shape where the collection is declared LOCALLY still works, so the scope change\ndid not simply relocate the failure."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AMutationIsNotAConstruction
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AMutationIsNotAConstruction
+    package: derive
+    language: go
+    doc: "3. A MUTATION must not satisfy a construction rule. The two families ask different\nquestions, and a write after construction is not a construction."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ANamedCollectionTypeInScopeRevealsItsElementType
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ANamedCollectionTypeInScopeRevealsItsElementType
+    package: derive
+    language: go
+    doc: "14. A NAMED collection type declared in scope reveals its element type, so an elided\nelement under it is observed."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_APointerAliasConstructsNoValue
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_APointerAliasConstructsNoValue
+    package: derive
+    language: go
+    doc: "P2 (constructionconfinement.go:189): A POINTER ALIAS IS NOT THE STRUCT. `type Ptr = *Record`\ndenotes a pointer type; `var p Ptr` allocates a nil pointer and constructs no Record. The name\nresolvers strip a star, which is right for binding a field access and wrong for deciding what\nan alias denotes."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_APointerAliasDeclarationStillConstructsNothing
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_APointerAliasDeclarationStillConstructsNothing
+    package: derive
+    language: go
+    doc: "AND ITS OPPOSITE, which is why the two must be separated rather than traded off: the same\npointer alias declared as a variable still constructs nothing."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AValueAliasStillCanonicalizesForZeroValueForms
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AValueAliasStillCanonicalizesForZeroValueForms
+    package: derive
+    language: go
+    doc: "A VALUE alias still canonicalizes, so the pointer repair did not disable alias resolution."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AZeroValueFormMintsNoAuthority
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AZeroValueFormMintsNoAuthority
+    package: derive
+    language: go
+    doc: "18. THE DISTINCTION T1 EXISTS FOR, kept intact by the repair. A form that creates an\ninstance but initializes the field to nothing mints no authority, and what a later\nwrite puts there belongs to state_mutation_confined_to_owner. Widening construction to\ncover these would collapse the two families into one."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AliasResolutionIsDeterministic
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AliasResolutionIsDeterministic
+    package: derive
+    language: go
+    doc: "The result must not depend on map iteration order."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnAliasChainLongerThanTheOldBoundStillResolves
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnAliasChainLongerThanTheOldBoundStillResolves
+    package: derive
+    language: go
+    doc: "ALIAS CHAINS RESOLVE TO A FIXPOINT (constructionconfinement.go:150, P2). The chain here is\nlonger than the eight passes the old implementation allowed, so it fails mechanically against\nthat version rather than by argument."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnAliasConstructsTheOwnersType
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnAliasConstructsTheOwnersType
+    package: derive
+    language: go
+    doc: "16. A type ALIAS denotes the owner's own type, so constructing through one mints an\nowner value wherever it is written."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnAliasCycleTerminatesWithoutResolving
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnAliasCycleTerminatesWithoutResolving
+    package: derive
+    language: go
+    doc: "An alias CYCLE terminates and resolves nothing. It does not compile in Go, so the only\nrequirement is that the analyzer does not spin or invent an identity."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnElidedElementOfAChainedPointerAliasIsAConstruction
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnElidedElementOfAChainedPointerAliasIsAConstruction
+    package: derive
+    language: go
+    doc: "ITS OPPOSITE: a chained pointer alias used as an ELIDED ELEMENT type is still a construction,\nbecause `[]PtrAlias{{…}}` means &Record{…}. Both directions, so neither repair can be satisfied\nby disabling the other."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnElidedElementOfAPointerAliasIsAConstruction
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnElidedElementOfAPointerAliasIsAConstruction
+    package: derive
+    language: go
+    doc: "P1: A POINTER ALIAS STILL CARRIES ELIDED CONSTRUCTIONS. `[]Ptr{{Deadline: t}}` means\n&Record{Deadline: t}, so it IS a construction -- excluding pointer aliases from canonical\naltogether fixed `var p Ptr` and silently reopened this."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnElidedLiteralTypeIsStillAConstruction
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnElidedLiteralTypeIsStillAConstruction
+    package: derive
+    language: go
+    doc: "12. THE FINDING. Every shape of elided literal is a construction, and an elided\nliteral outside the owner refutes confinement exactly as a written-out one does."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnElidedUnkeyedLiteralIsStillUnresolved
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnElidedUnkeyedLiteralIsStillUnresolved
+    package: derive
+    language: go
+    doc: "13. An elided literal that is ALSO unkeyed must not become readable by being nested.\nElision resolves the TYPE; it says nothing about which position is which field, so the\nunkeyed boundary still applies and the answer is UNRESOLVED, not DERIVED and not\nREFUTED."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnInheritedAliasResolvesInItsOwnScope
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnInheritedAliasResolvesInItsOwnScope
+    package: derive
+    language: go
+    doc: "The inherited scope must serve the ALIAS path too, not only the struct path. The owner declares\na collection of a pointer ALIAS; an outsider constructs it with elided elements. The child's type\nis `Ptr` as written in the OWNER's file, so resolving it in the caller's scope finds nothing and\nthe construction disappears -- the same defect as the struct case, one resolution branch over."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnInitialisedDeclarationIsOneConstruction
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnInitialisedDeclarationIsOneConstruction
+    package: derive
+    language: go
+    doc: "A declaration WITH an initialiser must count once, not twice: the value's own construction is\nthe site."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnOwnerDeclaredCollectionCarriesItsOwnScope
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnOwnerDeclaredCollectionCarriesItsOwnScope
+    package: derive
+    language: go
+    doc: "P1: AN INHERITED TYPE MEANS WHAT IT MEANT WHERE IT WAS WRITTEN. `exchange.Records{{...}}` gives\nthe elided child the element type `Record` as written in EXCHANGE's file; resolving that\nunqualified name in the CONSTRUCTING package fails, so the construction was silently ignored\nand the claim came back DERIVED. A type expression only means something together with the\nimports of the file that wrote it."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnUnkeyedLiteralIsUnresolvedNotIgnored
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnUnkeyedLiteralIsUnresolvedNotIgnored
+    package: derive
+    language: go
+    doc: "An UNKEYED positional construction is the completeness boundary, not a pass.\n\nA mutation survived until this existed, and the hole it showed was real: if an unkeyed\nliteral were read as \"does not initialize the field\", an outsider could mint a record\npositionally and escape the claim entirely. The package's own discipline for an\nunbindable site is UNRESOLVED, named in the detail — never silently not-this-type."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnUnrelatedAliasIsUnaffectedByScoping
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnUnrelatedAliasIsUnaffectedByScoping
+    package: derive
+    language: go
+    doc: "And an UNRELATED alias is untouched: a local alias to something that is not the owner stays\noutside the claim whether or not anything is dot-imported."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnUnrelatedTypeWithTheSameFieldDoesNotMatch
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnUnrelatedTypeWithTheSameFieldDoesNotMatch
+    package: derive
+    language: go
+    doc: "4. An unrelated type with the same field name must not match."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnUnresolvableCollectionChainStaysUnresolved
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnUnresolvableCollectionChainStaysUnresolved
+    package: derive
+    language: go
+    doc: "An UNRESOLVABLE chain keeps its existing refusal semantics: still UNRESOLVED, not silently\ndropped and not accepted."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_AnUnresolvableElidedLiteralIsUnresolvedNotIgnored
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_AnUnresolvableElidedLiteralIsUnresolvedNotIgnored
+    package: derive
+    language: go
+    doc: "15. THE COMPLETENESS BOUNDARY, and it fails toward UNRESOLVED rather than silence.\nWhen the enclosing collection type is declared outside the scope searched, the element\ntype is whatever that declaration says and this does not guess. Being unable to read a\nconstruction must never read as there being none."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_DerivedWhenOnlyTheOwnerConstructs
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_DerivedWhenOnlyTheOwnerConstructs
+    package: derive
+    language: go
+    doc: "1. POSITIVE: every construction is in the owning package."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_EveryDotImportIsResolved
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_EveryDotImportIsResolved
+    package: derive
+    language: go
+    doc: "P1 (mutationconfinement.go:557): EVERY dot import must survive. importsOf keyed them all\nunder \".\", so each overwrote the previous and an unqualified name from any but the last\ndot-imported package resolved nowhere -- its constructions invisible, and DERIVED returned."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_NoReadableSiteIsNotTheSameAsNoSite
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_NoReadableSiteIsNotTheSameAsNoSite
+    package: derive
+    language: go
+    doc: "19. \"None found\" and \"none READABLE\" are different facts. When nothing readable\nconstructed the type but something unreadable did, reporting UNKNOWN \"nothing to\nestablish\" would hide exactly the site this family exists to see."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_OnlyTheOwnersDeclarationIsASubject
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_OnlyTheOwnersDeclarationIsASubject
+    package: derive
+    language: go
+    doc: "A declaration outside the owning directory is not the owner's declaration. Guards the\nloop from attributing someone else's same-named type."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_RefutedWhenAnOutsiderConstructs
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_RefutedWhenAnOutsiderConstructs
+    package: derive
+    language: go
+    doc: "2. NEGATIVE: a construction outside the owner refutes confinement."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_TheDeclarationIsASubject
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_TheDeclarationIsASubject
+    package: derive
+    language: go
+    doc: "The DECLARATION is a subject too, and this is what makes the evidence usable for a plan\nthat edits the declaring file.\n\nFound by running the family against the real case: the construction sites are\narchitecture_runner.go and runner.go, so a claim whose subjects were only those would\nestablish nothing about exchange.go — the file W3 actually plans to touch, and the file\nwhose contents give every construction site its meaning. A receipt that omitted it\nwould also be invalidated by edits it never named."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_TypeLevelClaimsCountZeroValueConstructions
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_TypeLevelClaimsCountZeroValueConstructions
+    package: derive
+    language: go
+    doc: "RELEVANCE DEPENDS ON THE PROPOSITION'S SHAPE (constructionconfinement.go:233, P1).\n\nWith a Field named, `var x T` and `new(T)` initialize no field, mint no authority, and are\ncorrectly not sites. WITHOUT a Field the claim is \"every construction of T originates in the\nowner\", and both ARE constructions of T. My Limits() text justified the exclusion \"with a\nField named\" while the analyzer applied it to both shapes.\n\nDOMAIN OF THIS CLAIM: the type-level proposition. The field-level one is unchanged, and the\nwitnesses below assert both directions so neither can drift into the other."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_TypeLevelClaimsIgnoreFormsThatConstructNoValue
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_TypeLevelClaimsIgnoreFormsThatConstructNoValue
+    package: derive
+    language: go
+    doc: "Forms that construct NO T must not become sites even type-level, or the repair is\nover-refusal wearing a fix's clothes."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_WithoutAFieldItAsksAboutTheType
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_WithoutAFieldItAsksAboutTheType
+    package: derive
+    language: go
+    doc: "With no Field named the family asks about the type itself, which is the general form."
+  - id: golang/architecture/derive/constructionconfinement_test.go:TestConstructionConfined_ZeroSitesIsNotEvidence
+    file: golang/architecture/derive/constructionconfinement_test.go
+    symbol: TestConstructionConfined_ZeroSitesIsNotEvidence
+    package: derive
+    language: go
+    doc: "5. VACUITY: zero construction sites must not read as proof. There is no vacuous truth\nhere, and that choice is the same one the mutation family already makes — \"nothing to\nestablish\" rather than \"confined\"."
   - id: golang/architecture/derive/coverage_test.go:TestAForgedRecipeAnchorsNothing
     file: golang/architecture/derive/coverage_test.go
     symbol: TestAForgedRecipeAnchorsNothing
@@ -12138,6 +12894,12 @@ test_symbols:
     package: derive
     language: go
     doc: "A real counterexample refutes rather than confuses. Count() reads subs with\nno lock held."
+  - id: golang/architecture/derive/derive_test.go:TestAnUnregisteredKindStatesNoClaim
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestAnUnregisteredKindStatesNoClaim
+    package: derive
+    language: go
+    doc: "A kind with no registered sentence must state that it has none rather than wear\nanother family's. This is the guard that makes the next family's omission visible\ninstead of silently mislabelling its receipts."
   - id: golang/architecture/derive/derive_test.go:TestEstablishedCannotBeConstructedOutsideADerivation
     file: golang/architecture/derive/derive_test.go
     symbol: TestEstablishedCannotBeConstructedOutsideADerivation
@@ -12168,6 +12930,23 @@ test_symbols:
     package: derive
     language: go
     doc: "The generic scope sentence must not speak one family's dialect.\n\nIt named locks until the second family shipped, so a derived fact about who\nmay invoke an executable disclaimed a lock nobody had mentioned. Every family\nshares this sentence, so no family's vocabulary belongs in it."
+  - id: golang/architecture/derive/derive_test.go:TestTheConstructionPropositionStatesAConstructionClaim
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestTheConstructionPropositionStatesAConstructionClaim
+    package: derive
+    language: go
+  - id: golang/architecture/derive/derive_test.go:TestTheConstructionPropositionWithoutAFieldAsksAboutTheType
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestTheConstructionPropositionWithoutAFieldAsksAboutTheType
+    package: derive
+    language: go
+    doc: "Without a Field the claim is about the TYPE, and saying otherwise would overstate it."
+  - id: golang/architecture/derive/derive_test.go:TestTheLockPropositionKeepsItsOwnSentence
+    file: golang/architecture/derive/derive_test.go
+    symbol: TestTheLockPropositionKeepsItsOwnSentence
+    package: derive
+    language: go
+    doc: "The lock family keeps its own sentence, now by name rather than by falling through."
   - id: golang/architecture/derive/derive_test.go:TestTheSameDerivationOverTheSamePinnedInputsAgrees
     file: golang/architecture/derive/derive_test.go
     symbol: TestTheSameDerivationOverTheSamePinnedInputsAgrees
@@ -12690,6 +13469,35 @@ test_symbols:
     package: diffaudit
     language: go
     doc: "TestEvaluatorFailureCarriesItsCause is issue #260's first finding.\n\nEvery other failure path in EvaluateDiff records why it failed. The\nCheckFile path recorded only the reason CODE, so a caller saw\n\"cannot_verify / evaluator_unavailable / limitations: none\" and could not\ntell an unreachable graph from a rejected RPC from a panicking rule.\n\nThat mattered beyond tidiness: with the cause carried, the second defect in\n#260 would have reported itself instead of taking twenty minutes to corner."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAGenerationSwitchDuringTheAuditRefusesTheResult
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAGenerationSwitchDuringTheAuditRefusesTheResult
+    package: diffaudit
+    language: go
+    doc: "The law's own words: a silent generation switch is forbidden."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAuditRecordsWhichGenerationAnsweredIt
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAuditRecordsWhichGenerationAnsweredIt
+    package: diffaudit
+    language: go
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAuditThatCannotObserveItsGenerationIsNotAvailable
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAuditThatCannotObserveItsGenerationIsNotAvailable
+    package: diffaudit
+    language: go
+    doc: "Unobservable is not agreement. This is law 13's rule in another currency and the\nsame one markerAgreement follows: an identity that cannot be checked is not a\nmatching one."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestAnAvailableResultMustBeBoundToAGeneration
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestAnAvailableResultMustBeBoundToAGeneration
+    package: diffaudit
+    language: go
+    doc: "The structural lock, mirroring the one graph_commit already has: a result that\nclaims availability must be bound to the generation that produced it, so a future\ncaller cannot construct an \"available\" verdict anchored to nothing."
+  - id: golang/architecture/diffaudit/graph_generation_test.go:TestTheGenerationParticipatesInTheResultDigest
+    file: golang/architecture/diffaudit/graph_generation_test.go
+    symbol: TestTheGenerationParticipatesInTheResultDigest
+    package: diffaudit
+    language: go
+    doc: "The generation participates in the result's identity. Two audits that differ only\nby which graph answered are not the same record — that is what #134 could not\nreplay, because nothing recorded which generation had answered."
   - id: golang/architecture/diffaudit/model_test.go:TestAuditResult_ComputeDigest_Deterministic
     file: golang/architecture/diffaudit/model_test.go
     symbol: TestAuditResult_ComputeDigest_Deterministic
@@ -29815,6 +30623,42 @@ test_symbols:
     package: main
     language: go
     doc: "Command-path contract: rebuilding from inside awareness-graph must preserve\nthe paired services corpus in the embedded offline seed, or Preflight loses\nstrong repair guidance for service-owned files."
+  - id: golang/server/served_generation_test.go:TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
+    package: main
+    language: go
+    doc: "A store whose marker count contradicts the actual live graph count is the same class:\nself-inconsistent, so no identity."
+  - id: golang/server/served_generation_test.go:TestAnEmptyStoreReportsNoServedGeneration
+    file: golang/server/served_generation_test.go
+    symbol: TestAnEmptyStoreReportsNoServedGeneration
+    package: main
+    language: go
+    doc: "An empty store invents nothing."
+  - id: golang/server/served_generation_test.go:TestAnIncoherentMarkerIsNotAServedIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestAnIncoherentMarkerIsNotAServedIdentity
+    package: main
+    language: go
+    doc: "An integrity-failed store carries a digest in its observation, and it must NOT become\na served identity. Its self-description is exactly what cannot be trusted: a marker\nwhose subject IRI disagrees with its own digest is not \"an older graph\", it is a\ncontradiction, and handing that digest downstream would make it comparable — the\nwrong graph passing an equality check is the failure this whole front exists to stop."
+  - id: golang/server/served_generation_test.go:TestTheHealthyPathDoesNoExtraDiscovery
+    file: golang/server/served_generation_test.go
+    symbol: TestTheHealthyPathDoesNoExtraDiscovery
+    package: main
+    language: go
+    doc: "The cost rule: a healthy store is asked nothing extra."
+  - id: golang/server/served_generation_test.go:TestTheServedGenerationIsReportedWhenItIsNotTheExpectedOne
+    file: golang/server/served_generation_test.go
+    symbol: TestTheServedGenerationIsReportedWhenItIsNotTheExpectedOne
+    package: main
+    language: go
+    doc: "THE DEFECT. The store serves generation S while the marker file expects E."
+  - id: golang/server/served_generation_test.go:TestTwoServedGenerationsReportNoIdentity
+    file: golang/server/served_generation_test.go
+    symbol: TestTwoServedGenerationsReportNoIdentity
+    package: main
+    language: go
+    doc: "Law 12: two instances claiming the same domain are an error, not a choice. Two\nmarkers in one store is the same fault inside one instance, and the report must not\npick one."
   - id: golang/server/service_test.go:TestMonitorBackendHealth_TransitionsToNotServing
     file: golang/server/service_test.go
     symbol: TestMonitorBackendHealth_TransitionsToNotServing
