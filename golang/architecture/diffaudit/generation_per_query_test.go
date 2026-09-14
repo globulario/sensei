@@ -24,6 +24,8 @@ package diffaudit
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 )
 
@@ -249,3 +251,106 @@ func TestTheMissingReporterFixturesReallyLackTheirInterfaces(t *testing.T) {
 		t.Error("noImpactProvenanceChecker implements ImpactGenerationReporter, so it does not model a checker missing it")
 	}
 }
+
+// ANTIGRAVITY FINDING (P2, evaluator.go:400): the generic unverifiable bucket came FIRST and
+// consumed the branches below it. A blank identity is recorded as unverifiable, and every
+// errored or unobservable bracket also produces a blank, so the errored and unobservable cases
+// were unreachable and a real outage lost the error text those branches exist to carry.
+//
+// The verdict was never wrong -- all four refuse -- but the taxonomy was false, and this file's
+// doctrine is that a caller must be able to tell an unreachable graph from a rejected RPC from
+// a graph that moved.
+//
+// EXHAUSTIVENESS. Each condition is produced in isolation and must yield ITS OWN diagnostic.
+// A table, so a branch that stops being reachable fails here rather than going quiet.
+func TestEveryGenerationDiagnosticBranchIsReachable(t *testing.T) {
+	cases := []struct {
+		name       string
+		checker    SingleFileChecker
+		wantReason ReasonCode
+		wantPhrase string
+		wantBound  bool // the result binds a generation
+	}{
+		{
+			name:       "two known generations disagree",
+			checker:    &boundChecker{impactGens: []string{"G2"}, checkGens: []string{"G1"}},
+			wantReason: ReasonGraphGenerationSwitched,
+			wantPhrase: "not all answered by one graph generation",
+		},
+		{
+			name:       "an observation errored",
+			checker:    &generationReportingChecker{err: errors.New("store unavailable")},
+			wantReason: ReasonGraphUnavailable,
+			wantPhrase: "could not be observed: store unavailable",
+		},
+		{
+			name:       "the brackets are blank",
+			checker:    &generationReportingChecker{generations: []string{""}},
+			wantReason: ReasonGraphUnavailable,
+			wantPhrase: "was not observable",
+		},
+		{
+			name:       "some other contributing query is unverifiable",
+			checker:    &blankPerQueryOnlyChecker{},
+			wantReason: ReasonGraphUnavailable,
+			wantPhrase: "cannot be bound to a graph generation",
+		},
+		{
+			name:      "one generation answered everything",
+			checker:   &boundChecker{impactGens: []string{"G1"}, checkGens: []string{"G1"}},
+			wantBound: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res := evaluateWith(t, tc.checker)
+			joined := strings.Join(res.Limitations, " | ")
+			if tc.wantBound {
+				for _, rc := range res.ReasonCodes {
+					if rc == ReasonGraphUnavailable || rc == ReasonGraphGenerationSwitched {
+						t.Fatalf("a fully bound audit was refused: %v / %s", res.ReasonCodes, joined)
+					}
+				}
+				if res.GraphGeneration == "" {
+					t.Errorf("a fully bound audit recorded no generation")
+				}
+				return
+			}
+			// EVERY refusing branch must keep the SAME verdict. Diagnostic specificity must
+			// never upgrade authority, which is the property that makes reordering safe.
+			if res.Availability != AvailabilityCannotVerify {
+				t.Errorf("availability = %s, want CANNOT_VERIFY: a diagnostic branch changed the verdict", res.Availability)
+			}
+			if res.Decision != DecisionCannotVerify {
+				t.Errorf("decision = %s, want CANNOT_VERIFY", res.Decision)
+			}
+			if res.GraphGeneration != "" {
+				t.Errorf("a refused audit bound itself to %q", res.GraphGeneration)
+			}
+			if !hasReason(res.ReasonCodes, tc.wantReason) {
+				t.Errorf("reason codes %v do not include %s", res.ReasonCodes, tc.wantReason)
+			}
+			if !strings.Contains(joined, tc.wantPhrase) {
+				t.Errorf("this branch did not produce its own diagnostic.\n  want phrase: %q\n  got: %s", tc.wantPhrase, joined)
+			}
+		})
+	}
+}
+
+// blankPerQueryOnlyChecker reports known brackets and a blank identity for its queries: the
+// generic bucket's own case, with nothing more specific true.
+type blankPerQueryOnlyChecker struct {
+	inner fakeChecker
+}
+
+func (c *blankPerQueryOnlyChecker) GetFileImpact(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error) {
+	return c.inner.GetFileImpact(ctx, file, domain)
+}
+func (c *blankPerQueryOnlyChecker) CheckFile(ctx context.Context, file, content, domain string) ([]AuditFinding, error) {
+	return c.inner.CheckFile(ctx, file, content, domain)
+}
+func (c *blankPerQueryOnlyChecker) GraphGeneration(ctx context.Context) (string, error) {
+	return "G1", nil
+}
+func (c *blankPerQueryOnlyChecker) LastImpactGeneration() string { return "" }
+func (c *blankPerQueryOnlyChecker) LastCheckGeneration() string  { return "" }

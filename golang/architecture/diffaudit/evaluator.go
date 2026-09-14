@@ -389,16 +389,38 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 	generationAfter, afterErr := observeGeneration(ctx, generationReporter)
 	ledger.note("the closing sample", generationAfter)
 	switchedA, switchedB, switched := ledger.disagreement()
+	// DIAGNOSTIC PRECEDENCE, most specific fact first.
+	//
+	// The order is the repository's existing doctrine, not a new rule: "a counterexample
+	// outranks an unreadable site -- a proven violation is a stronger fact than an unexamined
+	// one." So a proven disagreement between two KNOWN generations is reported before any
+	// account of what could not be seen.
+	//
+	//   1. two known generations disagree      a proven violation
+	//   2. an observation errored              a specific cause, with the error
+	//   3. the audit's own brackets are blank  a specific shape of absence
+	//   4. some other contributing query       the generic bucket, last
+	//
+	// The generic bucket used to be FIRST, and it consumed the other three: a blank identity
+	// is recorded as unverifiable, and every errored or unobservable bracket also produces a
+	// blank, so cases 2 and 3 were unreachable and a real outage lost the error text those
+	// branches exist to carry. The verdict was never wrong -- all four refuse -- but the
+	// taxonomy was false, and this file's own doctrine is that a caller must be able to tell
+	// an unreachable graph from a rejected RPC from a graph that moved.
+	//
+	// Every branch is cannot_verify, so precedence changes only the DIAGNOSTIC. Reordering can
+	// never upgrade the authority verdict, and a witness asserts exactly that.
 	switch {
-	case len(ledger.unverifiable) != 0:
-		// A contributing query whose provenance is unknown. Reported BEFORE the switch case
-		// because "I could not tell" must never be resolved into "they agreed".
+	case switched:
+		// Any two contributing queries naming different generations refuses the verdict,
+		// which subsumes the old before != after test: the brackets are two of the
+		// observations, so a pair that disagrees is still caught here, and so now is a
+		// rollback that leaves them equal.
 		result.Availability = AvailabilityCannotVerify
-		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
-		for _, u := range ledger.unverifiable {
-			result.Limitations = append(result.Limitations,
-				fmt.Sprintf("%s cannot be bound to a graph generation: %s", u.query, u.generation))
-		}
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphGenerationSwitched)
+		result.Limitations = append(result.Limitations,
+			fmt.Sprintf("this audit's queries were not all answered by one graph generation: %s answered %s, %s answered %s; a silent generation switch is forbidden",
+				switchedA.generation, switchedA.query, switchedB.generation, switchedB.query))
 	case generationErr != nil || afterErr != nil:
 		err := generationErr
 		if err == nil {
@@ -417,16 +439,16 @@ func EvaluateDiff(ctx context.Context, parsed *ParsedDiff, checker SingleFileChe
 		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
 		result.Limitations = append(result.Limitations,
 			"the graph generation answering this audit was not observable, so this result cannot be bound to the graph that produced it")
-	case switched:
-		// Any two contributing queries naming different generations refuses the verdict,
-		// which subsumes the old before != after test: the brackets are two of the
-		// observations, so a pair that disagrees is still caught here, and so now is a
-		// rollback that leaves them equal.
+	case len(ledger.unverifiable) != 0:
+		// The generic bucket, and LAST: a contributing query whose provenance is unknown for
+		// a reason none of the more specific branches above describes. "I could not tell"
+		// must never be resolved into "they agreed", which is why it still refuses.
 		result.Availability = AvailabilityCannotVerify
-		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphGenerationSwitched)
-		result.Limitations = append(result.Limitations,
-			fmt.Sprintf("this audit's queries were not all answered by one graph generation: %s answered %s, %s answered %s; a silent generation switch is forbidden",
-				switchedA.generation, switchedA.query, switchedB.generation, switchedB.query))
+		result.ReasonCodes = append(result.ReasonCodes, ReasonGraphUnavailable)
+		for _, u := range ledger.unverifiable {
+			result.Limitations = append(result.Limitations,
+				fmt.Sprintf("%s cannot be bound to a graph generation: %s", u.query, u.generation))
+		}
 	default:
 		result.GraphGeneration = generationBefore
 	}

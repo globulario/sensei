@@ -2595,12 +2595,6 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	//    Both fail-closed rules that DO apply are kept and are independent:
 	//    a modified file still requires a caller-pinned repository base, and an
 	//    authoritative graph still requires an exact source/build commit.
-	// THE GENERATION THIS RESPONSE WAS PRODUCED BY, from its own authority, and recorded only
-	// once the response has passed the gates above. A refused response establishes nothing, so
-	// it must leave no generation behind -- otherwise a later query with no identity of its own
-	// would inherit one from a response the audit rejected.
-	c.lastImpactGeneration = strings.TrimSpace(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
-
 	graphCommit := resp.GetAuthority().GetSourceRepoCommit()
 	if graphCommit == "" {
 		graphCommit = resp.GetAuthority().GetGraphBuildCommit()
@@ -2655,6 +2649,22 @@ func (c *mcpSingleFileChecker) GetFileImpact(ctx context.Context, file string, d
 	for _, ff := range resp.GetForbiddenFixes() {
 		rules = append(rules, ff.GetId())
 	}
+	// THE GENERATION THIS RESPONSE WAS PRODUCED BY, recorded AFTER EVERY TRUST GATE and
+	// immediately before the only success return.
+	//
+	// The claim is quantified over responses ADMITTED AS TRUSTWORTHY, not responses received.
+	// It sat between the authoritative check and the commit-identity check, so a response
+	// refused for exposing no commit identity still left a generation behind, and a later query
+	// with no identity of its own would inherit one from a response the audit rejected.
+	//
+	// My earlier repair of THIS function moved the assignment past two of the three early
+	// returns and the comment then claimed "once the response has passed the gates above" --
+	// true of two gates, asserted of all. Three gates, two proven.
+	//
+	// Placed here rather than merely after the third gate on purpose: a gate added later is
+	// then automatically before it, so correctness does not depend on the next author noticing
+	// the ordering.
+	c.lastImpactGeneration = strings.TrimSpace(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
 	return tests, contracts, rules, graphCommit, nil
 }
 

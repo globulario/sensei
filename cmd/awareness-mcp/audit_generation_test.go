@@ -213,7 +213,25 @@ func TestAFailedImpactQueryLeavesNoGenerationBehind(t *testing.T) {
 	head := testGitHEAD(t)
 	stale := strings.Repeat("7", 64)
 
+	// EVERY early return in the impact path, not the two I happened to test first. The
+	// control-flow table is: RPC success -> authority present and authoritative -> commit
+	// identity present -> success. Three refusals, so three cases here; a fourth would be a
+	// gate added later, and the assignment now sits immediately before the success return so
+	// such a gate precedes it automatically.
 	cases := map[string]fakeClient{
+		"the commit identity is missing": {
+			impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+				// Authoritative, and exposing NO source/build commit: the gate the previous
+				// repair left the assignment in front of.
+				return &awarenesspb.ImpactResponse{Authority: &awarenesspb.GraphAuthority{
+					Authoritative:              true,
+					GraphFreshnessState:        awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					LiveStoreGraphDigestSha256: strings.Repeat("5", 64),
+					SourceRepoCommit:           "",
+					GraphBuildCommit:           "",
+				}}, nil
+			},
+		},
 		"the query fails": {
 			impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 				return nil, errors.New("store unavailable")
