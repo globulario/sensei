@@ -93,6 +93,32 @@ Flags:
 		return 1
 	}
 
+	// TWO VOCABULARIES COLLIDE ON THE WORD "DOMAIN", and until now they collided in one
+	// function with two string variables, one of them named `domain`:
+	//
+	//	--repo    THE GOVERNED DOMAIN NAME this build publishes for, e.g. github.com/org/repo.
+	//	          rejectPathLikeBuildDomain above exists to refuse a filesystem path here.
+	//	--domain  the default tagging KIND for untagged nodes: repo|shared. Nothing else.
+	//
+	// verifyStoreOwnership and activateGeneration were given the second. Neither can do
+	// anything with "repo": the first indexes reg.Domains by governed domain NAME and reported
+	// a domain's own store as belonging to a foreign claimant, and the second handed "repo" to
+	// recordActiveGeneration, which leaves an unregistered domain alone and returns nil -- so
+	// the real domain's ACTIVE pointer never moved while the command printed that it had.
+	// Raised by blind review on three consecutive heads; it survived because the two values are
+	// both strings and one of them is CALLED domain. runScopedRepoUpdate's parameter is named
+	// `domain` too and holds the --repo value, so its own activation call was always correct
+	// while looking identical to the two that were wrong.
+	//
+	// So the kind now has a TYPE. Passing it where a governed domain name belongs does not
+	// compile, which is a guard a reader cannot forget and a later edit cannot quietly undo.
+	governedDomain := strings.TrimSpace(*repo)
+	nodeKind := nodeDomainKind(strings.TrimSpace(*domain))
+	if err := nodeKind.validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+		return 1
+	}
+
 	// Default to docs/awareness if no input dirs specified.
 	if len(inputDirs) == 0 {
 		inputDirs = append(inputDirs, defaultBuildInputDirsFromRoot(".")...)
@@ -133,7 +159,7 @@ Flags:
 		// this prevents lands on a domain the command does not mention -- and a refusal
 		// that arrives after the bytes are in is not a refusal.
 		if reg, rerr := LoadDomainRegistry(buildRegistryPath(*domainRegistry)); rerr == nil {
-			if err := verifyStoreOwnership(reg, strings.TrimSpace(*domain), *storeURL, flagPassed(fs, "store-url")); err != nil {
+			if err := verifyStoreOwnership(reg, governedDomain, *storeURL, flagPassed(fs, "store-url")); err != nil {
 				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 				return 1
 			}
@@ -173,7 +199,7 @@ Flags:
 	// world, and one set.
 	sourceWitness := publication.InspectCompiledSources(inputDirs)
 
-	rawProjectNT, _, consumed, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
+	rawProjectNT, _, consumed, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), governedDomain, nodeKind.String(), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
@@ -281,7 +307,11 @@ Flags:
 			return 1
 		}
 	}
-	if err := activateGeneration(os.Stderr, markerPath, marker, strings.TrimSpace(*domain), DefaultDomainRegistryPath()); err != nil {
+	// governedDomain, not the tagging kind. On this path it is empty whenever the build is
+	// --all, which is the honest answer: a whole-store load spans every domain and activates
+	// none, and activateGeneration says exactly that instead of claiming a generation for a
+	// domain named "repo".
+	if err := activateGeneration(os.Stderr, markerPath, marker, governedDomain, DefaultDomainRegistryPath()); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}

@@ -211,14 +211,32 @@ func TestTheOwnershipCheckPrecedesEveryStoreMutation(t *testing.T) {
 			t.Errorf("%s appears before the ownership check (mutator=%d check=%d); a refusal after the bytes are in is not a refusal", mutator, i, call)
 		}
 	}
-	// It must be given the domain and the target store, not a placeholder that always agrees.
+	// It must be given the GOVERNED DOMAIN NAME and the target store, not a placeholder that
+	// always agrees.
+	//
+	// THIS ASSERTION USED TO REQUIRE `*domain`, AND THAT IS WHY THE DEFECT SURVIVED. `sensei
+	// build --domain` is the node tagging KIND (repo|shared); the governed domain name is
+	// `--repo`. So this test demanded the wrong operand, and any correct repair failed it --
+	// the reason a blind reviewer raised the finding on three consecutive heads while the
+	// suite stayed green.
+	//
+	// The intent was right and is kept: the check must receive the two values it compares.
+	// Only the name of the first one was wrong.
 	line := src[call:]
 	if j := strings.IndexByte(line, '\n'); j >= 0 {
 		line = line[:j]
 	}
-	for _, want := range []string{"*domain", "*storeURL"} {
+	for _, want := range []string{"governedDomain", "*storeURL"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the check is not given %s: %s", want, strings.TrimSpace(line))
+		}
+	}
+	// And it must NOT be given the tagging kind. Asserted negatively as well, because the
+	// positive check above would pass a call that passed both.
+	for _, forbidden := range []string{"*domain", "nodeKind"} {
+		if strings.Contains(line, forbidden) {
+			t.Errorf("the check is given the node tagging kind (%s), which is not a governed "+
+				"domain name: %s", forbidden, strings.TrimSpace(line))
 		}
 	}
 	// And a refusal must end the command.
