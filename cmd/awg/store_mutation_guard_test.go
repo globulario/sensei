@@ -371,3 +371,61 @@ func TestBuildIsNotRefusedByAStaleDefaultRegistry(t *testing.T) {
 		t.Errorf("ownership was evaluated against the wrong registry:\n%s", out)
 	}
 }
+
+// BLIND-PASS FINDING (P1, cmd_build.go:722): the scoped path's intent omitted Overridden.
+//
+// Without it the guard treats an endpoint the operator named explicitly as one the command chose,
+// so rule 2 -- this domain publishing somewhere other than its declared store -- refuses a
+// publication the operator asked for by name. FALSE REFUSAL. Rule 1, another domain's store, is
+// unaffected: an override never relaxes it, which the second case below pins.
+func TestAnOverriddenEndpointIsNotRefusedAsThisDomainsOwnMismatch(t *testing.T) {
+	// alpha declares store A; the operator names store B explicitly. B belongs to nobody.
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if err := os.MkdirAll(filepath.Join(home, ".sensei"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"),
+		[]byte("domains:\n  example.com/acme/alpha:\n    repository_identity: acme/alpha\n"+
+			"    store_url: http://127.0.0.1:7881/store?default\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	named := "http://127.0.0.1:7899/store?default"
+
+	if err := guardStoreMutation(named, storeMutationIntent{
+		Domain: "example.com/acme/alpha", Reason: "sensei build", Overridden: true}); err != nil {
+		t.Errorf("an endpoint the operator named explicitly was refused as a mismatch: %v", err)
+	}
+	// And WITHOUT the override the same target IS refused, so the flag is load-bearing.
+	if err := guardStoreMutation(named, storeMutationIntent{
+		Domain: "example.com/acme/alpha", Reason: "sensei build"}); err == nil {
+		t.Error("an unnamed endpoint differing from the declared store must still be refused")
+	}
+	// Rule 1 is never relaxed: another domain's store refuses override or not.
+	if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"),
+		[]byte("domains:\n  example.com/acme/neighbour:\n    repository_identity: acme/neighbour\n"+
+			"    store_url: "+named+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := guardStoreMutation(named, storeMutationIntent{
+		Domain: "example.com/acme/alpha", Reason: "sensei build", Overridden: true}); err == nil {
+		t.Error("an override reached past rule 1 into another domain's store")
+	}
+}
+
+// The scoped path must actually PASS it -- proving the guard honours Overridden says nothing
+// about whether runScopedRepoUpdate fills it in, which is the shape that let this ship.
+func TestTheScopedPathStatesWhetherTheEndpointWasNamed(t *testing.T) {
+	src := readCmdSource(t, "cmd_build.go")
+	i := strings.Index(src, "putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT")
+	if i < 0 {
+		t.Fatal("the scoped named-graph publication is gone; this check has lost its anchor")
+	}
+	call := src[i:]
+	if j := strings.Index(call, "err != nil"); j > 0 {
+		call = call[:j]
+	}
+	if !strings.Contains(call, "Overridden:") {
+		t.Errorf("the scoped publication does not state whether the endpoint was named:\n%s", strings.TrimSpace(call))
+	}
+}

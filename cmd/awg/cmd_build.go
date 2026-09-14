@@ -205,7 +205,7 @@ Flags:
 	if strings.TrimSpace(*repo) != "" && *output == "" {
 		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
 			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag,
-			buildRegistryPath(*domainRegistry))
+			buildRegistryPath(*domainRegistry), flagPassed(fs, "store-url"))
 	}
 
 	ntBytes, marker, uniqueCount, dupCount := finalizeBuildArtifact(rawProjectNT)
@@ -565,7 +565,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag, registryPath string) int {
+func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag, registryPath string, storeURLOverridden bool) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -722,8 +722,14 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// remain in the default graph and are untouched by the promotion transaction.
 	stagedNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
 	stagingIRI := graphStagingIRI(marker)
+	// Overridden MUST be carried. Without it the guard treats an endpoint the operator named
+	// explicitly as one the command chose, so rule 2 -- this domain publishing somewhere other
+	// than its declared store -- refuses a publication the operator asked for by name. The
+	// failure direction is a FALSE REFUSAL; rule 1, another domain's store, is unaffected
+	// because an override never relaxes it.
 	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT, storeMutationIntent{
-		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registryPath}); err != nil {
+		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registryPath,
+		Overridden: storeURLOverridden}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: stage candidate generation for %s: %v\n", domain, err)
 		return 1
 	}
