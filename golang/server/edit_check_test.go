@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
@@ -235,5 +236,49 @@ func TestEditCheck_PathMismatch_NotEvaluated(t *testing.T) {
 	}
 	if len(resp.GetWarnings()) != 0 {
 		t.Errorf("no warning expected for a non-matching path, got %v", resp.GetWarnings())
+	}
+}
+
+// An EditCheck verdict must say WHICH GRAPH produced it.
+//
+// Added with the field. A consumer that enforces these warnings -- `sensei gate --enforce`,
+// the diff-audit evaluator -- previously had to ask a SEPARATE Metadata call which generation
+// was serving, and the store can be republished between that call and this response. Carrying
+// the identity on the response is what closes the interval, so an absent field here would
+// silently reopen it.
+func TestEditCheckStatesWhichGraphProducedTheWarnings(t *testing.T) {
+	s := newEditCheckServer(scopeFacts(map[string]string{caddyRuleID: caddyDomain}))
+	resp, err := s.EditCheck(context.Background(), &awarenesspb.EditCheckRequest{
+		File: caddyFile, ProposedContent: badContent, Domain: caddyDomain,
+	})
+	if err != nil {
+		t.Fatalf("EditCheck: %v", err)
+	}
+	if resp.GetAuthority() == nil {
+		t.Fatal("the response states no graph authority, so an enforcing consumer cannot bind this verdict to the graph that produced it")
+	}
+}
+
+// And it must be the authority for the domain the caller ASKED about. Answering with the
+// server's home domain would produce a well-formed receipt for a different question, which is
+// exactly the evidence a careless consumer accepts.
+func TestEditCheckAuthorityAnswersTheRequestedDomain(t *testing.T) {
+	s := newEditCheckServer(scopeFacts(map[string]string{caddyRuleID: caddyDomain}))
+	resp, err := s.EditCheck(context.Background(), &awarenesspb.EditCheckRequest{
+		File: caddyFile, ProposedContent: badContent, Domain: caddyDomain,
+	})
+	if err != nil {
+		t.Fatalf("EditCheck: %v", err)
+	}
+	// graphAuthorityFor resolves a publication only when a domain was requested, and says so
+	// through the projection when none was. An unspecified resolution here therefore means
+	// the handler asked about no domain rather than about caddyDomain.
+	pub := resp.GetAuthority().GetCurrentPublication()
+	if pub == nil {
+		t.Fatal("the authority carries no publication projection, so which domain it describes cannot be checked")
+	}
+	if pub.GetResolution() == awarenesspb.PublicationResolution_PUBLICATION_RESOLUTION_UNSPECIFIED &&
+		strings.Contains(pub.GetDetail(), "no publication_domain was requested") {
+		t.Errorf("the authority was resolved for no domain although the request named %s: %s", caddyDomain, pub.GetDetail())
 	}
 }

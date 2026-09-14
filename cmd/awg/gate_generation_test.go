@@ -40,8 +40,18 @@ type gateAdversary struct {
 	servedGeneration string
 	omitAuthority    bool
 	metadataFails    bool
-	editChecks       atomic.Int32
-	metadataCalls    atomic.Int32
+	// republishAs is the generation the store serves once Metadata has answered: the
+	// external store is republished mid-run, which no gRPC connection pins.
+	republishAs string
+	// restoreAfterEditCheck returns the store to its original generation once the verdict
+	// has been produced, so the reviewer's switch-and-return is covered too.
+	restoreAfterEditCheck bool
+	restoreTo             string
+	// omitAuthorityOnEditCheckOnly models an older server: Metadata states the generation,
+	// the EditCheck response does not.
+	omitAuthorityOnEditCheckOnly bool
+	editChecks                   atomic.Int32
+	metadataCalls                atomic.Int32
 }
 
 func (a *gateAdversary) Metadata(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
@@ -52,8 +62,13 @@ func (a *gateAdversary) Metadata(_ context.Context, _ *awarenesspb.MetadataReque
 	if a.omitAuthority {
 		return &awarenesspb.MetadataResponse{}, nil
 	}
+	served := a.servedGeneration
+	if a.republishAs != "" {
+		// Answer this call honestly, THEN become another generation.
+		a.servedGeneration, a.republishAs = a.republishAs, ""
+	}
 	return &awarenesspb.MetadataResponse{
-		Authority: &awarenesspb.GraphAuthority{LiveStoreGraphDigestSha256: a.servedGeneration},
+		Authority: &awarenesspb.GraphAuthority{LiveStoreGraphDigestSha256: served},
 	}, nil
 }
 
@@ -62,8 +77,18 @@ func (a *gateAdversary) Metadata(_ context.Context, _ *awarenesspb.MetadataReque
 // refusal that still consulted the graph verdict would have verified too late.
 func (a *gateAdversary) EditCheck(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 	a.editChecks.Add(1)
+	producedBy := a.servedGeneration
+	if a.restoreAfterEditCheck && a.restoreTo != "" {
+		// The rollback: by the time anything samples again, the store looks right.
+		a.servedGeneration = a.restoreTo
+	}
+	var auth *awarenesspb.GraphAuthority
+	if !a.omitAuthority && !a.omitAuthorityOnEditCheckOnly {
+		auth = &awarenesspb.GraphAuthority{LiveStoreGraphDigestSha256: producedBy}
+	}
 	return &awarenesspb.EditCheckResponse{
 		RulesEvaluated: 1,
+		Authority:      auth,
 		Warnings: []*awarenesspb.EditWarning{{
 			RuleId: "adversary.rule", Enforcement: "block", Message: "a verdict from the wrong generation",
 		}},
@@ -156,12 +181,23 @@ func TestGateEnforcesWhenTheServedGenerationIsTheDeclaredActiveOne(t *testing.T)
 	a := &gateAdversary{servedGeneration: gen}
 	addr := startGateAdversary(t, a)
 
-	code := runGate(gateArgs(root, addr, "--enforce"))
+	var code int
+	out := captureStdout(t, func() { code = runGate(gateArgs(root, addr, "--enforce")) })
 	if code == 0 {
 		t.Fatalf("exit=0: the blocking verdict was not enforced on the healthy path")
 	}
 	if a.editChecks.Load() == 0 {
 		t.Errorf("gate never evaluated the diff on the healthy path")
+	}
+	// The verdict must actually be RENDERED, not merely produce a non-zero exit. A refusal
+	// also exits non-zero, so asserting the code alone cannot tell enforcement from refusal
+	// -- and a binding that read the wrong authority field refused every run while this test
+	// still passed.
+	if !strings.Contains(out, "adversary.rule") {
+		t.Errorf("the healthy path did not render the verdict it evaluated, so gate refused a generation that matched:\n%s", out)
+	}
+	if !strings.Contains(out, "BLOCKED") {
+		t.Errorf("the healthy path did not report BLOCKED:\n%s", out)
 	}
 }
 
@@ -291,5 +327,81 @@ func TestGateIsUnchangedWhenNoGenerationIsDeclared(t *testing.T) {
 	}
 	if a.editChecks.Load() == 0 {
 		t.Errorf("gate refused although the registry declares no ACTIVE generation to disagree with")
+	}
+}
+
+// THE RE-REVIEW FINDING (P1, cmd_gate.go:75): "Bind each gate verdict to the verified
+// generation."
+//
+// One Metadata call verified G and every subsequent EditCheck could be answered by G+1: the
+// connection pins the ENDPOINT, never the external store's contents. The reviewer asked for
+// exactly this witness -- change the served generation after Metadata and before EditCheck --
+// and it reproduced: gate printed [BLOCK] from the republished generation.
+//
+// DOMAIN OF THE CLAIM, now that EditCheckResponse carries its own authority: the generation
+// reported is the one that COMPUTED those warnings, so the binding covers the verdict itself
+// rather than an interval around it. Nothing is inferred from a sample taken at another
+// moment.
+func TestGateRefusesAVerdictProducedByAGenerationOtherThanTheDeclaredOne(t *testing.T) {
+	const declared = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+	a := &gateAdversary{
+		servedGeneration: declared,
+		republishAs:      "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+	}
+	addr := startGateAdversary(t, a)
+	root := gateWorld(t, declared, "")
+
+	out := captureStdout(t, func() {
+		if code := runGate(gateArgs(root, addr, "--enforce")); code == 0 {
+			t.Errorf("exit=0: a verdict produced after the store was republished was enforced")
+		}
+	})
+	if a.editChecks.Load() == 0 {
+		t.Fatalf("the fixture never reached EditCheck, so it proves nothing about verdict binding")
+	}
+	if strings.Contains(out, "adversary.rule") || strings.Contains(out, "BLOCKED") {
+		t.Errorf("gate rendered a verdict produced by a foreign generation:\n%s", out)
+	}
+}
+
+// SWITCH AND RETURN. The store moves to another generation, produces the verdict, and is
+// back before anything could sample again. A pre-loop sample and an adjacent post-loop
+// sample both see the declared generation; only the verdict's own authority shows the truth.
+func TestGateRefusesAVerdictWhoseGenerationSwitchedAndReturned(t *testing.T) {
+	const declared = "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	a := &gateAdversary{
+		servedGeneration:      declared,
+		republishAs:           "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+		restoreAfterEditCheck: true,
+		restoreTo:             declared,
+	}
+	addr := startGateAdversary(t, a)
+	root := gateWorld(t, declared, "")
+
+	out := captureStdout(t, func() {
+		if code := runGate(gateArgs(root, addr, "--enforce")); code == 0 {
+			t.Errorf("exit=0: a switch-and-return produced an enforced verdict")
+		}
+	})
+	if strings.Contains(out, "adversary.rule") || strings.Contains(out, "BLOCKED") {
+		t.Errorf("gate rendered a verdict from a generation that had already been rolled back:\n%s", out)
+	}
+}
+
+// A response that states NO generation cannot support an enforced verdict. Absence is not
+// agreement -- and an older server is exactly how absence arrives.
+func TestGateRefusesAVerdictThatStatesNoGeneration(t *testing.T) {
+	const declared = "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg"
+	// Metadata answers with the declared generation; the EditCheck response omits authority.
+	a := &gateAdversary{servedGeneration: declared, omitAuthority: false}
+	addr := startGateAdversary(t, a)
+	root := gateWorld(t, declared, "")
+	a.omitAuthorityOnEditCheckOnly = true
+	// A non-zero exit is NOT the assertion: BLOCKED is also non-zero, so asserting it
+	// could not fail whether or not the binding exists. What must be absent is the
+	// VERDICT -- gate must refuse rather than enforce.
+	out := captureStdout(t, func() { _ = runGate(gateArgs(root, addr, "--enforce")) })
+	if strings.Contains(out, "adversary.rule") || strings.Contains(out, "BLOCKED") {
+		t.Errorf("a verdict carrying no generation was enforced:\n%s", out)
 	}
 }

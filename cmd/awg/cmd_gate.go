@@ -459,6 +459,26 @@ Flags:
 			scopeErrs++
 			continue
 		}
+		// EACH VERDICT IS BOUND TO THE GENERATION THAT PRODUCED IT.
+		//
+		// The pre-loop check proves which generation was serving before any query. It
+		// cannot speak for the queries that follow it: the store is external and can be
+		// republished mid-run, and the gRPC connection pins the endpoint, never its
+		// contents. That was the re-review finding on this file -- Metadata verified G
+		// while every subsequent EditCheck could be answered by G+1, and the gate enforced
+		// G+1's warnings as though G had produced them.
+		//
+		// EditCheckResponse now carries the authority of the graph that computed THESE
+		// warnings, so the interval closes structurally instead of being narrowed by a
+		// second sample taken at yet another moment. Absence is not agreement: a response
+		// that states no generation cannot support an enforced verdict.
+		if verr := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); verr != nil {
+			if *reportOnly {
+				return reportDegraded(*domain, *diff, verr.Error())
+			}
+			fmt.Fprintf(os.Stderr, "sensei gate: %s: %v\n", f, verr)
+			return 1
+		}
 		// Apply the repo's enforcement policy: re-level per rule and drop any
 		// the policy set to "off". Downstream tally/print then reads the
 		// EFFECTIVE level.
