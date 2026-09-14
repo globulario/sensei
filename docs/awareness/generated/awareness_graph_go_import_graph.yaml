@@ -53,6 +53,7 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/awg/active_generation.go
       - cmd/awg/audit_test_coverage.go
       - cmd/awg/authority_output.go
       - cmd/awg/authority_read_errors.go
@@ -204,6 +205,7 @@ components:
       - cmd/awg/promote_establish.go
       - cmd/awg/promote_evidence.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/publication_activation.go
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
