@@ -205,6 +205,19 @@ Flags:
 			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
 			return 1
 		}
+		// STORE OWNERSHIP IS KNOWABLE NOW TOO, so it is asked now.
+		//
+		// The target store and the registry both exist before this command writes anything, so
+		// publishing into a store another domain owns is a refusal whose facts are all
+		// available up front. It used to be discovered at stage 5, by which time stages 1-4 had
+		// written to docs/awareness and .sensei -- the same "refuse before extraction" rule this
+		// gate already applies to registry and identity failures, applied to the one remaining
+		// pre-mutation fact.
+		if serr := guardStoreMutation(*storeURL, storeMutationIntent{
+			Domain: dom, Overridden: true, Reason: "sensei import"}); serr != nil {
+			fmt.Fprintf(os.Stderr, "sensei import: %v\n", serr)
+			return 1
+		}
 	}
 
 	if wantContracts {

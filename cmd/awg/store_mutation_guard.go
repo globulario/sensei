@@ -27,6 +27,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // storeMutationIntent is what a caller must state before replacing a store's contents.
@@ -42,6 +43,14 @@ type storeMutationIntent struct {
 	// Reason names the command for the refusal message, so an operator is told which
 	// publication was stopped.
 	Reason string
+	// RegistryPath is the registry the OPERATOR selected, empty meaning the default.
+	//
+	// It exists because hardcoding the default here reintroduced, inside this new guard, the
+	// exact defect a review finding on this branch had already made me repair for activation:
+	// `--domain-registry` selects the registry every other check reads, and a guard that
+	// consults a different file answers a question nobody asked. A staging registry that
+	// grants a store to alpha would be overruled by a stale default granting it to prod.
+	RegistryPath string
 }
 
 // guardStoreMutation refuses a whole-store replacement that would overwrite a store the
@@ -52,14 +61,18 @@ type storeMutationIntent struct {
 // facts, and treating the second as the first is how an ownership check stops applying
 // exactly when the registry is broken.
 func guardStoreMutation(target string, intent storeMutationIntent) error {
-	reg, err := LoadDomainRegistry(DefaultDomainRegistryPath())
+	registryPath := strings.TrimSpace(intent.RegistryPath)
+	if registryPath == "" {
+		registryPath = DefaultDomainRegistryPath()
+	}
+	reg, err := LoadDomainRegistry(registryPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return fmt.Errorf("%s: refusing to replace %s: the domain registry at %s cannot be read (%v), "+
 			"so whether another domain owns this store cannot be established",
-			intent.reasonOr("store publication"), target, DefaultDomainRegistryPath(), err)
+			intent.reasonOr("store publication"), target, registryPath, err)
 	}
 	if err := verifyStoreOwnership(reg, intent.Domain, target, intent.Overridden); err != nil {
 		return fmt.Errorf("%s: %w", intent.reasonOr("store publication"), err)

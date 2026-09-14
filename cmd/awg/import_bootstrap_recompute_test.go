@@ -261,3 +261,50 @@ func TestADirtyGovernedRootIsStillRefusedAtPublication(t *testing.T) {
 	}
 	t.Errorf("extraction ran before a refusal whose cause (a dirty existing corpus) was true before the command started:\n%s", out)
 }
+
+// ANTIGRAVITY FINDING (P2, cmd_import.go:195): import mutated the checkout before verifying
+// store ownership.
+//
+// The target store and the registry both exist before this command writes anything, so
+// publishing into a store another domain owns is a refusal whose facts are all available up
+// front. It was discovered at stage 5 instead, by which time stages 1-4 had written -- the same
+// "refuse before extraction" rule this gate already applies to registry and identity failures,
+// not yet applied to the one remaining pre-mutation fact.
+func TestImportRefusesAForeignStoreBeforeExtractionWrites(t *testing.T) {
+	checkout := freshRepo(t, freshDomain)
+	// The registry admits this domain's corpus AND gives the target store to someone else.
+	disposableDomainRegistry(t, "domains:\n  "+freshDomain+":\n    repository_identity: acme/fresh\n"+
+		"    allowed_corpus_roots:\n      - docs/awareness\n    allow_dirty_worktree: true\n"+
+		"  example.com/acme/neighbour:\n    repository_identity: acme/neighbour\n"+
+		"    store_url: http://127.0.0.1:7881/store?default\n")
+	before := porcelain(t, checkout)
+
+	_, so, se := captureStdoutStderr(t, func() int {
+		return runImport([]string{"--refresh", checkout, "--domain", freshDomain,
+			"-depth", "full", "--store-url", "http://127.0.0.1:7881/store?default"})
+	})
+	out := so + se
+	if !strings.Contains(out, "example.com/acme/neighbour") {
+		t.Errorf("the refusal does not name the domain whose store was targeted:\n%s", out)
+	}
+	if strings.Contains(out, "== [2/5] structural extraction ==") {
+		t.Errorf("extraction ran before a refusal whose facts were all available beforehand:\n%s", out)
+	}
+	if after := porcelain(t, checkout); after != before {
+		t.Errorf("the checkout was written before the refusal:\nbefore=%q\nafter=%q", before, after)
+	}
+}
+
+// The other direction: a store nobody else claims must not block an import.
+func TestImportProceedsWhenNoOtherDomainOwnsTheStore(t *testing.T) {
+	checkout := freshRepo(t, freshDomain)
+	freshRegistry(t)
+	_, so, se := captureStdoutStderr(t, func() int {
+		return runImport([]string{"--refresh", checkout, "--domain", freshDomain,
+			"-depth", "basic", "--store-url", "http://127.0.0.1:7899/store?default"})
+	})
+	out := so + se
+	if !strings.Contains(out, "== [2/5] structural extraction ==") {
+		t.Errorf("an unclaimed store blocked the import:\n%s", out)
+	}
+}

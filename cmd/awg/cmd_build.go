@@ -285,7 +285,8 @@ Flags:
 	}
 
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes, storeMutationIntent{
-		Domain: publishedDomain(*repo, *domain), Overridden: flagPassed(fs, "store-url"), Reason: "sensei build"}); err != nil {
+		Domain: publishedDomain(*repo, *domain), Overridden: flagPassed(fs, "store-url"), Reason: "sensei build",
+		RegistryPath: buildRegistryPath(*domainRegistry)}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
 		return 1
@@ -721,7 +722,8 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// remain in the default graph and are untouched by the promotion transaction.
 	stagedNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
 	stagingIRI := graphStagingIRI(marker)
-	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT); err != nil {
+	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT, storeMutationIntent{
+		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registryPath}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: stage candidate generation for %s: %v\n", domain, err)
 		return 1
 	}
@@ -941,7 +943,15 @@ func namedGraphStoreURL(storeEndpoint, graphIRI string) (string, error) {
 	return u.String(), nil
 }
 
-func putNamedGraph(ctx context.Context, storeEndpoint, graphIRI string, nt []byte) error {
+func putNamedGraph(ctx context.Context, storeEndpoint, graphIRI string, nt []byte, intent storeMutationIntent) error {
+	// A NAMED-GRAPH PUT IS STILL A MUTATION OF SOMEBODY'S STORE. It replaces one graph rather
+	// than the whole store, which is why it was left out when the guard moved into the
+	// whole-store primitives -- and that made the claim "every publisher passes the seam" true
+	// of the two primitives the census listed rather than of every publisher. The unit a proof
+	// quantifies over must be the unit it checks.
+	if err := guardStoreMutation(storeEndpoint, intent); err != nil {
+		return err
+	}
 	u, err := namedGraphStoreURL(storeEndpoint, graphIRI)
 	if err != nil {
 		return err
