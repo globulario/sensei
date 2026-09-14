@@ -509,36 +509,47 @@ func (r *resolver) typeExpr(t ast.Expr) (typeRef, bool) { return r.typeExprIn(t,
 // aliases of the file that WROTE the type expression -- the mutation-site
 // file for a binding, the declaring file for a struct field.
 func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string) (typeRef, bool) {
+	ref, ok := refOfTypeName(t, dir, imports, r.modulePath)
+	if !ok {
+		return typeRef{}, false
+	}
+	// A name that resolves to no struct DECLARATION in the scope searched binds nothing:
+	// this family reasons about fields, and a type whose fields were never read has none.
+	if _, ok := r.structs[ref]; !ok {
+		return typeRef{}, false
+	}
+	return ref, true
+}
+
+// refOfTypeName resolves a type NAME to the directory and identifier that declare it,
+// without asking whether that declaration was found. It is the naming rule alone, split
+// out from typeExprIn so that a caller needing to resolve a name that is deliberately NOT
+// a struct -- a type alias, a named slice/map type -- reads the same rule rather than a
+// second copy of it that could drift.
+//
+// A composite type (slice, array, map, func, chan) has no name of its own and resolves to
+// nothing; its ELEMENT may, and that is the caller's business, not this function's.
+func refOfTypeName(t ast.Expr, dir string, imports map[string]string, modulePath string) (typeRef, bool) {
 	switch x := t.(type) {
 	case *ast.StarExpr:
-		return r.typeExprIn(x.X, dir, imports)
+		return refOfTypeName(x.X, dir, imports, modulePath)
 	case *ast.ParenExpr:
-		return r.typeExprIn(x.X, dir, imports)
+		return refOfTypeName(x.X, dir, imports, modulePath)
 	case *ast.Ident:
-		ref := typeRef{dir, x.Name}
-		if _, ok := r.structs[ref]; ok {
-			return ref, true
-		}
-		return typeRef{}, false
+		return typeRef{dir, x.Name}, true
 	case *ast.SelectorExpr:
 		pkg, ok := x.X.(*ast.Ident)
 		if !ok {
 			return typeRef{}, false
 		}
 		importPath, ok := imports[pkg.Name]
-		if !ok || r.modulePath == "" {
+		if !ok || modulePath == "" {
 			return typeRef{}, false
 		}
-		if importPath != r.modulePath && !strings.HasPrefix(importPath, r.modulePath+"/") {
+		if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
 			return typeRef{}, false
 		}
-		ref := typeRef{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, r.modulePath), "/")), x.Sel.Name}
-		if _, ok := r.structs[ref]; ok {
-			return ref, true
-		}
-		return typeRef{}, false
-	case *ast.ArrayType:
-		return typeRef{}, false
+		return typeRef{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/")), x.Sel.Name}, true
 	}
 	return typeRef{}, false
 }
