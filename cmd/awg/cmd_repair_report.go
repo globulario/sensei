@@ -379,7 +379,7 @@ func generateRepairReport(opts repairReportOptions) (governedRepairReport, error
 	// rather than an error because that is this command's contract -- it always produces a
 	// verdict -- and undeclared_generation fails the gate closed like every other
 	// non-valid classification.
-	if verr := opts.Reader.verifyServedAuthority(metadataResp.GetAuthority()); verr != nil {
+	if verr := opts.Reader.verifyServedMetadata(metadataResp); verr != nil {
 		report.Authority = buildRepairAuthoritySummary(metadataResp, nil)
 		report.Authority.State = repairClassificationUndeclaredGeneration
 		report.Authority.Detail = verr.Error()

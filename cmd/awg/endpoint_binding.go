@@ -32,6 +32,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -325,11 +326,58 @@ type graphReader struct {
 	// caller can report the answer as non-canonical (law 14's rule for raw overrides,
 	// applied to the read side).
 	Overridden bool
+	// DomainInvalid says the EXPECTED DOMAIN was STATED AND COULD NOT BE TRUSTED -- a malformed
+	// .sensei/config.yaml, or a value failing validateDomain at any tier. Checkout identity is
+	// an authority boundary, so this refuses at the comparison rather than degrading to the
+	// empty domain.
+	DomainInvalid error
+	// DomainUnbound says nothing anywhere -- no flag, no repository configuration, no
+	// environment -- states which domain this checkout is.
+	//
+	// THIS IS NOT THE SAME FACT as DeclaredGeneration being empty, and keeping them apart is
+	// what blind review asked for at cmd_edit_check.go:43. Three states, where there used to be
+	// one empty string:
+	//
+	//	DeclaredGeneration == ""   the domain is KNOWN and the registry declares nothing ACTIVE
+	//	                           for it -- nothing can contradict, so inert
+	//	DomainUnbound              no domain is known, so the registry was never asked; this
+	//	                           read is outside the invariant's quantifier entirely
+	//	DomainInvalid              a domain WAS stated and cannot be trusted -- a refusal
+	//
+	// The defect the review found was the FIRST two arriving identically, so an omitted optional
+	// --domain produced a comparison indistinguishable from a domain with nothing declared.
+	// That is repaired at the root: the owner resolves the domain, so an omitted flag no longer
+	// yields an unbound reader when the project states one. What remains here is a checkout that
+	// genuinely states no domain, and it is carried as its own fact so nothing can confuse the
+	// two again.
+	DomainUnbound error
 }
 
+// errDomainUnbound is the unbound case, which resolveRepositoryDomain reports as Source
+// "unresolved" with a NIL Err -- for its other callers, being unbound is a legitimate state.
+var errDomainUnbound = errors.New(
+	"no domain is bound to this checkout: name one with --domain, or set repository.domain in " +
+		"this project's .sensei/config.yaml")
+
 // resolveGraphReader is the one resolution every production reader uses.
+//
+// THE DOMAIN IS RESOLVED HERE, not taken on faith. `domain` is what the caller was given --
+// usually a --domain flag, which is optional in eleven of the twenty subjects -- and an omitted
+// optional flag arrives as "". resolveRepositoryDomain is already the owner of that question
+// and already implements the precedence (explicit, then this checkout's configuration, then
+// SENSEI_DOMAIN, then legacy AWG_DOMAIN), so the repair is to ASK it rather than to test for
+// the empty string in eleven commands. Passing an already-resolved domain back through is
+// idempotent: it arrives as the explicit tier and wins.
+//
+// A value that cannot be resolved -- malformed configuration, an invalid value at any tier, or
+// nothing stating a domain at all -- is recorded on the reader as DomainUnresolved and is NOT
+// silently converted into the empty domain, which is what made verification incapable.
 func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, registryPath string) graphReader {
-	r := graphReader{Domain: strings.TrimSpace(domain)}
+	resolved := resolveRepositoryDomain(projectRoot, domain)
+	r := graphReader{Domain: resolved.Domain, DomainInvalid: resolved.Err}
+	if r.DomainInvalid == nil && resolved.Source == domainSourceUnresolved {
+		r.DomainUnbound = errDomainUnbound
+	}
 	// An explicitly named endpoint wins, and is recorded as an override. The flag's
 	// default is deliberately EMPTY in every reader, so a non-empty value is always an
 	// operator naming it rather than a port the command chose for them.
@@ -390,10 +438,97 @@ func (r graphReader) verifyServed(servedDigest string) error {
 // It takes no surface name on purpose: every caller already names itself in the message it
 // prints, and a second name here would be a responsibility discharged twice.
 func (r graphReader) verifyServedAuthority(a *awarenesspb.GraphAuthority) error {
+	if err := r.cannotEstablishExpectedGeneration(); err != nil {
+		return err
+	}
 	if !r.declaresGeneration() {
 		return nil
 	}
 	return r.verifyServed(a.GetLiveStoreGraphDigestSha256())
+}
+
+// verifyServedMetadata is verifyServedAuthority for a MetadataResponse, which is the ONE
+// response type that states the served generation twice.
+//
+// Measured against the proto rather than assumed, because blind review of head 59372102 raised
+// this at cmd_gate.go:77 on grounds that are half wrong and worth writing down:
+//
+//   - live_store_graph_digest_sha256 = 46 is documented as "Exact identity recovered from the
+//     currently loaded graph marker, when the live store carries one. Empty/zero values mean the
+//     server could not prove the live graph identity from the loaded artifact itself." That is
+//     the canonical served identity, or its stated absence.
+//   - authority = 67 carries the same value at GraphAuthority field 10, and NO OTHER response
+//     type in this proto has a top-level served digest -- every other one carries it only inside
+//     GraphAuthority. So this is a MetadataResponse seam, not a general one.
+//   - the review said Authority comes from "a separate verification path whose error is
+//     discarded". It does not: graphAuthorityFromSnapshotFor takes the SAME freshness snapshot,
+//     computes the digest with the SAME servedGraphDigest call, returns NO error (the discarded
+//     value is a *DomainPublication), and has exactly one return, which is never nil. From this
+//     server the two cannot disagree and the auxiliary structure is never absent.
+//
+// THE FINDING HOLDS ANYWAY, for a case the review did not name: an OLDER SERVER sends field 46
+// and no field 67 at all, so Authority is nil on the wire while the served generation is stated.
+// Refusing that is manufacturing a refusal out of a missing auxiliary structure while the
+// canonical evidence sits beside it. This repository already models exactly that shape --
+// gate_generation_test.go's "older server: Metadata states the generation, the EditCheck
+// response does not".
+//
+// So both representations are read, and DISAGREEMENT IS A REFUSAL rather than a preference: a
+// response describing two generations attests to neither, which is the same rule
+// markerAgreement applies to a marker and a store.
+//
+// The authority structure's OTHER dimensions -- authoritative, freshness, transaction
+// certification -- are untouched here and stay with the helpers that own them
+// (requireAuthoritativeGraph, validateLiveBenchmarkAuthority). This answers identity only.
+func (r graphReader) verifyServedMetadata(resp *awarenesspb.MetadataResponse) error {
+	if err := r.cannotEstablishExpectedGeneration(); err != nil {
+		return err
+	}
+	if !r.declaresGeneration() {
+		return nil
+	}
+	top := normalizeGeneration(resp.GetLiveStoreGraphDigestSha256())
+	auth := normalizeGeneration(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+	if top != "" && auth != "" && top != auth {
+		return fmt.Errorf("refusing to trust a graph that states two served generations: "+
+			"live_store_graph_digest_sha256 is %s and authority.live_store_graph_digest_sha256 is "+
+			"%s. A response describing two generations attests to neither, so which graph answered "+
+			"is not established", resp.GetLiveStoreGraphDigestSha256(),
+			resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+	}
+	// Either agreeing value, or whichever single one the server stated. An empty served digest
+	// against a declared generation is refused by verifyServed, as absence always is.
+	served := top
+	if served == "" {
+		served = auth
+	}
+	return r.verifyServed(served)
+}
+
+// cannotEstablishExpectedGeneration refuses when a domain WAS stated and cannot be trusted.
+//
+// It deliberately does NOT refuse the unbound case, and the narrowing was forced by
+// measurement rather than chosen for convenience. Refusing whenever the registry declared an
+// ACTIVE generation for ANY domain took fifteen tests out of service in one run: a checkout
+// that states no domain has no relationship to declarations made FOR OTHER DOMAINS, and
+// treating those as possibly-governing turns every ad-hoc read on a machine with a populated
+// registry into a failure. `sensei query` from a directory that is not a Sensei project
+// violates no declaration, because it made none.
+//
+// The defect that mattered -- a resolvable domain going unresolved and silently disabling the
+// comparison -- is closed STRUCTURALLY instead: resolveGraphReader always resolves, and
+// TestOnlyTheOwnerConstructsAProductionGraphReader proves there is no second way to obtain a
+// reader. An unbound reader now means the checkout really states nothing, which puts the read
+// outside this invariant's quantifier rather than inside it with the check switched off.
+//
+// A STATED-AND-INVALID domain is the opposite and is refused: something claimed an identity,
+// it could not be trusted, and repo_domain_binding.go already settled that such a value must
+// fail visibly instead of being worked around by guessing.
+func (r graphReader) cannotEstablishExpectedGeneration() error {
+	if r.DomainInvalid == nil {
+		return nil
+	}
+	return fmt.Errorf("cannot verify which graph generation may be trusted: %w", r.DomainInvalid)
 }
 
 // declaresGeneration reports whether the registry states an ACTIVE generation for this
@@ -441,36 +576,26 @@ func domainOrAny(domain string) string {
 // CONFIG tier specifically — reading a config that may not exist — and is what metadata
 // already did. Where a root must be proven (the graph marker), looksLikeProjectRoot is
 // asked instead.
-// productionReaderForRepository is productionReaderFor for a command that has no --domain
-// flag, resolving instead the domain THIS REPOSITORY states.
+// productionReaderFor is the thin wiring every graph-reading command uses, so the
+// migration is one line per command rather than sixteen partial re-implementations.
 //
-// Four commands -- benchmark-brief, benchmark-score, pattern-check, synthesis-run --
-// resolved the owner with an EMPTY domain. That is not a smaller version of resolving one:
-// declaredActiveGeneration reads reg.Domains[""], the zero value, so DeclaredGeneration is
-// always "" and verifyServed is permanently inert. Adding the comparison at their call
-// sites would have changed nothing and looked like a repair.
+// It resolves through the owner and announces a non-canonical override. Callers assign
+// the result's Addr over their own flag variable, which leaves every existing use site
+// untouched and makes the canonical endpoint the only value any of them can dial:
 //
-// None of the four needs a new flag. resolveRepositoryDomain already answers "which domain
-// is this checkout" from the project's own configuration, then SENSEI_DOMAIN, then
-// AWG_DOMAIN -- the same owner briefing and verify-obligations ask.
+//	reader := productionReaderFor(fs, *domain, *addr)
+//	*addr = reader.Addr
 //
-// A MALFORMED configuration is an error, not a fall-through to the empty domain. Checkout
-// identity is an authority boundary: silently treating an unparseable config as "no domain"
-// would restore exactly the inertness this exists to remove, and repo_domain_binding.go
-// already settled that such a value must fail visibly.
-func productionReaderForRepository(fs *flag.FlagSet, addrFlag string) (graphReader, error) {
-	root, _ := resolveProjectRoot("")
-	resolved := resolveRepositoryDomain(root, "")
-	if resolved.Err != nil {
-		return graphReader{}, resolved.Err
-	}
-	r := resolveGraphReader(fs, root, resolved.Domain, addrFlag, DefaultDomainRegistryPath())
-	if notice := nonCanonicalReaderNotice(r); notice != "" {
-		fmt.Fprintln(os.Stderr, notice)
-	}
-	return r, nil
-}
-
+// The project root is resolved here rather than plumbed through sixteen signatures.
+// resolveProjectRoot fails open to the working directory, which is acceptable for the
+// CONFIG tier specifically — reading a config that may not exist — and is what metadata
+// already did. Where a root must be proven (the graph marker), looksLikeProjectRoot is
+// asked instead.
+//
+// There is ONE of these, not two. A separate productionReaderForRepository existed for the four
+// commands with no --domain flag; once resolveGraphReader resolves the domain itself, "no flag"
+// and "an omitted optional flag" are the same input and the same answer, so the second function
+// would only be a way for the two to drift.
 func productionReaderFor(fs *flag.FlagSet, domain, addrFlag string) graphReader {
 	root, _ := resolveProjectRoot("")
 	r := resolveGraphReader(fs, root, domain, addrFlag, DefaultDomainRegistryPath())

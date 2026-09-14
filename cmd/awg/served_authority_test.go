@@ -50,6 +50,10 @@ type servedAdversary struct {
 	// noWarnings makes EditCheck answer CLEAN, which is the dangerous answer for a surface
 	// whose output an agent reads as permission.
 	noWarnings bool
+	// statesTopLevelDigest makes Metadata state live_store_graph_digest_sha256 at the TOP level.
+	// Combined with omitAuthority it is a server built before GraphAuthority existed on this
+	// message: the canonical served identity is present, the auxiliary structure is not.
+	statesTopLevelDigest bool
 	// republishAfterMetadata is the store being republished mid-run: Metadata answers
 	// honestly with the declared generation, and every later call is answered by another
 	// one. Nothing about a gRPC connection pins a generation, so a command that verified
@@ -79,14 +83,19 @@ func (a *servedAdversary) Preflight(_ context.Context, _ *awarenesspb.PreflightR
 
 func (a *servedAdversary) Metadata(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
 	auth := a.authority()
+	served := a.servedGeneration
 	if a.republishAfterMetadata != "" {
 		// Answer THIS call honestly, then become another generation.
 		a.servedGeneration, a.republishAfterMetadata = a.republishAfterMetadata, ""
 	}
-	return &awarenesspb.MetadataResponse{
+	resp := &awarenesspb.MetadataResponse{
 		AvailableDomains: []string{servedWitnessDomain},
 		Authority:        auth,
-	}, nil
+	}
+	if a.statesTopLevelDigest {
+		resp.LiveStoreGraphDigestSha256 = served
+	}
+	return resp, nil
 }
 
 // EditCheck returns a BLOCKING warning, so a guard that reaches it denies a write.
@@ -377,47 +386,42 @@ func TestEditGuardDeniesAWriteOnRulesWhoseGenerationIsUnestablished(t *testing.T
 //
 // The same project resolves a domain that DOES declare a generation, which is what makes
 // this a defect rather than a configuration gap.
-func TestASubjectThatResolvesNoDomainCannotCompareAnythingEvenWhenOneIsDeclared(t *testing.T) {
+func TestASubjectThatPassesNoDomainStillGetsAResolvedExpectedDomain(t *testing.T) {
 	root := servedWorld(t, declaredGen, "")
 
 	if got := resolveRepositoryDomain(root, "").Domain; got != servedWitnessDomain {
 		t.Fatalf("the project states no resolvable domain (%q), so this witness cannot distinguish "+
 			"a structural gap from an unconfigured one", got)
 	}
-	governed := resolveGraphReader(emptyFlags(), root, servedWitnessDomain, "", DefaultDomainRegistryPath())
-	if !governed.declaresGeneration() {
-		t.Fatalf("the registry declares nothing for %s, so the comparison has nothing to do here",
-			servedWitnessDomain)
+	// The four subjects pass the empty value, which is what they have. What must be true is
+	// that the empty value no longer produces an incapable comparison: the owner resolves the
+	// domain this checkout states.
+	//
+	// The original form of this witness asserted that resolveGraphReader(.., "", ..) sees no
+	// declared generation -- true when written, and DELIBERATELY no longer true. Finding 1 of
+	// the blind review of head 59372102 showed the same incapable state was reachable through
+	// eleven subjects' optional --domain flags, so the resolution moved into the owner and
+	// "resolved with no domain" stopped existing. See optional_domain_test.go.
+	asTheSubjectsCallIt := productionReaderFor(emptyFlags(), "", "")
+	if asTheSubjectsCallIt.DomainInvalid != nil {
+		t.Fatalf("the owner could not resolve this checkout's domain: %v", asTheSubjectsCallIt.DomainInvalid)
 	}
-	domainless := resolveGraphReader(emptyFlags(), root, "", "", DefaultDomainRegistryPath())
-	if domainless.declaresGeneration() {
-		t.Fatalf("a reader resolved with no domain reported a declared generation (%q); this "+
-			"witness can no longer pin the structural gap it exists for",
-			domainless.DeclaredGeneration)
+	if asTheSubjectsCallIt.Domain != servedWitnessDomain {
+		t.Fatalf("expected domain = %q, want the domain the project's own config states (%q)",
+			asTheSubjectsCallIt.Domain, servedWitnessDomain)
 	}
-
-	// THE REPAIR: a command with no --domain flag resolves the domain THIS REPOSITORY
-	// states, so the comparison has a referent at all.
-	repoScoped, err := productionReaderForRepository(emptyFlags(), "")
-	if err != nil {
-		t.Fatalf("productionReaderForRepository refused a well-formed project: %v", err)
-	}
-	if repoScoped.Domain != servedWitnessDomain {
-		t.Fatalf("reader domain = %q, want the domain the project's own config states (%q)",
-			repoScoped.Domain, servedWitnessDomain)
-	}
-	if !repoScoped.declaresGeneration() {
-		t.Fatal("the repository-scoped reader still sees no declared generation, so the four " +
+	if !asTheSubjectsCallIt.declaresGeneration() {
+		t.Fatal("the resolved reader still sees no declared generation, so the four formerly " +
 			"domainless subjects remain structurally unable to compare anything")
 	}
-	if err := repoScoped.verifyServedAuthority(&awarenesspb.GraphAuthority{
+	if err := asTheSubjectsCallIt.verifyServedAuthority(&awarenesspb.GraphAuthority{
 		LiveStoreGraphDigestSha256: foreignGen,
 	}); err == nil {
-		t.Error("the repository-scoped reader accepted a foreign generation")
+		t.Error("the resolved reader accepted a foreign generation")
 	}
 }
 
-// B1-opposite. A malformed repository configuration must FAIL rather than fall through to
+// B1-opposite. A malformed repository configuration must be REFUSED rather than fall through to
 // the empty domain. Falling through would restore exactly the permanent inertness this
 // repair removes, while looking like a reader that simply had nothing to check -- and
 // checkout identity is an authority boundary, so it fails visibly.
@@ -427,9 +431,17 @@ func TestARepositoryScopedReaderRefusesAMalformedDomainConfiguration(t *testing.
 		[]byte("repository:\n    domain: \"unterminated\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := productionReaderForRepository(emptyFlags(), ""); err == nil {
-		t.Fatal("a malformed repository configuration resolved to a reader instead of failing; " +
-			"an unparseable checkout identity must never read as 'no domain'")
+	r := productionReaderFor(emptyFlags(), "", "")
+	if r.DomainInvalid == nil {
+		t.Fatal("a malformed repository configuration produced a reader with a resolved expected " +
+			"domain; an unparseable checkout identity must never read as 'no domain'")
+	}
+	// And it must REFUSE at the comparison, not merely record the reason: this registry declares
+	// a generation ACTIVE, so an unresolvable expected domain cannot be treated as inert.
+	if err := r.verifyServedAuthority(&awarenesspb.GraphAuthority{
+		LiveStoreGraphDigestSha256: declaredGen,
+	}); err == nil {
+		t.Fatal("a malformed checkout identity verified successfully")
 	}
 }
 

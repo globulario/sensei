@@ -427,3 +427,116 @@ that actually matters: the property, not the phrasing.
   `TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree` (cmd/awg) and two stamped-commit
   tests in `golang/server` shell out to `go build` / `make` without `-buildvcs=false`. Verified
   to fail identically at the base commit with this work stashed.
+
+## Two implementation defects, found by blind review of head `59372102`
+
+The 20-subject design above is unchanged. Both of these were defects in how it was implemented.
+
+### Finding 1 — an optional `--domain` made verification incapable
+
+Raised at `cmd_edit_check.go:43`. The measurement is worse than the report: **eleven of the
+twenty subjects handed the owner a raw flag value**, and **six of those eleven were among the
+seven that verified before this family began**. Omit the flag and `""` reaches the owner,
+`declaredActiveGeneration` reads `reg.Domains[""]`, and the comparison cannot fail.
+
+So it is not a defect in `edit-check` and not a defect in the Shape A repair — it is a defect in
+**what the owner is given**, which is why it is repaired in one place rather than eleven.
+
+**The law after repair:**
+
+> A production authority comparison receives a **resolved** expected domain, never a raw CLI
+> flag value. Resolution belongs to the owner, and the owner is the only place a `graphReader`
+> is constructed.
+
+`resolveGraphReader` now calls `resolveRepositoryDomain(projectRoot, domain)` — which was
+already the owner of that question and already implemented the precedence (explicit, then this
+checkout's configuration, then `SENSEI_DOMAIN`, then legacy `AWG_DOMAIN`). Passing an
+already-resolved domain back through is idempotent: it arrives as the explicit tier and wins.
+`productionReaderForRepository` is **deleted** — once the owner resolves, "no flag" and "an
+omitted optional flag" are the same input, and a second function could only let the two drift.
+
+**Three states where there was one empty string.** This is what the review asked to be
+distinguished, and each has a different consequence:
+
+| state | meaning | consequence |
+|---|---|---|
+| `DeclaredGeneration == ""` | the domain is **known**; the registry declares nothing ACTIVE for it | inert — nothing can contradict |
+| `DomainUnbound` | nothing states which domain this checkout is; the registry was never asked | outside the invariant's quantifier |
+| `DomainInvalid` | a domain **was** stated and cannot be trusted | **refused** at the comparison |
+
+**One deliberate narrowing, and the measurement that forced it.** The brief asked for
+*"genuinely unresolvable expected domain → cannot_verify/refusal, never inert success"*. The
+first implementation refused whenever the registry declared an ACTIVE generation for **any**
+domain. That took **fifteen tests out of service in one run**: a checkout that states no domain
+has no relationship to declarations made *for other domains*, and treating those as
+possibly-governing turns every ad-hoc read on a machine with a populated registry into a
+failure. `sensei query` from a directory that is not a Sensei project violates no declaration,
+because it made none.
+
+So the refusal is narrowed to `DomainInvalid` — something claimed an identity and it could not
+be trusted — and the defect the brief was protecting against is closed **structurally** rather
+than by a runtime refusal: the owner always resolves, and
+`TestOnlyTheOwnerConstructsAProductionGraphReader` proves there is exactly one construction
+site, so a reader carrying an unresolved domain cannot be obtained. **This is the one place the
+repair does not follow the brief literally**, and it is flagged rather than quietly narrowed.
+
+### Finding 2 — the response identity representation was over-constrained
+
+Raised at `cmd_gate.go:77`. **The stated mechanism is wrong in two ways**, measured and recorded
+because the correction matters more than the finding:
+
+- `graphAuthorityFromSnapshotFor` discards a `*DomainPublication`, **not an error** — it returns
+  no error at all;
+- it has **exactly one `return`**, which is `&awarenesspb.GraphAuthority{…}` and never nil, from
+  the **same** `freshness` snapshot and the **same** `servedGraphDigest` call that fills the
+  top-level field. From this server the two representations cannot disagree and the auxiliary
+  structure is never absent. `metadata.go` says so in its own comment.
+
+**The conclusion holds anyway, for a case the review did not name.** An **older server** sends
+`live_store_graph_digest_sha256 = 46` and no field 67, so `Authority` is nil on the wire while
+the canonical served identity is stated. Refusing that manufactures a refusal out of a missing
+auxiliary structure while valid evidence sits beside it. This repository already models exactly
+that shape — `gate_generation_test.go`'s *"older server: Metadata states the generation, the
+EditCheck response does not"*.
+
+`MetadataResponse` is the **only** message in this proto with two representations; every other
+response carries the served digest solely inside `GraphAuthority`. So this is a
+`MetadataResponse` seam (`graphReader.verifyServedMetadata`), not a general one, and five
+consumers use it: `gate`'s pre-loop check, `domains`, `repair-report`/`repair-gate`,
+`benchmark-score`'s authority guard, and `synthesis-run`'s identity composition. `gate`'s
+per-verdict check keeps `verifyServedAuthority`, because `EditCheckResponse` has no top-level
+digest.
+
+**The law after repair:**
+
+> Served-generation verification uses the canonical identity evidence the response contract
+> actually guarantees, and refuses when the required identity cannot be established.
+> **Disagreement is a refusal, never a preference** — a response describing two generations
+> attests to neither.
+
+`GraphAuthority`'s other dimensions — `authoritative`, freshness, transaction certification —
+are untouched and stay with the helpers that own them (`requireAuthoritativeGraph`,
+`validateLiveBenchmarkAuthority`). This seam answers identity only.
+
+### Witnesses and mutation
+
+Finding 1 (`optional_domain_test.go`): the reproducer; the single-construction-site census; the
+owner resolving with an explicit domain still winning; the three-state distinction; an invalid
+explicit `--domain` refused like a malformed config; and the end-to-end pair at `edit-check`
+with the flag omitted, refusing a foreign generation and still reporting on the declared one.
+
+Finding 2 (`metadata_identity_test.go`): the five cases driven independently — canonical digest
+alone sufficient, wrong canonical digest refused, authority-borne digest alone sufficient,
+disagreement refused **in both orderings** (a preference rule would pass one, and which would
+be arbitrary), no identity refused — plus the inert control and a driven older-server pair at
+`domains`.
+
+**16 of 16 code mutants killed** across the family, including all seven these findings require:
+raw flag restored, resolved domain emptied, comparison skipped when omitted, top-level digest
+ignored, missing identity accepted, disagreement accepted, and verification bypassed in one
+consumer. One mutant reported `MUTATION_NOT_APPLIED` when its anchor moved and was re-aimed
+rather than counted. The tenth remains an **oracle mutation** — downgrading the census's own
+assertion to a log line, which no test can detect.
+
+**Census after repair: 20 subjects / 20 owner-resolved / 20 generation-verified / GAP 0**,
+derived per command from behaviour, with the recognised-name sets still read by membership.

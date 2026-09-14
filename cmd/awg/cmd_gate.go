@@ -75,7 +75,7 @@ func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGrap
 	if err != nil {
 		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, err)
 	}
-	return reader.verifyServedAuthority(resp.GetAuthority())
+	return reader.verifyServedMetadata(resp)
 }
 
 // fileFinding is one changed file's EditCheck result: the advisory/blocking

@@ -31,7 +31,7 @@ func requireBenchmarkAuthority(ctx context.Context, reader graphReader, agRepo, 
 			// transaction-certified, verifyServedAuthority asks whether it is the generation
 			// this domain declares ACTIVE. A graph passing the first while failing the second
 			// is precisely the case no self-certification can detect.
-			if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+			if verr := reader.verifyServedMetadata(resp); verr != nil {
 				return verr
 			}
 			return validateLiveBenchmarkAuthority(resp)

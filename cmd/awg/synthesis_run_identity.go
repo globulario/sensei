@@ -92,7 +92,7 @@ func composeSynthesisRunIdentity(ctx context.Context, reader graphReader, absRep
 			limitations = append(limitations, workspacecontract.Limitation{
 				Source: "golang/server Metadata RPC", Scope: "graph_authority", Reason: metaErr.Error(), Blocking: true,
 			})
-		} else if verr := reader.verifyServedAuthority(metaResp.GetAuthority()); verr != nil {
+		} else if verr := reader.verifyServedMetadata(metaResp); verr != nil {
 			// LAW 5. Recorded as a BLOCKING limitation rather than returned as an error,
 			// because that is this function's vocabulary for an identity it cannot
 			// establish -- and graphAuthority is deliberately left nil, so no part of a

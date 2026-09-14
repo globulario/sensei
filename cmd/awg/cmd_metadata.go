@@ -60,17 +60,13 @@ Flags:
 	// authoritatively one step later, by whoever picks from it. `sensei metadata` remains
 	// the surface that REPORTS a generation disagreement instead of refusing on it; this
 	// one is not a diagnostic.
-	reader, derr := productionReaderForRepository(fs, *addr)
-	if derr != nil {
-		fmt.Fprintf(os.Stderr, "sensei domains: %v\n", derr)
-		return 2
-	}
+	reader := productionReaderFor(fs, "", *addr)
 	resp, err := metadataRPC(ctx, reader.Addr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
 	}
-	if verr := reader.verifyServedAuthority(resp.GetAuthority()); verr != nil {
+	if verr := reader.verifyServedMetadata(resp); verr != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %v\n", verr)
 		return 1
 	}

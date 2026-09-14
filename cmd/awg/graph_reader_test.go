@@ -379,14 +379,17 @@ type graphCommandFacts struct {
 // certifying one.
 var (
 	ownerResolutionNames = map[string]bool{
-		"productionReaderFor":           true,
-		"productionReaderForRepository": true,
-		"resolveGraphReader":            true,
+		"productionReaderFor": true,
+
+		"resolveGraphReader": true,
 	}
 	generationCheckNames = map[string]bool{
-		// The owner's comparison, and the digest-level one underneath it.
+		// The owner's comparisons, and the digest-level one underneath both.
 		"verifyServedAuthority": true,
-		"verifyServed":          true,
+		// MetadataResponse states the served generation twice, so it has its own reading of the
+		// same rule -- see graphReader.verifyServedMetadata.
+		"verifyServedMetadata": true,
+		"verifyServed":         true,
 		// metadata REPORTS the verdict rather than refusing on it, which is its purpose;
 		// renderEndpointBlock is where it asks.
 		"renderEndpointBlock":    true,

@@ -123,14 +123,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	// LAW 3: the endpoint comes from the G2 owner, never from this command -- and for the
-	// DOMAIN THIS REPOSITORY STATES, because this command has no --domain flag and an empty
-	// domain makes the served-generation comparison structurally inert.
-	reader, derr := productionReaderForRepository(fs, *addr)
-	if derr != nil {
-		fmt.Fprintf(os.Stderr, "sensei benchmark-brief: %v\n", derr)
-		return 2
-	}
+	// LAW 3: the endpoint comes from the G2 owner, never from this command. The empty domain
+	// is not "no domain": the owner resolves what this checkout states, because an unresolved
+	// expected domain makes the served-generation comparison structurally inert.
+	reader := productionReaderFor(fs, "", *addr)
 	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
