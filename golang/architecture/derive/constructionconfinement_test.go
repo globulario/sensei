@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 )
 
 const ctorGoMod = "module example.com/m\n\ngo 1.22\n"
@@ -1073,5 +1074,157 @@ func Forge() exchange.Ptrs { return exchange.Ptrs{{Deadline: time.Now()}} }
 	}
 	if !strings.Contains(got.Detail, "transport/transport.go") {
 		t.Errorf("the refutation does not name the construction site: %s", got.Detail)
+	}
+}
+
+// Blind round 4 on 8bec94d6. Two findings, both HOLD.
+
+// aliasShadowFixture: an intermediate package exports an ALIAS of the owner's type; transport
+// dot-imports it. localDecl, when non-empty, is transport's own declaration of the same name.
+func aliasShadowFixture(t *testing.T, localDecl, body string) *GitSource {
+	t.Helper()
+	return pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"aliaspkg/alias.go":    "package aliaspkg\n\nimport \"example.com/m/exchange\"\n\ntype Rec = exchange.Record\n",
+		"transport/transport.go": "package transport\n\nimport (\n\t\"time\"\n\n\t. \"example.com/m/aliaspkg\"\n)\n\nvar _ = time.Now\n\n" +
+			localDecl + "\n" + body + "\n",
+	})
+}
+
+// P1: GO'S LEXICAL RULE OUTRANKS DOT-IMPORT FALLBACK, in the alias branch too.
+//
+// The rule had grown three implementations -- typeExprIn checked `structs`, ownerRef checked its
+// own predicate, and the walk's alias fallback checked NOTHING. So a local DEFINED type, which
+// lands in `named` rather than `structs`, made typeExprIn return false and the fallback then
+// matched the dot-imported alias: a construction of transport's own type was reported as a
+// counterexample to the owner's confinement.
+//
+// Repaired by centralizing, not by writing a third copy: scopedCandidates applies the rule once
+// and all three consumers differ only in what they do with the candidates.
+func TestConstructionConfined_ALocalDefinedTypeOutranksADotImportedAlias(t *testing.T) {
+	src := aliasShadowFixture(t,
+		"type localRec struct {\n\tDeadline time.Time\n}\n\ntype Rec localRec\n",
+		"func F() { p := &Rec{Deadline: time.Now()}; _ = p }")
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport", "aliaspkg"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome == Refuted {
+		t.Fatalf("a LOCAL defined type was resolved through a dot-imported alias to the owner: %s", got.Detail)
+	}
+}
+
+// ITS OPPOSITE: with NO local declaration, the dot-imported alias must still resolve to the owner.
+// Otherwise the repair would have disabled alias resolution rather than ordered it.
+func TestConstructionConfined_ADotImportedAliasWithNoLocalShadowStillResolves(t *testing.T) {
+	src := aliasShadowFixture(t, "", "func F() { p := &Rec{Deadline: time.Now()}; _ = p }")
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport", "aliaspkg"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Refuted {
+		t.Fatalf("a dot-imported alias of the owner stopped resolving: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// And an UNRELATED alias is untouched: a local alias to something that is not the owner stays
+// outside the claim whether or not anything is dot-imported.
+func TestConstructionConfined_AnUnrelatedAliasIsUnaffectedByScoping(t *testing.T) {
+	got, _ := Derive(ctorElided(t, "type Other = time.Time\n\nfunc F() { var x Other; _ = x }"),
+		ctorProp("", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Derived {
+		t.Fatalf("an alias to an unrelated type was drawn into the claim: outcome=%s: %s", got.Outcome, got.Detail)
+	}
+}
+
+// collectionAliasChain builds `C00 = C01; ...; C<n-1> = []exchange.Record` and constructs C00 with
+// an elided element. Descending, so the chain needs n resolution steps rather than one.
+func collectionAliasChain(t *testing.T, n int) *GitSource {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("package transport\n\nimport (\n\t\"time\"\n\n\t\"example.com/m/exchange\"\n)\n\nvar _ = time.Now\n\n")
+	for i := 0; i < n-1; i++ {
+		fmt.Fprintf(&b, "type C%02d = C%02d\n", i, i+1)
+	}
+	fmt.Fprintf(&b, "type C%02d = []exchange.Record\n\nfunc Forge() C00 { return C00{{Deadline: time.Now()}} }\n", n-1)
+	return pinned(t, map[string]string{
+		"go.mod":                 ctorGoMod,
+		"exchange/exchange.go":   ctorOwnerPkg,
+		"transport/transport.go": b.String(),
+	})
+}
+
+// P2: THE COLLECTION WALK TERMINATES ON CONVERGENCE, NOT A STEP COUNT. The adjacent alias
+// resolution had already become a fixpoint while this loop kept a hardcoded eight, so a chain of
+// nine or more truncated and left the elided element untyped -- UNRESOLVED rather than recognised.
+// A larger constant would move the boundary, not remove it, so the depths here straddle the old
+// bound and go well past it.
+func TestConstructionConfined_ACollectionAliasChainResolvesAtAnyDepth(t *testing.T) {
+	for _, n := range []int{2, 8, 9, 25} {
+		t.Run(fmt.Sprintf("%d links", n), func(t *testing.T) {
+			got, _ := Derive(collectionAliasChain(t, n), ctorProp("Deadline", "exchange", "transport"),
+				at("2026-09-13T12:00:00Z"))
+			if got.Outcome != Refuted {
+				t.Errorf("a %d-link collection alias chain did not resolve: outcome=%s: %s", n, got.Outcome, got.Detail)
+			}
+		})
+	}
+}
+
+// A CYCLE terminates instead of spinning, and resolves nothing. Such code does not compile, so the
+// only requirement is that the analyzer returns.
+func TestConstructionConfined_ACollectionAliasCycleTerminates(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/exchange"
+)
+
+type Loop = Other
+type Other = Loop
+
+var _ = exchange.Open
+var _ = time.Now
+
+func F() { s := Loop{{Deadline: time.Now()}}; _ = s }
+`,
+	})
+	done := make(chan Receipt, 1)
+	go func() {
+		got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+		done <- got
+	}()
+	select {
+	case got := <-done:
+		if got.Outcome == Refuted && strings.Contains(got.Detail, "transport/transport.go") {
+			t.Errorf("a collection alias cycle was resolved to the owner's type: %s", got.Detail)
+		}
+	case <-time.After(20 * time.Second):
+		t.Fatal("resolution did not terminate on an alias cycle")
+	}
+}
+
+// An UNRESOLVABLE chain keeps its existing refusal semantics: still UNRESOLVED, not silently
+// dropped and not accepted.
+func TestConstructionConfined_AnUnresolvableCollectionChainStaysUnresolved(t *testing.T) {
+	src := pinned(t, map[string]string{
+		"go.mod":               ctorGoMod,
+		"exchange/exchange.go": ctorOwnerPkg,
+		"elsewhere/types.go":   "package elsewhere\n\nimport \"example.com/m/exchange\"\n\ntype Records []exchange.Record\n",
+		"transport/transport.go": `package transport
+
+import (
+	"time"
+
+	"example.com/m/elsewhere"
+)
+
+func F() { s := elsewhere.Records{{Deadline: time.Now()}}; _ = s }
+`,
+	})
+	// elsewhere/ is deliberately NOT searched, so the element type is unknowable here.
+	got, _ := Derive(src, ctorProp("Deadline", "exchange", "transport"), at("2026-09-13T12:00:00Z"))
+	if got.Outcome != Unresolved {
+		t.Fatalf("outcome=%s, want UNRESOLVED: an unreadable chain must keep its refusal: %s", got.Outcome, got.Detail)
 	}
 }
