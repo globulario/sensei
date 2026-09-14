@@ -145,28 +145,56 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	// owner value and must be read as a construction of it. A DEFINED type (`type N T`) is
 	// a DIFFERENT type and is deliberately NOT followed: constructing an N mints no T, and
 	// the conversion that would turn one into the other is a separate, stated limit.
+	// Resolved to a TRUE FIXPOINT, in a deterministic order.
+	//
+	// This ran a fixed eight passes, which was an implementation limit wearing a semantic
+	// one: a longer alias chain left its final alias absent from canonical, so an outside
+	// `Alias{Deadline: …}` was ignored and a recognised owner construction could still make
+	// the receipt DERIVED. Map iteration also meant a borderline chain resolved or did not
+	// depending on traversal order -- a nondeterministic architectural verdict (review
+	// finding constructionconfinement.go:150).
+	//
+	// Now it iterates until no progress, so any finite chain resolves. The FIXPOINT is what
+	// removes the order dependence: once iteration continues while anything still resolves,
+	// the final map is the same whichever order the aliases are visited in -- measured, a
+	// mutant that REVERSES the sort changes no outcome. The sort is kept anyway, so the
+	// traversal is deterministic and reviewable rather than dependent on Go's map walk, but
+	// it is no longer load-bearing for correctness and this comment does not pretend it is.
+	//
+	// A cycle (`type A = B; type B = A`, which does not compile) makes no progress and
+	// terminates without resolving, which is the correct answer for a name that denotes
+	// nothing.
+	aliasRefs := make([]typeRef, 0, len(named))
+	for ref, nt := range named {
+		if nt.alias {
+			aliasRefs = append(aliasRefs, ref)
+		}
+	}
+	sort.Slice(aliasRefs, func(i, j int) bool {
+		if aliasRefs[i].dir != aliasRefs[j].dir {
+			return aliasRefs[i].dir < aliasRefs[j].dir
+		}
+		return aliasRefs[i].name < aliasRefs[j].name
+	})
 	canonical := map[typeRef]typeRef{}
-	for pass := 0; pass < 8; pass++ {
+	for {
 		progress := false
-		for ref, nt := range named {
-			if !nt.alias {
-				continue
-			}
+		for _, ref := range aliasRefs {
 			if _, done := canonical[ref]; done {
 				continue
 			}
-			target, ok := refOfTypeName(nt.expr, nt.dir, nt.imports, modulePath)
-			if !ok {
-				continue
-			}
-			if _, ok := structs[target]; ok {
-				canonical[ref], progress = target, true
-				continue
-			}
-			// An alias whose target is itself an alias resolves once the chain below it
-			// has, which is why this runs to a fixpoint rather than once.
-			if through, ok := canonical[target]; ok {
-				canonical[ref], progress = through, true
+			nt := named[ref]
+			for _, target := range refCandidatesOfTypeName(nt.expr, nt.dir, nt.imports, modulePath) {
+				if _, ok := structs[target]; ok {
+					canonical[ref], progress = target, true
+					break
+				}
+				// An alias whose target is itself an alias resolves once the chain below
+				// it has, which is why this runs to a fixpoint rather than once.
+				if through, ok := canonical[target]; ok {
+					canonical[ref], progress = through, true
+					break
+				}
 			}
 		}
 		if !progress {
@@ -226,7 +254,63 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 		// and the claim still came back DERIVED. Measured 2026-09-13 across seven elided
 		// shapes, all seven.
 		elided := map[*ast.CompositeLit]ast.Expr{}
+		// ownerRef reports whether a bare type name denotes the owner, following aliases.
+		ownerRef := func(t ast.Expr) bool {
+			cands, ok := directTypeRefOf(t, dir, imports, modulePath)
+			if !ok {
+				return false
+			}
+			for _, c := range cands {
+				if c == owner {
+					return true
+				}
+				if through, cok := canonical[c]; cok && through == owner {
+					return true
+				}
+			}
+			return false
+		}
+		// noteSite records a construction at pos.
+		noteSite := func(pos token.Pos, what string) {
+			sites++
+			p := fset.Position(pos)
+			subjects = append(subjects, Subject{File: filePath, Line: p.Line, Entity: what, Role: "construction-site"})
+			if dir != owner.dir {
+				outside = append(outside, fmt.Sprintf("%s:%d", filePath, p.Line))
+			}
+		}
 		ast.Inspect(f, func(n ast.Node) bool {
+			// ZERO-VALUE CONSTRUCTIONS, for a TYPE-LEVEL claim only.
+			//
+			// With a Field named, `var x T` and `new(T)` initialize no field, so they mint no
+			// authority and are correctly not sites -- that is the distinction T1 exists to
+			// draw, and it is preserved. Without a Field the proposition is "every
+			// construction of T originates in the owner", and these ARE constructions of T:
+			// each produces a usable zero value. Excluding them let an outside package create
+			// one while the receipt still said DERIVED (review finding
+			// constructionconfinement.go:233).
+			//
+			// My own Limits() text justified the exclusion "with a Field named" and the
+			// analyzer applied it to both, which is the shape of this whole pass: reasoning
+			// established for one configuration certifying a wider claim.
+			if field == "" {
+				switch x := n.(type) {
+				case *ast.CallExpr:
+					// new(T). Not new(*T) or new([]T), which construct no T.
+					if id, isIdent := x.Fun.(*ast.Ident); isIdent && id.Name == "new" && len(x.Args) == 1 {
+						if ownerRef(x.Args[0]) {
+							noteSite(x.Pos(), "new("+p.Type+")")
+						}
+					}
+				case *ast.ValueSpec:
+					// var x T, with no initialiser: the declaration IS the construction. With
+					// an initialiser the value's own construction is the site, counted where
+					// it appears, so counting here too would double count one construction.
+					if x.Type != nil && len(x.Values) == 0 && ownerRef(x.Type) {
+						noteSite(x.Pos(), "var "+p.Type)
+					}
+				}
+			}
 			lit, ok := n.(*ast.CompositeLit)
 			if !ok {
 				return true
@@ -250,10 +334,12 @@ func (constructionConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			}
 			ref, ok := r.typeExpr(typ)
 			if !ok {
-				// Not a struct declared in scope -- but it may be an ALIAS of one.
-				if aliasRef, aok := refOfTypeName(typ, dir, imports, modulePath); aok {
+				// Not a struct declared in scope -- but it may be an ALIAS of one, under any
+				// of the directories an unqualified name could come from.
+				for _, aliasRef := range refCandidatesOfTypeName(typ, dir, imports, modulePath) {
 					if through, cok := canonical[aliasRef]; cok {
 						ref, ok = through, true
+						break
 					}
 				}
 			} else if through, cok := canonical[ref]; cok {
