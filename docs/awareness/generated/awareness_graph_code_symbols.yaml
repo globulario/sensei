@@ -6129,6 +6129,12 @@ test_symbols:
     symbol: TestRequireStoreURLAgreementYieldsToAnExplicitFlag
     package: main
     language: go
+  - id: cmd/awg/endpoint_ownership_test.go:TestATargetCheckoutResolvesItsOwnEndpointFromOutsideTheTree
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestATargetCheckoutResolvesItsOwnEndpointFromOutsideTheTree
+    package: main
+    language: go
+    doc: "W7. OUT-OF-TREE EXECUTION. A command that names a target checkout must resolve THAT project's\nendpoint, from anywhere.\n\nRaised as a P1 by blind review of the first version of this family: the helper hardcoded the\nworking directory, so `sensei preflight --repo /path/to/target` run from /tmp found no\nconfiguration and fell through to the built-in default — dialling the wrong graph while looking\ncorrectly resolved. The rule is not \"use CWD\" but \"walk up from the hint when there is one\"."
   - id: cmd/awg/endpoint_ownership_test.go:TestEndpointResolutionIsUnaffectedByTheWorkingSubdirectory
     file: cmd/awg/endpoint_ownership_test.go
     symbol: TestEndpointResolutionIsUnaffectedByTheWorkingSubdirectory
@@ -6159,6 +6165,12 @@ test_symbols:
     package: main
     language: go
     doc: "W6. ORDERING: reader resolution must follow the context it depends on.\n\nFour subjects settle their governed domain AFTER flag parsing — contract-bootstrap from its task\nfile, edit-brief from the repository configuration, preflight and verify-obligations through\nresolveRepositoryDomain. A reader resolved before that carries the endpoint and declared\ngeneration of a different domain (usually none) and looks resolved while answering for the wrong\none.\n\nFound by mutation: removing contract-bootstrap's task-file domain fallback survived every other\nwitness. Asserted POSITIONALLY on the source, because the property is an ordering and the\ndefect is textual placement."
+  - id: cmd/awg/endpoint_ownership_test.go:TestSubjectsWithATargetCheckoutFlagPassItToTheOwner
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestSubjectsWithATargetCheckoutFlagPassItToTheOwner
+    package: main
+    language: go
+    doc: "W8. EVERY SUBJECT WITH A TARGET-REPO FLAG PASSES IT. Derived from the source: a command that\nnames a checkout and then resolves its endpoint from the working directory is the defect above,\nreintroduced one command at a time."
   - id: cmd/awg/endpoint_ownership_test.go:TestTheOwnerCanonicalOverrideAndNoFallbackStillHold
     file: cmd/awg/endpoint_ownership_test.go
     symbol: TestTheOwnerCanonicalOverrideAndNoFallbackStillHold

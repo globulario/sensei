@@ -80,7 +80,7 @@ Flags:
 	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
 	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
 	// bypassed canonical resolution entirely.
-	reader := productionReaderFor(fs, *domain, *addr)
+	reader := productionReaderFor(fs, *root, *domain, *addr)
 	*addr = reader.Addr
 	if *format != "claude" && *format != "json" && *format != "exit-code" {
 		fmt.Fprintf(os.Stderr, "sensei edit-guard: --format must be claude|json|exit-code, got %q\n", *format)

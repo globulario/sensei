@@ -174,7 +174,7 @@ Flags:
 	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
 	// from the raw flag would carry the endpoint and declared generation of a different domain
 	// -- usually none -- and would look resolved while answering for the wrong one.
-	reader := productionReaderFor(fs, *domain, *addr)
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
 	*addr = reader.Addr
 
 	result, err := buildContractBootstrap(root, *addr, *domain, task, source)

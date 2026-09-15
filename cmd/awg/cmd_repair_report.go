@@ -147,7 +147,7 @@ Flags:
 	// LAW 3 -- ENDPOINT OWNERSHIP, resolved PER COMMAND. This file defines two subjects, and a
 	// census that counted files once let a migrated command certify a sibling that still chose its
 	// own port. Each function resolves its own reader.
-	reader := productionReaderFor(fs, *domain, *addr)
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
 	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
@@ -231,7 +231,7 @@ Flags:
 	// LAW 3 -- ENDPOINT OWNERSHIP, resolved PER COMMAND. This file defines two subjects, and a
 	// census that counted files once let a migrated command certify a sibling that still chose its
 	// own port. Each function resolves its own reader.
-	reader := productionReaderFor(fs, *domain, *addr)
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
 	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"

@@ -35,6 +35,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -356,17 +357,26 @@ func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, regist
 // left by the change that introduced the owner and migrated only two commands. This completes that
 // intent.
 //
-// THE PROJECT ROOT IS RESOLVED BY WALKING UP, never taken from a command's target-repo flag. That
-// distinction is load-bearing and briefing paid for it: passing --repo as resolveGraphReader's
-// projectRoot made the SAME command resolve a different endpoint from a subdirectory than from the
-// root, because ./.sensei/config.yaml was simply not found and resolution fell through. Two
-// different questions wear one flag -- which checkout the command operates on, and which project's
-// configuration names the graph endpoint -- and only the second one belongs here.
+// THE PROJECT ROOT IS ALWAYS WALKED UP TO -- from the command's target checkout when it names one,
+// and from the working directory otherwise. Both halves were paid for:
 //
-// resolveProjectRoot fails open to the working directory. That is acceptable for this tier
-// specifically: it reads a configuration file that may not exist, and the fallback is the same
-// built-in default the owner would have chosen anyway. Where a root must be PROVEN, callers ask
-// looksLikeProjectRoot instead.
+//   - briefing hit the first: passing `--repo` (default ".") straight through as projectRoot made
+//     the SAME command resolve a different endpoint from a subdirectory than from the root, because
+//     ./.sensei/config.yaml was simply not found. The defect was passing an UNWALKED path, not
+//     consulting the flag.
+//   - blind review of the first version of this helper hit the second: hardcoding the working
+//     directory breaks OUT-OF-TREE execution. `sensei preflight --repo /path/to/target` run from
+//     /tmp would not find the target's configuration and would fall through to the built-in
+//     default -- dialling the wrong graph while looking correctly resolved.
+//
+// So the rule subsumes both: walk up from the hint when there is one. A command's target-repo flag
+// answers "which checkout do I operate on"; walking up from it answers "which project's
+// configuration names that checkout's graph endpoint". They are different questions, and the second
+// is derived from the first rather than ignoring it.
+//
+// Resolution fails open to the starting directory. That is acceptable for this tier specifically:
+// it reads a configuration file that may not exist, and the fallback is the same built-in default
+// the owner would have chosen anyway. Where a root must be PROVEN, callers ask looksLikeProjectRoot.
 //
 // Callers assign the result over their own flag variable:
 //
@@ -377,13 +387,40 @@ func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, regist
 // only value any of them can dial. The alternative -- rewriting each command's plumbing to carry a
 // graphReader -- would be a far larger diff for the same guarantee, and this family is scoped to
 // endpoint ownership.
-func productionReaderFor(fs *flag.FlagSet, domain, addrFlag string) graphReader {
-	root, _ := resolveProjectRoot("")
-	r := resolveGraphReader(fs, root, domain, addrFlag, DefaultDomainRegistryPath())
+func productionReaderFor(fs *flag.FlagSet, rootHint, domain, addrFlag string) graphReader {
+	r := resolveGraphReader(fs, graphConfigRoot(rootHint), domain, addrFlag, DefaultDomainRegistryPath())
 	if notice := nonCanonicalReaderNotice(r); notice != "" {
 		fmt.Fprintln(os.Stderr, notice)
 	}
 	return r
+}
+
+// graphConfigRoot finds the project whose configuration names the graph endpoint.
+//
+// It WALKS UP from hint when a command names a target checkout, and from the working directory when
+// it does not. resolveProjectRoot cannot be used for the first case: given a non-empty argument it
+// returns filepath.Abs of it without walking, which is exactly how `--repo .` from a subdirectory
+// resolved the subdirectory and found no configuration there.
+func graphConfigRoot(hint string) string {
+	hint = strings.TrimSpace(hint)
+	if hint == "" {
+		root, _ := resolveProjectRoot("")
+		return root
+	}
+	start, err := filepath.Abs(hint)
+	if err != nil {
+		return hint
+	}
+	for dir := start; ; {
+		if looksLikeProjectRoot(dir) {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return start
+		}
+		dir = parent
+	}
 }
 
 // verifyServed refuses a response answered by a generation other than the one declared

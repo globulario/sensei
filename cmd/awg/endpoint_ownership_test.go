@@ -137,7 +137,7 @@ func TestTheOwnerCanonicalOverrideAndNoFallbackStillHold(t *testing.T) {
 	t.Chdir(root)
 
 	// (1) canonical: the project's configuration decides, and it is not reported as an override.
-	canonical := productionReaderFor(emptyFlags(), "", "")
+	canonical := productionReaderFor(emptyFlags(), "", "", "")
 	if canonical.Addr != "localhost:19001" {
 		t.Errorf("canonical resolution gave %q, want the project's configured endpoint", canonical.Addr)
 	}
@@ -152,7 +152,7 @@ func TestTheOwnerCanonicalOverrideAndNoFallbackStillHold(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := captureStderr(t, func() {
-		over := productionReaderFor(fs, "", "localhost:19999")
+		over := productionReaderFor(fs, "", "", "localhost:19999")
 		if over.Addr != "localhost:19999" {
 			t.Errorf("override gave %q, want the named endpoint", over.Addr)
 		}
@@ -175,7 +175,7 @@ func TestTheOwnerCanonicalOverrideAndNoFallbackStillHold(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Chdir(bare)
-	fallback := productionReaderFor(emptyFlags(), "", "")
+	fallback := productionReaderFor(emptyFlags(), "", "", "")
 	if fallback.Source != "the built-in default" {
 		t.Errorf("with no configured endpoint the source is %q, want it named as the built-in default",
 			fallback.Source)
@@ -197,9 +197,9 @@ func TestEndpointResolutionIsUnaffectedByTheWorkingSubdirectory(t *testing.T) {
 	}
 
 	t.Chdir(root)
-	fromRoot := productionReaderFor(emptyFlags(), "", "")
+	fromRoot := productionReaderFor(emptyFlags(), "", "", "")
 	t.Chdir(deep)
-	fromDeep := productionReaderFor(emptyFlags(), "", "")
+	fromDeep := productionReaderFor(emptyFlags(), "", "", "")
 
 	if fromRoot.Addr != fromDeep.Addr {
 		t.Errorf("the same command resolved %q from the root and %q from a subdirectory",
@@ -276,5 +276,91 @@ func TestReaderResolutionFollowsTheContextItDependsOn(t *testing.T) {
 			t.Errorf("%s: the reader is resolved at offset %d, BEFORE the domain is settled at %d; "+
 				"it would carry another domain's endpoint and declared generation", name, res, ctx)
 		}
+	}
+}
+
+// W7. OUT-OF-TREE EXECUTION. A command that names a target checkout must resolve THAT project's
+// endpoint, from anywhere.
+//
+// Raised as a P1 by blind review of the first version of this family: the helper hardcoded the
+// working directory, so `sensei preflight --repo /path/to/target` run from /tmp found no
+// configuration and fell through to the built-in default — dialling the wrong graph while looking
+// correctly resolved. The rule is not "use CWD" but "walk up from the hint when there is one".
+func TestATargetCheckoutResolvesItsOwnEndpointFromOutsideTheTree(t *testing.T) {
+	target, _ := readerFixture(t, "localhost:19010", "")
+	elsewhere := t.TempDir() // no .sensei here at all
+	t.Chdir(elsewhere)
+
+	r := productionReaderFor(emptyFlags(), target, "", "")
+	if r.Addr != "localhost:19010" {
+		t.Fatalf("from outside the tree the endpoint is %q, want the target's configured %q; a "+
+			"command naming --repo must reach that project's configuration", r.Addr, "localhost:19010")
+	}
+	if strings.Contains(r.Source, "built-in") {
+		t.Errorf("resolution fell through to the built-in default: %q", r.Source)
+	}
+
+	// And a SUBDIRECTORY of the target still resolves the same endpoint -- the half briefing paid
+	// for. `--repo .`-shaped hints must be walked up, not used verbatim.
+	deep := filepath.Join(target, "golang", "server")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(deep)
+	fromDeepHint := productionReaderFor(emptyFlags(), ".", "", "")
+	if fromDeepHint.Addr != "localhost:19010" {
+		t.Errorf("with hint \".\" from a subdirectory the endpoint is %q, want %q; the hint was used "+
+			"verbatim instead of being walked up", fromDeepHint.Addr, "localhost:19010")
+	}
+}
+
+// W8. EVERY SUBJECT WITH A TARGET-REPO FLAG PASSES IT. Derived from the source: a command that
+// names a checkout and then resolves its endpoint from the working directory is the defect above,
+// reintroduced one command at a time.
+func TestSubjectsWithATargetCheckoutFlagPassItToTheOwner(t *testing.T) {
+	files, err := filepath.Glob("cmd_*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked, offenders := 0, []string{}
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		b, err := os.ReadFile(f)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src := string(b)
+		if !strings.Contains(src, "productionReaderFor(") {
+			continue
+		}
+		// Which target-checkout flag does this file declare, if any?
+		var hint string
+		for _, cand := range []string{`"repo-root"`, `"repo"`, `"root"`} {
+			if i := strings.Index(src, "fs.String("+cand); i >= 0 {
+				// the variable it was assigned to
+				line := src[strings.LastIndex(src[:i], "\n")+1 : i]
+				if v := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(line), ":=")); v != "" {
+					hint = "*" + v
+				}
+				break
+			}
+		}
+		if hint == "" {
+			continue // no target-checkout flag: the working directory is the only answer
+		}
+		checked++
+		if !strings.Contains(src, "productionReaderFor(fs, "+hint+",") {
+			offenders = append(offenders, f+" (declares "+hint+")")
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no migrated subject declares a target-checkout flag; this check has lost its subject")
+	}
+	if len(offenders) > 0 {
+		sort.Strings(offenders)
+		t.Errorf("%d subject(s) name a target checkout and do not pass it to the owner:\n  %s",
+			len(offenders), strings.Join(offenders, "\n  "))
 	}
 }

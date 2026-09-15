@@ -44,7 +44,7 @@ Flags:
 	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
 	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
 	// bypassed canonical resolution entirely.
-	reader := productionReaderFor(fs, "", *addr)
+	reader := productionReaderFor(fs, "", "", *addr)
 	*addr = reader.Addr
 	if fs.NArg() == 0 {
 		fmt.Fprintln(os.Stderr, "sensei pattern-check: requires at least one file argument")

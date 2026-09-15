@@ -297,7 +297,7 @@ Flags:
 	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
 	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
 	// bypassed canonical resolution entirely.
-	reader := productionReaderFor(fs, *domain, *addr)
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
 	*addr = reader.Addr
 
 	// Phase 9.4a/9.4b: the completion gate is a distinct read path — it consumes a task's
