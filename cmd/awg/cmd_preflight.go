@@ -46,16 +46,6 @@ Flags:
 		return 2
 	}
 
-	// The server whose authority this asserts is decided here, and the
-	// project config states one too. Refuse a silent disagreement rather
-	// than report a verdict from a server the operator did not name
-	// (issue #212).
-	preflightRoot, _ := resolveProjectRoot(*repo)
-	if err := requireServerAddrAgreement(fs, preflightRoot, *addr); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
-		return 1
-	}
-
 	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
 	if resolvedDomain.Err != nil {
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", resolvedDomain.Err)
@@ -67,6 +57,29 @@ Flags:
 	// -- usually none -- and would look resolved while answering for the wrong one.
 	reader := productionReaderFor(fs, *repo, resolvedDomain.Domain, *addr)
 	*addr = reader.Addr
+
+	// ENDPOINT AGREEMENT IS EVALUATED AGAINST THE ENDPOINT THE OPERATION WILL ACTUALLY USE.
+	//
+	// The server whose authority this asserts is decided here, and the project config states one
+	// too. Refuse a silent disagreement rather than report a verdict from a server the operator
+	// did not name (issue #212).
+	//
+	// This check used to run BEFORE the owner, on the raw --addr value. That was sound while the
+	// raw flag WAS the endpoint dialled, which is how issue #212 first landed it. The
+	// endpoint-ownership family then made the endpoint come from productionReaderFor and set the
+	// flag's default to empty -- and left the guard reading the flag. It therefore compared the
+	// configured address against "" and refused every canonical invocation, in a repository whose
+	// configuration the owner was about to honour exactly. A guard that runs before the value it
+	// guards exists reports its own position, not a disagreement.
+	//
+	// The root is graphConfigRoot, the SAME root productionReaderFor resolved the configuration
+	// from. resolveProjectRoot does not walk up, so from a subdirectory the guard would have read a
+	// different config file than the owner did -- finding none, concluding nothing is configured,
+	// and passing. One endpoint decision, one configuration.
+	if err := requireServerAddrAgreement(fs, graphConfigRoot(*repo), reader.Addr); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
+		return 1
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

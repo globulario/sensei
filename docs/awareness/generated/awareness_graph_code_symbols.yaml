@@ -1312,6 +1312,42 @@ test_symbols:
     symbol: TestAssessRepositoryTestCoverage_RequiresExactRegistryBinding
     package: main
     language: go
+  - id: cmd/awg/authority_gap_measurement_test.go:TestCategoryA_ALiteralEmptyDomainMakesAnyComparisonInert
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestCategoryA_ALiteralEmptyDomainMakesAnyComparisonInert
+    package: main
+    language: go
+    doc: "CATEGORY A — EXPECTED DOMAIN STRUCTURALLY UNRESOLVED.\n\nFive subjects hand the owner a literal \"\": benchmark-brief, benchmark-score, pattern-check,\nsynthesis-run and domains. declaredActiveGeneration reads reg.Domains[\"\"], the zero value, so\nDeclaredGeneration is permanently empty and verifyServed is inert. Adding a comparison to these\nfive would change nothing — which is why they are a different repair from the rest."
+  - id: cmd/awg/authority_gap_measurement_test.go:TestCategoryB_ARawDomainFlagDecidesWhetherAComparisonCanFail
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestCategoryB_ARawDomainFlagDecidesWhetherAComparisonCanFail
+    package: main
+    language: go
+    doc: "CATEGORY B — EXPECTED DOMAIN CONDITIONALLY UNRESOLVED.\n\nNine subjects pass the raw --domain flag, whose default is empty (edit-guard's is $AWG_DOMAIN,\nwhich may also be empty). A comparison added to these WOULD work when an operator names the\ndomain and would be inert otherwise, so the gap is the flag, not the check."
+  - id: cmd/awg/authority_gap_measurement_test.go:TestCategoryC_AResolvedDomainMakesTheMissingComparisonImmediatelyEffective
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestCategoryC_AResolvedDomainMakesTheMissingComparisonImmediatelyEffective
+    package: main
+    language: go
+    doc: "CATEGORY C — AUTHORITY PRESENT AND RESOLVED, NEVER COMPARED.\n\nFour subjects already resolve a governed domain before resolution — preflight and\nverify-obligations through resolveRepositoryDomain, edit-brief from the repository configuration,\ncontract-bootstrap from its task file. For these the owner hands over a real declared generation,\nthe response carries served authority, and nothing compares them. A comparison added here is\nimmediately effective."
+  - id: cmd/awg/authority_gap_measurement_test.go:TestCategoryD_TheInverseLookupDomainsWouldNeedIsNotWellDefined
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestCategoryD_TheInverseLookupDomainsWouldNeedIsNotWellDefined
+    package: main
+    language: go
+    doc: "CATEGORY D — EXPECTATION NOT REACHABLE BY THE LOOKUP DIRECTION THE OWNER OFFERS.\n\n`sensei domains` asks a question that ranges over ALL domains, so it names none. That is not a\nforgotten flag: the command has no single subject domain to pass.\n\nIt is still not exempt. A governed store belongs to exactly ONE domain — validateStoreOwnership\nrefuses a registry binding one store to two — so the store answering `domains` HAS a declared\nactive generation, and the reply is consumed as authoritative (it is what an operator then passes\nas --domain, and what the editor's domain filter offers). The expectation exists; runDomains\nsimply cannot reach it, because the registry is indexed domain -> addr and runDomains starts from\nan addr.\n\nAnd the inverse is not merely missing, it is not well defined: the uniqueness invariant covers\nStoreURL, NOT ServiceAddr. Two domains may legally declare the same endpoint with different\nactive generations, and the registry loads without complaint."
+  - id: cmd/awg/authority_gap_measurement_test.go:TestCategoryE_AResolvedDomainStillYieldsNoExpectationWhenTheRegistryDeclaresNone
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestCategoryE_AResolvedDomainStillYieldsNoExpectationWhenTheRegistryDeclaresNone
+    package: main
+    language: go
+    doc: "CATEGORY E — DOMAIN CORRECTLY RESOLVED, REGISTRY DECLARES NO GENERATION.\n\nThis is NOT a fifth group of subjects. It is a property of the DOMAIN, and it cuts across every\ncategory: a subject in category C, which resolves its governed domain perfectly, still gets an\nempty expectation when the registry declares no active generation for that domain.\n\nIt is measured, not hypothetical. The operator registry on this machine declares\nactive_generation for github.com/globulario/sensei and github.com/globulario/sensei-code, and\nNOT for github.com/globulario/services. So a repair that lands a comparison in all 18 subjects is\neffective for two of the three governed domains and silently inert for the third."
+  - id: cmd/awg/authority_gap_measurement_test.go:TestNoSubjectLacksAuthorityOnTheWire
+    file: cmd/awg/authority_gap_measurement_test.go
+    symbol: TestNoSubjectLacksAuthorityOnTheWire
+    package: main
+    language: go
+    doc: "NO SUBJECT IS EXEMPT FOR WANT OF AUTHORITY ON THE WIRE. Measured against the proto rather than\nassumed, so category \"response lacks authority representation\" is empty by evidence."
   - id: cmd/awg/authority_output_test.go:TestPrintGraphAuthority_ShowsFreshnessAndProvenance
     file: cmd/awg/authority_output_test.go
     symbol: TestPrintGraphAuthority_ShowsFreshnessAndProvenance
@@ -6098,6 +6134,42 @@ test_symbols:
     package: main
     language: go
     doc: "THE PROJECT'S CONFIG NAMES THE INSTANCE.\n\nThe flag default is one repository's port. A hook using it answers from\nwhichever project owns that port -- on the machine this was measured, a\ndifferent repository's domain entirely -- and a briefing served from the\nwrong graph is worse than none."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestAGenuineDisagreementBetweenConfigAndAnExplicitAddress
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestAGenuineDisagreementBetweenConfigAndAnExplicitAddress
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL 2 — genuine disagreement. Project config names A; the operator explicitly\nrequests B. This is the case the guard exists for.\n\nThis control asserts the OBSERVED behaviour, whatever it is, and names it, so a future repair\ncannot silently change it. It does not assume a refusal."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint
+    package: main
+    language: go
+    doc: "THE INVERTED WITNESS. Formerly TestTheAddrAgreementGuardRefusesOverAnOperandThatDoesNotExistYet,\nwhich proved the refusal. It now proves the invariant that replaced it:\n\n\tEndpoint agreement is evaluated against the endpoint the operation will actually use.\n\nThe fixture is unchanged. Only the expected outcome moved, which is what makes this an inversion\nrather than a new test: the same world that refused now agrees, on the resolved endpoint."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestEndpointAgreementReadsTheSameConfigurationTheOwnerDid
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestEndpointAgreementReadsTheSameConfigurationTheOwnerDid
+    package: main
+    language: go
+    doc: "The shared-root half of the invariant. resolveProjectRoot does not walk up, so a guard reading the\nconfig from it would, from a subdirectory, find no configuration, conclude nothing is configured,\nand pass — a fail-open of exactly the class the guard exists to prevent. The owner resolves through\ngraphConfigRoot, which walks up, so the guard must read the same root."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestNamingTheConfiguredAddressExplicitlyProceedsPastTheGuard
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestNamingTheConfiguredAddressExplicitlyProceedsPastTheGuard
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL 1 — explicit matching override. Same fixture, --addr set to the configured\naddress. If this proceeds, the fixture is valid and the refusal above is caused by operand timing\nrather than by the project configuration."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestTheAgreementGuardsOperandIsTheOwnersResolvedAddress
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestTheAgreementGuardsOperandIsTheOwnersResolvedAddress
+    package: main
+    language: go
+    doc: "OPERAND PROVENANCE. The guard's operand must be the owner's answer, named as such.\n\nThis witness exists because one required mutant cannot be killed behaviourally. Passing *addr\ninstead of reader.Addr at the guard is value-IDENTICAL on this tree: `*addr = reader.Addr` runs\nunconditionally two lines above, so no test can observe a difference between the two expressions.\nThe distinction is real anyway — *addr is the operator's flag variable, which the migration pattern\nhappens to overwrite, and reader.Addr is the endpoint the owner resolved. The regression this\nfamily repairs was precisely a guard reading the flag variable rather than the resolved endpoint.\n\nWhen behaviour cannot see a distinction, the source is the right place to pin it. Equivalence today\nis not a guarantee of equivalence after the next edit: remove or move `*addr = reader.Addr` and a\nguard reading *addr silently reverts to comparing against an empty flag."
+  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestTheOwnerWithNoOverrideChoosesTheConfiguredEndpoint
+    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
+    symbol: TestTheOwnerWithNoOverrideChoosesTheConfiguredEndpoint
+    package: main
+    language: go
+    doc: "POSITIVE CONTROL 3 — owner-resolution agreement, stated on its own. This is the direct opposite of\nthe defective raw-flag comparison: with no override, the canonical owner chooses exactly the\nendpoint the project configuration names."
   - id: cmd/awg/endpoint_binding_test.go:TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
     file: cmd/awg/endpoint_binding_test.go
     symbol: TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
@@ -6641,6 +6713,30 @@ test_symbols:
     package: main
     language: go
     doc: "--union-default-graph must NOT be set while transient staging graphs exist.\n\n`sensei build` stages a candidate slice and a SECOND seed marker in\nurn:sensei:graph-staging:<marker> before promoting it in one transaction.\nUnion reads would expose that in-flight candidate to every concurrent\nunqualified query and break atomic publication. This is an invariant, not a\npreference: it must fail if someone adds the flag for the (real, but later)\nreason that named-graph publication needs it."
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestObservedTheAddrAgreementCheckRunsBeforeTheOwnerResolves
+    file: cmd/awg/preflight_served_authority_witness_test.go
+    symbol: TestObservedTheAddrAgreementCheckRunsBeforeTheOwnerResolves
+    package: main
+    language: go
+    doc: "OBSERVATION, not a subject of this step. requireServerAddrAgreement is called with the RAW --addr\nflag before productionReaderFor resolves anything, so a project config that states server.addr is\ncompared against \"\" and the command refuses. Recorded because it dictated the fixture's shape\nabove and because a category-C repair will be written on this same path.\n\nNo production behaviour is changed and nothing is asserted about whether this is correct."
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightAcceptsAServedGenerationThatMatchesTheDeclaredOne
+    file: cmd/awg/preflight_served_authority_witness_test.go
+    symbol: TestPreflightAcceptsAServedGenerationThatMatchesTheDeclaredOne
+    package: main
+    language: go
+    doc: "OPPOSITE WITNESS (positive control). Same domain, same reader, same response shape, same service.\nThe ONLY difference from the witness above is that the served generation equals the declared one.\nThis case must remain accepted after the repair, so it is what proves a future refusal is aimed at\nthe mismatch and not at the fixture."
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne
+    file: cmd/awg/preflight_served_authority_witness_test.go
+    symbol: TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne
+    package: main
+    language: go
+    doc: "THE WITNESS. Expected authority exists, served authority exists, they differ, and runPreflight\nconsumes the response as an authoritative verdict.\n\nThis test asserts the DEFECT. It is the mechanical record that the invariant does not hold on\n8e3366f6. Repairing category C must INVERT it: the mismatch must then produce a refusal, and the\nassertions below marked DEFECT must become assertions of that refusal."
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison
+    file: cmd/awg/preflight_served_authority_witness_test.go
+    symbol: TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison
+    package: main
+    language: go
+    doc: "EMPTY-EXPECTATION CONTROL. The governed domain resolves perfectly, the owner carries it, and the\nregistry declares no active_generation for it — the shape github.com/globulario/services has in\nthe real operator registry today.\n\nThe state this records is `expectation absent / comparison not established`. It is NOT\nverification: verifyServed returns nil against an empty expectation, so a check added here would\naccept the same wrong generation the witness above proves is accepted now.\n\nThis control fixes no policy. It exists so that a later repair cannot become structurally inert\nwithout a test noticing."
   - id: cmd/awg/promote_establish_test.go:TestADerivationEstablishesOnlyWhenItDerives
     file: cmd/awg/promote_establish_test.go
     symbol: TestADerivationEstablishesOnlyWhenItDerives
