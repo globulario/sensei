@@ -41,17 +41,29 @@ type generationReportingChecker struct {
 }
 
 func (c *generationReportingChecker) GraphGeneration(ctx context.Context) (string, error) {
-	c.calls++
 	if c.err != nil {
+		c.calls++
 		return "", c.err
 	}
+	return c.nextGen(), nil
+}
+
+// The per-response identities read the SAME sequence, because the sequence describes the graph
+// over time and both the brackets and the responses observe that one graph. Binding moved from
+// sampling beside a call to the identity carried on each response, so a fixture that reported
+// one value to the brackets and another to the responses would manufacture a switch.
+func (c *generationReportingChecker) LastImpactGeneration() string { return c.nextGen() }
+func (c *generationReportingChecker) LastCheckGeneration() string  { return c.nextGen() }
+
+func (c *generationReportingChecker) nextGen() string {
+	c.calls++
 	if len(c.generations) == 0 {
-		return "", nil
+		return ""
 	}
 	if c.calls-1 < len(c.generations) {
-		return c.generations[c.calls-1], nil
+		return c.generations[c.calls-1]
 	}
-	return c.generations[len(c.generations)-1], nil
+	return c.generations[len(c.generations)-1]
 }
 
 // unreportingChecker implements SingleFileChecker and nothing more, which is the

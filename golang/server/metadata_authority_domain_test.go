@@ -94,6 +94,9 @@ var authorityCoveredFiles = map[string]string{
 	"impact.go":          "impact",
 	"metadata.go":        "metadata",
 	"graph_authority.go": "graphAuthorityFor",
+	// edit_check.go gained a projection when EditCheckResponse gained an authority: the
+	// diff-audit evaluator has to bind rule findings to the graph that produced them.
+	"edit_check.go": "editCheck",
 	// preflight.go projects authority from PublicationDomain, a DIFFERENT
 	// question with its own contract ("when empty NO publication is resolved"),
 	// so it is deliberately not one of the domain-scoped surfaces. Named here
