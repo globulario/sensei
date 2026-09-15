@@ -231,30 +231,45 @@ func TestAnExplicitRootIsUsedVerbatimAndNeverWalkedAwayFrom(t *testing.T) {
 }
 
 // The trap preserved as its own assertion: endpoint equality alone would have certified the broken
-// state. If this ever stops holding, the fixture has lost the property that made it dangerous.
+// state, because the registry and the project config name the SAME address. If that ever stops
+// holding, the fixture has lost the property that made the defect dangerous, and the five-dimension
+// witness above degrades into an ordinary endpoint comparison without anyone noticing.
+//
+// This test previously loaded the configuration from the wrong directory and discarded both the
+// config and its error, then logged that the property held. It asserted nothing and would have
+// passed with the fixture's config missing or naming a different address. Blind review P2 on
+// 40a5932b, and it held: evidence that cannot fail is not evidence.
 func TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect(t *testing.T) {
-	_, _, registryPath, sharedAddr := coherenceWorld(t)
+	root, _, registryPath, sharedAddr := coherenceWorld(t)
+
 	reg, err := LoadDomainRegistry(registryPath)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("the fixture's registry did not load: %v", err)
 	}
-	if got := strings.TrimSpace(reg.Domains[coherenceDomain].ServiceAddr); got != sharedAddr {
-		t.Fatalf("registry service_addr = %q, want %q", got, sharedAddr)
+	fromRegistry := strings.TrimSpace(reg.Domains[coherenceDomain].ServiceAddr)
+	if fromRegistry != sharedAddr {
+		t.Fatalf("registry service_addr = %q, want %q", fromRegistry, sharedAddr)
 	}
-	// The project config names the SAME address, which is what made the authority loss invisible.
-	cfg, err := loadEndpointConfig(filepath.Dir(filepath.Dir(registryPath)))
-	_ = cfg
-	_ = err
-	t.Logf("PRESERVED: registry and project config both name %s, so a check comparing only the "+
-		"resolved endpoint passes in both the broken and the repaired state. Authority provenance is "+
-		"what discriminates.", sharedAddr)
-}
 
-func q(s string) string {
-	if s == "" {
-		return `""`
+	// The project config, read from the REPOSITORY ROOT, and asserted rather than discarded.
+	cfg, err := loadEndpointConfig(root)
+	if err != nil {
+		t.Fatalf("the fixture's project configuration did not load from %s: %v", root, err)
 	}
-	return s
+	fromConfig := cfg.configuredServerAddr()
+	if fromConfig == "" {
+		t.Fatalf("the fixture's project configuration at %s names no server.addr, so the two "+
+			"authorities no longer name the same endpoint and the trap is gone", root)
+	}
+	if fromConfig != sharedAddr {
+		t.Fatalf("project config server.addr = %q, registry service_addr = %q: the fixture must make "+
+			"them EQUAL, or an endpoint-only check would have caught the defect and this witness is "+
+			"measuring something else", fromConfig, sharedAddr)
+	}
+
+	t.Logf("PRESERVED: registry service_addr and project config server.addr both name %s (verified "+
+		"from %s), so a check comparing only the resolved endpoint passes in both the broken and the "+
+		"repaired state. Authority provenance is what discriminates.", sharedAddr, root)
 }
 
 // THE MECHANISM, isolated from any subject. resolveProjectRoot walks up only for an empty argument,
@@ -508,8 +523,13 @@ func TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory(t *testing.T) 
 			return runPreflight([]string{"--task", "nested coherence"})
 		}},
 		{"verify-obligations", func(string) int {
+			// Checked, not discarded: a failed write makes runVerifyObligations exit early on a
+			// missing --results file, and this subtest would then blame domain resolution for a
+			// fixture problem. A witness that fails for the wrong reason is its own defect.
 			results := filepath.Join(t.TempDir(), "results.json")
-			_ = os.WriteFile(results, []byte(`{"tests":[]}`), 0o644)
+			if err := os.WriteFile(results, []byte(`{"tests":[]}`), 0o644); err != nil {
+				t.Fatalf("fixture: could not write the results file: %v", err)
+			}
 			return runVerifyObligations([]string{"--task", "nested coherence", "--results", results})
 		}},
 		{"briefing", func(string) int {
@@ -597,4 +617,13 @@ func TestAfterNormalisationBothRootFunctionsAgree(t *testing.T) {
 	}
 	t.Logf("EQUIVALENCE EXPLAINED: from %s, the normalised hint is %s, and graphConfigRoot and "+
 		"resolveProjectRoot both return it. The shared-root divergence no longer exists to observe.", sub, walked)
+}
+
+// q renders an empty value visibly, so a diff between "" and a real value reads as a difference
+// rather than as trailing whitespace.
+func q(s string) string {
+	if s == "" {
+		return `""`
+	}
+	return s
 }

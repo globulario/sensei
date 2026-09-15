@@ -7097,7 +7097,7 @@ test_symbols:
     symbol: TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect
     package: main
     language: go
-    doc: "The trap preserved as its own assertion: endpoint equality alone would have certified the broken\nstate. If this ever stops holding, the fixture has lost the property that made it dangerous."
+    doc: "The trap preserved as its own assertion: endpoint equality alone would have certified the broken\nstate, because the registry and the project config name the SAME address. If that ever stops\nholding, the fixture has lost the property that made the defect dangerous, and the five-dimension\nwitness above degrades into an ordinary endpoint comparison without anyone noticing.\n\nThis test previously loaded the configuration from the wrong directory and discarded both the\nconfig and its error, then logged that the property held. It asserted nothing and would have\npassed with the fixture's config missing or naming a different address. Blind review P2 on\n40a5932b, and it held: evidence that cannot fail is not evidence."
   - id: cmd/awg/root_domain_coherence_test.go:TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory
     file: cmd/awg/root_domain_coherence_test.go
     symbol: TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory
