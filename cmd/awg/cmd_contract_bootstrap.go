@@ -128,7 +128,7 @@ var contractBootstrapConnectAWG = connectAWG
 func runContractBootstrap(args []string) int {
 	fs := flag.NewFlagSet("sensei contract-bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
+	repoRoot := fs.String("repo-root", "", "repository root to analyze")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/domain/f2p_tests")
 	issue := fs.String("issue", "", "issue text when not using --task-file")
 	domain := fs.String("domain", "", "optional repo/domain scope for AWG cross-reference")
@@ -153,6 +153,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repoRoot = governedRepoRoot(*repoRoot)
 	if *asJSON {
 		*format = "json"
 	}

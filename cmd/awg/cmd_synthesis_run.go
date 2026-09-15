@@ -42,7 +42,7 @@ func runSynthesisRun(args []string) int {
 	fs := flag.NewFlagSet("sensei synthesis-run", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 
-	repoFlag := fs.String("repo", ".", "repository checkout")
+	repoFlag := fs.String("repo", "", "repository checkout")
 	addr := fs.String("addr", "", "Sensei gRPC server address")
 	taskFlag := fs.String("task", "", "task directory (default: the active task from .sensei/tasks/active.yaml)")
 	interpretationPath := fs.String("interpretation", "", "path to an authored synthesis.Interpretation JSON file (required unless --resume carries an accepted one)")
@@ -111,6 +111,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return exitInvalidInvocation
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repoFlag = governedRepoRoot(*repoFlag)
 	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
 	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
 	// a non-empty value as an operator naming the endpoint at the point of use, so a command that

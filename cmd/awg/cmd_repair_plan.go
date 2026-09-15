@@ -38,7 +38,7 @@ func runRepairPlan(args []string) int {
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
 	addr := fs.String("addr", "", "Sensei gRPC server address")
-	repoRoot := fs.String("repo-root", ".", "repository root")
+	repoRoot := fs.String("repo-root", "", "repository root")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
 	authorityPath := fs.String("authority", "", "authority surfaces YAML (default: <repo>/docs/awareness/candidates/authority_surface_candidates.yaml)")
@@ -67,6 +67,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repoRoot = governedRepoRoot(*repoRoot)
 	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
 	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
 	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
