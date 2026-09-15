@@ -18,7 +18,7 @@ func runPreflight(args []string) int {
 	fs := flag.NewFlagSet("sensei preflight", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to per-file impact queries")
@@ -61,6 +61,12 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", resolvedDomain.Err)
 		return 1
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, resolvedDomain.Domain, *addr)
+	*addr = reader.Addr
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

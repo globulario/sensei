@@ -37,7 +37,7 @@ import (
 func runEditBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	depth := fs.String("depth", envOr("AWG_EDIT_BRIEF_DEPTH", "agent_compact"),
@@ -96,6 +96,12 @@ Flags:
 	if resolvedDomain == "" {
 		resolvedDomain = strings.TrimSpace(resolveRepositoryDomain(projectRoot, "").Domain)
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, resolvedDomain, *addr)
+	*addr = reader.Addr
 
 	rel, ok := relWithinRoot(projectRoot, file)
 	if !ok {

@@ -34,7 +34,7 @@ func runVerifyObligations(args []string) int {
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description, passed through to preflight")
 	results := fs.String("results", "", "file containing `go test -json` output (- for stdin)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "emit the obligation report as JSON")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
 	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
@@ -91,6 +91,12 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", resolvedDomain.Err)
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, resolvedDomain.Domain, *addr)
+	*addr = reader.Addr
 
 	modulePath := strings.TrimSpace(*module)
 	if modulePath == "" {

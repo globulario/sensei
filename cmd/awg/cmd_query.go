@@ -25,7 +25,7 @@ var queryRPC = func(ctx context.Context, addr string, req *awarenesspb.QueryRequ
 func runQuery(args []string) int {
 	fs := flag.NewFlagSet("sensei query", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	mode := fs.String("mode", "", "by_file | by_id | by_class | related (required)")
 	file := fs.String("file", "", "repo-relative path (for mode=by_file)")
 	id := fs.String("id", "", "class-qualified id (for mode=by_id/related)")
@@ -58,6 +58,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
+	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
+	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
+	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
+	// bypassed canonical resolution entirely.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *mode == "" {
 		fmt.Fprintln(os.Stderr, "sensei query: --mode is required")
 		return 2

@@ -96,7 +96,7 @@ func runBenchmarkBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei benchmark-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address for authoritative repair-plan resolution")
+	addr := fs.String("addr", "", "Sensei gRPC server address for authoritative repair-plan resolution")
 	svcRepoFlag := fs.String("services-repo", "", "path to services repo for cross-repo atomicity (auto-detect)")
 	agRepoFlag := fs.String("ag-repo", "", "path to awareness-graph repo for cross-repo atomicity (auto-detect)")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/f2p_tests/files")
@@ -123,6 +123,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
+	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
+	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
+	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
+	// bypassed canonical resolution entirely.
+	reader := productionReaderFor(fs, "", *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}

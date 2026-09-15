@@ -110,7 +110,7 @@ func runRepairReport(args []string) int {
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task or issue summary")
 	issue := fs.String("issue", "", "issue summary override (defaults to --task)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	diff := fs.String("diff", "", "git diff range used to discover touched files")
 	outPath := fs.String("out", "", "write the machine-readable JSON report artifact to this path")
@@ -144,6 +144,11 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved PER COMMAND. This file defines two subjects, and a
+	// census that counted files once let a migrated command certify a sibling that still chose its
+	// own port. Each function resolves its own reader.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}
@@ -190,7 +195,7 @@ func runRepairGate(args []string) int {
 	reportPath := fs.String("report", "", "path to a JSON repair report artifact")
 	task := fs.String("task", "", "task or issue summary")
 	issue := fs.String("issue", "", "issue summary override (defaults to --task)")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	repoRoot := fs.String("repo-root", ".", "repository root")
 	diff := fs.String("diff", "", "git diff range used to discover touched files")
 	format := fs.String("format", "text", "output format: text | json")
@@ -223,6 +228,11 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved PER COMMAND. This file defines two subjects, and a
+	// census that counted files once let a migrated command certify a sibling that still chose its
+	// own port. Each function resolves its own reader.
+	reader := productionReaderFor(fs, *domain, *addr)
+	*addr = reader.Addr
 	if *asJSON {
 		*format = "json"
 	}

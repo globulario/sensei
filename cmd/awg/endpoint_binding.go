@@ -348,6 +348,44 @@ func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, regist
 	return r
 }
 
+// productionReaderFor is the ONE line a production graph-reading command writes to obtain its
+// reader, and the reason there is a helper rather than seventeen copies.
+//
+// It is not new design. cmd_briefing.go on this tree already says "Every other reader resolves the
+// root by walking up, via productionReaderFor" -- a reference to a helper that did not exist yet,
+// left by the change that introduced the owner and migrated only two commands. This completes that
+// intent.
+//
+// THE PROJECT ROOT IS RESOLVED BY WALKING UP, never taken from a command's target-repo flag. That
+// distinction is load-bearing and briefing paid for it: passing --repo as resolveGraphReader's
+// projectRoot made the SAME command resolve a different endpoint from a subdirectory than from the
+// root, because ./.sensei/config.yaml was simply not found and resolution fell through. Two
+// different questions wear one flag -- which checkout the command operates on, and which project's
+// configuration names the graph endpoint -- and only the second one belongs here.
+//
+// resolveProjectRoot fails open to the working directory. That is acceptable for this tier
+// specifically: it reads a configuration file that may not exist, and the fallback is the same
+// built-in default the owner would have chosen anyway. Where a root must be PROVEN, callers ask
+// looksLikeProjectRoot instead.
+//
+// Callers assign the result over their own flag variable:
+//
+//	reader := productionReaderFor(fs, *domain, *addr)
+//	*addr = reader.Addr
+//
+// which leaves every later use of *addr untouched and makes the canonically resolved endpoint the
+// only value any of them can dial. The alternative -- rewriting each command's plumbing to carry a
+// graphReader -- would be a far larger diff for the same guarantee, and this family is scoped to
+// endpoint ownership.
+func productionReaderFor(fs *flag.FlagSet, domain, addrFlag string) graphReader {
+	root, _ := resolveProjectRoot("")
+	r := resolveGraphReader(fs, root, domain, addrFlag, DefaultDomainRegistryPath())
+	if notice := nonCanonicalReaderNotice(r); notice != "" {
+		fmt.Fprintln(os.Stderr, notice)
+	}
+	return r
+}
+
 // verifyServed refuses a response answered by a generation other than the one declared
 // ACTIVE for this reader's domain.
 //

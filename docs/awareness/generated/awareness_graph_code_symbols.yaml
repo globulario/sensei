@@ -6129,6 +6129,42 @@ test_symbols:
     symbol: TestRequireStoreURLAgreementYieldsToAnExplicitFlag
     package: main
     language: go
+  - id: cmd/awg/endpoint_ownership_test.go:TestEndpointResolutionIsUnaffectedByTheWorkingSubdirectory
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestEndpointResolutionIsUnaffectedByTheWorkingSubdirectory
+    package: main
+    language: go
+    doc: "W4. THE PROJECT ROOT IS RESOLVED BY WALKING UP, never taken from a target-repo flag. briefing\npaid for this: passing --repo as the projectRoot made the same command resolve a different\nendpoint from a subdirectory, because ./.sensei/config.yaml was not found there."
+  - id: cmd/awg/endpoint_ownership_test.go:TestEveryDiscoveredSubjectResolvesThroughTheOwner
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestEveryDiscoveredSubjectResolvesThroughTheOwner
+    package: main
+    language: go
+    doc: "W5. THE FAMILY'S COMPLETION ORACLE, and it ASSERTS.\n\nFound by mutation: bypassing the owner in one subject survived every witness above, because the\ncensus REPORT is deliberately non-failing on counts. A measurement that never fails cannot also\nbe a completion condition, so this is the assertion — and it is scoped to endpoint ownership\nonly. Generation verification is a separate family and its gaps must not fail here."
+  - id: cmd/awg/endpoint_ownership_test.go:TestEveryMigratedSubjectAdoptsTheOwnersAddress
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestEveryMigratedSubjectAdoptsTheOwnersAddress
+    package: main
+    language: go
+    doc: "W2. THE RESOLVED ADDRESS IS NOT DISCARDED. Routing through the owner and then dialling the raw\nflag would satisfy the census while changing nothing, so every subject must assign the owner's\nanswer back over the value its later lines use."
+  - id: cmd/awg/endpoint_ownership_test.go:TestNoProductionGraphCommandDeclaresADefaultEndpoint
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestNoProductionGraphCommandDeclaresADefaultEndpoint
+    package: main
+    language: go
+    doc: "W1. NO PRODUCTION GRAPH-READING COMMAND DECLARES ITS OWN GRAPH ENDPOINT.\n\nDerived from the source, not listed: every `run*` function's own `addr` flag must default to the\nempty string, because that is the single input the owner uses to tell \"the operator named it\"\nfrom \"resolve canonically\". A non-empty default silently converts every run into an override."
+  - id: cmd/awg/endpoint_ownership_test.go:TestReaderResolutionFollowsTheContextItDependsOn
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestReaderResolutionFollowsTheContextItDependsOn
+    package: main
+    language: go
+    doc: "W6. ORDERING: reader resolution must follow the context it depends on.\n\nFour subjects settle their governed domain AFTER flag parsing — contract-bootstrap from its task\nfile, edit-brief from the repository configuration, preflight and verify-obligations through\nresolveRepositoryDomain. A reader resolved before that carries the endpoint and declared\ngeneration of a different domain (usually none) and looks resolved while answering for the wrong\none.\n\nFound by mutation: removing contract-bootstrap's task-file domain fallback survived every other\nwitness. Asserted POSITIONALLY on the source, because the property is an ordering and the\ndefect is textual placement."
+  - id: cmd/awg/endpoint_ownership_test.go:TestTheOwnerCanonicalOverrideAndNoFallbackStillHold
+    file: cmd/awg/endpoint_ownership_test.go
+    symbol: TestTheOwnerCanonicalOverrideAndNoFallbackStillHold
+    package: main
+    language: go
+    doc: "W3. CANONICAL SELECTION, EXPLICIT OVERRIDE, AND NO FALLBACK — the owner's three contracted\nbehaviours, driven rather than read. These are the semantics the migration must not change."
   - id: cmd/awg/gate_policy_test.go:TestApplyGatePolicy_OffDropsFinding
     file: cmd/awg/gate_policy_test.go
     symbol: TestApplyGatePolicy_OffDropsFinding
@@ -6217,6 +6253,65 @@ test_symbols:
     symbol: TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     package: main
     language: go
+  - id: cmd/awg/graph_reader_census_report_test.go:TestReportTheAdmittedMainCensus
+    file: cmd/awg/graph_reader_census_report_test.go
+    symbol: TestReportTheAdmittedMainCensus
+    package: main
+    language: go
+  - id: cmd/awg/graph_reader_census_test.go:TestACommandWithNoEndpointFlagIsNotACensusSubject
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestACommandWithNoEndpointFlagIsNotACensusSubject
+    package: main
+    language: go
+    doc: "A command with no addr flag is not a graph reader and must not be demanded to resolve one."
+  - id: cmd/awg/graph_reader_census_test.go:TestANewProductionGraphCommandIsDiscoveredAsUnverified
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestANewProductionGraphCommandIsDiscoveredAsUnverified
+    package: main
+    language: go
+    doc: "A NEWLY INTRODUCED production graph-reading command must be DISCOVERED and must appear as\nunverified until it verifies. This is the census's standing promise about the future, and it is\nthe one the family's completion condition rests on: the set of covered commands is whatever the\ncensus derives, not a number anyone maintains."
+  - id: cmd/awg/graph_reader_census_test.go:TestANewlyAddedGraphReachingCommandWithoutTheOwnerFails
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestANewlyAddedGraphReachingCommandWithoutTheOwnerFails
+    package: main
+    language: go
+    doc: "4. A newly added graph-reaching command with no owner wiring fails, which is the census's\nstanding promise about the future."
+  - id: cmd/awg/graph_reader_census_test.go:TestAVerifyingCommandLeavesTheGapSet
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestAVerifyingCommandLeavesTheGapSet
+    package: main
+    language: go
+    doc: "And once it DOES verify, the census moves it -- so the gap count tracks the code rather than a\nmaintained list. Without this the previous assertion could be satisfied by a census that calls\neverything unverified."
+  - id: cmd/awg/graph_reader_census_test.go:TestOneMigratedCommandCannotCertifyABypassingOne
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestOneMigratedCommandCannotCertifyABypassingOne
+    package: main
+    language: go
+    doc: "2 and 3. THE DEFECT THIS CENSUS EXISTS FOR. One migrated command must not certify a\nbypassing one -- neither in another file nor, the case that actually happened, in the SAME\nfile."
+  - id: cmd/awg/graph_reader_census_test.go:TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    package: main
+    language: go
+    doc: "ANTI-VACUITY, driven rather than asserted about the real tree: the enumerator must discover\nnothing in a directory with no commands, and the census's floor is what turns that into a\nfailure. Without this, removing the floor changes no test."
+  - id: cmd/awg/graph_reader_census_test.go:TestTheCensusGroupsPartitionItsSubjects
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestTheCensusGroupsPartitionItsSubjects
+    package: main
+    language: go
+    doc: "The groups must PARTITION the subjects. Driven against an input where a broken classification\nwould double-count or drop, which the real tree cannot exhibit."
+  - id: cmd/awg/graph_reader_census_test.go:TestTheCensusPassesWhenEveryCommandIsMigrated
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestTheCensusPassesWhenEveryCommandIsMigrated
+    package: main
+    language: go
+    doc: "1. Both commands migrated: the census passes."
+  - id: cmd/awg/graph_reader_census_test.go:TestVerificationIsDetectedPerCommandNotPerFile
+    file: cmd/awg/graph_reader_census_test.go
+    symbol: TestVerificationIsDetectedPerCommandNotPerFile
+    package: main
+    language: go
+    doc: "PER-FUNCTION VERIFICATION. A verifying command must not certify a non-verifying sibling, and\nthe case that matters is both in ONE file -- which is how cmd_edit_check and cmd_edit_guard\nwere excused and how runDomains stayed invisible."
   - id: cmd/awg/graph_reader_test.go:TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
     file: cmd/awg/graph_reader_test.go
     symbol: TestAProductionReaderUsesTheDomainsEndpointNotTheDefaultPort
