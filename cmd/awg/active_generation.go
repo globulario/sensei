@@ -25,6 +25,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -320,4 +321,202 @@ func registryPathOrNone(path string) string {
 		return "(no registry path)"
 	}
 	return path
+}
+
+// generationAuthority is the verdict renderEndpointBlock has always stated in prose, as a value a
+// consumer can act on.
+//
+// The three states are not two. "No ACTIVE generation is declared" is NOT agreement: it is the
+// absence of anything to agree with, and verifyServed returns nil for it because its callers REPORT
+// the verdict rather than consume on it. A command that consumes an authoritative payload cannot use
+// that reading -- accepting an unverifiable graph is exactly the fail-open this distinction exists to
+// prevent -- so the states are kept apart and named.
+type generationAuthority int
+
+const (
+	generationAuthorityUnset generationAuthority = iota
+	// generationNotEstablished: the registry declares no ACTIVE generation for this domain, so
+	// nothing proves the served graph is the intended one. Never report this as verified.
+	generationNotEstablished
+	// generationMismatch: both sides are present and they disagree. Two claimants for one domain
+	// is an error, not a choice for the caller (law 12).
+	generationMismatch
+	// generationVerified: the served graph IS the declared ACTIVE generation.
+	generationVerified
+	// generationDomainUnresolved: NO governed domain was resolved, so "the ACTIVE generation for
+	// this domain" is not a question that can be asked.
+	//
+	// This is the ONE state that does not refuse, and it is typed rather than implicit so that it
+	// can be counted and audited instead of reading as a silent bypass.
+	//
+	// The precedent is the server's own, in graphAuthorityFor: with no publication_domain requested
+	// it returns PUBLICATION_RESOLUTION_UNSPECIFIED and explicitly declines a home-domain fallback,
+	// because "answering an unasked question with the server's favourite domain produces a
+	// well-formed receipt for something the caller did not ask about". An ungoverned project has no
+	// ACTIVE pointer to disagree with; refusing there would make the cold-start stranger path
+	// unusable, and it would be refusing over the absence of a question rather than the absence of
+	// an answer.
+	//
+	// What it must NEVER do is report verification. VERIFIED is a claim about a governed domain, and
+	// this state has no domain to make it about.
+	generationDomainUnresolved
+)
+
+func (g generationAuthority) String() string {
+	switch g {
+	case generationNotEstablished:
+		return "NOT_ESTABLISHED"
+	case generationMismatch:
+		return "MISMATCH"
+	case generationVerified:
+		return "VERIFIED"
+	case generationDomainUnresolved:
+		return "DOMAIN_UNRESOLVED"
+	}
+	return "UNSET"
+}
+
+// undeclaredActiveGenerationError names the NOT_ESTABLISHED refusal, kept distinct from
+// activeGenerationMismatchError so an operator can tell "nobody said which generation is right" from
+// "two sources disagree about it". They have different remedies and must not share a message.
+type undeclaredActiveGenerationError struct {
+	Domain string
+	Served string
+}
+
+func (e *undeclaredActiveGenerationError) Error() string {
+	domain := strings.TrimSpace(e.Domain)
+	if domain == "" {
+		domain = "(no governed domain resolved)"
+	}
+	return fmt.Sprintf("graph identity is not established for domain %s: no ACTIVE generation is declared, "+
+		"so nothing proves the served graph is the intended one.\n"+
+		"  served graph says: %s\n"+
+		"  this is not agreement, it is the absence of anything to agree with, and this command consumes\n"+
+		"  the graph's answer as authoritative rather than merely reporting it\n"+
+		"  declare the ACTIVE generation for this domain by publishing through the transactional path",
+		domain, orNone(strings.TrimSpace(e.Served)))
+}
+
+// classifyServedGeneration decides which of the three states holds, and returns the refusal that
+// states it. The error is non-nil for every state except VERIFIED, so a caller cannot reach a
+// consuming path by ignoring the state and testing only err == nil, or vice versa.
+func (r graphReader) classifyServedGeneration(served string) (generationAuthority, error) {
+	// No governed domain: the question is unasked, not unanswered. See generationDomainUnresolved.
+	if strings.TrimSpace(r.Domain) == "" {
+		return generationDomainUnresolved, nil
+	}
+	if strings.TrimSpace(r.DeclaredGeneration) == "" {
+		return generationNotEstablished, &undeclaredActiveGenerationError{Domain: r.Domain, Served: served}
+	}
+	if err := verifyActiveGeneration(r.Domain, r.DeclaredGeneration, served); err != nil {
+		return generationMismatch, err
+	}
+	return generationVerified, nil
+}
+
+// requireVerifiedServedGeneration is the guard for a command that CONSUMES an authoritative graph.
+//
+// It refuses unless the served generation IS the declared ACTIVE one, and it must be called BEFORE
+// the payload is used -- a check after consumption reports on a decision already taken.
+//
+// Distinct from verifyServed, which returns nil when nothing is declared. That reading is right for
+// runMetadata and runBriefing, which report the verdict to an operator; it is wrong for a command
+// whose output is acted on as governed truth.
+// It returns the STATE as well as the refusal, because a caller that must render the refusal in a
+// machine-readable channel needs to name which state it was -- and because a second entry point for
+// "classify, then decide" would be a second way to consume authority that the census could not see.
+// One guard, one name.
+func (r graphReader) requireVerifiedServedGeneration(served string) (generationAuthority, error) {
+	return r.classifyServedGeneration(served)
+}
+
+// claimsVerifiedGeneration reports whether this reader may state that the served graph was PROVEN to
+// be the domain's ACTIVE generation. Only VERIFIED may.
+//
+// Separate from requireVerifiedServedGeneration because "may proceed" and "may claim verification"
+// are different questions, and DOMAIN_UNRESOLVED answers them differently: it proceeds and it does
+// not claim. Collapsing the two is how a bypass becomes indistinguishable from a proof.
+func (r graphReader) claimsVerifiedGeneration(served string) bool {
+	state, _ := r.classifyServedGeneration(served)
+	return state == generationVerified
+}
+
+// generationRefusal is the MACHINE-READABLE form of a served-generation refusal.
+//
+// A refusal that only reaches stderr is invisible to a --json consumer, which reads stdout and gets
+// an empty buffer: scripts/lib/preflight-verdict.sh then classifies it "malformed:parse_error", and a
+// real authority refusal is reported as a broken response. That is the same dropped-representation
+// shape as a helper returning a payload without its authority stamp -- the refusal exists, and not in
+// the channel its consumer reads.
+//
+// Deliberately NOT shaped like a PreflightResponse. It carries no status, risk_class or coverage, so
+// no consumer can mistake it for an actionable answer; preflight_verdict's existing "missing_status"
+// branch would reject it even without the explicit refusal branch. The envelope reuses that script's
+// established verdict vocabulary rather than adding a parallel protocol.
+type generationRefusal struct {
+	Refusal generationRefusalBody `json:"refusal"`
+}
+
+type generationRefusalBody struct {
+	// Kind distinguishes the two refusing states. An operator's remedy differs: declare a
+	// generation, versus reconcile two that disagree.
+	Kind string `json:"kind"`
+	// Surface names the command, so a refusal found in a file says what produced it.
+	Surface            string `json:"surface"`
+	Domain             string `json:"domain"`
+	DeclaredGeneration string `json:"declared_generation,omitempty"`
+	ServedGeneration   string `json:"served_generation,omitempty"`
+	Detail             string `json:"detail"`
+}
+
+// generationRefusalKinds is the closed set, read by membership by the shell classifier.
+const (
+	generationRefusalNotEstablished = "served_generation_not_established"
+	generationRefusalMismatch       = "served_generation_mismatch"
+)
+
+// refusalKind maps a state to its wire kind. Only the two refusing states have one: VERIFIED and
+// DOMAIN_UNRESOLVED do not refuse, so asking for their kind is a caller error and returns "".
+func (g generationAuthority) refusalKind() string {
+	switch g {
+	case generationNotEstablished:
+		return generationRefusalNotEstablished
+	case generationMismatch:
+		return generationRefusalMismatch
+	}
+	return ""
+}
+
+// emitGenerationRefusalJSON writes the typed refusal to STDOUT and returns a nonzero exit code.
+//
+// stdout, because that is where a --json consumer looks. Nonzero, because the command did not answer
+// the question it was asked. Both, because either alone is a half-signal: an exit code with no
+// payload is unparseable, and a payload with exit 0 reads as success.
+func emitGenerationRefusalJSON(surface string, state generationAuthority, r graphReader, served string, cause error) int {
+	kind := state.refusalKind()
+	if kind == "" {
+		// A non-refusing state must never reach here; say so rather than emit a refusal nobody can
+		// act on.
+		fmt.Fprintf(os.Stderr, "%s: internal: asked to emit a refusal for state %v\n", surface, state)
+		return 1
+	}
+	detail := ""
+	if cause != nil {
+		detail = cause.Error()
+	}
+	b, err := json.MarshalIndent(generationRefusal{Refusal: generationRefusalBody{
+		Kind:               kind,
+		Surface:            surface,
+		Domain:             r.Domain,
+		DeclaredGeneration: strings.TrimSpace(r.DeclaredGeneration),
+		ServedGeneration:   strings.TrimSpace(served),
+		Detail:             detail,
+	}}, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: encode refusal json: %v\n", surface, err)
+		return 1
+	}
+	fmt.Println(string(b))
+	return 1
 }

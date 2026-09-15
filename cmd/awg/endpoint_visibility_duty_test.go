@@ -181,7 +181,7 @@ func TestRegistryOutranksProjectConfigAndTheOperationSaysSo(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"), []byte("domains:\n    "+
 		orderingDomain+":\n        repository_identity: acme/ordering\n        service_addr: "+
-		registryAddr+"\n"), 0o644); err != nil {
+		registryAddr+"\n        active_generation: "+governedGeneration+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	root := projectRoot(t, t.TempDir())
@@ -257,7 +257,7 @@ func TestTheDisagreementIsStillReportedFromASubdirectory(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"), []byte("domains:\n    "+
 		orderingDomain+":\n        repository_identity: acme/ordering\n        service_addr: "+
-		registryAddr+"\n"), 0o644); err != nil {
+		registryAddr+"\n        active_generation: "+governedGeneration+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	root := projectRoot(t, t.TempDir())

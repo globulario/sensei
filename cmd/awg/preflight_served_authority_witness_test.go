@@ -153,21 +153,20 @@ func witnessWorld(t *testing.T, declaredGeneration string) (svc *servedAuthority
 	return svc, root
 }
 
-// THE WITNESS. Expected authority exists, served authority exists, they differ, and runPreflight
-// consumes the response as an authoritative verdict.
+// THE INVERTED WITNESS. Formerly TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne,
+// which recorded that the mismatch was consumed. It now requires the refusal, and requires it BEFORE
+// any part of the authoritative payload is consumed.
 //
-// This test asserts the DEFECT. It is the mechanical record that the invariant does not hold on
-// 8e3366f6. Repairing category C must INVERT it: the mismatch must then produce a refusal, and the
-// assertions below marked DEFECT must become assertions of that refusal.
-func TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne(t *testing.T) {
+// The fixture is unchanged. Only the required outcome moved.
+func TestPreflightRefusesAServedGenerationThatContradictsTheDeclaredOne(t *testing.T) {
 	svc, _ := witnessWorld(t, witnessDeclared)
 
-	var code int
-	out := captureStdout(t, func() {
-		code = runPreflight([]string{"--task", "raise the risk class of a protected file"})
+	stdout, stderr, code := captureBoth(t, func() int {
+		return runPreflight([]string{"--task", "raise the risk class of a protected file"})
 	})
+	out := stdout + stderr
 
-	// The command really did reach the real service, and really did ask about the governed domain.
+	// CLAIM: the real path was reached and the real domain was asked about.
 	if svc.calls != 1 {
 		t.Fatalf("the service was called %d times; the witness never reached the real path", svc.calls)
 	}
@@ -175,39 +174,36 @@ func TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne(t *test
 		t.Fatalf("the service was asked about %q, want %q", svc.sawDomain, witnessDomain)
 	}
 
-	// DEFECT 1 — the command succeeds.
-	if code != 0 {
-		t.Fatalf("runPreflight returned %d; the defect this witness records is that it returns 0.\n"+
-			"If category C has been repaired, invert this witness: require the refusal here.\nout:\n%s",
-			code, out)
+	// CLAIM: the command refused.
+	if code == 0 {
+		t.Fatalf("runPreflight returned 0 on a served generation the registry does not declare "+
+			"ACTIVE.\nout:\n%s", out)
 	}
 
-	// DEFECT 2 — it reports the graph as fully authoritative.
-	if !strings.Contains(out, "Authority: authoritative (current") {
-		t.Fatalf("expected the served graph to be reported authoritative and current; got:\n%s", out)
+	// CLAIM: it refused for the MISMATCH reason, distinctly from an absent declaration.
+	if !strings.Contains(out, "ambiguous graph identity") {
+		t.Fatalf("expected the mismatch refusal; got:\n%s", out)
+	}
+	if strings.Contains(out, "not established") {
+		t.Fatalf("the refusal used the NOT_ESTABLISHED wording for a MISMATCH; the two states must "+
+			"not share a message.\nout:\n%s", out)
+	}
+	// CLAIM: both generations are named, so an operator can act.
+	if !strings.Contains(out, witnessDeclared) || !strings.Contains(out, witnessServed) {
+		t.Fatalf("the refusal does not name both generations.\nout:\n%s", out)
 	}
 
-	// DEFECT 3 — it prints the served generation, so the contradiction was in hand and unexamined.
-	if !strings.Contains(out, witnessServed) {
-		t.Fatalf("expected the served generation %s in the output; got:\n%s", witnessServed, out)
-	}
-	if strings.Contains(out, witnessDeclared) {
-		t.Fatalf("the declared generation appeared in the output, so preflight does surface the "+
-			"expectation after all; re-measure before repairing.\nout:\n%s", out)
-	}
-
-	// DEFECT 4 — the authoritative payload was consumed and reported.
-	if !strings.Contains(out, "Risk: ARCHITECTURE_SENSITIVE") || !strings.Contains(out, "path_test.go:TestReloadFresh") {
-		t.Fatalf("expected the authoritative verdict and required tests to be consumed; got:\n%s", out)
+	// CLAIM: the refusal came BEFORE consumption. None of the authoritative payload was reported.
+	for _, leaked := range []string{"ARCHITECTURE_SENSITIVE", "path_test.go:TestReloadFresh",
+		"do not cache the reload path", "Authority: authoritative"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("the authoritative payload was consumed despite the refusal (%q appeared), so "+
+				"the comparison ran after consumption.\nout:\n%s", leaked, out)
+		}
 	}
 
-	t.Logf("DEFECT REPRODUCED AS STATED.\n"+
-		"  governed domain      %s (resolved from the repository)\n"+
-		"  declared generation  %s (registry, non-empty)\n"+
-		"  served generation    %s (healthy, self-consistent, CURRENT, self-certified authoritative)\n"+
-		"  result               exit 0, reported authoritative, verdict and required tests consumed\n"+
-		"  comparison           none — the served generation was printed and never checked",
-		witnessDomain, witnessDeclared, witnessServed)
+	t.Logf("INVARIANT ESTABLISHED (preflight/MISMATCH): declared %s, served %s, exit %d, refused "+
+		"with the mismatch wording, no payload consumed.", witnessDeclared, witnessServed, code)
 }
 
 // OPPOSITE WITNESS (positive control). Same domain, same reader, same response shape, same service.
@@ -239,17 +235,12 @@ func TestPreflightAcceptsAServedGenerationThatMatchesTheDeclaredOne(t *testing.T
 		"from the failing witness is the generation identity.", witnessServed)
 }
 
-// EMPTY-EXPECTATION CONTROL. The governed domain resolves perfectly, the owner carries it, and the
-// registry declares no active_generation for it — the shape github.com/globulario/services has in
-// the real operator registry today.
+// MISSING-EXPECTATION CONTROL, inverted. Formerly recorded that an absent declaration silently
+// passed; it now requires a refusal that is distinguishable from a mismatch.
 //
-// The state this records is `expectation absent / comparison not established`. It is NOT
-// verification: verifyServed returns nil against an empty expectation, so a check added here would
-// accept the same wrong generation the witness above proves is accepted now.
-//
-// This control fixes no policy. It exists so that a later repair cannot become structurally inert
-// without a test noticing.
-func TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison(t *testing.T) {
+// This matters beyond the fixture: github.com/globulario/services declares no active_generation
+// today, so this is the live shape, not a hypothetical.
+func TestPreflightRefusesWhenNoActiveGenerationIsDeclared(t *testing.T) {
 	svc, _ := witnessWorld(t, "") // registry entry present and well formed, generation absent
 
 	reader := productionReaderFor(emptyFlags(), ".", witnessDomain, "")
@@ -259,28 +250,54 @@ func TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison(t *testing.
 	if reader.DeclaredGeneration != "" {
 		t.Fatalf("declared generation = %q, want empty", reader.DeclaredGeneration)
 	}
-	// The comparison a category-C repair would add, exercised directly against the wrong
-	// generation. It does not refuse, and it does not report that it could not decide.
-	if err := reader.verifyServed(witnessServed); err != nil {
-		t.Fatalf("verifyServed refused against an empty expectation: %v", err)
+
+	// CLAIM: the state is NOT_ESTABLISHED, and it is not VERIFIED.
+	state, err := reader.classifyServedGeneration(witnessServed)
+	if state != generationNotEstablished {
+		t.Fatalf("state = %v, want NOT_ESTABLISHED", state)
+	}
+	if state == generationVerified {
+		t.Fatal("an absent declaration was classified VERIFIED")
+	}
+	if err == nil {
+		t.Fatal("NOT_ESTABLISHED produced no refusal, so a consumer can reach the payload by testing " +
+			"err == nil")
+	}
+	// CLAIM: verifyServed still permits it, so the distinction lives in the new guard rather than in
+	// a changed meaning for the reporting commands.
+	if verr := reader.verifyServed(witnessServed); verr != nil {
+		t.Fatalf("verifyServed now refuses an absent declaration (%v); runMetadata and runBriefing "+
+			"depend on the reporting reading and this family did not authorize changing it", verr)
 	}
 
-	var code int
-	out := captureStdout(t, func() {
-		code = runPreflight([]string{"--task", "raise the risk class of a protected file"})
+	stdout, stderr, code := captureBoth(t, func() int {
+		return runPreflight([]string{"--task", "raise the risk class of a protected file"})
 	})
-	if svc.calls != 1 || code != 0 {
-		t.Fatalf("calls=%d code=%d; expected the command to run normally.\nout:\n%s", svc.calls, code, out)
-	}
+	out := stdout + stderr
 
-	t.Logf("EXPECTATION ABSENT / COMPARISON NOT ESTABLISHED.\n"+
-		"  governed domain      %s (resolved correctly, carried by the owner)\n"+
-		"  declared generation  <absent from the registry entry>\n"+
-		"  served generation    %s\n"+
-		"  verifyServed         returns nil — silently skips, and reports nothing to the caller\n"+
-		"  therefore            this state must NOT be recorded as `verified`; a comparison added\n"+
-		"                       here is structurally inert for every domain in this shape",
-		witnessDomain, witnessServed)
+	if svc.calls != 1 {
+		t.Fatalf("the service was called %d times.\nout:\n%s", svc.calls, out)
+	}
+	if code == 0 {
+		t.Fatalf("runPreflight returned 0 with no ACTIVE generation declared; NOT_ESTABLISHED is not "+
+			"verification.\nout:\n%s", out)
+	}
+	// CLAIM: the refusal names ABSENCE, distinctly from disagreement.
+	if !strings.Contains(out, "not established") || !strings.Contains(out, "no ACTIVE generation is declared") {
+		t.Fatalf("expected the NOT_ESTABLISHED refusal wording.\nout:\n%s", out)
+	}
+	if strings.Contains(out, "ambiguous graph identity") {
+		t.Fatalf("an absent declaration was reported as a mismatch.\nout:\n%s", out)
+	}
+	// CLAIM: nothing was consumed.
+	for _, leaked := range []string{"ARCHITECTURE_SENSITIVE", "path_test.go:TestReloadFresh", "Authority: authoritative"} {
+		if strings.Contains(out, leaked) {
+			t.Fatalf("the payload was consumed despite NOT_ESTABLISHED (%q).\nout:\n%s", leaked, out)
+		}
+	}
+	t.Logf("INVARIANT ESTABLISHED (preflight/NOT_ESTABLISHED): no declaration, exit %d, refused with "+
+		"absence wording distinct from mismatch, no payload consumed. verifyServed still permits it, "+
+		"so the reporting commands are unchanged.", code)
 }
 
 // OBSERVATION, not a subject of this step. requireServerAddrAgreement is called with the RAW --addr

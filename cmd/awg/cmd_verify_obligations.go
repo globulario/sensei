@@ -107,9 +107,22 @@ Flags:
 		modulePath = readModulePath(*repo)
 	}
 
-	anchors, rc := preflightRequiredTests(*addr, *task, files, resolvedDomain.Domain)
+	// SERVED-GENERATION AUTHORITY, BEFORE THE ANCHORS ARE CONSUMED.
+	//
+	// The anchors ARE the authoritative payload: they become the obligations this command certifies
+	// against a test run, and an accusation derived from a graph nobody declared ACTIVE is worse than
+	// no accusation. Receiving them is not consuming them, so the decision is taken here, before
+	// ResolveGoObligations sees anything.
+	//
+	// requireVerifiedServedGeneration rather than verifyServed, because this command acts on the
+	// answer: NOT_ESTABLISHED is the absence of anything to agree with, not agreement.
+	anchors, servedGeneration, rc := preflightRequiredTests(*addr, *task, files, resolvedDomain.Domain)
 	if rc != 0 {
 		return rc
+	}
+	if _, err := reader.requireVerifiedServedGeneration(servedGeneration); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", err)
+		return 2
 	}
 
 	observed, rc := parseResultsFile(*results, modulePath)
@@ -130,15 +143,16 @@ Flags:
 	return report.Verdict.ExitCode()
 }
 
-// preflightRequiredTests asks the graph which tests this change must pass.
-func preflightRequiredTests(addr, task string, files []string, domain string) ([]string, int) {
+// preflightRequiredTests asks the graph which tests this change must pass, and reports the
+// generation that answered so the caller can refuse a graph the registry does not declare ACTIVE.
+func preflightRequiredTests(addr, task string, files []string, domain string) ([]string, string, int) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	conn, err := client.DialConn(addr)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei verify-obligations: connect %s: %v\n", addr, err)
-		return nil, 2
+		return nil, "", 2
 	}
 	defer conn.Close()
 
@@ -150,9 +164,12 @@ func preflightRequiredTests(addr, task string, files []string, domain string) ([
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", err)
-		return nil, 2
+		return nil, "", 2
 	}
-	return resp.GetTestsToRun(), 0
+	// The authority stamp travels WITH the anchors. A helper returning only the payload left the
+	// served generation unavailable to the one place that had to decide on it, which is how this
+	// subject came to consume an authoritative answer it could not check.
+	return resp.GetTestsToRun(), resp.GetAuthority().GetLiveStoreGraphDigestSha256(), 0
 }
 
 func parseResultsFile(path, modulePath string) (map[string]testobligation.GoTestResult, int) {
