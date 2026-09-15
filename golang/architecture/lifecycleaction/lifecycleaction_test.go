@@ -76,10 +76,7 @@ func TestTheClosedLifecycleActionMapping(t *testing.T) {
 func TestRefusedIsNoneAndNeverCompletionOrMutation(t *testing.T) {
 	got := Select(Disposition{TypedProtocol: true, AuthorityResolved: true, Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Refused: true})
 	if got != None {
-		t.Fatalf("refused selected %q, want %q", got, None)
-	}
-	if got != None {
-		t.Fatalf("refused selected %q; only the exact outcome proves no work was requested", got)
+		t.Fatalf("refused selected %q, want %q; only the exact outcome proves no work was requested", got, None)
 	}
 }
 
@@ -124,12 +121,27 @@ func TestTypedProtocolIsSeparateFromAuthorityResolved(t *testing.T) {
 // production cannot produce. The owner refuses rather than believing whichever
 // field looks more authoritative.
 func TestContradictoryGrantInputsFailClosed(t *testing.T) {
-	for _, name := range []string{"status says ready, grant false", "grant true, status not ready"} {
+	// Each case is the exact Disposition the production conversion
+	// (tasksession.lifecycleDisposition) builds for that contradiction:
+	// CapabilityAvailable = grant && ready, GrantInconsistent = grant != ready,
+	// CapabilityConsumed = status == admitted. The two names previously shared
+	// one input, so the second case was never exercised.
+	for _, tc := range []struct {
+		name string
+		in   Disposition
+	}{
+		{"status says ready, grant false", Disposition{
+			TypedProtocol: true, AuthorityResolved: true, Phase: closureprotocol.PhaseAdmitted,
+			Status: "ready_for_mutation", GrantInconsistent: true,
+		}},
+		{"grant true, status not ready", Disposition{
+			TypedProtocol: true, AuthorityResolved: true, Phase: closureprotocol.PhaseAdmitted,
+			Status: "admitted", CapabilityConsumed: true, GrantInconsistent: true,
+		}},
+	} {
+		name := tc.name
 		t.Run(name, func(t *testing.T) {
-			got := Select(Disposition{
-				TypedProtocol: true, AuthorityResolved: true,
-				Status: "ready_for_mutation", GrantInconsistent: true,
-			})
+			got := Select(tc.in)
 			if got != Blocked {
 				t.Fatalf("contradictory grant inputs selected %q, want %q", got, Blocked)
 			}
