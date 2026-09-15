@@ -30204,12 +30204,24 @@ test_symbols:
     package: main
     language: go
     doc: "Command-path contract: rebuilding from inside awareness-graph must preserve\nthe paired services corpus in the embedded offline seed, or Preflight loses\nstrong repair guidance for service-owned files."
+  - id: golang/server/served_generation_test.go:TestACurrentVerificationStillUsesTheFastPath
+    file: golang/server/served_generation_test.go
+    symbol: TestACurrentVerificationStillUsesTheFastPath
+    package: main
+    language: go
+    doc: "The healthy path must keep its fast path: a fully current verification asks the store\nnothing extra, which is the cost rule the shortcut exists for."
   - id: golang/server/served_generation_test.go:TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
     file: golang/server/served_generation_test.go
     symbol: TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity
     package: main
     language: go
     doc: "A store whose marker count contradicts the actual live graph count is the same class:\nself-inconsistent, so no identity."
+  - id: golang/server/served_generation_test.go:TestATamperedMarkerDigestIsNotExposedAsTheServedGeneration
+    file: golang/server/served_generation_test.go
+    symbol: TestATamperedMarkerDigestIsNotExposedAsTheServedGeneration
+    package: main
+    language: go
+    doc: "REVIEW FINDING (P1, chatgpt-codex-connector on #359, graph_freshness.go:303):\n\"Revalidate non-current marker digests before exposing them.\"\n\nThe claim: when the expected marker IRI is present but its digest LITERAL has been\ntampered to a different value, VerifyLiveStore returns STALE with ver.Live.Digest set\nto the untrusted literal. servedGraphDigest's fast path returns it without ever calling\nsnapshotLiveAuthority, so an integrity-failed marker becomes a comparable served\ngeneration — and if the registry happens to declare that same literal, the ACTIVE\ngeneration equality guard accepts it.\n\nThe reviewer is right, and it is the same shape this function's own comment forbids:\n\"ONLY A COHERENT IDENTITY IS AN IDENTITY\". The discovery path refuses\nAuthorityIntegrityFailed (a digest literal on a subject that is not its digest-derived\nIRI); the fast path never asks.\n\nThe fast path is kept, because the cost rule it exists for is real — but only for a\nFULLY CURRENT verification, where the literal equals the expected digest whose own IRI\nmatched, so coherence is already established. Every other state is admitted\nindependently."
   - id: golang/server/served_generation_test.go:TestAnEmptyStoreReportsNoServedGeneration
     file: golang/server/served_generation_test.go
     symbol: TestAnEmptyStoreReportsNoServedGeneration
