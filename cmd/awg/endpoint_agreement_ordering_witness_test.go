@@ -37,6 +37,11 @@ import (
 
 const orderingDomain = "example.com/acme/ordering"
 
+// governedGeneration is the ACTIVE generation every endpoint/coherence fixture declares AND serves.
+// Since Category C a production reader refuses a served generation the registry does not declare
+// ACTIVE, so these worlds must be governed to reach the behaviour they are testing.
+const governedGeneration = "5555555555555555555555555555555555555555555555555555555555555555"
+
 // orderingService records whether the endpoint was ever contacted. The guard's own promise is
 // "nothing has been read from or written to either endpoint", so a refusal must leave calls at zero,
 // and a proceed must leave it at one. That is what makes "proceeded past the guard" a fact rather
@@ -55,6 +60,11 @@ func (s *orderingService) Preflight(context.Context, *awarenesspb.PreflightReque
 		Authority: &awarenesspb.GraphAuthority{
 			Authoritative:       true,
 			GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+			// governedGeneration: since Category C, runPreflight refuses a served generation the
+			// registry does not declare ACTIVE, so a fixture that drives preflight to completion must
+			// be a GOVERNED world. This served digest matches the active_generation these registries
+			// declare; an endpoint witness is not the place to also be unverifiable.
+			LiveStoreGraphDigestSha256: governedGeneration,
 		},
 	}, nil
 }
@@ -92,6 +102,7 @@ func orderingWorld(t *testing.T) (svc *orderingService, root, addr string) {
         repository_identity: acme/ordering
         allowed_corpus_roots:
             - docs/awareness
+        active_generation: `+governedGeneration+`
 `), 0o644); err != nil {
 		t.Fatal(err)
 	}

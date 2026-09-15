@@ -435,7 +435,7 @@ func TestFromASubdirectoryWithNoRepoFlagTheRegistryStillAnswers(t *testing.T) {
 	}
 	if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"), []byte("domains:\n    "+
 		coherenceDomain+":\n        repository_identity: acme/coherence\n        service_addr: "+
-		liveFromRegistry+"\n"), 0o644); err != nil {
+		liveFromRegistry+"\n        active_generation: "+governedGeneration+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	root := projectRoot(t, t.TempDir())
@@ -499,6 +499,11 @@ func (s *coherentGraph) Preflight(context.Context, *awarenesspb.PreflightRequest
 		Authority: &awarenesspb.GraphAuthority{
 			Authoritative:       true,
 			GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+			// governedGeneration: since Category C, runPreflight refuses a served generation the
+			// registry does not declare ACTIVE, so a fixture that drives preflight to completion must
+			// be a GOVERNED world. This served digest matches the active_generation these registries
+			// declare; an endpoint witness is not the place to also be unverifiable.
+			LiveStoreGraphDigestSha256: governedGeneration,
 		},
 	}, nil
 }
@@ -509,6 +514,11 @@ func (s *coherentGraph) Briefing(context.Context, *awarenesspb.BriefingRequest) 
 		Authority: &awarenesspb.GraphAuthority{
 			Authoritative:       true,
 			GraphFreshnessState: awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+			// governedGeneration: since Category C, runPreflight refuses a served generation the
+			// registry does not declare ACTIVE, so a fixture that drives preflight to completion must
+			// be a GOVERNED world. This served digest matches the active_generation these registries
+			// declare; an endpoint witness is not the place to also be unverifiable.
+			LiveStoreGraphDigestSha256: governedGeneration,
 		},
 	}, nil
 }
@@ -563,7 +573,7 @@ func TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory(t *testing.T) 
 			}
 			if err := os.WriteFile(filepath.Join(home, ".sensei", "domains.yaml"), []byte("domains:\n    "+
 				coherenceDomain+":\n        repository_identity: acme/coherence\n        service_addr: "+
-				live+"\n"), 0o644); err != nil {
+				live+"\n        active_generation: "+governedGeneration+"\n"), 0o644); err != nil {
 				t.Fatal(err)
 			}
 			root := projectRoot(t, t.TempDir())

@@ -70,6 +70,15 @@ func classifyGraphCommands(subjects map[string]graphCommandFacts) (verifies, unc
 type graphCommandFacts struct {
 	ResolvesOwner      bool
 	VerifiesGeneration bool
+	// RefusesUnverified is the STRONGER fact: the subject reaches a guard that refuses unless the
+	// served generation IS the declared ACTIVE one, including refusing when nothing is declared.
+	//
+	// VerifiesGeneration is satisfied by reaching any comparison, and verifyServed returns nil when
+	// no ACTIVE generation is declared. That reading is correct for runMetadata and runBriefing,
+	// which REPORT the verdict, and insufficient for a subject that CONSUMES the answer -- for which
+	// "a comparison is present" and "an unverifiable graph is refused" are different claims. Counting
+	// only the weaker one would let a fail-open call satisfy the census.
+	RefusesUnverified bool
 }
 
 // graphAuthorityNames are the two vocabularies the census reads, both by MEMBERSHIP of a
@@ -82,6 +91,13 @@ var (
 
 		"resolveGraphReader": true,
 	}
+	// refusingGenerationCheckNames: guards that refuse an unverifiable served generation rather than
+	// reporting on it. A subject reaching one of these has a comparison that cannot be satisfied by
+	// an absent declaration.
+	refusingGenerationCheckNames = map[string]bool{
+		"requireVerifiedServedGeneration": true,
+	}
+
 	generationCheckNames = map[string]bool{
 		// The owner's comparisons, and the digest-level one underneath both.
 		"verifyServedAuthority": true,
@@ -234,6 +250,9 @@ func graphCommandsIn(t *testing.T, dir string) map[string]graphCommandFacts {
 				for n := range names {
 					if ownerResolutionNames[n] {
 						facts.ResolvesOwner = true
+					}
+					if refusingGenerationCheckNames[n] {
+						facts.RefusesUnverified = true
 					}
 					if generationCheckNames[n] {
 						facts.VerifiesGeneration = true

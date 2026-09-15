@@ -116,6 +116,21 @@ Flags:
 		return 1
 	}
 
+	// SERVED-GENERATION AUTHORITY, BEFORE THE PAYLOAD IS CONSUMED.
+	//
+	// A preflight verdict is acted on: it names required actions, forbidden fixes and tests to run.
+	// So the graph that produced it must be the generation the registry declares ACTIVE for this
+	// governed domain, and that has to be settled before anything downstream reads the response --
+	// including --json, which emits the whole payload.
+	//
+	// requireVerifiedServedGeneration rather than verifyServed: verifyServed returns nil when no
+	// ACTIVE generation is declared, which is the right reading for a command that REPORTS the
+	// verdict and the wrong one for a command that consumes it. NOT_ESTABLISHED is not agreement.
+	if err := reader.requireVerifiedServedGeneration(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
+		return 1
+	}
+
 	if *asJSON {
 		return emitProtoJSON(resp)
 	}

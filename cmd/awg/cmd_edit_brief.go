@@ -152,6 +152,25 @@ Flags:
 		return 0
 	}
 
+	// SERVED-GENERATION AUTHORITY, BEFORE THE PROSE IS DELIVERED.
+	//
+	// Delivered prose is governing context an agent acts on before editing, so it must come from the
+	// generation the registry declares ACTIVE for this domain. The guard sits here, after the reply
+	// and before any read of out.Prose.
+	//
+	// REFUSAL HERE MEANS NOT DELIVERING, not blocking the edit. This command's existing contract is
+	// that a briefing it cannot serve is never a reason to block ("Never block on it"), and that is
+	// deliberate. So an unverifiable generation is recorded as an opportunity that produced no
+	// delivery -- the measurement's most important row -- and the edit proceeds unannotated. The
+	// payload is not consumed, which is what the authority contract requires; the exit code keeps the
+	// non-blocking promise this command already made.
+	if err := reader.requireVerifiedServedGeneration(out.ServedGeneration); err != nil {
+		reason := firstLine(err.Error())
+		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject, reason)
+		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing withheld (allowing edit): %s\n", reason)
+		return 0
+	}
+
 	prose := strings.TrimSpace(out.Prose)
 	switch {
 	case !deliverableStatuses[out.Status]:
@@ -258,7 +277,14 @@ type editBriefOutcome struct {
 	// evidence shows what the server said, not only what was acted on.
 	Wire       awarenesspb.BriefingStatus
 	Referenced []string
+	// Generation is the authority's GraphBuildCommit -- the SOURCE REVISION the graph was built
+	// from. It is what the delivery ledger records, and it is NOT the served graph's generation.
 	Generation string
+	// ServedGeneration is the live store's graph digest: the identity that must equal the
+	// registry's ACTIVE generation before this briefing may be delivered as governing context.
+	// Separate from Generation because a field named for one identity must not hold another; a
+	// comparison built on GraphBuildCommit could never pass.
+	ServedGeneration string
 }
 
 // editBriefRPC fetches a compact briefing for a file; overridable in tests.
@@ -274,11 +300,12 @@ var editBriefRPC = func(ctx context.Context, addr, file, depth, domain string) (
 		return editBriefOutcome{}, err
 	}
 	return editBriefOutcome{
-		Prose:      resp.GetProse(),
-		Status:     preferFileStatus(resp.GetStatus(), resp.FileStatus),
-		Wire:       resp.GetStatus(),
-		Referenced: resp.GetReferencedIds(),
-		Generation: resp.GetAuthority().GetGraphBuildCommit(),
+		Prose:            resp.GetProse(),
+		Status:           preferFileStatus(resp.GetStatus(), resp.FileStatus),
+		Wire:             resp.GetStatus(),
+		Referenced:       resp.GetReferencedIds(),
+		Generation:       resp.GetAuthority().GetGraphBuildCommit(),
+		ServedGeneration: resp.GetAuthority().GetLiveStoreGraphDigestSha256(),
 	}, nil
 }
 

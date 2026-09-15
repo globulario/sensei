@@ -6372,6 +6372,12 @@ test_symbols:
     symbol: TestReportTheAdmittedMainCensus
     package: main
     language: go
+  - id: cmd/awg/graph_reader_census_report_test.go:TestTheRefusingGenerationFactIsStrictlyStrongerAndNonVacuous
+    file: cmd/awg/graph_reader_census_report_test.go
+    symbol: TestTheRefusingGenerationFactIsStrictlyStrongerAndNonVacuous
+    package: main
+    language: go
+    doc: "The two generation facts must be a proper hierarchy and neither class may be empty. A distinction\nthat cannot be observed is not a distinction, and one that holds everything is not either."
   - id: cmd/awg/graph_reader_census_test.go:TestACommandWithNoEndpointFlagIsNotACensusSubject
     file: cmd/awg/graph_reader_census_test.go
     symbol: TestACommandWithNoEndpointFlagIsNotACensusSubject
@@ -6773,18 +6779,18 @@ test_symbols:
     package: main
     language: go
     doc: "OPPOSITE WITNESS (positive control). Same domain, same reader, same response shape, same service.\nThe ONLY difference from the witness above is that the served generation equals the declared one.\nThis case must remain accepted after the repair, so it is what proves a future refusal is aimed at\nthe mismatch and not at the fixture."
-  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightRefusesAServedGenerationThatContradictsTheDeclaredOne
     file: cmd/awg/preflight_served_authority_witness_test.go
-    symbol: TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne
+    symbol: TestPreflightRefusesAServedGenerationThatContradictsTheDeclaredOne
     package: main
     language: go
-    doc: "THE WITNESS. Expected authority exists, served authority exists, they differ, and runPreflight\nconsumes the response as an authoritative verdict.\n\nThis test asserts the DEFECT. It is the mechanical record that the invariant does not hold on\n8e3366f6. Repairing category C must INVERT it: the mismatch must then produce a refusal, and the\nassertions below marked DEFECT must become assertions of that refusal."
-  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison
+    doc: "THE INVERTED WITNESS. Formerly TestPreflightConsumesAServedGenerationThatContradictsTheDeclaredOne,\nwhich recorded that the mismatch was consumed. It now requires the refusal, and requires it BEFORE\nany part of the authoritative payload is consumed.\n\nThe fixture is unchanged. Only the required outcome moved."
+  - id: cmd/awg/preflight_served_authority_witness_test.go:TestPreflightRefusesWhenNoActiveGenerationIsDeclared
     file: cmd/awg/preflight_served_authority_witness_test.go
-    symbol: TestPreflightWithNoDeclaredGenerationHasNoEstablishedComparison
+    symbol: TestPreflightRefusesWhenNoActiveGenerationIsDeclared
     package: main
     language: go
-    doc: "EMPTY-EXPECTATION CONTROL. The governed domain resolves perfectly, the owner carries it, and the\nregistry declares no active_generation for it — the shape github.com/globulario/services has in\nthe real operator registry today.\n\nThe state this records is `expectation absent / comparison not established`. It is NOT\nverification: verifyServed returns nil against an empty expectation, so a check added here would\naccept the same wrong generation the witness above proves is accepted now.\n\nThis control fixes no policy. It exists so that a later repair cannot become structurally inert\nwithout a test noticing."
+    doc: "MISSING-EXPECTATION CONTROL, inverted. Formerly recorded that an absent declaration silently\npassed; it now requires a refusal that is distinguishable from a mismatch.\n\nThis matters beyond the fixture: github.com/globulario/services declares no active_generation\ntoday, so this is the live shape, not a hypothetical."
   - id: cmd/awg/promote_establish_test.go:TestADerivationEstablishesOnlyWhenItDerives
     file: cmd/awg/promote_establish_test.go
     symbol: TestADerivationEstablishesOnlyWhenItDerives
@@ -7351,6 +7357,66 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/served_generation_authority_test.go:TestAnUnresolvedGovernedDomainProceedsButNeverClaimsVerification
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestAnUnresolvedGovernedDomainProceedsButNeverClaimsVerification
+    package: main
+    language: go
+    doc: "THE DOMAIN-UNRESOLVED STATE, AUDITED. It is the only state that does not refuse, so it is the only\npossible bypass, and it must be provably a non-claim rather than a silent pass."
+  - id: cmd/awg/served_generation_authority_test.go:TestEditBriefDeliversProseFromTheDeclaredGeneration
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestEditBriefDeliversProseFromTheDeclaredGeneration
+    package: main
+    language: go
+    doc: "MATCHED CONTROL — edit-brief."
+  - id: cmd/awg/served_generation_authority_test.go:TestEditBriefWithholdsProseFromAWrongGenerationGraph
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestEditBriefWithholdsProseFromAWrongGenerationGraph
+    package: main
+    language: go
+    doc: "INVERTED WITNESS — runEditBrief must withhold prose from a wrong-generation graph.\n\nWithholding, not blocking: this command's existing contract is that a briefing it cannot serve is\nnever a reason to block an edit. The authority requirement is that the payload is NOT CONSUMED; the\nexit code keeps the non-blocking promise."
+  - id: cmd/awg/served_generation_authority_test.go:TestEditBriefWithholdsWhenNoActiveGenerationIsDeclared
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestEditBriefWithholdsWhenNoActiveGenerationIsDeclared
+    package: main
+    language: go
+    doc: "MISSING-EXPECTATION CONTROL — edit-brief."
+  - id: cmd/awg/served_generation_authority_test.go:TestEveryGenerationAuthorityStateIsReachableAndDistinct
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestEveryGenerationAuthorityStateIsReachableAndDistinct
+    package: main
+    language: go
+    doc: "The four states are mutually exclusive and each is reachable. A state nothing can reach is a state\nnothing enforces."
+  - id: cmd/awg/served_generation_authority_test.go:TestObservedEditBriefOutcomeGenerationIsTheBuildCommitNotTheServedGeneration
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestObservedEditBriefOutcomeGenerationIsTheBuildCommitNotTheServedGeneration
+    package: main
+    language: go
+    doc: "OBSERVATION, recorded and NOT repaired here: editBriefOutcome.Generation is populated from\nGetGraphBuildCommit, the source revision the graph was built from, not the served graph's\ngeneration digest. It feeds the delivery ledger's GraphGeneration field, so that evidence column\nhas been recording a build commit under a generation label. A comparison built on this field could\nnever pass, which is why this family surfaces the served digest separately instead."
+  - id: cmd/awg/served_generation_authority_test.go:TestObservedEditBriefRPCStubsLeakAcrossTests
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestObservedEditBriefRPCStubsLeakAcrossTests
+    package: main
+    language: go
+    doc: "OBSERVATION, recorded and NOT repaired here. editBriefRPC is a package-level var used as a test\nseam, and nine assignments to it never restore the previous value:\n\n\tcmd_edit_brief_test.go     4 sites\n\tedit_brief_delivery_test.go 5 sites\n\nSo a stub installed by one test is still installed for every test that runs after it. It caused\nthese witnesses to fail for the wrong reason before catCWorld began restoring the real transport\nexplicitly, and it will do the same to the next test that needs the real RPC. Recorded as a measured\nfact with its own bounded repair rather than folded into this family."
+  - id: cmd/awg/served_generation_authority_test.go:TestVerifyObligationsAcceptsAMatchingGeneration
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestVerifyObligationsAcceptsAMatchingGeneration
+    package: main
+    language: go
+    doc: "MATCHED CONTROL — verify-obligations. Same fixture, declared == served; must be accepted and the\nanchors consumed. The only difference from the refusing witness is the generation identity."
+  - id: cmd/awg/served_generation_authority_test.go:TestVerifyObligationsRefusesRequiredTestsFromAWrongGenerationGraph
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestVerifyObligationsRefusesRequiredTestsFromAWrongGenerationGraph
+    package: main
+    language: go
+    doc: "INVERTED WITNESS — runVerifyObligations must refuse a wrong-generation graph before the anchors\nbecome obligations. Formerly TestVerifyObligationsConsumesRequiredTestsFromAWrongGenerationGraph."
+  - id: cmd/awg/served_generation_authority_test.go:TestVerifyObligationsRefusesWhenNoActiveGenerationIsDeclared
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestVerifyObligationsRefusesWhenNoActiveGenerationIsDeclared
+    package: main
+    language: go
+    doc: "MISSING-EXPECTATION CONTROL — verify-obligations."
   - id: cmd/awg/service_addr_resolution_test.go:TestAnExplicitFlagAlwaysWins
     file: cmd/awg/service_addr_resolution_test.go
     symbol: TestAnExplicitFlagAlwaysWins
