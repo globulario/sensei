@@ -1461,6 +1461,27 @@ message EditCheckResponse {
   int32 rules_evaluated = 2;
 
   int64 generated_in_ms = 3;
+
+  // Which graph produced THESE warnings.
+  //
+  // Added because its absence was a provenance hole rather than an omission. A
+  // consumer that enforces an EditCheck verdict — `sensei gate —enforce`, and the
+  // diff-audit evaluator — could only ask a SEPARATE Metadata call which generation
+  // was serving, and the store can be republished between that call and this
+  // response: the gRPC connection pins the endpoint, never the external store's
+  // contents. Sampling adjacent to the call narrows that window and cannot close it.
+  // Carrying the identity ON the response closes it, because the generation reported
+  // here is the one that computed these very warnings.
+  //
+  // Every sibling authority-bearing response already does this (Briefing, Impact,
+  // Query, Resolve, Preflight, Metadata, ReferenceSites); EditCheck was the outlier,
+  // and it is the one an enforcing gate consumes.
+  //
+  // A new field, so an older client simply does not read it and keeps working. A
+  // consumer that REQUIRES provenance must treat absence as unverifiable rather than
+  // as agreement — an empty field means "this server does not say", not "the
+  // generation matched".
+  GraphAuthority authority = 4;
 }
 
 // ─── Propose (agent write path → review queue) ──────────────────────────────

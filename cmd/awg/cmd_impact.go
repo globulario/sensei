@@ -18,7 +18,7 @@ func runImpact(args []string) int {
 	fs.SetOutput(os.Stderr)
 	file := fs.String("file", "", "repo-relative file path (required)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei impact --file <path> [flags]
@@ -34,6 +34,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
+	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
+	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
+	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
+	// bypassed canonical resolution entirely.
+	reader := productionReaderFor(fs, "", *domain, *addr)
+	*addr = reader.Addr
 	if *file == "" {
 		fmt.Fprintln(os.Stderr, "sensei impact: --file is required")
 		return 2

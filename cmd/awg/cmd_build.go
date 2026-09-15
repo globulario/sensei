@@ -88,6 +88,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// ONE RESOLUTION of the published governed domain, refused here rather than at three consumers.
+	// A tagging kind must not become a governed domain; see publishedGovernedDomain.
+	govDomain, govDomainErr := publishedGovernedDomain(*repo, *domain)
+	if govDomainErr != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", govDomainErr)
+		return 2
+	}
 	if err := rejectPathLikeBuildDomain("build --repo", *repo); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -113,6 +120,50 @@ Flags:
 			fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 			return 1
 		}
+		// The agreement check above yields to an explicit --store-url, and
+		// `import` cannot load a slice without passing one -- so on that path
+		// the check can never fire. Law 14: the override stays available and
+		// stops being silent.
+		if cfg, cerr := loadEndpointConfig(buildRoot); cerr == nil {
+			if note := nonCanonicalStoreURLNotice(cfg.configuredStoreURL(), *storeURL); note != "" {
+				fmt.Fprintln(os.Stderr, note)
+			}
+		}
+		// ONE GOVERNED STORE, ONE DOMAIN — refused here, before the store is touched.
+		//
+		// A graph marker certifies the WHOLE store, so publishing a second domain into it
+		// recomputes the digest the first domain's ACTIVE pointer names and strands every
+		// reader of that domain. Measured in Phase 7: one reader, one moment, one store,
+		// and one domain agreed while the other refused.
+		//
+		// Placed beside the agreement check rather than at the upload, because the damage
+		// this prevents lands on a domain the command does not mention -- and a refusal
+		// that arrives after the bytes are in is not a refusal.
+		// FAIL CLOSED on a registry that cannot be read. `rerr == nil` skipped the check
+		// entirely, which contradicted this same change's load-time validation: that
+		// validation exists so a registry binding one store to two domains refuses
+		// EVERYWHERE, and silently proceeding here was the one door it did not cover.
+		//
+		// A missing registry is not the same as an unreadable one: an operator with no
+		// registry has declared no store ownership, which is the inert case. A registry
+		// that exists and cannot be parsed is an operator error, and publishing past it
+		// would be publishing on an unreadable rule.
+		ownershipRegistry := buildRegistryPath(*domainRegistry)
+		reg, rerr := LoadDomainRegistry(ownershipRegistry)
+		switch {
+		case rerr != nil && !os.IsNotExist(rerr):
+			fmt.Fprintf(os.Stderr, "sensei build: refusing to publish against an unreadable domain registry %s, so nothing has been written: %v\n", ownershipRegistry, rerr)
+			return 1
+		case rerr == nil:
+			// THE DOMAIN THIS PUBLICATION IS FOR is --repo on the scoped path; --domain is
+			// a separate flag and may be empty. An empty requested domain makes every
+			// declared store look like another domain's, so the check would refuse a
+			// publication that named no domain at all.
+			if err := verifyStoreOwnership(reg, govDomain, *storeURL, flagPassed(fs, "store-url")); err != nil {
+				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+				return 1
+			}
+		}
 	}
 
 	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
@@ -124,10 +175,7 @@ Flags:
 	// single triple changes — the store was destructively replaced three times
 	// on 2026-08-05 while every later verdict was accurate but too late.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		registryPath := strings.TrimSpace(*domainRegistry)
-		if registryPath == "" {
-			registryPath = DefaultDomainRegistryPath()
-		}
+		registryPath := buildRegistryPath(*domainRegistry)
 		// A hosted runner has no operator registry. The attestation is offered
 		// only when the operator asked for it, so enabling CI admission is a
 		// visible decision in the workflow rather than a silent change of
@@ -163,7 +211,8 @@ Flags:
 	// gates a single-domain refresh. --output and --all fall through below.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
 		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
-			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag)
+			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag,
+			buildRegistryPath(*domainRegistry), flagPassed(fs, "store-url"))
 	}
 
 	ntBytes, marker, uniqueCount, dupCount := finalizeBuildArtifact(rawProjectNT)
@@ -228,7 +277,23 @@ Flags:
 		return 1
 	}
 
-	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
+	// LAW 11: a generation must not be destroyed while something still refers to
+	// it. `rebuild` has guarded this since the self-only/combined clobber; --all,
+	// which is strictly MORE destructive, did not -- it warned and PUT. Same guard,
+	// same thresholds, same documented tolerance for an empty or unreachable store
+	// so cold starts are unaffected.
+	//
+	// Not hypothetical: three stores were live holding 237,049 / 142,739 / 35,268
+	// triples while a scoped build of one corpus compiles to 35,255, and `import`
+	// was recommending --all on a fabricated diagnosis.
+	if err := guardAgainstLiveShrink(*storeURL, len(strings.Split(strings.TrimSpace(string(ntBytes)), "\n"))); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+		return 1
+	}
+
+	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes, storeMutationIntent{
+		Domain: govDomain, Overridden: flagPassed(fs, "store-url"), Reason: "sensei build",
+		RegistryPath: buildRegistryPath(*domainRegistry)}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
 		return 1
@@ -245,8 +310,8 @@ Flags:
 			return 1
 		}
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
+	if err := activateGeneration(os.Stderr, markerPath, marker, govDomain, buildRegistryPath(*domainRegistry)); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -428,7 +493,11 @@ func normalizeStoreURL(raw string) (string, error) {
 	return u.String(), nil
 }
 
-func uploadNTriples(httpClient *http.Client, endpoint string, ntBytes []byte) error {
+func uploadNTriples(httpClient *http.Client, endpoint string, ntBytes []byte, intent storeMutationIntent) error {
+	// The seam: no caller reaches the PUT without stating what this mutation is.
+	if err := guardStoreMutation(endpoint, intent); err != nil {
+		return err
+	}
 	req, err := http.NewRequest(http.MethodPut, endpoint, bytes.NewReader(ntBytes))
 	if err != nil {
 		return fmt.Errorf("build request: %w", err)
@@ -503,7 +572,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string) int {
+func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag, registryPath string, storeURLOverridden bool) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -660,7 +729,14 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// remain in the default graph and are untouched by the promotion transaction.
 	stagedNT := append(append([]byte{}, sliceNT...), seedmeta.MarkerTriples(marker)...)
 	stagingIRI := graphStagingIRI(marker)
-	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT); err != nil {
+	// Overridden MUST be carried. Without it the guard treats an endpoint the operator named
+	// explicitly as one the command chose, so rule 2 -- this domain publishing somewhere other
+	// than its declared store -- refuses a publication the operator asked for by name. The
+	// failure direction is a FALSE REFUSAL; rule 1, another domain's store, is unaffected
+	// because an override never relaxes it.
+	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT, storeMutationIntent{
+		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registryPath,
+		Overridden: storeURLOverridden}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: stage candidate generation for %s: %v\n", domain, err)
 		return 1
 	}
@@ -708,8 +784,8 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 			return 1
 		}
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
+	if err := activateGeneration(os.Stderr, markerPath, marker, domain, registryPath); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
 	if err := writePublicationReceipt(markerPath, receipt, marker); err != nil {
@@ -880,7 +956,15 @@ func namedGraphStoreURL(storeEndpoint, graphIRI string) (string, error) {
 	return u.String(), nil
 }
 
-func putNamedGraph(ctx context.Context, storeEndpoint, graphIRI string, nt []byte) error {
+func putNamedGraph(ctx context.Context, storeEndpoint, graphIRI string, nt []byte, intent storeMutationIntent) error {
+	// A NAMED-GRAPH PUT IS STILL A MUTATION OF SOMEBODY'S STORE. It replaces one graph rather
+	// than the whole store, which is why it was left out when the guard moved into the
+	// whole-store primitives -- and that made the claim "every publisher passes the seam" true
+	// of the two primitives the census listed rather than of every publisher. The unit a proof
+	// quantifies over must be the unit it checks.
+	if err := guardStoreMutation(storeEndpoint, intent); err != nil {
+		return err
+	}
 	u, err := namedGraphStoreURL(storeEndpoint, graphIRI)
 	if err != nil {
 		return err

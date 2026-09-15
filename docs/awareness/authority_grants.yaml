@@ -107,3 +107,27 @@ authority_grants:
     valid_until: ""
     delegable: false
     delegation_policy_id: ""
+  # ── Phase 8.2b: terminal abandonment grant ──
+  # Abandonment writes a DIFFERENT terminal fact from completion and therefore
+  # needs its own triple. Sharing completion's grant meant an actor authorized
+  # only to complete tasks could also abandon them, and policy had no way to deny
+  # one without denying the other. Assigned to the same role today -- the point is
+  # that the decision is now expressible, not that it currently differs.
+  - id: grant.sensei.terminal_abandonment
+    label: Sensei terminal task abandonment grant
+    status: active
+    actor_role_ids:
+      - role.repository_repair_agent
+    authority_domain_ids:
+      - authority.sensei_terminal_abandonment
+    actions:
+      - dispose
+    target_kinds:
+      - task_abandonment
+    required_mechanism_ids:
+      - mutation_path.terminal_abandonment
+    maximum_risk_class: architecture_sensitive
+    valid_from: 2026-07-15T00:00:00Z
+    valid_until: ""
+    delegable: false
+    delegation_policy_id: ""

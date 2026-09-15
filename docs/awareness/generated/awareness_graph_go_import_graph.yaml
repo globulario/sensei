@@ -53,6 +53,7 @@ components:
     kind: service
     assertion: inferred
     source_files:
+      - cmd/awg/active_generation.go
       - cmd/awg/audit_test_coverage.go
       - cmd/awg/authority_output.go
       - cmd/awg/authority_read_errors.go
@@ -61,6 +62,7 @@ components:
       - cmd/awg/boundary_extract.go
       - cmd/awg/build_transaction.go
       - cmd/awg/builtin_skills.go
+      - cmd/awg/cmd_abandon_task.go
       - cmd/awg/cmd_admission_v2.go
       - cmd/awg/cmd_admit_change.go
       - cmd/awg/cmd_advance_convergence.go
@@ -186,6 +188,9 @@ components:
       - cmd/awg/domain_admission.go
       - cmd/awg/domain_admission_ci.go
       - cmd/awg/domain_closure.go
+      - cmd/awg/domain_registry_lock.go
+      - cmd/awg/domain_registry_lock_unix.go
+      - cmd/awg/domain_registry_lock_windows.go
       - cmd/awg/endpoint_binding.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
@@ -204,9 +209,12 @@ components:
       - cmd/awg/promote_establish.go
       - cmd/awg/promote_evidence.go
       - cmd/awg/proofrequirements_adapter.go
+      - cmd/awg/publication_activation.go
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
+      - cmd/awg/store_mutation_guard.go
+      - cmd/awg/store_ownership.go
       - cmd/awg/synthesis_run_identity.go
       - cmd/awg/synthesis_run_resume.go
       - cmd/awg/synthesis_run_stop.go
@@ -1029,6 +1037,7 @@ components:
     kind: module
     assertion: inferred
     source_files:
+      - golang/architecture/completion/abandon.go
       - golang/architecture/completion/authority.go
       - golang/architecture/completion/closure_report.go
       - golang/architecture/completion/complete.go
@@ -1052,6 +1061,7 @@ components:
       - component.golang.architecture.identity
       - component.golang.architecture.ledger
       - component.golang.architecture.questionresolution
+      - component.golang.architecture.tasksession
     uml:
       kind: Component
       stereotype: module
@@ -2430,6 +2440,7 @@ components:
       - golang/architecture/tasksession/briefing_promotion.go
       - golang/architecture/tasksession/control.go
       - golang/architecture/tasksession/governance.go
+      - golang/architecture/tasksession/pointerlock.go
       - golang/architecture/tasksession/session.go
       - golang/architecture/tasksession/session_authority.go
     depends_on:

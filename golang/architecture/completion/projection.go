@@ -117,7 +117,8 @@ func validCompletionTerminalState(s TerminalState) bool {
 
 func validClosureVerdict(v ClosureVerdict) bool {
 	switch v {
-	case ClosureAuthoritativeCompletion, ClosureNotCompleted, ClosureBroken, ClosureContradictory, ClosureUnsupported:
+	case ClosureAuthoritativeCompletion, ClosureNotCompleted, ClosureBroken, ClosureContradictory,
+		ClosureAbandoned, ClosureUnsupported:
 		return true
 	}
 	return false

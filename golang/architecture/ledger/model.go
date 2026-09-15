@@ -67,6 +67,9 @@ type PayloadValidator func(eventType closureprotocol.LedgerEventType, mediaType 
 type Store struct {
 	taskDir          string
 	payloadValidator PayloadValidator
+	// headFault, when non-nil, makes the NEXT HEAD publication fail and is then
+	// cleared. See WithHeadPublicationFault.
+	headFault error
 }
 
 type VerifiedEntry struct {
@@ -87,6 +90,32 @@ type StoreOption func(*Store)
 
 func WithPayloadValidator(fn PayloadValidator) StoreOption {
 	return func(s *Store) { s.payloadValidator = fn }
+}
+
+// WithHeadPublicationFault makes the next HEAD publication on THIS store fail
+// once, with the supplied error.
+//
+// It exists because ErrEntryDurable is a real contract that was, until now,
+// impossible to exercise deliberately. That condition -- the ledger entry is
+// durable and HEAD.yaml is not written -- is the one moment where a caller must
+// treat an error as post-commit, and every consumer's handling of it was
+// therefore unproved. A recovery path nobody can run is a recovery path nobody
+// has tested.
+//
+// Deliberately constrained:
+//
+//	instance-scoped   it lives on one Store, never in package state, so two
+//	                  tests cannot reach each other
+//	one-shot          it fires exactly once and clears itself, so a retry inside
+//	                  the same test exercises the real path
+//	explicit          it is armed by construction; a Store built without it takes
+//	                  a byte-identical path
+//
+// It does not change what Append means. Append already returns ErrEntryDurable
+// when the entry is durable and HEAD is not published; this makes that reachable
+// on purpose rather than by filesystem accident.
+func WithHeadPublicationFault(err error) StoreOption {
+	return func(s *Store) { s.headFault = err }
 }
 
 func NewStore(taskDir string, opts ...StoreOption) *Store {

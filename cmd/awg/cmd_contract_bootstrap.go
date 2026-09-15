@@ -128,11 +128,11 @@ var contractBootstrapConnectAWG = connectAWG
 func runContractBootstrap(args []string) int {
 	fs := flag.NewFlagSet("sensei contract-bootstrap", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	repoRoot := fs.String("repo-root", ".", "repository root to analyze")
+	repoRoot := fs.String("repo-root", "", "repository root to analyze")
 	taskFile := fs.String("task-file", "", "task JSON containing issue/domain/f2p_tests")
 	issue := fs.String("issue", "", "issue text when not using --task-file")
 	domain := fs.String("domain", "", "optional repo/domain scope for AWG cross-reference")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	format := fs.String("format", "text", "output format: text | json | prompt | scaffold")
 	asJSON := fs.Bool("json", false, "output as JSON (deprecated: same as --format json)")
 	var tests stringSlice
@@ -153,6 +153,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repoRoot = governedRepoRoot(*repoRoot)
 	if *asJSON {
 		*format = "json"
 	}
@@ -170,6 +174,12 @@ Flags:
 	if strings.TrimSpace(*domain) == "" {
 		*domain = strings.TrimSpace(task.Domain)
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
+	*addr = reader.Addr
 
 	result, err := buildContractBootstrap(root, *addr, *domain, task, source)
 	if err != nil {

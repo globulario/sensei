@@ -61,6 +61,23 @@ func (f fakeClient) Metadata(ctx context.Context, in *awarenesspb.MetadataReques
 	}
 	return f.metadata(ctx, in)
 }
+
+// testServingGeneration stubs the metadata RPC an audit uses to learn WHICH graph
+// generation answered it (law 5 of the graph-identity front). An audit whose graph
+// cannot say that is genuinely unverifiable, so a fixture that omits it is testing
+// the omission rather than the case it names.
+// testServedGeneration is the generation ONE graph reports everywhere in these fixtures: on
+// the metadata samples and on every response's authority. The evaluator binds each contributing
+// query to the identity carried by its own response, so a fixture whose responses named a
+// different graph from its samples would refuse every audit for a switch the test never meant.
+const testServedGeneration = "c0b660fc42a5"
+
+func testServingGeneration(digest string) func(context.Context, *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+	return func(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+		return &awarenesspb.MetadataResponse{LiveStoreGraphDigestSha256: digest}, nil
+	}
+}
+
 func (f fakeClient) Preflight(ctx context.Context, in *awarenesspb.PreflightRequest, _ ...grpc.CallOption) (*awarenesspb.PreflightResponse, error) {
 	if f.preflight == nil {
 		return nil, status.Error(codes.Unavailable, "no stub")
@@ -107,6 +124,17 @@ func (b *bridge) callText(ctx context.Context, name string, args map[string]inte
 	return res.Text, nil
 }
 
+// editCheckFromCurrentGraph is an EditCheck response that STATES which graph produced it.
+//
+// EditCheckResponse gained a GraphAuthority so a consumer enforcing its findings can bind them
+// to the generation that computed them; the diff-audit evaluator now treats a response that
+// states none as unverifiable. A fake that omitted it therefore makes every rule-evaluating
+// audit cannot_verify -- correctly, which is why these fixtures supply it. The digest matches
+// testCurrentAuthority's, because one graph answered both queries.
+func editCheckFromCurrentGraph() *awarenesspb.EditCheckResponse {
+	return &awarenesspb.EditCheckResponse{Authority: testCurrentAuthority("")}
+}
+
 func testCurrentAuthority(commit string) *awarenesspb.GraphAuthority {
 	return &awarenesspb.GraphAuthority{
 		Authoritative:                   true,
@@ -115,7 +143,7 @@ func testCurrentAuthority(commit string) *awarenesspb.GraphAuthority {
 		SeedState:                       awarenesspb.SeedState_SEED_STATE_CURRENT,
 		SourceRepoCommit:                commit,
 		EmbeddedSeedDigestSha256:        "seed123",
-		LiveStoreGraphDigestSha256:      "live123",
+		LiveStoreGraphDigestSha256:      testServedGeneration,
 		LiveStoreGraphTripleCount:       42,
 		EmbeddedTransactionStampPresent: true,
 		EmbeddedTransactionMatchesSeed:  true,
@@ -630,7 +658,7 @@ func TestServeStdio_AllowsLargeEditCheckPayloads(t *testing.T) {
 	br := testBridge(fakeClient{
 		editCheck: func(_ context.Context, in *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			gotContent = in.GetProposedContent()
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 	})
 	req := map[string]interface{}{
@@ -667,7 +695,7 @@ func TestServeStdio_SupportsContentLengthFraming(t *testing.T) {
 	br := testBridge(fakeClient{
 		editCheck: func(_ context.Context, in *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			gotContent = in.GetProposedContent()
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 	})
 	req := map[string]interface{}{
@@ -784,8 +812,9 @@ func TestAwarenessAuditDiffTool_Registered(t *testing.T) {
 func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
@@ -821,7 +850,7 @@ func TestAwarenessAuditDiffTool_FailsOnStaleOrNilAuthority(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
@@ -855,8 +884,9 @@ new file mode 100644
 func TestAwarenessAuditDiffTool_ExpectedHeadOptional(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
@@ -889,7 +919,7 @@ func TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify(t *testing
 	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
@@ -921,7 +951,7 @@ func TestAwarenessAuditDiffTool_ModifyWithoutExpectedHeadCannotVerify(t *testing
 func TestAwarenessAuditDiffTool_NoExpectedHeadMissingGraphCommitFailsClosed(t *testing.T) {
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
@@ -959,7 +989,7 @@ func TestAwarenessAuditDiffTool_GraphNoCommitIdentityFailsClosed(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{
@@ -1005,8 +1035,9 @@ new file mode 100644
 func TestAwarenessAuditDiffTool_IndependentGraphCommitIsNotAMismatch(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, req *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			// Graph was compiled from a different commit
@@ -1067,8 +1098,9 @@ func TestAwarenessAuditDiffTool_ModifiedFileVerifiesWithIndependentGraphCommit(t
 	firstLine := strings.SplitN(baseBytes, "\n", 2)[0]
 
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(graphCommit)}, nil
@@ -1123,10 +1155,11 @@ func TestMultiFileAuditIsNotStarvedByThePerRequestBudget(t *testing.T) {
 	// pass with the budgets still shared, which is the defect itself.
 	const perCall = 100 * time.Millisecond
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(ctx context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			select {
 			case <-time.After(perCall):
-				return &awarenesspb.EditCheckResponse{}, nil
+				return editCheckFromCurrentGraph(), nil
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}

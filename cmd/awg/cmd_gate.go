@@ -236,8 +236,8 @@ func runGate(args []string) int {
 	fs.SetOutput(os.Stderr)
 	diff := fs.String("diff", "HEAD", "git diff range to gate, e.g. 'origin/main...HEAD' or 'HEAD' (working tree vs HEAD)")
 	domain := fs.String("domain", "", "domain/repo scope (e.g. github.com/caddyserver/caddy); required when the graph hosts >1 domain")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
-	repoRoot := fs.String("repo-root", ".", "path to the git repo to diff")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
+	repoRoot := fs.String("repo-root", "", "path to the git repo to diff")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	reportOnly := fs.Bool("report-only", false, "CI mode: always exit 0 (fail-open on any error), print a non-blocking report with a summary line")
 	contractsPath := fs.String("contracts", "", "path to a frozen contract-set YAML file or directory; enables frozen-contract gate mode (does not use the Sensei server)")
@@ -292,6 +292,17 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repoRoot = governedRepoRoot(*repoRoot)
+	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
+	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
+	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
+	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
+	// bypassed canonical resolution entirely.
+	reader := productionReaderFor(fs, *repoRoot, *domain, *addr)
+	*addr = reader.Addr
 
 	// Phase 9.4a/9.4b: the completion gate is a distinct read path — it consumes a task's
 	// completion projection envelope, not a diff. WITHOUT enforcement it is advisory only

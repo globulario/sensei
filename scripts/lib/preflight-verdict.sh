@@ -12,7 +12,10 @@
 # distinction survives past this one process boundary.
 #
 # Usage: preflight_verdict <path-to-json-response>
-# Prints one of: ok | degraded:<reason> | malformed:<reason>
+# Prints one of: ok | degraded:<reason> | refused:<kind> | malformed:<reason>
+#   refused:* is a typed authority refusal -- the command declined to answer because the
+#   served graph is not the generation the registry declares ACTIVE. It is a real finding,
+#   not a broken response, and must not be classified malformed.
 # Exit code is always 0 -- this is a pure classifier; the caller decides
 # whether "degraded"/"malformed" should fail its own mode.
 
@@ -31,6 +34,28 @@ except Exception as exc:
 
 if not isinstance(data, dict):
     print("malformed:not_an_object")
+    raise SystemExit(0)
+
+# A SERVED-GENERATION REFUSAL IS NOT A MALFORMED RESPONSE.
+#
+# preflight refuses, with a nonzero exit, when the graph that answered is not the generation
+# the registry declares ACTIVE for the governed domain. That refusal is a typed payload on
+# stdout precisely so this classifier can name it: without this branch the caller sees an
+# authority refusal as "malformed", which is the distinction this file exists to preserve --
+# "this call never actually verified anything" must not be reported as a broken response.
+#
+# The two kinds are kept apart because the remedy differs: declare the ACTIVE generation, or
+# reconcile two claims that disagree.
+refusal = data.get("refusal")
+if isinstance(refusal, dict):
+    kind = refusal.get("kind")
+    if kind == "served_generation_not_established":
+        print("refused:served_generation_not_established")
+        raise SystemExit(0)
+    if kind == "served_generation_mismatch":
+        print("refused:served_generation_mismatch")
+        raise SystemExit(0)
+    print(f"malformed:unknown_refusal_kind:{kind}")
     raise SystemExit(0)
 
 status = data.get("status")

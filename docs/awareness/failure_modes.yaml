@@ -2266,3 +2266,34 @@ failure_modes:
       - golang/server/authority_certification_test.go:TestASeedOnlyStampWithNoRepositoryIdentitiesDoesNotCertify
     evidence:
       - 'Measured 2026-09-04: buildTransactionTSV run for github.com/globulario/sensei-code emits ''repo awareness-graph missing'' and ''repo services missing'' while its seed digest agrees, and evaluateTransactionForGraph -- which reads only the seed digest and triple count -- reports that stamp as certification. The v1 format is authored as a cross-repo awareness-graph/services certification and is hardwired around agRepo/svcRepo, so it can make no true claim about any other domain. Meanwhile an authenticated, generation-bound per-domain publication receipt already rode on the same response and the verdict did not consult it.'
+  - id: failure.a_cli_graph_reader_derived_repository_authority_from_the_wor
+    title: A CLI graph reader derived repository authority from the working directory
+    protects:
+      files:
+        - cmd/awg/endpoint_binding.go
+        - cmd/awg/cmd_preflight.go
+    related_invariants:
+      - controlstate.repository_context_must_not_be_derived_from_cwd
+    required_tests:
+      - cmd/awg/root_domain_coherence_test.go:TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot
+      - cmd/awg/root_domain_coherence_test.go:TestNoGraphReaderSubjectDefaultsItsRepositoryHintToDot
+    evidence:
+      - resolveProjectRoot walks up only for an empty argument; every graph-reading subject's --repo/--repo-root defaulted to ".", which is never empty, so the walk-up branch was unreachable by default and the governed domain was sought in the operator's working directory
+      - An empty governed domain has no registry entry, so precedence 2 (the domain registry, which exists OUTSIDE any published repository precisely so a repository cannot redirect its own graph) was skipped entirely and the weaker project-config authority answered
+      - 'Measured with registry and project config naming the SAME address on purpose: from the repository root the domain resolved and authority was the domain registry; from golang/server the domain was empty and authority was the project configuration, while the canonical endpoint was IDENTICAL. Four of five dimensions differed and the one dimension every prior witness compared did not'
+      - 'The invariant controlstate.repository_context_must_not_be_derived_from_cwd already forbade this and was scoped to control-panel RPCs: both its required tests live in golang/server, so the CLI readers were never covered by a critical active rule that named their exact defect'
+  - id: failure.a_witness_attested_a_property_it_never_evaluated_and_a_fixtu
+    title: A witness attested a property it never evaluated, and a fixture check shadowed the dimension it existed to expose
+    protects:
+      files:
+        - cmd/awg/root_domain_coherence_test.go
+    related_invariants:
+      - invariant.sensei.evidence_receipts_are_validated_not_self_certified
+    required_tests:
+      - cmd/awg/root_domain_coherence_test.go:TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect
+      - cmd/awg/root_domain_coherence_test.go:TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot
+    evidence:
+      - 'VACUITY: TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect loaded the project configuration from the HOME directory instead of the repository root, assigned both the config and its error to blank identifiers, and then logged that registry and project config both named the shared address — a claim it had not evaluated. The fixture''s config could have been missing or naming a different endpoint and the test would have passed while announcing the opposite'
+      - 'SHADOWING: TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot aborted on atRoot.Endpoint != atSub.Endpoint before the loop collecting its five dimensions, so the canonical-endpoint branch could never fire. It announced a five-dimension invariant and evaluated four, and its abort message blamed the fixture, so a genuine root-versus-nested divergence would have been reported as a broken test setup rather than as the invariant violation it is'
+      - Both were found by an independent blind reviewer on exact heads 40a5932b and ab1a17cf, in rounds 2 and 3 of the same pull request. Neither was found by the author's own sweeps; those established only that each defect was bounded, after being told where to look
+      - 'Repaired and proven by perturbing the CLAIMS rather than the production code: config names a different address KILLED, config omits server.addr KILLED, registry names a different address KILLED, config read from the wrong directory KILLED; and perturbing only the nested endpoint now yields ''disagree on 1 of 5 dimensions: canonical endpoint'' under the invariant message'

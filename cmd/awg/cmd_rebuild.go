@@ -225,7 +225,8 @@ Flags:
 				return 1
 			}
 		}
-		if err := reloadOxigraphStore(ntBytes, *oxigraphURL); err != nil {
+		if err := reloadOxigraphStore(ntBytes, *oxigraphURL, storeMutationIntent{
+			Overridden: flagPassed(fs, "oxigraph-url"), Reason: "sensei rebuild"}); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei rebuild: Oxigraph reload failed: %v\n", err)
 			return 1
 		}
@@ -256,13 +257,21 @@ Flags:
 			}
 			markerPath = resolved
 		}
-		if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei rebuild: publish graph marker: %v\n", err)
-			return 1
-		}
 		fmt.Println("  Oxigraph reload:    ok")
 		fmt.Println("  Live verification:  ok")
-		fmt.Printf("  Graph marker file:  %s\n", markerPath)
+		// ONE activation transition (G4). rebuild reloads the whole store rather than
+		// promoting a scoped staging graph, so everything upstream of here is its own
+		// work -- but from "the graph is verified" onward it must do exactly what build
+		// does, or the two leave the system in two states while both reporting success.
+		//
+		// rebuild does not know which governed domain it published for, so the pointer
+		// is not updated and activateGeneration says so. Before this it was silent, and
+		// readers resolving through the registry refused a healthy graph with no
+		// explanation anywhere.
+		if err := activateGeneration(os.Stdout, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
+			return 1
+		}
 	}
 
 	fmt.Println("\nDone.")
@@ -592,7 +601,12 @@ func guardAgainstLiveShrink(rawURL string, newCount int) error {
 		rawURL, current, newCount)
 }
 
-func reloadOxigraphStore(ntBytes []byte, rawURL string) error {
+func reloadOxigraphStore(ntBytes []byte, rawURL string, intent storeMutationIntent) error {
+	// The seam: see store_mutation_guard.go. A whole-store replacement is the most
+	// destructive thing this binary does, so it may not happen without stating whose it is.
+	if err := guardStoreMutation(rawURL, intent); err != nil {
+		return err
+	}
 	endpoint, err := normalizeOxigraphURL(rawURL)
 	if err != nil {
 		return err

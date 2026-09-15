@@ -132,3 +132,70 @@ self-evolution closure PR. Do not work around it by stamping the graph service
 with the candidate repository SHA unless the graph producer actually defines
 that SHA as its source snapshot. A provenance field must say what it really is,
 not what a downstream equality check happens to want.
+
+## The third identity: which generation answered (law 5)
+
+Added 2026-09-13 by the graph-identity front
+(`docs/architecture/oxygraph_usage.md`, law 5: *every graph query used by that run
+must prove it belongs to the pinned identity; a silent generation switch is
+forbidden*).
+
+This document separated two identities that had been conflated. Both were needed,
+and neither is the one law 5 asks for. A third exists:
+
+| identity | what it names | field |
+|---|---|---|
+| audit target | the repository base the diff applies to | `expected_head` |
+| rule snapshot | the commit that produced the rules consulted | `graph_commit` |
+| **generation** | **the bytes that answered the queries** | **`graph_generation_sha256`** |
+
+The closing paragraph above states the rule this obeys: *a provenance field must
+say what it really is, not what a downstream equality check happens to want.* The
+generation cannot be carried by `graph_commit` for exactly that reason. On this
+installation the graph server runs with
+`-home-domain github.com/globulario/services`, so the rule snapshot commit belongs
+to the **services** repository — two different Sensei graph generations built from
+one snapshot share it, and the field cannot distinguish them. Three live stores on
+the development machine answer healthily with 237,049 / 142,739 and 35,268 triples.
+
+### The mechanism
+
+The evaluator already enforced *one* identity across an audit, and its comment
+already said why: "a divergence means the snapshot shifted mid-audit and the result
+cannot be trusted." The generation extends that from the snapshot to the bytes.
+
+`SingleFileChecker` gains an optional companion, beside `BaseFileReader`:
+
+```go
+type GraphGenerationReporter interface {
+        GraphGeneration(ctx context.Context) (string, error)
+}
+```
+
+It is sampled **before the first graph query and after the last**, so an equal pair
+brackets every query the audit made. Three outcomes, kept distinct:
+
+- equal and non-empty → recorded in `graph_generation_sha256`, which participates
+  in the result digest, so two audits answered by different generations are not the
+  same record;
+- different → `cannot_verify` with reason `graph_generation_switched`, naming both
+  values. This is deliberately **not** `graph_unavailable`: "a different graph
+  answered the second half" and "the graph did not answer" are opposite diagnoses,
+  and collapsing them sends a reader to look for an outage that never happened;
+- absent or unreportable → `cannot_verify` with `graph_unavailable`. An identity
+  that cannot be checked is not a matching one, which is law 13's rule in another
+  currency.
+
+`Validate` gains the same structural lock `graph_commit` already had: an
+`available` result must be bound to the generation that answered it, so no future
+caller can construct an available verdict anchored to nothing.
+
+### Fixtures this exposed
+
+Optional in the Go sense only: a checker that cannot report a generation produces
+results that are *not available*, and six existing fixtures were relying on that
+silence — one hand-built `AuditResult`, the evaluator's `fakeChecker`, and five
+bridge tests whose fake client had no metadata stub. All were completed rather than
+the guard relaxed. A guard moved into a path will often expose invalid fixtures;
+correcting the fixture is the work, and relaxing the guard to accommodate them
+would leave both defects concealing each other.

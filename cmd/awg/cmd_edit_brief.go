@@ -37,7 +37,7 @@ import (
 func runEditBrief(args []string) int {
 	fs := flag.NewFlagSet("sensei edit-brief", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", os.Getenv("AWG_DOMAIN"), "domain/repo scope (required on a multi-domain graph)")
 	root := fs.String("root", "", "project root (default: walk up for docs/awareness or .sensei/config.yaml)")
 	depth := fs.String("depth", envOr("AWG_EDIT_BRIEF_DEPTH", "agent_compact"),
@@ -96,6 +96,12 @@ Flags:
 	if resolvedDomain == "" {
 		resolvedDomain = strings.TrimSpace(resolveRepositoryDomain(projectRoot, "").Domain)
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, *root, resolvedDomain, *addr)
+	*addr = reader.Addr
 
 	rel, ok := relWithinRoot(projectRoot, file)
 	if !ok {
@@ -143,6 +149,25 @@ Flags:
 		reason := firstLine(err.Error())
 		recordEditBrief(ledger, rel, resolvedDomain, editBriefOutcome{}, false, evidence.CoverageInProject, reason)
 		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing unavailable (allowing edit): %s\n", reason)
+		return 0
+	}
+
+	// SERVED-GENERATION AUTHORITY, BEFORE THE PROSE IS DELIVERED.
+	//
+	// Delivered prose is governing context an agent acts on before editing, so it must come from the
+	// generation the registry declares ACTIVE for this domain. The guard sits here, after the reply
+	// and before any read of out.Prose.
+	//
+	// REFUSAL HERE MEANS NOT DELIVERING, not blocking the edit. This command's existing contract is
+	// that a briefing it cannot serve is never a reason to block ("Never block on it"), and that is
+	// deliberate. So an unverifiable generation is recorded as an opportunity that produced no
+	// delivery -- the measurement's most important row -- and the edit proceeds unannotated. The
+	// payload is not consumed, which is what the authority contract requires; the exit code keeps the
+	// non-blocking promise this command already made.
+	if _, err := reader.requireVerifiedServedGeneration(out.ServedGeneration); err != nil {
+		reason := firstLine(err.Error())
+		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject, reason)
+		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing withheld (allowing edit): %s\n", reason)
 		return 0
 	}
 
@@ -252,7 +277,14 @@ type editBriefOutcome struct {
 	// evidence shows what the server said, not only what was acted on.
 	Wire       awarenesspb.BriefingStatus
 	Referenced []string
+	// Generation is the authority's GraphBuildCommit -- the SOURCE REVISION the graph was built
+	// from. It is what the delivery ledger records, and it is NOT the served graph's generation.
 	Generation string
+	// ServedGeneration is the live store's graph digest: the identity that must equal the
+	// registry's ACTIVE generation before this briefing may be delivered as governing context.
+	// Separate from Generation because a field named for one identity must not hold another; a
+	// comparison built on GraphBuildCommit could never pass.
+	ServedGeneration string
 }
 
 // editBriefRPC fetches a compact briefing for a file; overridable in tests.
@@ -268,11 +300,12 @@ var editBriefRPC = func(ctx context.Context, addr, file, depth, domain string) (
 		return editBriefOutcome{}, err
 	}
 	return editBriefOutcome{
-		Prose:      resp.GetProse(),
-		Status:     preferFileStatus(resp.GetStatus(), resp.FileStatus),
-		Wire:       resp.GetStatus(),
-		Referenced: resp.GetReferencedIds(),
-		Generation: resp.GetAuthority().GetGraphBuildCommit(),
+		Prose:            resp.GetProse(),
+		Status:           preferFileStatus(resp.GetStatus(), resp.FileStatus),
+		Wire:             resp.GetStatus(),
+		Referenced:       resp.GetReferencedIds(),
+		Generation:       resp.GetAuthority().GetGraphBuildCommit(),
+		ServedGeneration: resp.GetAuthority().GetLiveStoreGraphDigestSha256(),
 	}, nil
 }
 
