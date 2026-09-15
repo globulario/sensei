@@ -82,13 +82,16 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			}
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.entry_digest_mismatch", Detail: detail, Path: filepath.ToSlash(path)})
 		}
-		if idx == 0 {
+		if idx == 0 && entry.PreviousEntryDigestSHA256 != "" {
+			report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
+		}
+		// Chain state is keyed to the entries actually verified, not to file
+		// positions: a skipped unreadable or invalid entry must neither panic the
+		// comparison nor leave later entries compared against an unset task id.
+		if len(out.Entries) == 0 {
 			out.TaskID = entry.Task.ID
-			if entry.PreviousEntryDigestSHA256 != "" {
-				report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
-			}
 		} else {
-			prev := out.Entries[idx-1].Entry
+			prev := out.Entries[len(out.Entries)-1].Entry
 			if entry.PreviousEntryDigestSHA256 != prev.EntryDigestSHA256 {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.previous_digest_mismatch", Detail: "previous digest does not match prior entry", Path: filepath.ToSlash(path)})
 			}
