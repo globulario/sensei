@@ -187,6 +187,9 @@ components:
       - cmd/awg/domain_admission.go
       - cmd/awg/domain_admission_ci.go
       - cmd/awg/domain_closure.go
+      - cmd/awg/domain_registry_lock.go
+      - cmd/awg/domain_registry_lock_unix.go
+      - cmd/awg/domain_registry_lock_windows.go
       - cmd/awg/endpoint_binding.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go
@@ -209,6 +212,8 @@ components:
       - cmd/awg/repo_domain_binding.go
       - cmd/awg/seedfreshness.go
       - cmd/awg/serve_compatibility.go
+      - cmd/awg/store_mutation_guard.go
+      - cmd/awg/store_ownership.go
       - cmd/awg/synthesis_run_identity.go
       - cmd/awg/synthesis_run_resume.go
       - cmd/awg/synthesis_run_stop.go

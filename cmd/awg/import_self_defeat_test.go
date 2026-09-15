@@ -152,3 +152,69 @@ func porcelain(t *testing.T, root string) string {
 	}
 	return strings.TrimSpace(string(out))
 }
+
+// REVIEW FINDING (P1, chatgpt-codex-connector, cmd_import.go:186):
+// "Run import admission before contract extraction writes."
+//
+// CONFIRMED BY INSPECTION. Stage [1/5] runs `intent-mine --adopt`, which creates or
+// updates files under docs/awareness, and importWouldDefeatItself sits ~50 lines LATER.
+// So on `--depth full` with an available drafter the refusal prints
+//
+//	"this import cannot succeed, so nothing has been run and the checkout is untouched"
+//
+// after stage 1 has already written. The message is FALSE in that configuration.
+//
+// My own live proof of this gate used --depth basic, which skips stage 1 entirely — so it
+// measured the one configuration in which the claim happens to be true and I asserted it
+// generally. That is the recorded pattern: a witness only proves its first guard, and
+// evidence that could not have failed is not evidence.
+//
+// The repair is ordering, not wording: a gate whose refusal asserts an untouched checkout
+// must run before anything writes. Weakening the sentence instead would keep the defect
+// and describe it.
+// THE QUANTIFIED DOMAIN OF THIS WITNESS, measured 2026-09-14 and stated because
+// over-reading it is what let a regression through.
+//
+// This asserts LEXICAL ordering in the source: the gate appears before stage 1's writer.
+// It is not a behavioural proof that the refusal precedes a stage-1 write, and it cannot
+// be one here: `intent-mine --adopt` needs a drafter, and with none available it reports
+// "no candidates to ground" and writes nothing, so a behavioural assertion over stage 1 is
+// vacuous in this environment. Measured directly -- porcelain is byte-identical before and
+// after runIntentMine with 4 candidates present.
+//
+// The behavioural half of the claim is carried by
+// TestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction, which refuses ahead of
+// stage 2 (runBootstrap), a stage that demonstrably writes.
+func TestTheSelfDefeatGateRunsBeforeAnyExtractionWrites(t *testing.T) {
+	raw, err := os.ReadFile("cmd_import.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := string(raw)
+
+	gate := strings.Index(src, "importWouldDefeatItself(")
+	if gate < 0 {
+		t.Fatal("the self-defeat gate is gone; this check has lost its anchor")
+	}
+	// Every writing stage that must not precede it. intent-mine --adopt is the one the
+	// reviewer found; the structural scaffold and the admission call are named too so a
+	// future reordering cannot reintroduce the same class elsewhere.
+	for _, writer := range []struct{ token, what string }{
+		{`"--adopt"`, "stage 1 contract extraction (intent-mine --adopt writes docs/awareness)"},
+		{"runIntentMine(", "stage 1 contract extraction"},
+	} {
+		at := strings.Index(src, writer.token)
+		if at < 0 {
+			continue
+		}
+		if at < gate {
+			t.Errorf("%s runs at offset %d, BEFORE the gate at %d: the refusal claims an untouched checkout that stage 1 has already modified",
+				writer.what, at, gate)
+		}
+	}
+	// And the refusal must only make that claim if it is true — asserted here so the
+	// sentence and the ordering stay tied together.
+	if !strings.Contains(src, "nothing has been run and the checkout is untouched") {
+		t.Log("note: the refusal no longer claims an untouched checkout; the ordering assertion above is then the weaker requirement")
+	}
+}

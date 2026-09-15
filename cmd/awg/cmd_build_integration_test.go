@@ -59,7 +59,7 @@ func TestIntegration_ScopedRepoPublication_RealOxigraph(t *testing.T) {
 	baseline, _ := seedmeta.AppendMarker([]byte(
 		"<https://example.test/foreign> <https://globular.io/awareness#repo> \"github.com/test/foreign\" .\n" +
 			"<https://example.test/foreign> <https://example.test/p> \"must survive\" .\n"))
-	if err := uploadNTriples(http.DefaultClient, storeURL, baseline); err != nil {
+	if err := uploadNTriples(http.DefaultClient, storeURL, baseline, storeMutationIntent{Reason: "test"}); err != nil {
 		t.Fatalf("load baseline: %v", err)
 	}
 

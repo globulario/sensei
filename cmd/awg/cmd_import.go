@@ -161,6 +161,65 @@ Flags:
 	// 1) Contracts FIRST for fresh imports — on the pristine clone, before
 	// bootstrap scaffolds. Refresh reuses an existing checkout, so this stage is
 	// a re-grounding pass over current files rather than a pristine-clone pass.
+	// THE SELF-DEFEAT GATE RUNS BEFORE ANYTHING WRITES, and that ordering is the whole
+	// point of it.
+	//
+	// It used to sit after stage 1. Stage 1 is `intent-mine --adopt`, which creates and
+	// updates files under docs/awareness -- so on `--depth full` with a drafter available
+	// the refusal printed "nothing has been run and the checkout is untouched" AFTER the
+	// checkout had been modified. The sentence was false in exactly the configuration the
+	// gate exists for (review finding, #359).
+	//
+	// My own live proof of this gate used --depth basic, which skips stage 1, so it
+	// measured the one configuration where the claim happens to hold. A guard whose
+	// refusal asserts a fact about the filesystem has to run before anything can falsify
+	// it; moving the sentence would have kept the defect and described it.
+	//
+	// One registry read feeds both the gate and the input filter, so they cannot disagree
+	// about which roots this domain publishes.
+	var allowedRoots []string
+	var allowDirty bool
+	if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
+		if rd, ok := reg.Domains[dom]; ok {
+			allowedRoots, allowDirty = rd.AllowedCorpusRoots, rd.AllowDirtyWorktree
+		}
+	}
+	// The three roots this run may publish. Declared here, before anything writes,
+	// because WHICH roots are admissible is knowable now while WHICH EXIST is not:
+	// stages 2 and 4 create them.
+	plannedInputs := []string{
+		filepath.Join(checkout, "docs", "awareness"),
+		filepath.Join(checkout, "docs", "awareness", "generated"),
+		filepath.Join(checkout, ".sensei", "project"),
+	}
+	if *storeURL != "" {
+		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
+			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
+			return 1
+		}
+		// Every admission fact that does NOT depend on generated output existing is
+		// asked here, before extraction writes. Review finding cmd_import.go:185: an
+		// unreadable registry, an unregistered domain, or a checkout belonging to another
+		// repository were all discovered only after stage 1 had modified the checkout.
+		if aerr := admissionPossibleBeforeMutation(dom, checkout, plannedInputs, allowedRoots, DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
+			return 1
+		}
+		// STORE OWNERSHIP IS KNOWABLE NOW TOO, so it is asked now.
+		//
+		// The target store and the registry both exist before this command writes anything, so
+		// publishing into a store another domain owns is a refusal whose facts are all
+		// available up front. It used to be discovered at stage 5, by which time stages 1-4 had
+		// written to docs/awareness and .sensei -- the same "refuse before extraction" rule this
+		// gate already applies to registry and identity failures, applied to the one remaining
+		// pre-mutation fact.
+		if serr := guardStoreMutation(*storeURL, storeMutationIntent{
+			Domain: dom, Overridden: true, Reason: "sensei import"}); serr != nil {
+			fmt.Fprintf(os.Stderr, "sensei import: %v\n", serr)
+			return 1
+		}
+	}
+
 	if wantContracts {
 		stage := "contract extraction (pristine clone)"
 		if *refresh {
@@ -195,51 +254,6 @@ Flags:
 	// .sensei/project.lock behind -- from a run that loaded nothing and truthfully
 	// reported mutation_started: false.
 	//
-	// The gate answers this read-only and the inputs are known from `checkout`
-	// alone, so there is no reason to write anything first. This is law 9 of the
-	// graph-identity front: a failed publication must not leave the canonical
-	// checkout rewritten merely because staging was attempted.
-	// The inputs this import will publish, filtered to what the domain admits.
-	// `.sensei/project` is generated reconstruction output rather than authored
-	// corpus, so a domain that allows only docs/awareness refuses it -- correctly.
-	// Filtering here means import builds a command the gate can accept, and the
-	// admissibility check below is asked about the set it will actually use.
-	var allowedRoots []string
-	if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
-		if rd, ok := reg.Domains[dom]; ok {
-			allowedRoots = rd.AllowedCorpusRoots
-		}
-	}
-	allInputs := []string{
-		filepath.Join(checkout, "docs", "awareness"),
-		filepath.Join(checkout, "docs", "awareness", "generated"),
-		filepath.Join(checkout, ".sensei", "project"),
-	}
-	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, allInputs, allowedRoots)
-
-	// LAW 9, the form that actually bit. Refusing here is the only place it can be
-	// caught: an admissibility check cannot see dirtiness this run has not created
-	// yet, and by the time the gate sees it the checkout is already rewritten.
-	if *storeURL != "" {
-		var allowDirty bool
-		if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
-			if rd, ok := reg.Domains[dom]; ok {
-				allowDirty = rd.AllowDirtyWorktree
-			}
-		}
-		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
-			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
-			return 1
-		}
-	}
-
-	if *storeURL != "" {
-		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
-			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
-			return 1
-		}
-	}
-
 	fmt.Fprintln(os.Stderr, "\n== [2/5] structural extraction ==")
 	if rc := runBootstrap([]string{"--path", checkout, "--skip-history", "--skip-build"}); rc != 0 {
 		fmt.Fprintln(os.Stderr, "sensei import: structural extraction failed")
@@ -278,9 +292,20 @@ Flags:
 		fmt.Fprintln(os.Stderr, "  (fresh store? seed once with `sensei build --all` first.)")
 	} else {
 		fmt.Fprintln(os.Stderr, "\n== [5/5] load domain-scoped slice ==")
-		// Re-asked here as a last-line guard. The hoisted check above is the one
-		// that protects the checkout; this one catches an input set that became
-		// inadmissible while the extraction stages ran.
+		// RECOMPUTED FROM THE POST-BOOTSTRAP FILESYSTEM, never from a pre-stage snapshot.
+		//
+		// "declared and admissible" was settled before mutation. "exists and is
+		// publishable" is a different fact about a different moment, and for output this
+		// command creates it cannot be known until stages 2 and 4 have run. Freezing the
+		// earlier answer refused a fresh repository its own bootstrap (review finding
+		// cmd_import.go:247) and, where only some roots were initially absent, silently
+		// withheld reconstruction output the domain allows.
+		//
+		// Existence first, then the allowlist, so an operator told "not published" can
+		// tell which of the two reasons applied.
+		presentInputs, absentInputs := existingCorpusInputs(plannedInputs)
+		publishInputs, droppedInputs := admissibleCorpusInputs(checkout, presentInputs, allowedRoots)
+		droppedInputs = append(droppedInputs, absentInputs...)
 		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
 			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
 			return 1
@@ -1825,6 +1850,37 @@ func admissibleCorpusInputs(checkout string, inputs, allowedRoots []string) (kep
 		dropped = append(dropped, in)
 	}
 	return kept, dropped
+}
+
+// existingCorpusInputs drops planned roots that do not exist yet.
+//
+// A PATH WITH NO BYTES IS NOT AN INPUT FOR THIS RUN, whatever the domain admits. Review
+// finding (#359): the one-command import-and-load flow bootstraps a foreign checkout, so
+// docs/awareness/generated and .sensei/project do not exist until later stages create
+// them -- and AdmitPublication's ResolveSourceIdentity runs `git -C <dir>` per directory,
+// which refuses a nonexistent path as "not inside a git repository". Admission therefore
+// refused the very flow the self-defeat gate is written to allow, for a reason that has
+// nothing to do with governance.
+//
+// Kept SEPARATE from the allowlist filter, deliberately. The allowlist is a pure function
+// of paths and a domain's declaration; existence is a fact about the filesystem at this
+// moment. Folding them together made a pure predicate depend on the disk and broke two
+// fixtures that expressed the allowlist rule with synthetic paths -- correctly, because
+// those fixtures are about the rule, not about what happens to be on disk.
+//
+// Admission's own rule is untouched: it is still asked about every path that exists, and a
+// path that exists and is inadmissible is still refused for the governance reason.
+// Teaching admission to tolerate absent directories would have made "the corpus is not
+// there" indistinguishable from "the corpus is not governed".
+func existingCorpusInputs(inputs []string) (present, absent []string) {
+	for _, in := range inputs {
+		if _, err := os.Stat(in); err != nil {
+			absent = append(absent, in)
+			continue
+		}
+		present = append(present, in)
+	}
+	return present, absent
 }
 
 // droppedInputsNotice says what was not published and what that costs.

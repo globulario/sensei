@@ -136,7 +136,7 @@ Flags:
 				if updated {
 					fmt.Printf("    embeddata updated: %s\n", seedPath)
 				}
-				_ = reloadOxigraphStore(ntBytes, defaultOxigraphStoreURL())
+				_ = reloadOxigraphStore(ntBytes, defaultOxigraphStoreURL(), storeMutationIntent{Reason: "sensei audit"})
 				return nil
 			}
 			c.fixDesc = "rebuild embeddata + reload Oxigraph"

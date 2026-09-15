@@ -1150,6 +1150,42 @@ test_symbols:
     package: main
     language: go
     doc: "The scoped publication path is the one caller that KNOWS its domain, and passing \"\" there\nwould silently degrade every scoped build to \"pointer not updated\" — a message that looks\nlike the honest report rebuild and serve correctly emit. Behaviour cannot separate them,\nbecause both produce a marker and a note; only the argument differs.\n\nA source-anchored check, and labelled as one: the scoped path needs a live Oxigraph store\nto reach. It anchors on the receipt write, which only that path performs, so it cannot\naccidentally inspect the whole-store call above it."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestAnUnobtainableRegistryLockIsReportedNotSkipped
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestAnUnobtainableRegistryLockIsReportedNotSkipped
+    package: main
+    language: go
+    doc: "A lock that cannot be taken is reported, never skipped. Proceeding unserialized is how\nthe pointer was lost, and losing it is silent: the graph keeps answering, from the wrong\ngeneration."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestCompetingUpdatesToOneDomainLeaveExactlyOneOfThem
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestCompetingUpdatesToOneDomainLeaveExactlyOneOfThem
+    package: main
+    language: go
+    doc: "Same-domain competing updates: the registry states ONE active generation per domain, so\none of the two values must win whole. What must never happen is a third value, an absent\npointer, or a torn file."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestTheRegistryLockIsDerivedFromTheRegistryPath
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestTheRegistryLockIsDerivedFromTheRegistryPath
+    package: main
+    language: go
+    doc: "The lock must be shared by everyone writing the SAME registry, and not by writers of a\ndifferent one. It is a pure function of the registry path, because two processes are\nnever told each other's identity — they only know which registry they were given."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestTheRegistrySurvivesConcurrentUpdatesAsValidYAML
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestTheRegistrySurvivesConcurrentUpdatesAsValidYAML
+    package: main
+    language: go
+    doc: "The registry must remain parseable. A torn or interleaved write is worse than a lost\npointer: it takes every domain down, not one."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestTwoConcurrentActiveGenerationUpdatesBothSurvive
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestTwoConcurrentActiveGenerationUpdatesBothSurvive
+    package: main
+    language: go
+    doc: "THE FINDING. Two legitimate concurrent updates to DIFFERENT domains must both survive.\nA shared registry is the one place a per-store lock cannot protect."
+  - id: cmd/awg/active_generation_concurrency_test.go:TestWriteFileAtomicDoesNotLetConcurrentWritersTearAFile
+    file: cmd/awg/active_generation_concurrency_test.go
+    symbol: TestWriteFileAtomicDoesNotLetConcurrentWritersTearAFile
+    package: main
+    language: go
+    doc: "writeFileAtomic is shared by 19 call sites, and only this one holds a registry lock. The\nunique temp file therefore has to be proven on the function itself: a mutant restoring\nthe fixed \"<path>.tmp\" survived every registry witness above, because the lock makes the\ncollision unreachable HERE while leaving it reachable for the other eighteen."
   - id: cmd/awg/active_generation_test.go:TestAPrefixIsNotTheGeneration
     file: cmd/awg/active_generation_test.go
     symbol: TestAPrefixIsNotTheGeneration
@@ -6308,6 +6344,66 @@ test_symbols:
     package: main
     language: go
     doc: "TestHookLifecycle_DomainBoundBriefingMarkers is the required process-level\nintegration proof (contract §13 correction): the ACTUAL .claude/hooks\nshell scripts and the ACTUAL built sensei binary, invoked as real\nsubprocesses — not `ClassifyFile` called in-process — must enforce the\nfull protected-edit lifecycle, including domain-bound marker isolation\n(contract §3) and fail-closed behavior (contract §9). The prior fixture\n(golang/architecture/protection/foreign_repo_fixture_test.go) explicitly\nsubstituted code inspection for this; this test is the substitute's\nreplacement, proven at the process boundary."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestADirtyGovernedRootIsStillRefusedAtPublication
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestADirtyGovernedRootIsStillRefusedAtPublication
+    package: main
+    language: go
+    doc: "5. A root that exists but is DIRTY is still refused, and that refusal belongs to the\npost-generation admission: dirtiness is a property of content, so it is not knowable for\na directory the run has not created yet. The domain here forbids a dirty worktree."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestAFreshRepositoryReachesTheStageThatCreatesItsCorpus
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestAFreshRepositoryReachesTheStageThatCreatesItsCorpus
+    package: main
+    language: go
+    doc: "1. THE REGRESSION. A fresh repository must reach the stage that creates its corpus.\nBefore the repair this refused with \"no corpus root resolved\" and docs/awareness was\nnever created."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestAStageCreatedRootOutsideTheAllowlistIsStillRefused
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestAStageCreatedRootOutsideTheAllowlistIsStillRefused
+    package: main
+    language: go
+    doc: "2. A path a stage creates that the domain does NOT allow is still refused. The\nrecomputation must not become a way for generated output to publish itself."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction
+    package: main
+    language: go
+    doc: "4. Every admission fact knowable before extraction refuses before extraction, with the\ncheckout untouched. This is review finding cmd_import.go:185, proven per cause rather\nthan argued: an unreadable registry, an unregistered domain, and a checkout belonging to\nanother repository were each discovered only after stage 1 had written."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestImportProceedsWhenNoOtherDomainOwnsTheStore
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestImportProceedsWhenNoOtherDomainOwnsTheStore
+    package: main
+    language: go
+    doc: "The other direction: a store nobody else claims must not block an import."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestImportRefusesAForeignStoreBeforeExtractionWrites
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestImportRefusesAForeignStoreBeforeExtractionWrites
+    package: main
+    language: go
+    doc: "ANTIGRAVITY FINDING (P2, cmd_import.go:195): import mutated the checkout before verifying\nstore ownership.\n\nThe target store and the registry both exist before this command writes anything, so\npublishing into a store another domain owns is a refusal whose facts are all available up\nfront. It was discovered at stage 5 instead, by which time stages 1-4 had written -- the same\n\"refuse before extraction\" rule this gate already applies to registry and identity failures,\nnot yet applied to the one remaining pre-mutation fact."
+  - id: cmd/awg/import_bootstrap_recompute_test.go:TestTheImportCommandAdmitsTheRecomputedInputsAtTheLoadStep
+    file: cmd/awg/import_bootstrap_recompute_test.go
+    symbol: TestTheImportCommandAdmitsTheRecomputedInputsAtTheLoadStep
+    package: main
+    language: go
+    doc: "3. THE WIRING CLAIM, behaviourally. The real command must reach the LOAD step on a fresh\nrepository, which is only possible if the admission it performs there was recomputed from\nthe post-bootstrap filesystem. A source-text assertion about statement order proves the\ntext, not the run -- the previous \"wiring witness\" for this filter was exactly that, and\nit is why the regression shipped."
+  - id: cmd/awg/import_input_filter_test.go:TestAPlannedRootThatDoesNotExistYetIsNotAnInputForThisRun
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestAPlannedRootThatDoesNotExistYetIsNotAnInputForThisRun
+    package: main
+    language: go
+    doc: "REVIEW FINDING (P1, chatgpt-codex-connector, cmd_import.go:216):\n\"Avoid admitting generated directories before creating them.\"\n\nThe advertised one-command import-and-load flow bootstraps a foreign checkout: the\ngenerated corpus and the reconstruction output do not exist until stages 2-4 create\nthem. The preflight nevertheless hands those paths to AdmitPublication, whose\nResolveSourceIdentity runs `git -C <dir> rev-parse --show-toplevel` per directory and\nrefuses a path that is not inside a repository -- which a nonexistent directory is not.\n\nSo admission refuses the very flow importWouldDefeatItself is written to allow, and it\nrefuses it for a reason that has nothing to do with governance: the directory has not\nbeen written yet.\n\nThe fix must not relax admission. A planned root that does not exist yet carries no\nbytes to certify, so it cannot be a corpus root for THIS run -- it is simply not part\nof the input set, and the set is what admission must be asked about."
+  - id: cmd/awg/import_input_filter_test.go:TestAdmissionSucceedsWhenOnlyTheExistingCorpusIsOffered
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestAdmissionSucceedsWhenOnlyTheExistingCorpusIsOffered
+    package: main
+    language: go
+    doc: "And the consequence the reviewer actually cares about: admission must SUCCEED for a\nbootstrap-shaped run, rather than refusing because a later stage has not written yet."
+  - id: cmd/awg/import_input_filter_test.go:TestAnExistingButInadmissibleRootIsStillDropped
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestAnExistingButInadmissibleRootIsStillDropped
+    package: main
+    language: go
+    doc: "The regression this must not cause: a path that exists and is NOT admitted by the\ndomain is still dropped for the governance reason, not silently kept."
   - id: cmd/awg/import_input_filter_test.go:TestAnUnconstrainedDomainKeepsEveryInput
     file: cmd/awg/import_input_filter_test.go
     symbol: TestAnUnconstrainedDomainKeepsEveryInput
@@ -6325,6 +6421,12 @@ test_symbols:
     package: main
     language: go
     doc: "Dropping the reconstruction output is not free, and the notice must say so. A\nsilent filter would turn \"your coverage was not published\" into \"the load\nsucceeded\"."
+  - id: cmd/awg/import_input_filter_test.go:TestTheImportCommandRecomputesPublicationInputsAfterExtraction
+    file: cmd/awg/import_input_filter_test.go
+    symbol: TestTheImportCommandRecomputesPublicationInputsAfterExtraction
+    package: main
+    language: go
+    doc: "The command must COMPOSE the two filters, in order. A mutant that fed allInputs straight\nto the allowlist survived the behavioural witnesses above, because they perform the\ncomposition themselves — the seventh instance this session of a property proven in a\nhelper and unasserted at the call site.\nThe RECOMPUTATION must happen after the stages that create the corpus.\n\nThis replaces an earlier version of this witness that asserted the filter appeared before\nadmission. That ordering was true and insufficient: it said nothing about WHEN relative to\nthe stages, and the filter sat before them, so a fresh repository was refused its own\nbootstrap. Structural, and deliberately narrow -- the behavioural claim is carried by\nTestAFreshRepositoryReachesTheStageThatCreatesItsCorpus and\nTestTheImportCommandAdmitsTheRecomputedInputsAtTheLoadStep, which drive the real command."
   - id: cmd/awg/import_load_failure_test.go:TestImportLoadFailureNoticeDoesNotFabricateACause
     file: cmd/awg/import_load_failure_test.go
     symbol: TestImportLoadFailureNoticeDoesNotFabricateACause
@@ -6369,6 +6471,12 @@ test_symbols:
     package: main
     language: go
     doc: "End to end: the command refuses and writes nothing.\n\nHONEST LIMIT OF THIS TEST. It does NOT bind the call site. Deleting the refusal\nstill passes it, because in a synthetic repository the extraction stages write\nnothing to begin with — there is no Go source to extract and no managed skills to\nregenerate — so no assertion here can distinguish \"refused early\" from \"ran and\nproduced nothing\". Building a repository realistic enough to write would be a\ndisproportionate fixture.\n\nThe WIRING is proven live instead, on this repository, and that evidence is\nstronger than a synthetic fixture would be: the same invocation that previously\nturned a clean checkout into 27 changes with nothing loaded now prints the refusal\nand leaves git status empty, 0 -> 0. Recorded in\nsensei/docs/architecture/graph-identity-audit.md.\n\nWhat this test does bind: that the command exits non-zero and, when it refuses,\nleaves the worktree clean — checked with git status rather than an entry count,\nbecause most of the 27 observed writes were MODIFICATIONS and an entry count cannot\nsee those. An assertion that cannot see the damage it exists to detect is not an\nassertion."
+  - id: cmd/awg/import_self_defeat_test.go:TestTheSelfDefeatGateRunsBeforeAnyExtractionWrites
+    file: cmd/awg/import_self_defeat_test.go
+    symbol: TestTheSelfDefeatGateRunsBeforeAnyExtractionWrites
+    package: main
+    language: go
+    doc: "REVIEW FINDING (P1, chatgpt-codex-connector, cmd_import.go:186):\n\"Run import admission before contract extraction writes.\"\n\nCONFIRMED BY INSPECTION. Stage [1/5] runs `intent-mine --adopt`, which creates or\nupdates files under docs/awareness, and importWouldDefeatItself sits ~50 lines LATER.\nSo on `--depth full` with an available drafter the refusal prints\n\n\t\"this import cannot succeed, so nothing has been run and the checkout is untouched\"\n\nafter stage 1 has already written. The message is FALSE in that configuration.\n\nMy own live proof of this gate used --depth basic, which skips stage 1 entirely — so it\nmeasured the one configuration in which the claim happens to be true and I asserted it\ngenerally. That is the recorded pattern: a witness only proves its first guard, and\nevidence that could not have failed is not evidence.\n\nThe repair is ordering, not wording: a gate whose refusal asserts an untouched checkout\nmust run before anything writes. Weakening the sentence instead would keep the defect\nand describe it.\nTHE QUANTIFIED DOMAIN OF THIS WITNESS, measured 2026-09-14 and stated because\nover-reading it is what let a regression through.\n\nThis asserts LEXICAL ordering in the source: the gate appears before stage 1's writer.\nIt is not a behavioural proof that the refusal precedes a stage-1 write, and it cannot\nbe one here: `intent-mine --adopt` needs a drafter, and with none available it reports\n\"no candidates to ground\" and writes nothing, so a behavioural assertion over stage 1 is\nvacuous in this environment. Measured directly -- porcelain is byte-identical before and\nafter runIntentMine with 4 candidates present.\n\nThe behavioural half of the claim is carried by\nTestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction, which refuses ahead of\nstage 2 (runBootstrap), a stage that demonstrably writes."
   - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
     symbol: TestAResponseWithNoBuildCommitReportsUnknown
@@ -6965,6 +7073,161 @@ test_symbols:
     package: main
     language: go
     doc: "Law 10: a marker cannot certify a different generation/store than the one being\nserved. Today nothing compares them, so a divergence is invisible — measured on\n2026-09-13, a disposable generation wrote digest 230a74f6…/35,255 while the live\nmarker still said c0b660fc…/35,268, and no command would have said so."
+  - id: cmd/awg/store_mutation_guard_test.go:TestANamedGraphPutCannotTargetAnotherDomainsStore
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestANamedGraphPutCannotTargetAnotherDomainsStore
+    package: main
+    language: go
+    doc: "A NAMED-GRAPH PUT is a mutation of somebody's store, so it passes the same seam."
+  - id: cmd/awg/store_mutation_guard_test.go:TestAStoreNoDomainClaimsRemainsWritable
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestAStoreNoDomainClaimsRemainsWritable
+    package: main
+    language: go
+    doc: "4. A store NO domain claims stays writable, so disposable stores and experiments work.\nWithout this the guard could pass every test above by refusing everything."
+  - id: cmd/awg/store_mutation_guard_test.go:TestAnEquivalentSpellingOfAnOwnedStoreIsStillRefused
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestAnEquivalentSpellingOfAnOwnedStoreIsStillRefused
+    package: main
+    language: go
+    doc: "3. AN EQUIVALENT SPELLING of the owned store is the same store. This ties finding\nstore_ownership.go:51 to this seam: without canonicalization the guard is bypassed by\nwriting the URL differently."
+  - id: cmd/awg/store_mutation_guard_test.go:TestAnOverriddenEndpointIsNotRefusedAsThisDomainsOwnMismatch
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestAnOverriddenEndpointIsNotRefusedAsThisDomainsOwnMismatch
+    package: main
+    language: go
+    doc: "BLIND-PASS FINDING (P1, cmd_build.go:722): the scoped path's intent omitted Overridden.\n\nWithout it the guard treats an endpoint the operator named explicitly as one the command chose,\nso rule 2 -- this domain publishing somewhere other than its declared store -- refuses a\npublication the operator asked for by name. FALSE REFUSAL. Rule 1, another domain's store, is\nunaffected: an override never relaxes it, which the second case below pins."
+  - id: cmd/awg/store_mutation_guard_test.go:TestAnUnclaimedPublicationCannotReplaceAnotherDomainsStore
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestAnUnclaimedPublicationCannotReplaceAnotherDomainsStore
+    package: main
+    language: go
+    doc: "1. A publication claiming NO domain must not replace a store another domain owns. This is\nthe case the four ungated commands presented, and the damage lands on a domain nobody in\nthe command mentioned."
+  - id: cmd/awg/store_mutation_guard_test.go:TestAnUnreadableRegistryStopsTheMutationAndAnAbsentOneDoesNot
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestAnUnreadableRegistryStopsTheMutationAndAnAbsentOneDoesNot
+    package: main
+    language: go
+    doc: "6. An UNREADABLE registry fails closed; an ABSENT one is inert. Two different facts."
+  - id: cmd/awg/store_mutation_guard_test.go:TestBuildConsultsTheRegistryItWasGiven
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestBuildConsultsTheRegistryItWasGiven
+    package: main
+    language: go
+    doc: "WHICH REGISTRY BUILD CONSULTS, asserted through the real runBuild.\n\nSCOPE, stated because getting this wrong is the pattern this pass exists to correct: build\nhas TWO ownership checks. This exercises the PRE-MUTATION one (cmd_build.go, beside the\nendpoint-agreement block), which reads buildRegistryPath(--domain-registry). It does NOT\nreach the primitive-level guard inside uploadNTriples: measured, the build refuses at\nadmission -- \"not inside a git repository\" -- long before any upload, so reaching that guard\nneeds a real corpus and a live store. The primitive's own honouring of intent.RegistryPath is\nproven directly against guardStoreMutation instead."
+  - id: cmd/awg/store_mutation_guard_test.go:TestBuildIsNotRefusedByAStaleDefaultRegistry
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestBuildIsNotRefusedByAStaleDefaultRegistry
+    package: main
+    language: go
+    doc: "THE DIRECTION THAT ACTUALLY BREAKS. Reading the wrong registry produces a FALSE REFUSAL, not\na false permit: a legitimate publication is stopped because a stale default names another\nowner. Here the SELECTED registry grants the store to alpha while the DEFAULT gives it to\nprod, and the build must not refuse on ownership grounds.\n\nSame scope caveat as above: this covers build's PRE-MUTATION check. It does not reach the\nprimitive guard, so a mutant dropping RegistryPath from build's intent survives both of these\n-- recorded as equivalent-behind-the-earlier-check rather than as a passing test."
+  - id: cmd/awg/store_mutation_guard_test.go:TestEveryStoreReplacingCallStatesItsMutationIntent
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestEveryStoreReplacingCallStatesItsMutationIntent
+    package: main
+    language: go
+    doc: "7. THE CENSUS. Every call to a store-replacing primitive must pass an intent, which is\nwhat binds it to the guard. A future publisher that forgets cannot compile, and this test\nstates the rule so the reason survives."
+  - id: cmd/awg/store_mutation_guard_test.go:TestNamingTheEndpointDoesNotPermitOverwritingAnotherDomainsStore
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestNamingTheEndpointDoesNotPermitOverwritingAnotherDomainsStore
+    package: main
+    language: go
+    doc: "2. An operator naming the endpoint does NOT make it acceptable. Rule 1 outranks the\noverride, because the override expresses intent about this caller's own store."
+  - id: cmd/awg/store_mutation_guard_test.go:TestTheGuardReadsTheRegistryTheOperatorSelected
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestTheGuardReadsTheRegistryTheOperatorSelected
+    package: main
+    language: go
+    doc: "ANTIGRAVITY FINDING (P1, store_mutation_guard.go:55): guardStoreMutation hardcoded\nDefaultDomainRegistryPath and ignored --domain-registry.\n\nThis reintroduced, inside the new guard, the exact defect a review finding on this branch had\nalready made me repair for activation: --domain-registry selects the registry every other\ncheck reads. A guard consulting a different file answers a question nobody asked, and can\nrefuse a publication the selected registry permits -- or permit one it forbids."
+  - id: cmd/awg/store_mutation_guard_test.go:TestTheOwningDomainMayPublishIntoItsOwnStore
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestTheOwningDomainMayPublishIntoItsOwnStore
+    package: main
+    language: go
+    doc: "5. The owning domain may publish into its own store."
+  - id: cmd/awg/store_mutation_guard_test.go:TestTheScopedPathStatesWhetherTheEndpointWasNamed
+    file: cmd/awg/store_mutation_guard_test.go
+    symbol: TestTheScopedPathStatesWhetherTheEndpointWasNamed
+    package: main
+    language: go
+    doc: "The scoped path must actually PASS it -- proving the guard honours Overridden says nothing\nabout whether runScopedRepoUpdate fills it in, which is the shape that let this ship."
+  - id: cmd/awg/store_ownership_test.go:TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADeclaredDomainDoesNotSilentlyPublishElsewhere
+    package: main
+    language: go
+    doc: "A domain that declares a store must publish into it. Targeting a DIFFERENT, unowned\nstore is the accident the netcfg default causes — :7878 is reachable and belongs to\nnobody — so it is refused unless the operator named it explicitly."
+  - id: cmd/awg/store_ownership_test.go:TestADisposableStoreIsOneNoDomainClaims
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestADisposableStoreIsOneNoDomainClaims
+    package: main
+    language: go
+    doc: "A disposable store is one no domain declares — that is the non-production opt-out, and\nit is explicit in the registry rather than a flag that disables the check."
+  - id: cmd/awg/store_ownership_test.go:TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestARegistryDeclaringOneStoreForTwoDomainsIsRefused
+    package: main
+    language: go
+    doc: "Two governed domains may not declare the same store. Refused at LOAD, so every command\ninherits it rather than each publication path having to remember."
+  - id: cmd/awg/store_ownership_test.go:TestActivationCannotStrandAnotherDomainsPointer
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestActivationCannotStrandAnotherDomainsPointer
+    package: main
+    language: go
+    doc: "Activation cannot strand a neighbour, which follows from the above: a publication that\nwould land in another domain's store never runs, so no activation can move a store\nanother domain's pointer names."
+  - id: cmd/awg/store_ownership_test.go:TestAnEmptyRequestedDomainDoesNotMakeEveryStoreForeign
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestAnEmptyRequestedDomainDoesNotMakeEveryStoreForeign
+    package: main
+    language: go
+  - id: cmd/awg/store_ownership_test.go:TestAnUndeclaredDomainIsUnconstrained
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestAnUndeclaredDomainIsUnconstrained
+    package: main
+    language: go
+    doc: "Inert until declared: a domain with no store_url behaves exactly as before, which is\nwhat keeps this from breaking every existing caller and every disposable store."
+  - id: cmd/awg/store_ownership_test.go:TestAnUninterpretableStoreDeclarationStillMatchesItself
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestAnUninterpretableStoreDeclarationStillMatchesItself
+    package: main
+    language: go
+    doc: "A value that is not a store endpoint must still compare equal to itself, or a registry\nentry this cannot interpret would stop matching its own declaration."
+  - id: cmd/awg/store_ownership_test.go:TestEquivalentStoreSpellingsAreOneOwner
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestEquivalentStoreSpellingsAreOneOwner
+    package: main
+    language: go
+    doc: "RE-REVIEW FINDING (P1, store_ownership.go:51): \"Canonicalize store identity like the\npublication endpoint.\"\n\nTwo spellings of one store must be ONE owner. normalizeStoreURL is the form publication\nactually addresses, so it defines what \"the same store\" means; an identity that\ncanonicalized less than it let a second domain spell the endpoint differently and evade\nboth the registry validation and the foreign-owner check.\n\nDOMAIN OF THIS CLAIM: textual spellings of an http(s) store endpoint. It says nothing\nabout two distinct endpoints that happen to proxy one backing store, which no URL\ncomparison can see."
+  - id: cmd/awg/store_ownership_test.go:TestGenuinelyDifferentStoresRemainDifferentOwners
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestGenuinelyDifferentStoresRemainDifferentOwners
+    package: main
+    language: go
+    doc: "The other direction, so the repair cannot pass by collapsing everything."
+  - id: cmd/awg/store_ownership_test.go:TestPublishingIntoAnotherDomainsStoreIsRefused
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestPublishingIntoAnotherDomainsStoreIsRefused
+    package: main
+    language: go
+    doc: "Publishing domain B into the store domain A owns is refused, always — an explicit\noverride cannot license stranding a neighbour's pointer."
+  - id: cmd/awg/store_ownership_test.go:TestStoreIdentityIgnoresSpelling
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestStoreIdentityIgnoresSpelling
+    package: main
+    language: go
+    doc: "Spelling is not identity: the same store written two ways is still one store."
+  - id: cmd/awg/store_ownership_test.go:TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed
+    package: main
+    language: go
+    doc: "The wiring: the ownership check and the activation must both read the registry the\nOPERATOR selected, and must refuse rather than skip when it cannot be read."
+  - id: cmd/awg/store_ownership_test.go:TestTheOwnershipCheckPrecedesEveryStoreMutation
+    file: cmd/awg/store_ownership_test.go
+    symbol: TestTheOwnershipCheckPrecedesEveryStoreMutation
+    package: main
+    language: go
+    doc: "The check must be wired, and wired BEFORE the store is touched. Source-anchored and\nlabelled so: the publication path needs a live store. The behavioural witnesses above\nprove the predicate; this proves where it runs."
   - id: cmd/awg/store_url_noncanonical_test.go:TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical
     file: cmd/awg/store_url_noncanonical_test.go
     symbol: TestADisagreeingExplicitStoreURLIsVisiblyNonCanonical

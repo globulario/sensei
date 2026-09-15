@@ -166,15 +166,51 @@ func verifyActiveGovernancePack(root string) (*governancepack.VerifiedPack, *gov
 	return &verified, active, nil
 }
 
+// writeFileAtomic replaces path's contents in one rename.
+//
+// The temporary file is UNIQUE per call. It used to be the fixed "<path>.tmp", which is
+// only atomic against itself: two processes writing the same path shared one temp file, so
+// one could write bytes the other then renamed into place, or one rename could land on a
+// file the other had already consumed. The domain registry is exactly such a shared path
+// -- two domains publishing concurrently both rewrite it -- and the review finding on
+// active_generation.go:160 named this. Fixed here, at the one function all 19 call sites
+// share, rather than at the one caller that reported it.
+//
+// A unique temp file removes the collision. It does NOT serialize a read-modify-write:
+// two processes can still each read, each modify, and the later rename win whole. Callers
+// whose write depends on what they read must hold a lock across both -- see
+// recordActiveGeneration.
 func writeFileAtomic(path string, data []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	tmp := path + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o644); err != nil {
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".tmp-*")
+	if err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	tmpPath := tmp.Name()
+	renamed := false
+	defer func() {
+		if !renamed {
+			_ = os.Remove(tmpPath)
+		}
+	}()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmpPath, 0o644); err != nil {
+		return err
+	}
+	if err := os.Rename(tmpPath, path); err != nil {
+		return err
+	}
+	renamed = true
+	return nil
 }
 
 func base64Encode(b []byte) string {

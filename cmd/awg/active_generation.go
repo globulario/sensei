@@ -136,6 +136,26 @@ func recordActiveGeneration(registryPath, domain, generation string) error {
 	if strings.TrimSpace(registryPath) == "" || strings.TrimSpace(domain) == "" || gen == "" {
 		return nil
 	}
+	// The registry is SHARED. A publication holds a lock on its own store, and two
+	// domains publishing to two stores hold two different locks -- neither of which
+	// serializes this file. Both then read the same YAML, both rewrite the whole of it,
+	// and one successful publication's pointer is lost while both report success
+	// (reproduced on the first attempt: TestTwoConcurrentActiveGenerationUpdatesBothSurvive).
+	//
+	// So the lock is held across the READ and the WRITE, not around the write alone: the
+	// value written depends on the bytes read, and a lock that spans only the second half
+	// of a read-modify-write serializes nothing.
+	//
+	// It WAITS rather than failing fast, which is the opposite of the graph publication
+	// lock and deliberately so: two publications to one store must not both proceed, but
+	// two domains updating their own pointers must BOTH finish. Failing fast here would
+	// turn a legitimate concurrent publication into a lost pointer, which is the defect.
+	unlock, err := lockDomainRegistry(registryPath)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+
 	raw, err := os.ReadFile(registryPath)
 	if err != nil {
 		if os.IsNotExist(err) {

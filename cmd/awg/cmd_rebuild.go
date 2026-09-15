@@ -225,7 +225,8 @@ Flags:
 				return 1
 			}
 		}
-		if err := reloadOxigraphStore(ntBytes, *oxigraphURL); err != nil {
+		if err := reloadOxigraphStore(ntBytes, *oxigraphURL, storeMutationIntent{
+			Overridden: flagPassed(fs, "oxigraph-url"), Reason: "sensei rebuild"}); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei rebuild: Oxigraph reload failed: %v\n", err)
 			return 1
 		}
@@ -600,7 +601,12 @@ func guardAgainstLiveShrink(rawURL string, newCount int) error {
 		rawURL, current, newCount)
 }
 
-func reloadOxigraphStore(ntBytes []byte, rawURL string) error {
+func reloadOxigraphStore(ntBytes []byte, rawURL string, intent storeMutationIntent) error {
+	// The seam: see store_mutation_guard.go. A whole-store replacement is the most
+	// destructive thing this binary does, so it may not happen without stating whose it is.
+	if err := guardStoreMutation(rawURL, intent); err != nil {
+		return err
+	}
 	endpoint, err := normalizeOxigraphURL(rawURL)
 	if err != nil {
 		return err

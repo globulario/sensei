@@ -641,7 +641,8 @@ func runGovernanceActivate(args []string) int {
 		fmt.Fprintf(os.Stderr, "sensei governance activate: invalid --store-url: %v\n", err)
 		return 1
 	}
-	if err := uploadNTriples(httpDefaultClient(), endpoint, combinedNT); err != nil {
+	if err := uploadNTriples(httpDefaultClient(), endpoint, combinedNT, storeMutationIntent{
+		Overridden: true, Reason: "sensei governance activate"}); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureGraphDown, err.Error(), err)
 		fmt.Fprintf(os.Stderr, "sensei governance activate: upload to %s: %v\n", endpoint, err)
 		return 1
