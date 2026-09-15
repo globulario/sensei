@@ -82,19 +82,23 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			}
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.entry_digest_mismatch", Detail: detail, Path: filepath.ToSlash(path)})
 		}
+		// An unreadable or invalid entry is skipped above without being appended, so
+		// chain comparisons key off out.Entries (what was verified), never the file
+		// position idx.
 		if idx == 0 {
-			out.TaskID = entry.Task.ID
 			if entry.PreviousEntryDigestSHA256 != "" {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
 			}
-		} else {
-			prev := out.Entries[idx-1].Entry
+		} else if len(out.Entries) > 0 {
+			prev := out.Entries[len(out.Entries)-1].Entry
 			if entry.PreviousEntryDigestSHA256 != prev.EntryDigestSHA256 {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.previous_digest_mismatch", Detail: "previous digest does not match prior entry", Path: filepath.ToSlash(path)})
 			}
-			if entry.Task.ID != out.TaskID {
-				report.Errors = append(report.Errors, VerificationError{Code: "ledger.task_id_changed", Detail: "task id changes within one chain", Path: filepath.ToSlash(path)})
-			}
+		}
+		if len(out.Entries) == 0 {
+			out.TaskID = entry.Task.ID
+		} else if entry.Task.ID != out.TaskID {
+			report.Errors = append(report.Errors, VerificationError{Code: "ledger.task_id_changed", Detail: "task id changes within one chain", Path: filepath.ToSlash(path)})
 		}
 		payloadPath := filepath.Join(taskDir, filepath.FromSlash(entry.Payload.Path))
 		usedPaths[filepath.ToSlash(entry.Payload.Path)] = true
