@@ -130,19 +130,39 @@ jobs:
           echo "  declared == served: $declared"
 
           # And the consumer contract: a verified preflight emits its ordinary payload, classified ok
-          # or degraded -- never refused, never malformed.
+          # or degraded -- never refused, never malformed -- AND exits zero.
+          #
+          # BOTH SIGNALS, in both directions. An earlier version of these probes used `|| true` and
+          # then read only the verdict, so "not refused" stood in for "succeeded": a nonzero exit
+          # beside an otherwise-consumable payload would have passed. That is the same half-signal
+          # this family refuses in production, where a refusal must be a typed payload AND a nonzero
+          # exit because either alone is ambiguous. Blind review P2 on fa2ddbe6, and it held.
           source scripts/lib/preflight-verdict.sh
-          probe=$(mktemp)
-          ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
-            --domain "$domain" --addr localhost:19120 --json >"$probe" 2>/dev/null || true
-          verdict=$(preflight_verdict "$probe")
-          echo "  preflight verdict: $verdict"
-          case "$verdict" in
-            refused:*|malformed:*)
-              echo "FAIL: preflight did not produce a consumable payload ($verdict)." >&2
+          probe_consumable() {
+            local label=$1 out rc v
+            out=$(mktemp)
+            set +e
+            ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
+              --domain "$domain" --addr localhost:19120 --json >"$out" 2>/dev/null
+            rc=$?
+            set -e
+            v=$(preflight_verdict "$out")
+            echo "  $label: exit=$rc verdict=$v"
+            if ((rc != 0)); then
+              echo "FAIL: $label exited $rc; a consumable answer must succeed, and an exit code is not" >&2
+              echo "      redundant with the payload -- that is why a refusal carries both." >&2
+              sed -n '1,12p' "$out" >&2
               exit 1
-              ;;
-          esac
+            fi
+            case "$v" in
+              refused:*|malformed:*)
+                echo "FAIL: $label did not produce a consumable payload ($v)." >&2
+                sed -n '1,12p' "$out" >&2
+                exit 1
+                ;;
+            esac
+          }
+          probe_consumable "positive case"
 
           # AUTHORITY-NEGATIVE CONTROLS.
           #
@@ -204,17 +224,7 @@ jobs:
           # Restore, and prove the restoration actually restored: the positive case must pass again, or
           # the controls have left the activation world broken.
           cp /tmp/ci-registry.bak "$REGISTRY"
-          restored=$(mktemp)
-          ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
-            --domain "$domain" --addr localhost:19120 --json >"$restored" 2>/dev/null || true
-          rv=$(preflight_verdict "$restored")
-          echo "  restored: verdict=$rv"
-          case "$rv" in
-            refused:*|malformed:*)
-              echo "FAIL: the registry was not restored ($rv); activation would consume a refused graph." >&2
-              exit 1
-              ;;
-          esac
+          probe_consumable "restored"
           echo "authority-negative controls passed, and the authority state was restored"
 
       - name: Resolve exact diff
