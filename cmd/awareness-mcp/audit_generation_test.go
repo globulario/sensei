@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -22,16 +23,27 @@ import (
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 )
 
-func auditDiffFixture(t *testing.T, metadata func(context.Context, *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error)) (string, string) {
+// auditDiffFixture runs one audit. servedGeneration is the generation ONE graph reports
+// everywhere -- on the metadata samples and on the authority of every response -- because the
+// evaluator now binds each contributing query to the identity its own response carries. A
+// fixture whose responses named a different graph from its samples would manufacture a switch
+// and refuse every audit for a disagreement the test never intended.
+func auditDiffFixture(t *testing.T, servedGeneration string,
+	metadata func(context.Context, *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error)) (string, string) {
 	t.Helper()
 	head := testGitHEAD(t)
+	respAuthority := func() *awarenesspb.GraphAuthority {
+		a := testCurrentAuthority(head)
+		a.LiveStoreGraphDigestSha256 = servedGeneration
+		return a
+	}
 	fake := fakeClient{
 		metadata: metadata,
 		editCheck: func(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return &awarenesspb.EditCheckResponse{Authority: respAuthority()}, nil
 		},
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
-			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
+			return &awarenesspb.ImpactResponse{Authority: respAuthority()}, nil
 		},
 	}
 	br := testBridge(fake)
@@ -54,7 +66,7 @@ new file mode 100644
 }
 
 func TestTheAuditReportsWhichGenerationAnsweredIt(t *testing.T) {
-	text, gen := auditDiffFixture(t, testServingGeneration("c0b660fc42a5"))
+	text, gen := auditDiffFixture(t, "c0b660fc42a5", testServingGeneration("c0b660fc42a5"))
 	if !strings.Contains(text, "decision: pass") {
 		t.Fatalf("a fully bound audit did not pass:\n%s", text)
 	}
@@ -73,7 +85,7 @@ func TestTheAuditRefusesWhenTheGraphGenerationChangesUnderneathIt(t *testing.T) 
 		}
 		return &awarenesspb.MetadataResponse{LiveStoreGraphDigestSha256: "230a74f68fed"}, nil
 	}
-	text, gen := auditDiffFixture(t, switching)
+	text, gen := auditDiffFixture(t, "c0b660fc42a5", switching)
 	if strings.Contains(text, "decision: pass") {
 		t.Errorf("an audit answered by two different generations passed:\n%s", text)
 	}
@@ -101,7 +113,7 @@ func TestTheAuditAsksAboutTheDomainItIsAuditing(t *testing.T) {
 	fake := fakeClient{
 		metadata: recording,
 		editCheck: func(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
-			return &awarenesspb.EditCheckResponse{}, nil
+			return editCheckFromCurrentGraph(), nil
 		},
 		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
 			return &awarenesspb.ImpactResponse{Authority: testCurrentAuthority(head)}, nil
@@ -138,4 +150,113 @@ func structGeneration(v interface{}) string {
 		return ar.GraphGeneration
 	}
 	return ""
+}
+
+// A STALE per-response generation must never stand in for a missing one, and the identity the
+// audit binds to must come from the RESPONSE rather than from a separate sample.
+//
+// LastImpactGeneration reports the identity carried by the most recent impact response. If the
+// field were not cleared before each query, a response stating no generation would inherit the
+// previous one, and the audit would bind a query to a graph that did not answer it -- the exact
+// confusion this provenance model replaced.
+func TestTheImpactGenerationComesFromTheResponseAndIsNotStale(t *testing.T) {
+	head := testGitHEAD(t)
+	graphCommit := strings.Repeat("a", len(head))
+	served := strings.Repeat("7", 64)
+
+	auth := testCurrentAuthority(graphCommit)
+	auth.LiveStoreGraphDigestSha256 = served
+	fake := fakeClient{
+		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: auth}, nil
+		},
+	}
+	checker := &mcpSingleFileChecker{bridge: testBridge(fake), root: ".", expectedHead: head}
+	checker.lastImpactGeneration = "a-previous-generation"
+
+	if _, _, _, _, err := checker.GetFileImpact(context.Background(), "internal/example.go",
+		"github.com/globulario/sensei-code"); err != nil {
+		t.Fatalf("GetFileImpact: %v", err)
+	}
+	if got := checker.LastImpactGeneration(); got != served {
+		t.Errorf("the generation bound to this query is %q, want the served digest %q carried by the response", got, served)
+	}
+
+	// Now a response that states none: the previous value must not survive.
+	auth2 := testCurrentAuthority(graphCommit)
+	auth2.LiveStoreGraphDigestSha256 = ""
+	fake2 := fakeClient{
+		impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+			return &awarenesspb.ImpactResponse{Authority: auth2}, nil
+		},
+	}
+	checker2 := &mcpSingleFileChecker{bridge: testBridge(fake2), root: ".", expectedHead: head}
+	checker2.lastImpactGeneration = served
+	if _, _, _, _, err := checker2.GetFileImpact(context.Background(), "internal/example.go",
+		"github.com/globulario/sensei-code"); err != nil {
+		t.Fatalf("GetFileImpact: %v", err)
+	}
+	if got := checker2.LastImpactGeneration(); got != "" {
+		t.Errorf("a stale generation survived a response that stated none: %q", got)
+	}
+}
+
+// THE PATH WHERE CLEARING MATTERS. GetFileImpact returns early when the query fails, when the
+// graph is not authoritative, and when it exposes no commit identity. On those paths nothing
+// assigns the generation, so without clearing it first the PREVIOUS query's identity survives
+// and the audit would bind this query to a graph that never answered it.
+//
+// The first version of this witness drove the success path, where an unconditional assignment
+// overwrites the field anyway -- so the mutant that removed the clear was equivalent and
+// survived. The claim only has content on the early returns.
+func TestAFailedImpactQueryLeavesNoGenerationBehind(t *testing.T) {
+	head := testGitHEAD(t)
+	stale := strings.Repeat("7", 64)
+
+	// EVERY early return in the impact path, not the two I happened to test first. The
+	// control-flow table is: RPC success -> authority present and authoritative -> commit
+	// identity present -> success. Three refusals, so three cases here; a fourth would be a
+	// gate added later, and the assignment now sits immediately before the success return so
+	// such a gate precedes it automatically.
+	cases := map[string]fakeClient{
+		"the commit identity is missing": {
+			impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+				// Authoritative, and exposing NO source/build commit: the gate the previous
+				// repair left the assignment in front of.
+				return &awarenesspb.ImpactResponse{Authority: &awarenesspb.GraphAuthority{
+					Authoritative:              true,
+					GraphFreshnessState:        awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT,
+					LiveStoreGraphDigestSha256: strings.Repeat("5", 64),
+					SourceRepoCommit:           "",
+					GraphBuildCommit:           "",
+				}}, nil
+			},
+		},
+		"the query fails": {
+			impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+				return nil, errors.New("store unavailable")
+			},
+		},
+		"the graph is not authoritative": {
+			impact: func(_ context.Context, _ *awarenesspb.ImpactRequest) (*awarenesspb.ImpactResponse, error) {
+				return &awarenesspb.ImpactResponse{Authority: &awarenesspb.GraphAuthority{
+					Authoritative:              false,
+					LiveStoreGraphDigestSha256: strings.Repeat("9", 64),
+				}}, nil
+			},
+		},
+	}
+	for name, fake := range cases {
+		t.Run(name, func(t *testing.T) {
+			checker := &mcpSingleFileChecker{bridge: testBridge(fake), root: ".", expectedHead: head}
+			checker.lastImpactGeneration = stale
+			if _, _, _, _, err := checker.GetFileImpact(context.Background(), "internal/example.go",
+				"github.com/globulario/sensei-code"); err == nil {
+				t.Fatal("this witness needs the query to be refused")
+			}
+			if got := checker.LastImpactGeneration(); got != "" {
+				t.Errorf("a previous query's generation survived a refused query: %q", got)
+			}
+		})
+	}
 }

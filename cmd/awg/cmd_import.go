@@ -1903,7 +1903,20 @@ func droppedInputsNotice(dropped, allowedRoots []string) string {
 // extractionWriteRoots are the repo-relative directories import's extraction stages
 // write into. Named here so the contradiction below is checked against the same list
 // that causes it.
-var extractionWriteRoots = []string{"docs/awareness"}
+//
+// `.sensei/project` belongs here for the same reason docs/awareness does, and its
+// absence was a hole rather than a judgement. Extraction writes graph.nt, claims.yaml,
+// knowledge/adoption-report.yaml, protection-coverage.yaml, the
+// `project-invalid-<txID>` quarantine directory and project.lock into it on every run.
+//
+// It is ALSO the architectural decision made explicit: `.sensei/project` is an ignored
+// local working/cache/staging area and never source corpus. A domain that admitted it
+// as a corpus root would have gotten no refusal at all, and the import would have
+// published a directory it rewrites as it runs -- exactly the self-defeat this function
+// exists to prevent, in the one root it could not see. Naming it here makes admitting
+// it mechanically impossible unless the domain also permits a dirty worktree, which
+// every registered domain deliberately does not.
+var extractionWriteRoots = []string{"docs/awareness", ".sensei/project"}
 
 // importWouldDefeatItself reports a run that cannot succeed because its own
 // extraction creates the condition the publication gate refuses.

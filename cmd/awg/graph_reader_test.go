@@ -237,3 +237,96 @@ func TestBriefingVerifiesTheServedGenerationBeforeRendering(t *testing.T) {
 		t.Errorf("a refused generation does not end the briefing:\n%s", tail)
 	}
 }
+
+// BLIND-PASS FINDING (P2, cmd_briefing.go:87): briefing passed --repo as the project root.
+//
+// --repo means "repository checkout for --task active" and defaults to ".", so endpoint
+// resolution read ./.sensei/config.yaml. Run from a SUBDIRECTORY the config was not found and
+// resolution fell through, giving the same command a different endpoint depending on the working
+// directory. Every other reader walks up via productionReaderFor.
+//
+// Driven through the real runBriefing and observed at the address it DIALS -- the RPC failure
+// names it. A first version of this witness recomputed the resolution itself and passed either
+// way, which is the same helper-not-caller shape this front keeps producing.
+func TestBriefingDialsTheSameEndpointFromASubdirectory(t *testing.T) {
+	root := projectRoot(t, t.TempDir())
+	// An endpoint nothing is listening on, so the dial fails and names itself.
+	writeProjectConfig(t, root, "127.0.0.1:19191")
+	sub := filepath.Join(root, "golang", "deep")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(sub, "thing.go"), []byte("package deep\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	dialed := func(dir string) string {
+		t.Helper()
+		t.Chdir(dir)
+		_, so, se := captureStdoutStderr(t, func() int {
+			return runBriefing([]string{"--file", "golang/deep/thing.go", "--domain", "example.com/acme/thing"})
+		})
+		return so + se
+	}
+	fromRoot, fromSub := dialed(root), dialed(sub)
+	const want = "127.0.0.1:19191"
+	if !strings.Contains(fromRoot, want) {
+		t.Fatalf("from the project root, briefing did not dial the configured endpoint:\n%s", fromRoot)
+	}
+	if !strings.Contains(fromSub, want) {
+		t.Errorf("from a subdirectory, briefing dialed a DIFFERENT endpoint than from the root; the project config was not found:\n%s", fromSub)
+	}
+}
+
+// THE `--task active` PATH IS NON-AUTHORITATIVE BY CONSTRUCTION, asserted rather than argued.
+//
+// Two blind reviews in a row reported it as "bypassing served-generation verification". Both were
+// DOES_NOT_HOLD for the same reason, and re-deriving that reason each round is waste: the path
+// consumes NO graph state, so there is no authority to verify. It calls
+// tasksession.BuildTaskBriefing on the checkout and returns before a reader is resolved, and the
+// tasksession package imports no gRPC client and no awarenesspb at all.
+//
+// This pins it two ways, so the refutation survives as evidence:
+//   - behaviourally, the path succeeds against an endpoint nothing is listening on, which is only
+//     possible if it never contacts one;
+//   - structurally, it returns before the reader exists, so there is nothing it could verify.
+//
+// It also guards the direction that WOULD be a defect: if this path ever starts consuming graph
+// data, the first assertion fails and the exemption stops being free.
+func TestTheActiveTaskBriefingPathConsumesNoGraphState(t *testing.T) {
+	// Read the source BEFORE chdir: readCmdSource resolves relative to the working directory.
+	src := readCmdSource(t, "cmd_briefing.go")
+	root := projectRoot(t, t.TempDir())
+	// An endpoint nothing is listening on. A path that contacted it could not succeed.
+	writeProjectConfig(t, root, "127.0.0.1:19191")
+	if err := os.MkdirAll(filepath.Join(root, "golang"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "golang", "thing.go"), []byte("package thing\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
+	code, so, se := captureStdoutStderr(t, func() int {
+		return runBriefing([]string{"--task", "active", "--file", "golang/thing.go",
+			"--domain", "example.com/acme/thing"})
+	})
+	out := so + se
+	if strings.Contains(out, "19191") || strings.Contains(out, "connection refused") {
+		t.Errorf("the --task active path contacted a graph endpoint, so it DOES consume graph state and must verify the served generation:\n%s", out)
+	}
+	if code != 0 {
+		t.Logf("exit=%d (a local task briefing may legitimately fail for want of task state):\n%s", code, out)
+	}
+
+	// Structural half: the early return precedes the reader, so no authority exists to check.
+	active := strings.Index(src, `strings.TrimSpace(*task) == "active"`)
+	reader := strings.Index(src, "resolveGraphReader(")
+	if active < 0 || reader < 0 {
+		t.Fatal("the active-task branch or the reader resolution is gone; this check has lost its anchor")
+	}
+	if active > reader {
+		t.Errorf("the active-task branch now runs AFTER the reader is resolved (%d > %d): it may consume graph state and must then verify the generation",
+			active, reader)
+	}
+}

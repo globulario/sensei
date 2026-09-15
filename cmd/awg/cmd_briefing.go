@@ -85,7 +85,19 @@ Flags:
 	//
 	// There is no fallback. If the resolved endpoint does not answer, that is the answer:
 	// trying a second port would select a graph by liveness.
-	reader := resolveGraphReader(fs, *repo, resolvedDomain.Domain, *addr, DefaultDomainRegistryPath())
+	// THE PROJECT ROOT, RESOLVED -- not --repo, which means something else.
+	//
+	// --repo is documented as "repository checkout for --task active" and defaults to ".".
+	// Passing it as resolveGraphReader's projectRoot made endpoint resolution read
+	// ./.sensei/config.yaml, so the SAME command run from a subdirectory resolved a different
+	// endpoint than from the root: the config was simply not found and resolution fell through
+	// to the registry or the built-in default. Every other reader resolves the root by walking
+	// up, via productionReaderFor.
+	//
+	// Two different questions wearing one flag: which checkout a task briefing describes, and
+	// which project's configuration names the graph endpoint.
+	briefingRoot, _ := resolveProjectRoot("")
+	reader := resolveGraphReader(fs, briefingRoot, resolvedDomain.Domain, *addr, DefaultDomainRegistryPath())
 	if notice := nonCanonicalReaderNotice(reader); notice != "" {
 		fmt.Fprintln(os.Stderr, notice)
 	}
