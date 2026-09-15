@@ -23958,6 +23958,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLoadCurrentStateSingleSnapshotNoMixedWorld proves the current-state reader\nuses ONE verified snapshot for both head and phase. An append lands after the\nsnapshot (a competing writer advancing to scope_verified); the reconstruction\nmust reflect the pre-append head AND the pre-append phase together — never a\nchimera of head-from-after with phase-from-before."
+  - id: golang/architecture/tasksession/governance_observed_witness_test.go:TestAnObservedMutationFoldsToScopeVerificationNotAdmitted
+    file: golang/architecture/tasksession/governance_observed_witness_test.go
+    symbol: TestAnObservedMutationFoldsToScopeVerificationNotAdmitted
+    package: tasksession
+    language: go
+    doc: "An observed mutation is DOWNSTREAM of the spent capability, and the fold must\nsay so. change_observed is read before admission_consumed in foldGovernance;\nreversing that order, or dropping the branch, projects \"admitted\" for a task\nwhose mutation already happened, and the next action becomes reconciliation\ninstead of scope verification.\n\nFound by adversarial review of aa9e8dd2: the reviewer's claim that the branch\nwas missing was false, but deleting it left the whole package green. This is\nthe witness that deletion now has to get past, built on a real ledger chain\nrather than a hand-constructed governanceState."
   - id: golang/architecture/tasksession/governance_test.go:TestAdvanceTaskAfterScopeVerificationIsStable
     file: golang/architecture/tasksession/governance_test.go
     symbol: TestAdvanceTaskAfterScopeVerificationIsStable
