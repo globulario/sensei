@@ -710,7 +710,102 @@ func WriteActivePointer(repoRoot string, ptr ActivePointer) error {
 	if err != nil {
 		return err
 	}
+	// Participates in the pointer lock, so a writer cannot land between another
+	// operation's identity check and its unlink. writeFileAtomic already makes
+	// the replacement atomic for a READER; it does nothing for a checker.
+	release, lerr := acquirePointerLock(repoRoot)
+	if lerr != nil {
+		return lerr
+	}
+	defer release()
 	return writeFileAtomic(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml"), data)
+}
+
+// RetireActivePointer removes the active-task pointer when, and only when, it
+// names the given task, and reports whether it removed one.
+//
+// THE WHOLE DECISION IS THE CRITICAL SECTION. Read, compare, and unlink happen
+// under one lock, and the owner returns the outcome. A caller that read the
+// pointer itself, decided "this names another task, nothing to do", and returned
+// would be acting on a fact that a writer can invalidate immediately after the
+// read -- reporting the transition complete while the pointer it was supposed to
+// retire has just come into existence. The mismatch branch is exactly as racy as
+// the match branch and is protected identically.
+//
+// The bool is the point of the signature. A caller cannot learn what happened by
+// looking afterwards without re-reading, and re-reading is the race.
+//
+// Absence is success, not an error: the pointer is already retired, and a caller
+// resuming after an interruption between the durable terminal record and this
+// call must be able to finish without a special case.
+//
+// A pointer naming a DIFFERENT task is left alone and is not an error. The task
+// being retired is terminal either way, and another task's pointer is not this
+// operation's to remove.
+func RetireActivePointer(repoRoot, expectedTaskID string) (bool, error) {
+	want := strings.TrimSpace(expectedTaskID)
+	if want == "" {
+		return false, errors.New("expected task id is required to retire the active pointer")
+	}
+	release, lerr := acquirePointerLock(repoRoot)
+	if lerr != nil {
+		return false, lerr
+	}
+	defer release()
+
+	path := filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("active task pointer is inaccessible: %w", err)
+	}
+	ptr, err := LoadActivePointer(repoRoot)
+	if err != nil {
+		// "Unreadable" and "names another task" are different facts and only one
+		// of them is safe to act on.
+		return false, fmt.Errorf("active task pointer exists but could not be read: %w", err)
+	}
+	if afterPointerIdentityCheck != nil {
+		afterPointerIdentityCheck()
+	}
+	if ptr.TaskID != want {
+		return false, nil
+	}
+	if rerr := os.Remove(path); rerr != nil {
+		return false, rerr
+	}
+	return true, nil
+}
+
+// ClearActivePointer retires the pointer for exactly one task, refusing when it
+// names another. Retained as the strict form for callers that treat a mismatch
+// as an error; RetireActivePointer is the form a terminal transition wants,
+// because for it a mismatch is simply nothing to do.
+func ClearActivePointer(repoRoot, expectedTaskID string) error {
+	removed, err := RetireActivePointer(repoRoot, expectedTaskID)
+	if err != nil {
+		return err
+	}
+	if !removed {
+		// Distinguish "already gone" from "names someone else" for this caller,
+		// under the lock, rather than leaving it to infer.
+		release, lerr := acquirePointerLock(repoRoot)
+		if lerr != nil {
+			return lerr
+		}
+		defer release()
+		if _, serr := os.Stat(filepath.Join(repoRoot, ".sensei", "tasks", "active.yaml")); os.IsNotExist(serr) {
+			return nil
+		}
+		ptr, perr := LoadActivePointer(repoRoot)
+		if perr != nil {
+			return fmt.Errorf("active task pointer exists but could not be read: %w", perr)
+		}
+		return fmt.Errorf("active task pointer names %q, not %q; refusing to clear another task's pointer",
+			ptr.TaskID, strings.TrimSpace(expectedTaskID))
+	}
+	return nil
 }
 
 func stableTaskSessionID(taskID string) string {

@@ -75,6 +75,72 @@ func resolveCompletionAuthority(ctx context.Context, index authority.PolicyIndex
 	return GrantTerminalCompletion, role, nil
 }
 
+// resolveAbandonmentAuthority resolves the governed operation for abandonment.
+//
+// A near-copy of resolveCompletionAuthority, and deliberately not a parameter on
+// it. The two resolve DIFFERENT triples -- dispose/task_abandonment against
+// authority.sensei_terminal_abandonment, versus complete/task_completion against
+// authority.sensei_terminal_completion -- and collapsing them into one function
+// with a flag would put the thing policy is supposed to distinguish inside a
+// branch. Sharing the resolver is what let an actor authorized only to complete
+// tasks write the abandoned terminal.
+func resolveAbandonmentAuthority(ctx context.Context, index authority.PolicyIndex, binding closureprotocol.ActorBinding, verified authority.VerifiedActor, evaluatedAt time.Time, taskDir string) (string, string, error) {
+	ra, err := admission.LoadRecordedAuthorityCtx(ctx, taskDir)
+	if err != nil {
+		return "", "", fmt.Errorf("load recorded authority: %w", err)
+	}
+	plan := closureprotocol.ChangePlan{
+		PlanID: "plan.abandon." + ra.Base.Task.ID,
+		Operations: []closureprotocol.ChangeOperation{{
+			OperationID:       abandonmentOperationID,
+			Kind:              closureprotocol.OperationDispose,
+			TargetKind:        TargetKindTaskAbandonment,
+			SelectedMechanism: closureprotocol.MechanismGovernedWorkflow,
+			RiskClass:         completionRiskClass,
+		}},
+	}
+	app := []authority.AuthorityApplicability{{
+		OperationID:                 abandonmentOperationID,
+		AuthorityDomainIDs:          []string{DomainTerminalAbandonment},
+		RequiredRuntimeMechanismIDs: []string{MechanismPathAbandonment},
+	}}
+	resolution, err := admission.ResolveAuthority(index, admission.ResolveAuthorityInput{
+		Actor:                            binding,
+		VerifiedActor:                    verified,
+		Base:                             ra.Base,
+		ChangePlan:                       plan,
+		Applicability:                    app,
+		PolicyID:                         ra.Base.Policies.Admission,
+		ClosureAssessmentDigestSHA256:    ra.Resolution.ClosureAssessmentDigestSHA256,
+		AuthorityPolicyGraphDigestSHA256: closureprotocol.MustSemanticDigest(index),
+		EvaluatedAt:                      evaluatedAt.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("resolve abandonment authority: %w", err)
+	}
+	var op *closureprotocol.AuthorityResolutionOperation
+	for i := range resolution.OperationResults {
+		if resolution.OperationResults[i].OperationID == abandonmentOperationID {
+			op = &resolution.OperationResults[i]
+			break
+		}
+	}
+	if op == nil {
+		return "", "", fmt.Errorf("no resolved operation result for the abandonment operation")
+	}
+	if op.Status != closureprotocol.ReceiptValid {
+		return "", "", fmt.Errorf("abandonment operation not authorized (%s): %s", op.Status, strings.Join(op.Limitations, ","))
+	}
+	if !containsString(op.GrantIDs, GrantTerminalAbandonment) {
+		return "", "", fmt.Errorf("abandonment not authorized by %s", GrantTerminalAbandonment)
+	}
+	role := grantRole(index, GrantTerminalAbandonment, verified.VerifiedRoleIDs)
+	if role == "" {
+		return "", "", fmt.Errorf("no verified role authorizes %s", GrantTerminalAbandonment)
+	}
+	return GrantTerminalAbandonment, role, nil
+}
+
 func grantRole(index authority.PolicyIndex, grantID string, verifiedRoles []string) string {
 	grant, ok := index.AuthorityGrants[grantID]
 	if !ok {

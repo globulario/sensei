@@ -41,6 +41,7 @@
 //	sensei certify                          Legacy benchmark certification adapter (not architectural closure)
 //	sensei certify-change                   Architectural-closure certification over a verified task ledger
 //	sensei complete-task                    Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+//	sensei abandon-task                     Record a task as abandoned without claiming a result
 //	sensei inspect-terminal                 Reconstruct a task's honest terminal state (read-only surface)
 //	sensei recover-projections              Rebuild stale/missing derived projections from a valid conjunction
 //	sensei extract-authority                Extract candidate authority surfaces from code
@@ -246,6 +247,8 @@ func dispatch(cmd string, args []string) int {
 		return runCertifyChange(args)
 	case "complete-task":
 		return runCompleteTask(args)
+	case "abandon-task":
+		return runAbandonTask(args)
 	case "inspect-terminal":
 		return runInspectTerminal(args)
 	case "recover-projections":
@@ -493,6 +496,7 @@ Repair and evaluation helpers:
   certify        Legacy benchmark repair-claim verdict (not architectural closure)
   certify-change Architectural-closure certification over a verified task ledger
   complete-task  Delegate terminal completion to the Phase-8 owner (thin invocation surface)
+  abandon-task   Record a task as abandoned without claiming a result, then retire its pointer
   inspect-terminal Reconstruct a task's honest terminal state (read-only surface)
   recover-projections Rebuild stale/missing derived projections from a valid conjunction
   extract-invariants Extract normalized facts and review-only invariant candidates
