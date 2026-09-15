@@ -2239,3 +2239,18 @@ required_tests:
     protects:
       failure_modes:
         - failure.graph_authority_certified_a_domain_publication_with_a_stamp
+  - id: cmd/awg/root_domain_coherence_test.go:TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot
+    title: Nested execution resolves the same governed identity as the repository root
+    protects:
+      failure_modes:
+        - failure.a_cli_graph_reader_derived_repository_authority_from_the_wor
+  - id: cmd/awg/root_domain_coherence_test.go:TestNoGraphReaderSubjectDefaultsItsRepositoryHintToDot
+    title: No production graph-reader subject defaults its repository hint to a dot
+    protects:
+      failure_modes:
+        - failure.a_cli_graph_reader_derived_repository_authority_from_the_wor
+  - id: cmd/awg/root_domain_coherence_test.go:TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect
+    title: The coincident-address premise is asserted, not announced
+    protects:
+      failure_modes:
+        - failure.a_witness_attested_a_property_it_never_evaluated_and_a_fixtu
