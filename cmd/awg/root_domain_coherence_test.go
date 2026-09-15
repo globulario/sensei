@@ -141,14 +141,18 @@ func TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot(t *testing.T) {
 	if atRoot.RegistryEntry != sharedAddr {
 		t.Fatalf("at the repository root the registry entry was %q, want %q", atRoot.RegistryEntry, sharedAddr)
 	}
-
-	// THE TRAP THIS WITNESS EXISTS FOR: the endpoints agree, so an endpoint-only comparison passes.
-	if atRoot.Endpoint != atSub.Endpoint {
-		t.Fatalf("the endpoints differ (%q vs %q); this fixture was built so they COINCIDE, so that "+
-			"the authority loss cannot hide behind a matching address", atRoot.Endpoint, atSub.Endpoint)
+	// A premise about the ROOT run only. It must not compare root against nested: an earlier version
+	// aborted here whenever the two endpoints differed, which made the canonical-endpoint dimension
+	// below unreachable and would have reported a real invariant violation as a fixture problem.
+	// Blind review P2 on ab1a17cf, and it held. The reason the two endpoints coincide is a property
+	// of the fixture -- registry and project config name the same address -- and it is asserted where
+	// it belongs, in TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect.
+	if atRoot.Endpoint != sharedAddr {
+		t.Fatalf("at the repository root the endpoint was %q, want %q", atRoot.Endpoint, sharedAddr)
 	}
 
-	// The five-way comparison the invariant actually requires.
+	// The five-way comparison the invariant actually requires. Every dimension must be able to
+	// contribute, so nothing above may abort on a root-versus-nested difference.
 	var broken []string
 	if atRoot.ProjectRoot != atSub.ProjectRoot {
 		broken = append(broken, "project root: "+atRoot.ProjectRoot+" vs "+atSub.ProjectRoot)
