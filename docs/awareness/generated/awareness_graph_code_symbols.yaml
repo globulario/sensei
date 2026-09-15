@@ -6158,12 +6158,6 @@ test_symbols:
     package: main
     language: go
     doc: "POSITIVE CONTROL 1 — explicit matching override. Same fixture, --addr set to the configured\naddress. If this proceeds, the fixture is valid and the refusal above is caused by operand timing\nrather than by the project configuration."
-  - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestTheAgreementGuardsOperandIsTheOwnersResolvedAddress
-    file: cmd/awg/endpoint_agreement_ordering_witness_test.go
-    symbol: TestTheAgreementGuardsOperandIsTheOwnersResolvedAddress
-    package: main
-    language: go
-    doc: "OPERAND PROVENANCE. The guard's operand must be the owner's answer, named as such.\n\nThis witness exists because one required mutant cannot be killed behaviourally. Passing *addr\ninstead of reader.Addr at the guard is value-IDENTICAL on this tree: `*addr = reader.Addr` runs\nunconditionally two lines above, so no test can observe a difference between the two expressions.\nThe distinction is real anyway — *addr is the operator's flag variable, which the migration pattern\nhappens to overwrite, and reader.Addr is the endpoint the owner resolved. The regression this\nfamily repairs was precisely a guard reading the flag variable rather than the resolved endpoint.\n\nWhen behaviour cannot see a distinction, the source is the right place to pin it. Equivalence today\nis not a guarantee of equivalence after the next edit: remove or move `*addr = reader.Addr` and a\nguard reading *addr silently reverts to comparing against an empty flag."
   - id: cmd/awg/endpoint_agreement_ordering_witness_test.go:TestTheOwnerWithNoOverrideChoosesTheConfiguredEndpoint
     file: cmd/awg/endpoint_agreement_ordering_witness_test.go
     symbol: TestTheOwnerWithNoOverrideChoosesTheConfiguredEndpoint
@@ -6249,6 +6243,42 @@ test_symbols:
     package: main
     language: go
     doc: "W3. CANONICAL SELECTION, EXPLICIT OVERRIDE, AND NO FALLBACK — the owner's three contracted\nbehaviours, driven rather than read. These are the semantics the migration must not change."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestObservedTheGovernedDomainIsNotResolvedFromASubdirectory
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestObservedTheGovernedDomainIsNotResolvedFromASubdirectory
+    package: main
+    language: go
+    doc: "OBSERVATION, found by the subdirectory case above and deliberately NOT repaired here.\n\nrunPreflight resolves its governed domain with resolveRepositoryDomain(*repo, *domain), and *repo\ndefaults to \".\". resolveRepositoryDomain does not walk up, so from a subdirectory with --repo\nomitted the domain comes back empty. An empty domain cannot be looked up in the registry, so\nprecedence 2 is skipped entirely and the endpoint falls through to the project config — quietly\npreferring the weaker authority exactly where the operator is least likely to notice.\n\nThis is the same stale-root class as the repair in this family: the owner reads its configuration\nthrough graphConfigRoot, which walks up, while the domain that selects the registry entry is\nresolved from a root that does not. Recorded as a measured fact so it can be repaired as its own\nbounded family with its own witness, rather than folded into the visibility duty."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestRegistryOutranksProjectConfigAndTheOperationSaysSo
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestRegistryOutranksProjectConfigAndTheOperationSaysSo
+    package: main
+    language: go
+    doc: "CASE 2 END TO END, through the real command. The registry names an endpoint the project config\ndoes not; runPreflight proceeds against the REGISTRY's endpoint and says so. This is exactly what\nthe old refusal blocked and what the precedence contract requires be permitted."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestTheDisagreementIsStillReportedFromASubdirectory
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestTheDisagreementIsStillReportedFromASubdirectory
+    package: main
+    language: go
+    doc: "CASE 2 WITH THE OPERATOR STANDING IN A SUBDIRECTORY.\n\nWhat this does NOT do, stated so the mutation accounting stays honest: it does not kill the mutant\nthat reads the configuration from resolveProjectRoot instead of graphConfigRoot. That mutant is\nkilled textually, by TestTheVisibilityDutyConsumesResolvedStateAndNotProse, and it is currently\nNOT behaviourally observable at all. The two roots differ only when *repo names a subdirectory,\nand in exactly that case resolveRepositoryDomain returns an empty domain, so the registry is\nskipped and no disagreement can be constructed to report — see\nTestObservedTheGovernedDomainIsNotResolvedFromASubdirectory. The shared-root requirement becomes\nbehaviourally testable once that defect is repaired; until then it rests on the source assertion."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestTheEndpointAuthorityOrderIsThePrecedenceOrder
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestTheEndpointAuthorityOrderIsThePrecedenceOrder
+    package: main
+    language: go
+    doc: "The precedence the typed authority encodes, asserted rather than assumed. `>` must mean\n`outranks`, so a future constant inserted in the wrong place fails here instead of silently\nchanging who may veto whom."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestTheFiveEndpointDisagreementCases
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestTheFiveEndpointDisagreementCases
+    package: main
+    language: go
+    doc: "THE FIVE REQUIRED CASES, one table so a case cannot be quietly dropped."
+  - id: cmd/awg/endpoint_visibility_duty_test.go:TestTheVisibilityDutyConsumesResolvedStateAndNotProse
+    file: cmd/awg/endpoint_visibility_duty_test.go
+    symbol: TestTheVisibilityDutyConsumesResolvedStateAndNotProse
+    package: main
+    language: go
+    doc: "The duty must read semantic state, not the human-readable source prose, and must consume the\nowner's answer rather than the raw flag variable.\n\nThe prose assertions matter because the source strings are duplicated across two functions in\nendpoint_binding.go and one of those copies predates the registry entirely, so a reader deciding\nby prose would be reading a closed set that already disagrees with the precedence contract."
   - id: cmd/awg/gate_policy_test.go:TestApplyGatePolicy_OffDropsFinding
     file: cmd/awg/gate_policy_test.go
     symbol: TestApplyGatePolicy_OffDropsFinding
@@ -6656,6 +6686,24 @@ test_symbols:
     package: main
     language: go
     doc: "REVIEW FINDING (P1, chatgpt-codex-connector, cmd_import.go:186):\n\"Run import admission before contract extraction writes.\"\n\nCONFIRMED BY INSPECTION. Stage [1/5] runs `intent-mine --adopt`, which creates or\nupdates files under docs/awareness, and importWouldDefeatItself sits ~50 lines LATER.\nSo on `--depth full` with an available drafter the refusal prints\n\n\t\"this import cannot succeed, so nothing has been run and the checkout is untouched\"\n\nafter stage 1 has already written. The message is FALSE in that configuration.\n\nMy own live proof of this gate used --depth basic, which skips stage 1 entirely — so it\nmeasured the one configuration in which the claim happens to be true and I asserted it\ngenerally. That is the recorded pattern: a witness only proves its first guard, and\nevidence that could not have failed is not evidence.\n\nThe repair is ordering, not wording: a gate whose refusal asserts an untouched checkout\nmust run before anything writes. Weakening the sentence instead would keep the defect\nand describe it.\nTHE QUANTIFIED DOMAIN OF THIS WITNESS, measured 2026-09-14 and stated because\nover-reading it is what let a regression through.\n\nThis asserts LEXICAL ordering in the source: the gate appears before stage 1's writer.\nIt is not a behavioural proof that the refusal precedes a stage-1 write, and it cannot\nbe one here: `intent-mine --adopt` needs a drafter, and with none available it reports\n\"no candidates to ground\" and writes nothing, so a behavioural assertion over stage 1 is\nvacuous in this environment. Measured directly -- porcelain is byte-identical before and\nafter runIntentMine with 4 candidates present.\n\nThe behavioural half of the claim is carried by\nTestAdmissionFactsKnowableBeforeExtractionRefuseBeforeExtraction, which refuses ahead of\nstage 2 (runBootstrap), a stage that demonstrably writes."
+  - id: cmd/awg/issue_212_reachability_test.go:TestIssue212_EverySubjectDelegatesEndpointSelectionToTheOwner
+    file: cmd/awg/issue_212_reachability_test.go
+    symbol: TestIssue212_EverySubjectDelegatesEndpointSelectionToTheOwner
+    package: main
+    language: go
+    doc: "LIMB 3 — every discovered subject resolves through the owner, so none of them performs the\nendpoint selection #212 was about. This restates the completion oracle deliberately: the\nunreachability claim must not rest on a test living in another file that could be narrowed\nindependently."
+  - id: cmd/awg/issue_212_reachability_test.go:TestIssue212_NoSubjectCarriesAnIndependentEndpointDefault
+    file: cmd/awg/issue_212_reachability_test.go
+    symbol: TestIssue212_NoSubjectCarriesAnIndependentEndpointDefault
+    package: main
+    language: go
+    doc: "LIMB 2 — no production graph command has a non-empty endpoint default to fall back on. Without a\ndefault of its own, a subject cannot dial an independent endpoint even if it wanted to. Derived\nfrom the census population, not from a list."
+  - id: cmd/awg/issue_212_reachability_test.go:TestIssue212_TheOwnerPrefersTheProjectConfigurationOverTheBuiltInDefault
+    file: cmd/awg/issue_212_reachability_test.go
+    symbol: TestIssue212_TheOwnerPrefersTheProjectConfigurationOverTheBuiltInDefault
+    package: main
+    language: go
+    doc: "LIMB 1 — the owner prefers the project's configuration over the built-in default. This is the\nsubstantive half: the endpoint #212 feared (an independent default) is not what the owner picks\nwhen the project has named one."
   - id: cmd/awg/json_reachability_test.go:TestAResponseWithNoBuildCommitReportsUnknown
     file: cmd/awg/json_reachability_test.go
     symbol: TestAResponseWithNoBuildCommitReportsUnknown

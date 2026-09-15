@@ -144,7 +144,7 @@ func TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint(t *testing.T) {
 	}
 
 	// FACT 4 — INVERTED. The guard now executes AFTER the owner resolves. Positional, from source.
-	guardAt := strings.Index(src, "requireServerAddrAgreement(fs,")
+	guardAt := strings.Index(src, "endpointDisagreementNotice(")
 	resolveAt := strings.Index(src, "productionReaderFor(fs,")
 	dialAt := strings.Index(src, "client.DialConn(")
 	if guardAt < 0 || resolveAt < 0 || dialAt < 0 {
@@ -155,13 +155,13 @@ func TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint(t *testing.T) {
 			"after the canonical reader exists and before the endpoint is used", resolveAt, guardAt, dialAt)
 	}
 
-	// FACT 5 — the operand is what decides, and that has not changed about the FUNCTION. Keeping
-	// both halves here is what proves the repair moved the operand rather than weakening the guard.
-	if err := requireServerAddrAgreement(emptyFlags(), root, ""); err == nil {
-		t.Fatal("the guard now accepts an empty operand; it has been weakened rather than re-pointed")
+	// FACT 5 — the owner's answer and the configuration agree here, so the visibility duty has
+	// nothing to report. Both operands are non-empty, so silence is agreement, not absence.
+	if n := endpointDisagreementNotice(reader.Addr, reader.Authority, configured, reader.Overridden); n != "" {
+		t.Fatalf("a notice was emitted although configured == resolved == %q: %s", configured, n)
 	}
-	if err := requireServerAddrAgreement(emptyFlags(), root, reader.Addr); err != nil {
-		t.Fatalf("the guard refused the owner-resolved address %q: %v", reader.Addr, err)
+	if reader.Authority != endpointAuthorityProjectConfig {
+		t.Fatalf("authority = %v, want the project configuration for this fixture", reader.Authority)
 	}
 
 	// THE OUTCOME, through the real command: it proceeds.
@@ -174,8 +174,12 @@ func TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint(t *testing.T) {
 		t.Fatalf("runPreflight returned %d, want 0 — the canonical no---addr path must be reachable."+
 			"\nout:\n%s", code, out)
 	}
-	if strings.Contains(out, "refusing to act on an endpoint the project config does not name") {
-		t.Fatalf("the agreement guard still refuses the canonical path.\nout:\n%s", out)
+	if strings.Contains(out, "refusing to act on an endpoint") {
+		t.Fatalf("the canonical path is still refused.\nout:\n%s", out)
+	}
+	if strings.Contains(out, "is therefore stale") {
+		t.Fatalf("a stale-config notice was emitted although the configuration names the resolved "+
+			"endpoint.\nout:\n%s", out)
 	}
 	// It proceeded through the OWNER's endpoint, not by being skipped: the service was contacted.
 	if svc.calls != 1 {
@@ -190,9 +194,8 @@ func TestEndpointAgreementIsEvaluatedAgainstTheResolvedEndpoint(t *testing.T) {
 		"  raw CLI address      \"\" (--addr omitted; declared default still empty)\n"+
 		"  configured address   %s (.sensei/config.yaml server.addr)\n"+
 		"  owner resolves       %s (same address, from this project's configuration)\n"+
-		"  order                resolve(%d) < guard(%d) < dial(%d)\n"+
-		"  guard on raw \"\"      still REFUSES (unchanged)\n"+
-		"  guard on resolved    returns nil\n"+
+		"  order                resolve(%d) < notice(%d) < dial(%d)\n"+
+		"  notice               none: configured == resolved, both non-empty\n"+
 		"  result               exit 0, endpoint contacted once, canonically",
 		configured, reader.Addr, resolveAt, guardAt, dialAt)
 }
@@ -232,11 +235,16 @@ func TestEndpointAgreementReadsTheSameConfigurationTheOwnerDid(t *testing.T) {
 	}
 	// The guard was genuinely evaluated, not skipped: the same call with a foreign operand refuses
 	// from this same working directory.
-	if err := requireServerAddrAgreement(emptyFlags(), graphConfigRoot("."), "127.0.0.1:19"); err == nil {
-		t.Fatal("from this subdirectory the guard cannot refuse a foreign endpoint, so it is inert here")
+	cfgDeep, err := loadEndpointConfig(graphConfigRoot("."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := endpointDisagreementNotice("127.0.0.1:19", endpointAuthorityDomainRegistry, cfgDeep.configuredServerAddr(), false); n == "" {
+		t.Fatal("from this subdirectory the visibility duty cannot report a foreign endpoint, so it " +
+			"is reading a configuration the owner did not")
 	}
 	t.Logf("SHARED ROOT: from %s, resolveProjectRoot gives %s (no config) and graphConfigRoot gives "+
-		"%s (config names %s). The guard reads the owner's root, so it is live rather than inert here.",
+		"%s (config names %s). The notice reads the owner's root, so it is live rather than inert here.",
 		sub, shallow, deep, addr)
 }
 
@@ -350,47 +358,4 @@ func TestTheOwnerWithNoOverrideChoosesTheConfiguredEndpoint(t *testing.T) {
 	}
 	t.Logf("OPPOSITE CONTROL: configured == owner-resolved == %s, and the guard accepts it. The "+
 		"operation was never in disagreement; only the moment of comparison was wrong.", reader.Addr)
-}
-
-// OPERAND PROVENANCE. The guard's operand must be the owner's answer, named as such.
-//
-// This witness exists because one required mutant cannot be killed behaviourally. Passing *addr
-// instead of reader.Addr at the guard is value-IDENTICAL on this tree: `*addr = reader.Addr` runs
-// unconditionally two lines above, so no test can observe a difference between the two expressions.
-// The distinction is real anyway — *addr is the operator's flag variable, which the migration pattern
-// happens to overwrite, and reader.Addr is the endpoint the owner resolved. The regression this
-// family repairs was precisely a guard reading the flag variable rather than the resolved endpoint.
-//
-// When behaviour cannot see a distinction, the source is the right place to pin it. Equivalence today
-// is not a guarantee of equivalence after the next edit: remove or move `*addr = reader.Addr` and a
-// guard reading *addr silently reverts to comparing against an empty flag.
-func TestTheAgreementGuardsOperandIsTheOwnersResolvedAddress(t *testing.T) {
-	src := readCmdSource(t, "cmd_preflight.go")
-
-	if n := strings.Count(src, "requireServerAddrAgreement("); n != 1 {
-		t.Fatalf("expected exactly one agreement call in cmd_preflight.go, found %d", n)
-	}
-	// The operand, by name.
-	if !strings.Contains(src, "requireServerAddrAgreement(fs, graphConfigRoot(*repo), reader.Addr)") {
-		t.Fatalf("the agreement guard must be called with the owner's resolved address and the " +
-			"owner's config root: requireServerAddrAgreement(fs, graphConfigRoot(*repo), reader.Addr)")
-	}
-	// And never with the raw flag variable, whose value is only incidentally correct here.
-	if strings.Contains(src, "requireServerAddrAgreement(fs, graphConfigRoot(*repo), *addr)") ||
-		strings.Contains(src, "requireServerAddrAgreement(fs, preflightRoot, *addr)") {
-		t.Fatal("the agreement guard is reading the raw --addr flag variable; that is the regression " +
-			"this family repaired, and it is value-identical only while `*addr = reader.Addr` " +
-			"immediately precedes it")
-	}
-	// The coupling that makes the two expressions equal today must still be present and adjacent,
-	// because that is the only thing keeping the mutant equivalent rather than defective.
-	adopt := strings.Index(src, "*addr = reader.Addr")
-	guard := strings.Index(src, "requireServerAddrAgreement(")
-	if adopt < 0 || adopt > guard {
-		t.Fatal("`*addr = reader.Addr` no longer precedes the guard; re-examine whether the operand " +
-			"mutant is still equivalent")
-	}
-	t.Log("OPERAND PINNED: the guard names reader.Addr and graphConfigRoot(*repo). The *addr mutant " +
-		"is EQUIVALENT by value on this tree and is killed here textually, at the level where the " +
-		"distinction actually lives.")
 }

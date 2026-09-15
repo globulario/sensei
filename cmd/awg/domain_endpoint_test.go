@@ -44,7 +44,7 @@ func TestTheRegistryOutranksTheProjectConfiguration(t *testing.T) {
 	reg := registryNaming(t, domain, "localhost:10199")
 	root := projectNaming(t, "localhost:10122")
 
-	addr, source := resolveDomainServiceAddr(addrFlagSet(t, false, ""), root, domain, "localhost:10120", reg)
+	addr, source, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), root, domain, "localhost:10120", reg)
 	if addr != "localhost:10199" {
 		t.Errorf("resolved %q, want the registry's localhost:10199", addr)
 	}
@@ -58,7 +58,7 @@ func TestTheRegistryOutranksTheProjectConfiguration(t *testing.T) {
 func TestAnExplicitFlagOutranksEvenTheRegistry(t *testing.T) {
 	const domain = "github.com/globulario/sensei-code"
 	reg := registryNaming(t, domain, "localhost:10199")
-	addr, source := resolveDomainServiceAddr(addrFlagSet(t, true, "localhost:19999"), projectNaming(t, "localhost:10122"), domain, "localhost:19999", reg)
+	addr, source, _ := resolveDomainServiceAddr(addrFlagSet(t, true, "localhost:19999"), projectNaming(t, "localhost:10122"), domain, "localhost:19999", reg)
 	if addr != "localhost:19999" || !strings.Contains(source, "command line") {
 		t.Errorf("resolved %q from %q; an explicit flag must win", addr, source)
 	}
@@ -70,7 +70,7 @@ func TestAnExplicitFlagOutranksEvenTheRegistry(t *testing.T) {
 func TestASilentRegistryLeavesTheExistingPrecedenceIntact(t *testing.T) {
 	const domain = "github.com/globulario/sensei-code"
 	reg := registryNaming(t, domain, "")
-	addr, source := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), domain, "localhost:10120", reg)
+	addr, source, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), domain, "localhost:10120", reg)
 	if addr != "localhost:10122" {
 		t.Errorf("resolved %q, want the project's configured endpoint when the registry is silent", addr)
 	}
@@ -80,10 +80,10 @@ func TestASilentRegistryLeavesTheExistingPrecedenceIntact(t *testing.T) {
 
 	// An unregistered domain, and an unreadable registry, both fall through rather
 	// than failing: this resolver reports an endpoint, it does not gate access.
-	if addr, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), "github.com/other/repo", "localhost:10120", reg); addr != "localhost:10122" {
+	if addr, _, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), "github.com/other/repo", "localhost:10120", reg); addr != "localhost:10122" {
 		t.Errorf("an unregistered domain resolved %q", addr)
 	}
-	if addr, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), domain, "localhost:10120", filepath.Join(t.TempDir(), "absent.yaml")); addr != "localhost:10122" {
+	if addr, _, _ := resolveDomainServiceAddr(addrFlagSet(t, false, ""), projectNaming(t, "localhost:10122"), domain, "localhost:10120", filepath.Join(t.TempDir(), "absent.yaml")); addr != "localhost:10122" {
 		t.Errorf("an unreadable registry resolved %q", addr)
 	}
 }

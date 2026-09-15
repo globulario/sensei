@@ -199,6 +199,89 @@ func markerAgreement(liveDigest string, liveTriples int, markerDigest string, ma
 	}
 }
 
+// endpointAuthority names WHICH authority decided an endpoint.
+//
+// A closed set, read by membership. The human-readable source string beside it exists for
+// operators and is duplicated across functions; deciding behaviour by matching that prose is how a
+// closed vocabulary silently fails open when a new source is added and one reader is not updated.
+// Callers that need to know who outranked whom compare these values.
+//
+// The order is the precedence order, so `>` on the constants is `outranks`.
+type endpointAuthority int
+
+const (
+	endpointAuthorityUnset endpointAuthority = iota
+	// endpointAuthorityBuiltInDefault is netcfg: nobody chose this.
+	endpointAuthorityBuiltInDefault
+	// endpointAuthorityProjectConfig is .sensei/config.yaml -- what an operator edits alongside
+	// the code, and therefore INSIDE the thing being vouched for.
+	endpointAuthorityProjectConfig
+	// endpointAuthorityDomainRegistry is ~/.sensei/domains.yaml -- operator-controlled and
+	// OUTSIDE any published repository, so a repository cannot redirect its own graph. This is
+	// why it outranks the project config.
+	endpointAuthorityDomainRegistry
+	// endpointAuthorityOperatorFlag is the operator naming an endpoint at the point of use,
+	// visible in the command they ran. Law 14's diagnostic/maintenance authority.
+	endpointAuthorityOperatorFlag
+)
+
+// outranksProjectConfig reports whether an authority sits ABOVE the repository's own
+// configuration, and therefore may not be vetoed by it.
+func (a endpointAuthority) outranksProjectConfig() bool { return a > endpointAuthorityProjectConfig }
+
+func (a endpointAuthority) String() string {
+	switch a {
+	case endpointAuthorityOperatorFlag:
+		return "an explicit operator override"
+	case endpointAuthorityDomainRegistry:
+		return "the domain registry"
+	case endpointAuthorityProjectConfig:
+		return "this project's configuration"
+	case endpointAuthorityBuiltInDefault:
+		return "the built-in default"
+	}
+	return "an unrecorded source"
+}
+
+// endpointDisagreementNotice reports that endpoint ownership followed a higher authority than the
+// repository's own configuration, so the operator is told rather than refused.
+//
+// THIS REPLACED A REFUSAL, and the reason is the precedence contract above. The refusal compared
+// the configured address against the resolved one, and the only case in which it could produce a
+// refusal was a registry-declared endpoint the project config does not name -- which is exactly the
+// case the registry exists to permit. A repository-local file must not veto the canonical owner, or
+// the registry stops being the authority that "cannot be redirected by the repository" and becomes
+// a suggestion the repository can decline.
+//
+// #212's actual failure -- a command reporting a verdict from a server the operator did not name --
+// is now unreachable: the owner reads the project configuration itself as precedence 3, and no
+// subject carries an endpoint default of its own (issue_212_reachability_test.go).
+//
+// Takes semantic state rather than inferring it: the endpoint in use, WHO decided it, what the
+// repository configured if anything, and whether the operator overrode it explicitly.
+//
+// Returns "" when there is nothing to report.
+func endpointDisagreementNotice(resolved string, authority endpointAuthority, configured string, overridden bool) string {
+	resolved, configured = strings.TrimSpace(resolved), strings.TrimSpace(configured)
+	// An explicit override is already reported as non-canonical by nonCanonicalReaderNotice, which
+	// says the stronger thing: nothing has verified that this endpoint serves the domain's graph.
+	// Saying it twice, in weaker words, would train an operator to skim both.
+	if overridden || authority == endpointAuthorityOperatorFlag {
+		return ""
+	}
+	// No repository-local configuration means no disagreement to report.
+	if configured == "" {
+		return ""
+	}
+	if configured == resolved {
+		return ""
+	}
+	return "sensei: reading " + resolved + " because " + authority.String() +
+		" names it for this domain. This project's configuration states " + configured +
+		", which is therefore stale or applies to another endpoint; the owner's answer is the one " +
+		"in use. Nothing was read from " + configured + "."
+}
+
 // resolveDomainServiceAddr resolves domain -> endpoint through the registry (G2).
 //
 // Precedence, highest first:
@@ -219,25 +302,25 @@ func markerAgreement(liveDigest string, liveTriples int, markerDigest string, ma
 // Falls through on every absence -- unregistered domain, unreadable registry, no
 // declared endpoint -- because this reports an endpoint rather than gating access.
 // A resolver that refused here would turn a missing convenience into an outage.
-func resolveDomainServiceAddr(fs *flag.FlagSet, projectRoot, domain, flagValue, registryPath string) (addr, source string) {
+func resolveDomainServiceAddr(fs *flag.FlagSet, projectRoot, domain, flagValue, registryPath string) (addr, source string, authority endpointAuthority) {
 	if flagPassed(fs, "addr") {
-		return flagValue, "named on the command line"
+		return flagValue, "named on the command line", endpointAuthorityOperatorFlag
 	}
 	if strings.TrimSpace(domain) != "" && strings.TrimSpace(registryPath) != "" {
 		if reg, err := LoadDomainRegistry(registryPath); err == nil && reg != nil {
 			if rd, ok := reg.Domains[strings.TrimSpace(domain)]; ok {
 				if a := strings.TrimSpace(rd.ServiceAddr); a != "" {
-					return a, "the domain registry (" + registryPath + ")"
+					return a, "the domain registry (" + registryPath + ")", endpointAuthorityDomainRegistry
 				}
 			}
 		}
 	}
 	if cfg, err := loadEndpointConfig(projectRoot); err == nil {
 		if a := cfg.configuredServerAddr(); a != "" {
-			return a, "this project's configuration"
+			return a, "this project's configuration", endpointAuthorityProjectConfig
 		}
 	}
-	return flagValue, "the built-in default"
+	return flagValue, "the built-in default", endpointAuthorityBuiltInDefault
 }
 
 // nonCanonicalStoreURLNotice makes a raw --store-url override visible.
@@ -325,6 +408,9 @@ type graphReader struct {
 	// caller can report the answer as non-canonical (law 14's rule for raw overrides,
 	// applied to the read side).
 	Overridden bool
+	// Authority is WHO decided Addr, as a closed set rather than as prose. A caller that must
+	// know whether the repository's own configuration may object reads this, never Source.
+	Authority endpointAuthority
 }
 
 // resolveGraphReader is the one resolution every production reader uses.
@@ -335,15 +421,16 @@ func resolveGraphReader(fs *flag.FlagSet, projectRoot, domain, flagValue, regist
 	// operator naming it rather than a port the command chose for them.
 	if strings.TrimSpace(flagValue) != "" || flagPassed(fs, "addr") {
 		r.Addr, r.Source, r.Overridden = strings.TrimSpace(flagValue), "named on the command line", true
+		r.Authority = endpointAuthorityOperatorFlag
 		if r.Addr == "" {
 			r.Addr = defaultServiceAddr()
 		}
 		r.DeclaredGeneration = declaredActiveGeneration(registryPath, r.Domain)
 		return r
 	}
-	r.Addr, r.Source = resolveDomainServiceAddr(fs, projectRoot, r.Domain, "", registryPath)
+	r.Addr, r.Source, r.Authority = resolveDomainServiceAddr(fs, projectRoot, r.Domain, "", registryPath)
 	if strings.TrimSpace(r.Addr) == "" {
-		r.Addr, r.Source = defaultServiceAddr(), "the built-in default"
+		r.Addr, r.Source, r.Authority = defaultServiceAddr(), "the built-in default", endpointAuthorityBuiltInDefault
 	}
 	r.DeclaredGeneration = declaredActiveGeneration(registryPath, r.Domain)
 	return r

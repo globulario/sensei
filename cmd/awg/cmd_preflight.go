@@ -58,27 +58,31 @@ Flags:
 	reader := productionReaderFor(fs, *repo, resolvedDomain.Domain, *addr)
 	*addr = reader.Addr
 
-	// ENDPOINT AGREEMENT IS EVALUATED AGAINST THE ENDPOINT THE OPERATION WILL ACTUALLY USE.
+	// ENDPOINT AGREEMENT IS A VISIBILITY DUTY, NOT A VETO.
 	//
-	// The server whose authority this asserts is decided here, and the project config states one
-	// too. Refuse a silent disagreement rather than report a verdict from a server the operator
-	// did not name (issue #212).
+	// The operation follows the owner, and reports it when the owner's answer is not the one this
+	// repository's configuration names.
 	//
-	// This check used to run BEFORE the owner, on the raw --addr value. That was sound while the
-	// raw flag WAS the endpoint dialled, which is how issue #212 first landed it. The
-	// endpoint-ownership family then made the endpoint come from productionReaderFor and set the
-	// flag's default to empty -- and left the guard reading the flag. It therefore compared the
-	// configured address against "" and refused every canonical invocation, in a repository whose
-	// configuration the owner was about to honour exactly. A guard that runs before the value it
-	// guards exists reports its own position, not a disagreement.
+	// This was a refusal (issue #212: do not report a verdict from a server the operator did not
+	// name). Two measurements retired it. First, the refusal was comparing the configured address
+	// against the RAW --addr flag, from before productionReaderFor existed, so with --addr omitted
+	// it compared against "" and refused every canonical invocation. Re-pointing it at the owner's
+	// answer then exposed the real problem: the only case left in which it could refuse was a
+	// registry-declared endpoint the project config does not name -- and the registry outranks the
+	// project config precisely so that a repository cannot redirect its own graph. The guard had
+	// become able to fire only where it must not.
 	//
-	// The root is graphConfigRoot, the SAME root productionReaderFor resolved the configuration
-	// from. resolveProjectRoot does not walk up, so from a subdirectory the guard would have read a
-	// different config file than the owner did -- finding none, concluding nothing is configured,
-	// and passing. One endpoint decision, one configuration.
-	if err := requireServerAddrAgreement(fs, graphConfigRoot(*repo), reader.Addr); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
-		return 1
+	// Second, #212's failure is now unreachable rather than merely unobserved: the owner reads this
+	// project's configuration itself as precedence 3, and no subject carries an endpoint default of
+	// its own. Both limbs are witnessed in issue_212_reachability_test.go, which is what makes this
+	// a measured consequence instead of a check dropped because it was inconvenient.
+	//
+	// The configuration is read from graphConfigRoot(*repo), the root the owner resolved from, so
+	// the notice compares the same two things the owner did.
+	if cfg, err := loadEndpointConfig(graphConfigRoot(*repo)); err == nil {
+		if notice := endpointDisagreementNotice(reader.Addr, reader.Authority, cfg.configuredServerAddr(), reader.Overridden); notice != "" {
+			fmt.Fprintln(os.Stderr, notice)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
