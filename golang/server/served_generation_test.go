@@ -243,3 +243,70 @@ func TestAMarkerCountThatContradictsTheStoreIsNotAnIdentity(t *testing.T) {
 		t.Errorf("a marker contradicting the live count was reported as the served identity: %q", got)
 	}
 }
+
+// REVIEW FINDING (P1, chatgpt-codex-connector on #359, graph_freshness.go:303):
+// "Revalidate non-current marker digests before exposing them."
+//
+// The claim: when the expected marker IRI is present but its digest LITERAL has been
+// tampered to a different value, VerifyLiveStore returns STALE with ver.Live.Digest set
+// to the untrusted literal. servedGraphDigest's fast path returns it without ever calling
+// snapshotLiveAuthority, so an integrity-failed marker becomes a comparable served
+// generation — and if the registry happens to declare that same literal, the ACTIVE
+// generation equality guard accepts it.
+//
+// The reviewer is right, and it is the same shape this function's own comment forbids:
+// "ONLY A COHERENT IDENTITY IS AN IDENTITY". The discovery path refuses
+// AuthorityIntegrityFailed (a digest literal on a subject that is not its digest-derived
+// IRI); the fast path never asks.
+//
+// The fast path is kept, because the cost rule it exists for is real — but only for a
+// FULLY CURRENT verification, where the literal equals the expected digest whose own IRI
+// matched, so coherence is already established. Every other state is admitted
+// independently.
+func TestATamperedMarkerDigestIsNotExposedAsTheServedGeneration(t *testing.T) {
+	expected := generationFor(t, "<https://example.test/a> <https://example.test/p> <https://example.test/x> .\n")
+	const tampered = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+
+	// The store answers for the EXPECTED IRI, but the digest literal under it says
+	// something else: the marker is incoherent, not merely stale.
+	st := &servedGenerationStore{total: expected.TripleCount}
+	st.serves = []seedmeta.Marker{{IRI: expected.IRI, Digest: tampered, TripleCount: expected.TripleCount}}
+	st.describeFor = expected.IRI
+	s := newTestServer(st)
+	s.graphMarkerFile = expectMarkerFile(t, expected)
+
+	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{})
+	if err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+	if got := resp.GetLiveStoreGraphDigestSha256(); got == tampered {
+		t.Fatalf("the tampered digest literal was exposed as the served generation: %s", got)
+	}
+	if got := resp.GetLiveStoreGraphDigestSha256(); got != "" {
+		t.Errorf("live store digest = %q; an incoherent marker establishes no identity", got)
+	}
+	// And it must still be reported stale, not current.
+	if resp.GetGraphFreshnessState() == awarenesspb.GraphFreshnessState_GRAPH_FRESHNESS_STATE_CURRENT {
+		t.Error("a tampered marker was reported CURRENT")
+	}
+}
+
+// The healthy path must keep its fast path: a fully current verification asks the store
+// nothing extra, which is the cost rule the shortcut exists for.
+func TestACurrentVerificationStillUsesTheFastPath(t *testing.T) {
+	m := generationFor(t, "<https://example.test/a> <https://example.test/p> <https://example.test/x> .\n")
+	st := &servedGenerationStore{serves: []seedmeta.Marker{m}, total: m.TripleCount, describeFor: m.IRI}
+	s := newTestServer(st)
+	s.graphMarkerFile = expectMarkerFile(t, m)
+
+	resp, err := s.Metadata(context.Background(), &awarenesspb.MetadataRequest{})
+	if err != nil {
+		t.Fatalf("Metadata: %v", err)
+	}
+	if got := resp.GetLiveStoreGraphDigestSha256(); got != m.Digest {
+		t.Errorf("live store digest = %q, want %s", got, m.Digest)
+	}
+	if n := st.classCalls.Load(); n != 0 {
+		t.Errorf("the current path performed %d marker discoveries; the fast path is gone", n)
+	}
+}

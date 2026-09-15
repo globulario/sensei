@@ -299,8 +299,28 @@ func storeScopedExpectedMarker(s *server) (seedmeta.Marker, bool) {
 //     comparable identity -- and two live markers must not be resolved by picking one
 //     (law 12).
 func servedGraphDigest(ctx context.Context, s *server, ver seedmeta.Verification) string {
-	if d := strings.TrimSpace(ver.Live.Digest); d != "" {
-		return d
+	// THE SHORTCUT IS ONLY VALID FOR A FULLY CURRENT VERIFICATION.
+	//
+	// Review finding (P1) on #359: when the expected marker IRI is present but its digest
+	// LITERAL has been tampered to a different value, VerifyLiveStore returns STALE with
+	// ver.Live.Digest set to that untrusted literal. Returning it here handed an
+	// integrity-failed marker to every consumer as a comparable served generation -- and
+	// if the registry declared the same literal, the ACTIVE generation equality guard
+	// accepted it. The reviewer was right, and it is the same shape this function's own
+	// rule forbids: only a coherent identity is an identity.
+	//
+	// FreshnessCurrent is what makes the shortcut safe: it holds only when the literal
+	// equals the expected digest, whose own IRI is the one that matched, so coherence is
+	// already established by the comparison that produced the state. Every other state --
+	// stale, unknown, empty, check-error -- is admitted independently below, where
+	// AdmitLiveMarker refuses a subject whose IRI does not derive from its digest.
+	//
+	// The cost rule survives intact: a healthy store IS current, so nothing extra is asked
+	// on the path that matters (TestACurrentVerificationStillUsesTheFastPath).
+	if ver.State == seedmeta.FreshnessCurrent {
+		if d := strings.TrimSpace(ver.Live.Digest); d != "" {
+			return d
+		}
 	}
 	obs, _ := snapshotLiveAuthority(ctx, s)
 	switch obs.State {
