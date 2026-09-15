@@ -18,7 +18,7 @@ func runPreflight(args []string) int {
 	fs := flag.NewFlagSet("sensei preflight", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	task := fs.String("task", "", "task description")
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to per-file impact queries")
@@ -46,20 +46,43 @@ Flags:
 		return 2
 	}
 
-	// The server whose authority this asserts is decided here, and the
-	// project config states one too. Refuse a silent disagreement rather
-	// than report a verdict from a server the operator did not name
-	// (issue #212).
-	preflightRoot, _ := resolveProjectRoot(*repo)
-	if err := requireServerAddrAgreement(fs, preflightRoot, *addr); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
-		return 1
-	}
-
 	resolvedDomain := resolveRepositoryDomain(*repo, *domain)
 	if resolvedDomain.Err != nil {
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", resolvedDomain.Err)
 		return 1
+	}
+	// LAW 3 -- ENDPOINT OWNERSHIP, resolved HERE rather than right after Parse because the
+	// domain is not settled until above. The owner's answer is per-domain, so a reader resolved
+	// from the raw flag would carry the endpoint and declared generation of a different domain
+	// -- usually none -- and would look resolved while answering for the wrong one.
+	reader := productionReaderFor(fs, *repo, resolvedDomain.Domain, *addr)
+	*addr = reader.Addr
+
+	// ENDPOINT AGREEMENT IS A VISIBILITY DUTY, NOT A VETO.
+	//
+	// The operation follows the owner, and reports it when the owner's answer is not the one this
+	// repository's configuration names.
+	//
+	// This was a refusal (issue #212: do not report a verdict from a server the operator did not
+	// name). Two measurements retired it. First, the refusal was comparing the configured address
+	// against the RAW --addr flag, from before productionReaderFor existed, so with --addr omitted
+	// it compared against "" and refused every canonical invocation. Re-pointing it at the owner's
+	// answer then exposed the real problem: the only case left in which it could refuse was a
+	// registry-declared endpoint the project config does not name -- and the registry outranks the
+	// project config precisely so that a repository cannot redirect its own graph. The guard had
+	// become able to fire only where it must not.
+	//
+	// Second, #212's failure is now unreachable rather than merely unobserved: the owner reads this
+	// project's configuration itself as precedence 3, and no subject carries an endpoint default of
+	// its own. Both limbs are witnessed in issue_212_reachability_test.go, which is what makes this
+	// a measured consequence instead of a check dropped because it was inconvenient.
+	//
+	// The configuration is read from graphConfigRoot(*repo), the root the owner resolved from, so
+	// the notice compares the same two things the owner did.
+	if cfg, err := loadEndpointConfig(graphConfigRoot(*repo)); err == nil {
+		if notice := endpointDisagreementNotice(reader.Addr, reader.Authority, cfg.configuredServerAddr(), reader.Overridden); notice != "" {
+			fmt.Fprintln(os.Stderr, notice)
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

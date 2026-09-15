@@ -19,7 +19,7 @@ import (
 func runPatternCheck(args []string) int {
 	fs := flag.NewFlagSet("sensei pattern-check", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	format := fs.String("format", "table", "output format: table | json")
 	failOnViolation := fs.Bool("fail-on-violation", true, "exit non-zero on violation")
 	fs.Usage = func() {
@@ -39,6 +39,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// LAW 3 -- ENDPOINT OWNERSHIP. The endpoint comes from the graph-reader owner; this command
+	// does not choose a graph. The flag default is now EMPTY on purpose: resolveGraphReader treats
+	// a non-empty value as an operator naming the endpoint at the point of use, so a command that
+	// defaulted it to defaultServiceAddr() made every ordinary run look like an override and
+	// bypassed canonical resolution entirely.
+	reader := productionReaderFor(fs, "", "", *addr)
+	*addr = reader.Addr
 	if fs.NArg() == 0 {
 		fmt.Fprintln(os.Stderr, "sensei pattern-check: requires at least one file argument")
 		return 2
