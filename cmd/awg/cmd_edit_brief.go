@@ -164,7 +164,7 @@ Flags:
 	// delivery -- the measurement's most important row -- and the edit proceeds unannotated. The
 	// payload is not consumed, which is what the authority contract requires; the exit code keeps the
 	// non-blocking promise this command already made.
-	if err := reader.requireVerifiedServedGeneration(out.ServedGeneration); err != nil {
+	if _, err := reader.requireVerifiedServedGeneration(out.ServedGeneration); err != nil {
 		reason := firstLine(err.Error())
 		recordEditBrief(ledger, rel, resolvedDomain, out, false, evidence.CoverageInProject, reason)
 		fmt.Fprintf(os.Stderr, "sensei edit-brief: briefing withheld (allowing edit): %s\n", reason)

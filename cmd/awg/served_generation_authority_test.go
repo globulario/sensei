@@ -19,7 +19,10 @@ package main
 // reaches and consumes the authoritative payload; and the mismatch is not rejected before that.
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -27,6 +30,7 @@ import (
 	"testing"
 
 	awarenesspb "github.com/globulario/sensei/golang/pb"
+	"github.com/globulario/sensei/golang/seedmeta"
 	"google.golang.org/grpc"
 )
 
@@ -484,4 +488,162 @@ func TestEveryGenerationAuthorityStateIsReachableAndDistinct(t *testing.T) {
 		t.Fatalf("reached %d distinct states, want 4: %v", len(seen), seen)
 	}
 	t.Logf("FOUR STATES REACHABLE AND DISTINCT: %v", seen)
+}
+
+// THE JSON REFUSAL is the channel a --json consumer reads, so its shape is pinned here and its kind
+// strings are the closed set scripts/lib/preflight-verdict.sh matches by membership.
+func TestTheJSONRefusalIsTypedAndNotMistakableForAnAnswer(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		state generationAuthority
+		kind  string
+	}{
+		{"absent declaration", generationNotEstablished, "served_generation_not_established"},
+		{"disagreement", generationMismatch, "served_generation_mismatch"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			if got := c.state.refusalKind(); got != c.kind {
+				t.Fatalf("refusalKind() = %q, want %q — preflight-verdict.sh matches these by "+
+					"membership, so a rename here silently becomes malformed:unknown_refusal_kind", got, c.kind)
+			}
+		})
+	}
+	// The two NON-refusing states must have no kind: asking for one is a caller error, and emitting a
+	// refusal for them would report a refusal nobody can act on.
+	for _, s := range []generationAuthority{generationVerified, generationDomainUnresolved, generationAuthorityUnset} {
+		if k := s.refusalKind(); k != "" {
+			t.Errorf("state %v has refusal kind %q; only the refusing states may have one", s, k)
+		}
+	}
+
+	// The envelope must not be mistakable for a PreflightResponse. preflight-verdict.sh reads
+	// status/risk_class/coverage; a refusal carrying any of them could be classified as an answer.
+	r := graphReader{Domain: catCDomain, DeclaredGeneration: catCDeclared}
+	_, cause := r.classifyServedGeneration(catCServed)
+	out := captureStdoutOnly(t, func() {
+		if code := emitGenerationRefusalJSON("sensei preflight", generationMismatch, r, catCServed, cause); code == 0 {
+			t.Error("a refusal returned exit 0; a payload with a zero exit reads as success")
+		}
+	})
+	var decoded map[string]any
+	if err := json.Unmarshal([]byte(out), &decoded); err != nil {
+		t.Fatalf("the refusal is not parseable JSON (%v), which is the defect it exists to fix: %s", err, out)
+	}
+	for _, forbidden := range []string{"status", "risk_class", "coverage", "tests_to_run"} {
+		if _, present := decoded[forbidden]; present {
+			t.Errorf("the refusal carries %q, so a consumer could classify it as an actionable answer", forbidden)
+		}
+	}
+	body, ok := decoded["refusal"].(map[string]any)
+	if !ok {
+		t.Fatalf("no refusal object: %s", out)
+	}
+	for _, required := range []string{"kind", "surface", "domain", "declared_generation", "served_generation", "detail"} {
+		if v, present := body[required]; !present || v == "" {
+			t.Errorf("the refusal omits %q, so an operator cannot act on it: %s", required, out)
+		}
+	}
+	if body["declared_generation"] == body["served_generation"] {
+		t.Error("a MISMATCH refusal names the same value on both sides")
+	}
+}
+
+// THE CI PRECONDITION, proven at the mechanism rather than only in the workflow.
+//
+// The activation environment depends on: a REGISTERED domain (operator configuration) plus a
+// publication through the canonical owner, which records the ACTIVE generation. Neither half alone
+// suffices, and the failure mode of the missing half is SILENCE -- recordActiveGeneration invents
+// nothing -- so it must be asserted rather than assumed.
+func TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain(t *testing.T) {
+	const gen = "6666666666666666666666666666666666666666666666666666666666666666"
+	// A complete marker: WriteMarkerFile refuses an incomplete one, and the IRI must derive from the
+	// digest (AdmitLiveMarker refuses a subject whose IRI does not).
+	marker := seedmeta.Marker{
+		Digest:      gen,
+		IRI:         "urn:sensei:graph:" + gen,
+		TripleCount: 4211,
+	}
+
+	read := func(path, domain string) string {
+		t.Helper()
+		reg, err := LoadDomainRegistry(path)
+		if err != nil || reg == nil {
+			return ""
+		}
+		return strings.TrimSpace(reg.Domains[domain].ActiveGeneration)
+	}
+
+	t.Run("registered domain: the canonical owner records it", func(t *testing.T) {
+		dir := t.TempDir()
+		registry := filepath.Join(dir, "domains.yaml")
+		if err := os.WriteFile(registry, []byte("domains:\n    "+catCDomain+
+			":\n        repository_identity: acme/generation\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, registry); err != nil {
+			t.Fatalf("activateGeneration: %v", err)
+		}
+		if got := read(registry, catCDomain); got != gen {
+			t.Fatalf("ACTIVE generation = %q, want %q — this is the step CI depends on", got, gen)
+		}
+	})
+
+	t.Run("unregistered domain: nothing is invented, and it is silent", func(t *testing.T) {
+		dir := t.TempDir()
+		registry := filepath.Join(dir, "domains.yaml")
+		if err := os.WriteFile(registry, []byte("domains: {}\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, registry); err != nil {
+			t.Fatalf("activateGeneration: %v", err)
+		}
+		if got := read(registry, catCDomain); got != "" {
+			t.Fatalf("an unregistered domain was given an ACTIVE generation %q; the owner must invent "+
+				"nothing", got)
+		}
+		// THIS is why CI must register the domain first: the omission produces no error at all.
+		t.Log("confirmed: an unregistered domain yields no pointer AND no error, so a CI world that " +
+			"skips registration fails silently and only surfaces as refused consumption downstream")
+	})
+
+	t.Run("no governed domain: the pointer is not updated and says so", func(t *testing.T) {
+		dir := t.TempDir()
+		registry := filepath.Join(dir, "domains.yaml")
+		if err := os.WriteFile(registry, []byte("domains:\n    "+catCDomain+
+			":\n        repository_identity: acme/generation\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		var buf bytes.Buffer
+		if err := activateGeneration(&buf, filepath.Join(dir, "marker.json"), marker, "", registry); err != nil {
+			t.Fatalf("activateGeneration: %v", err)
+		}
+		if got := read(registry, catCDomain); got != "" {
+			t.Fatalf("a domainless publication wrote a pointer for %s: %q", catCDomain, got)
+		}
+		if !strings.Contains(buf.String(), "NOT updated") {
+			t.Fatalf("a domainless publication did not report that the pointer was left alone:\n%s", buf.String())
+		}
+		t.Log("this is the state CI was in: build --all names no governed domain, so the pointer was " +
+			"never recorded and every reader refused")
+	})
+}
+
+func captureStdoutOnly(t *testing.T, fn func()) string {
+	t.Helper()
+	old := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	done := make(chan string, 1)
+	go func() {
+		var b bytes.Buffer
+		_, _ = io.Copy(&b, r)
+		done <- b.String()
+	}()
+	fn()
+	_ = w.Close()
+	os.Stdout = old
+	return <-done
 }

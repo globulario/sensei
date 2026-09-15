@@ -57,9 +57,92 @@ jobs:
             fi
             sleep 1
           done
-          ./bin/sensei build --all \
+          # REGISTER the governed domain before publishing it.
+          #
+          # This is operator CONFIGURATION -- repository identity and allowed corpus roots -- and
+          # deliberately NOT the ACTIVE generation. recordActiveGeneration refuses to invent an entry
+          # ("Not registered: nothing to update, and nothing to invent"), so without this the
+          # publication below silently records no pointer. The runner's HOME is ephemeral, so this
+          # registry is isolated by construction and no operator state is touched.
+          REGISTRY="$HOME/.sensei/domains.yaml"
+          mkdir -p "$(dirname "$REGISTRY")"
+          cat > "$REGISTRY" <<YAML
+          domains:
+              github.com/globulario/sensei:
+                  repository_identity: globulario/sensei
+                  allowed_corpus_roots:
+                      - docs/awareness
+          YAML
+          echo "SENSEI_CI_REGISTRY=$REGISTRY" >> "$GITHUB_ENV"
+
+          # PUBLISH through the canonical owner, naming the governed domain.
+          #
+          # --repo is the domain-scoped path build itself calls recommended, and it is the ONLY build
+          # mode that names a governed domain: publishedDomain reads --repo, while --domain on build is
+          # the node tagging KIND (repo|shared), not a domain name. --all cannot name one, which is why
+          # it published a graph no reader could verify and left the pointer unset.
+          #
+          # activateGeneration writes the marker first and only then records the pointer, so the
+          # pointer can never name a generation whose marker was never published.
+          ./bin/sensei build --repo "github.com/globulario/sensei" \
             -store-url "http://127.0.0.1:19878/store?default" \
             -graph-marker-file "$MARKER_FILE"
+
+      - name: Prove the governed domain has an ACTIVE generation matching the served graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Activation consumes authoritative preflight output, and since Category C a production
+          # reader REFUSES a served generation the registry does not declare ACTIVE. Prove the four
+          # preconditions here rather than discovering them as 14 refused files downstream.
+          REGISTRY="${SENSEI_CI_REGISTRY:-$HOME/.sensei/domains.yaml}"
+          domain="github.com/globulario/sensei"
+
+          # The served generation comes from metadata --json's live_store_graph_digest_sha256, the SAME
+          # field the guard compares. The human-readable block does not print it, so parsing prose
+          # here would be reading a different thing than the check reads.
+          ./bin/sensei metadata --addr localhost:19120 --domain "$domain" --json > /tmp/ci-metadata.json
+          ./bin/sensei metadata --addr localhost:19120 --domain "$domain" 2>&1 | sed -n '1,16p' || true
+
+          declared=$(python3 - "$REGISTRY" "$domain" <<'PY'
+          import sys, yaml
+          reg = yaml.safe_load(open(sys.argv[1])) or {}
+          print(((reg.get("domains") or {}).get(sys.argv[2]) or {}).get("active_generation", ""))
+          PY
+          )
+          served=$(python3 -c "import json;print(json.load(open('/tmp/ci-metadata.json')).get('live_store_graph_digest_sha256',''))")
+          if [[ -z "$declared" ]]; then
+            echo "FAIL: no ACTIVE generation declared for $domain after publication." >&2
+            echo "  The canonical owner records it only for a REGISTERED domain; check the registry." >&2
+            exit 1
+          fi
+          if [[ -z "$served" ]]; then
+            echo "FAIL: metadata reported no served graph digest." >&2
+            exit 1
+          fi
+          if [[ "$declared" != "$served" ]]; then
+            echo "FAIL: declared ACTIVE generation != served generation." >&2
+            echo "  declared: $declared" >&2
+            echo "  served:   $served" >&2
+            exit 1
+          fi
+          echo "ACTIVE generation established for $domain"
+          echo "  declared == served: $declared"
+
+          # And the consumer contract: a verified preflight emits its ordinary payload, classified ok
+          # or degraded -- never refused, never malformed.
+          source scripts/lib/preflight-verdict.sh
+          probe=$(mktemp)
+          ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
+            --domain "$domain" --addr localhost:19120 --json >"$probe" 2>/dev/null || true
+          verdict=$(preflight_verdict "$probe")
+          echo "  preflight verdict: $verdict"
+          case "$verdict" in
+            refused:*|malformed:*)
+              echo "FAIL: preflight did not produce a consumable payload ($verdict)." >&2
+              exit 1
+              ;;
+          esac
 
       - name: Resolve exact diff
         shell: bash

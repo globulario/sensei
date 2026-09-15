@@ -120,7 +120,7 @@ Flags:
 	if rc != 0 {
 		return rc
 	}
-	if err := reader.requireVerifiedServedGeneration(servedGeneration); err != nil {
+	if _, err := reader.requireVerifiedServedGeneration(servedGeneration); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei verify-obligations: %v\n", err)
 		return 2
 	}

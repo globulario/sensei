@@ -102,3 +102,37 @@ func TestTheRefusingGenerationFactIsStrictlyStrongerAndNonVacuous(t *testing.T) 
 	t.Logf("HIERARCHY: %d subject(s) reach a comparison, %d of those refuse an unverifiable "+
 		"generation.\n  comparing: %v\n  refusing:  %v", len(verifying), len(refusing), verifying, refusing)
 }
+
+// The hierarchy must hold by CONSTRUCTION, not because one call chain happens to reach a recognised
+// name. Proven by removing every weaker recognised name from consideration: a refusing subject must
+// still classify as comparing.
+func TestRefusingImpliesComparingEvenIfTheWeakerNameSetIsEmpty(t *testing.T) {
+	saved := generationCheckNames
+	generationCheckNames = map[string]bool{}
+	t.Cleanup(func() { generationCheckNames = saved })
+
+	subjects := graphCommandsIn(t, ".")
+	if len(subjects) < 15 {
+		t.Fatalf("the census discovered %d subject(s); it has stopped enumerating", len(subjects))
+	}
+	var refusing, broken []string
+	for n, f := range subjects {
+		if f.RefusesUnverified {
+			refusing = append(refusing, n)
+			if !f.VerifiesGeneration {
+				broken = append(broken, n)
+			}
+		}
+	}
+	sort.Strings(refusing)
+	if len(refusing) == 0 {
+		t.Fatal("no subject refuses, so this test cannot observe the implication")
+	}
+	if len(broken) != 0 {
+		t.Fatalf("with the weaker name set emptied, %d refusing subject(s) stopped classifying as "+
+			"comparing: %v\n\nThe implication rests on transitive reachability through a particular "+
+			"call chain rather than on the classifier, so the two name sets can drift apart.", len(broken), broken)
+	}
+	t.Logf("IMPLICATION STRUCTURAL: with generationCheckNames emptied, all %d refusing subject(s) "+
+		"still classify as comparing.", len(refusing))
+}

@@ -152,9 +152,24 @@ while IFS= read -r file; do
   # succeeds, even when the response body reports DEGRADED/UNKNOWN_IMPACT/
   # insufficient coverage -- that is an explicit finding, not a process
   # failure, so the exit code alone cannot be trusted here. Read the payload.
+  # READ THE PAYLOAD EVEN ON A NONZERO EXIT.
+  #
+  # preflight now refuses, nonzero, when the served graph is not the generation the registry
+  # declares ACTIVE for the governed domain -- and it emits a TYPED refusal on stdout so that
+  # refusal can be named. Trusting the exit code alone turned every such refusal into
+  # "malformed:process_exit_1", reporting an authority finding as a broken response. That is the
+  # exact conflation preflight-verdict.sh was written to prevent, reintroduced one layer up.
+  #
+  # A genuinely empty or unparseable payload still classifies malformed, so nothing is excused:
+  # the classifier decides, and the exit code is retained in the verdict when it has nothing to
+  # read.
   verdict="malformed:process_exit_$rc"
-  if ((rc == 0)); then
+  if [[ -s "$json_path" ]]; then
     verdict=$(preflight_verdict "$json_path")
+    if ((rc != 0)) && [[ "$verdict" == "ok" ]]; then
+      # An "ok" payload beside a nonzero exit is incoherent; never launder it into success.
+      verdict="malformed:ok_payload_with_process_exit_$rc"
+    fi
   fi
   if [[ "$verdict" != "ok" ]]; then
     preflight_failures=$((preflight_failures + 1))

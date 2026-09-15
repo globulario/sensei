@@ -6367,6 +6367,12 @@ test_symbols:
     symbol: TestAcquireGraphPublicationLock_ExcludesConcurrentPublisher
     package: main
     language: go
+  - id: cmd/awg/graph_reader_census_report_test.go:TestRefusingImpliesComparingEvenIfTheWeakerNameSetIsEmpty
+    file: cmd/awg/graph_reader_census_report_test.go
+    symbol: TestRefusingImpliesComparingEvenIfTheWeakerNameSetIsEmpty
+    package: main
+    language: go
+    doc: "The hierarchy must hold by CONSTRUCTION, not because one call chain happens to reach a recognised\nname. Proven by removing every weaker recognised name from consideration: a refusing subject must\nstill classify as comparing."
   - id: cmd/awg/graph_reader_census_report_test.go:TestReportTheAdmittedMainCensus
     file: cmd/awg/graph_reader_census_report_test.go
     symbol: TestReportTheAdmittedMainCensus
@@ -7357,6 +7363,12 @@ test_symbols:
     symbol: TestFormatIncompatibleReuseError_NamesAddrAndPID
     package: main
     language: go
+  - id: cmd/awg/served_generation_authority_test.go:TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain
+    package: main
+    language: go
+    doc: "THE CI PRECONDITION, proven at the mechanism rather than only in the workflow.\n\nThe activation environment depends on: a REGISTERED domain (operator configuration) plus a\npublication through the canonical owner, which records the ACTIVE generation. Neither half alone\nsuffices, and the failure mode of the missing half is SILENCE -- recordActiveGeneration invents\nnothing -- so it must be asserted rather than assumed."
   - id: cmd/awg/served_generation_authority_test.go:TestAnUnresolvedGovernedDomainProceedsButNeverClaimsVerification
     file: cmd/awg/served_generation_authority_test.go
     symbol: TestAnUnresolvedGovernedDomainProceedsButNeverClaimsVerification
@@ -7399,6 +7411,12 @@ test_symbols:
     package: main
     language: go
     doc: "OBSERVATION, recorded and NOT repaired here. editBriefRPC is a package-level var used as a test\nseam, and nine assignments to it never restore the previous value:\n\n\tcmd_edit_brief_test.go     4 sites\n\tedit_brief_delivery_test.go 5 sites\n\nSo a stub installed by one test is still installed for every test that runs after it. It caused\nthese witnesses to fail for the wrong reason before catCWorld began restoring the real transport\nexplicitly, and it will do the same to the next test that needs the real RPC. Recorded as a measured\nfact with its own bounded repair rather than folded into this family."
+  - id: cmd/awg/served_generation_authority_test.go:TestTheJSONRefusalIsTypedAndNotMistakableForAnAnswer
+    file: cmd/awg/served_generation_authority_test.go
+    symbol: TestTheJSONRefusalIsTypedAndNotMistakableForAnAnswer
+    package: main
+    language: go
+    doc: "THE JSON REFUSAL is the channel a --json consumer reads, so its shape is pinned here and its kind\nstrings are the closed set scripts/lib/preflight-verdict.sh matches by membership."
   - id: cmd/awg/served_generation_authority_test.go:TestVerifyObligationsAcceptsAMatchingGeneration
     file: cmd/awg/served_generation_authority_test.go
     symbol: TestVerifyObligationsAcceptsAMatchingGeneration

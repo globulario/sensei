@@ -258,11 +258,27 @@ func graphCommandsIn(t *testing.T, dir string) map[string]graphCommandFacts {
 						facts.VerifiesGeneration = true
 					}
 				}
+				// REFUSING IMPLIES COMPARING, BY CONSTRUCTION.
+				//
+				// A guard that refuses an unverifiable served generation necessarily performs the
+				// comparison, so the stronger fact must entail the weaker one. Today it does anyway,
+				// via the transitive reaches() fallback below finding verifyActiveGeneration down the
+				// call chain -- but that is an accident of one chain, not a property of the
+				// classifier. Blind review P2 on 77fa5e2b named the missing implication; its predicted
+				// failure did not occur because of that fallback, and the weakness was real regardless.
+				// Stated here so the hierarchy cannot be broken by the two name sets drifting apart.
+				if facts.RefusesUnverified {
+					facts.VerifiesGeneration = true
+				}
 				if !facts.ResolvesOwner {
 					facts.ResolvesOwner = reaches(graph, fn.Name.Name, ownerResolutionNames)
 				}
+				if !facts.RefusesUnverified {
+					facts.RefusesUnverified = reaches(graph, fn.Name.Name, refusingGenerationCheckNames)
+				}
 				if !facts.VerifiesGeneration {
-					facts.VerifiesGeneration = reaches(graph, fn.Name.Name, generationCheckNames)
+					facts.VerifiesGeneration = facts.RefusesUnverified ||
+						reaches(graph, fn.Name.Name, generationCheckNames)
 				}
 				out[base+":"+fn.Name.Name] = facts
 			}

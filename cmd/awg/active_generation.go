@@ -25,6 +25,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -422,9 +423,12 @@ func (r graphReader) classifyServedGeneration(served string) (generationAuthorit
 // Distinct from verifyServed, which returns nil when nothing is declared. That reading is right for
 // runMetadata and runBriefing, which report the verdict to an operator; it is wrong for a command
 // whose output is acted on as governed truth.
-func (r graphReader) requireVerifiedServedGeneration(served string) error {
-	_, err := r.classifyServedGeneration(served)
-	return err
+// It returns the STATE as well as the refusal, because a caller that must render the refusal in a
+// machine-readable channel needs to name which state it was -- and because a second entry point for
+// "classify, then decide" would be a second way to consume authority that the census could not see.
+// One guard, one name.
+func (r graphReader) requireVerifiedServedGeneration(served string) (generationAuthority, error) {
+	return r.classifyServedGeneration(served)
 }
 
 // claimsVerifiedGeneration reports whether this reader may state that the served graph was PROVEN to
@@ -436,4 +440,83 @@ func (r graphReader) requireVerifiedServedGeneration(served string) error {
 func (r graphReader) claimsVerifiedGeneration(served string) bool {
 	state, _ := r.classifyServedGeneration(served)
 	return state == generationVerified
+}
+
+// generationRefusal is the MACHINE-READABLE form of a served-generation refusal.
+//
+// A refusal that only reaches stderr is invisible to a --json consumer, which reads stdout and gets
+// an empty buffer: scripts/lib/preflight-verdict.sh then classifies it "malformed:parse_error", and a
+// real authority refusal is reported as a broken response. That is the same dropped-representation
+// shape as a helper returning a payload without its authority stamp -- the refusal exists, and not in
+// the channel its consumer reads.
+//
+// Deliberately NOT shaped like a PreflightResponse. It carries no status, risk_class or coverage, so
+// no consumer can mistake it for an actionable answer; preflight_verdict's existing "missing_status"
+// branch would reject it even without the explicit refusal branch. The envelope reuses that script's
+// established verdict vocabulary rather than adding a parallel protocol.
+type generationRefusal struct {
+	Refusal generationRefusalBody `json:"refusal"`
+}
+
+type generationRefusalBody struct {
+	// Kind distinguishes the two refusing states. An operator's remedy differs: declare a
+	// generation, versus reconcile two that disagree.
+	Kind string `json:"kind"`
+	// Surface names the command, so a refusal found in a file says what produced it.
+	Surface            string `json:"surface"`
+	Domain             string `json:"domain"`
+	DeclaredGeneration string `json:"declared_generation,omitempty"`
+	ServedGeneration   string `json:"served_generation,omitempty"`
+	Detail             string `json:"detail"`
+}
+
+// generationRefusalKinds is the closed set, read by membership by the shell classifier.
+const (
+	generationRefusalNotEstablished = "served_generation_not_established"
+	generationRefusalMismatch       = "served_generation_mismatch"
+)
+
+// refusalKind maps a state to its wire kind. Only the two refusing states have one: VERIFIED and
+// DOMAIN_UNRESOLVED do not refuse, so asking for their kind is a caller error and returns "".
+func (g generationAuthority) refusalKind() string {
+	switch g {
+	case generationNotEstablished:
+		return generationRefusalNotEstablished
+	case generationMismatch:
+		return generationRefusalMismatch
+	}
+	return ""
+}
+
+// emitGenerationRefusalJSON writes the typed refusal to STDOUT and returns a nonzero exit code.
+//
+// stdout, because that is where a --json consumer looks. Nonzero, because the command did not answer
+// the question it was asked. Both, because either alone is a half-signal: an exit code with no
+// payload is unparseable, and a payload with exit 0 reads as success.
+func emitGenerationRefusalJSON(surface string, state generationAuthority, r graphReader, served string, cause error) int {
+	kind := state.refusalKind()
+	if kind == "" {
+		// A non-refusing state must never reach here; say so rather than emit a refusal nobody can
+		// act on.
+		fmt.Fprintf(os.Stderr, "%s: internal: asked to emit a refusal for state %v\n", surface, state)
+		return 1
+	}
+	detail := ""
+	if cause != nil {
+		detail = cause.Error()
+	}
+	b, err := json.MarshalIndent(generationRefusal{Refusal: generationRefusalBody{
+		Kind:               kind,
+		Surface:            surface,
+		Domain:             r.Domain,
+		DeclaredGeneration: strings.TrimSpace(r.DeclaredGeneration),
+		ServedGeneration:   strings.TrimSpace(served),
+		Detail:             detail,
+	}}, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: encode refusal json: %v\n", surface, err)
+		return 1
+	}
+	fmt.Println(string(b))
+	return 1
 }

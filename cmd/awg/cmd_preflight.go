@@ -126,7 +126,14 @@ Flags:
 	// requireVerifiedServedGeneration rather than verifyServed: verifyServed returns nil when no
 	// ACTIVE generation is declared, which is the right reading for a command that REPORTS the
 	// verdict and the wrong one for a command that consumes it. NOT_ESTABLISHED is not agreement.
-	if err := reader.requireVerifiedServedGeneration(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); err != nil {
+	servedGeneration := resp.GetAuthority().GetLiveStoreGraphDigestSha256()
+	if state, err := reader.requireVerifiedServedGeneration(servedGeneration); err != nil {
+		// The refusal must reach the channel the CALLER reads. A --json consumer reads stdout, so a
+		// stderr-only refusal arrives as an empty buffer and is classified "malformed" -- a real
+		// authority refusal reported as a broken response. Typed payload on stdout, nonzero exit.
+		if *asJSON {
+			return emitGenerationRefusalJSON("sensei preflight", state, reader, servedGeneration, err)
+		}
 		fmt.Fprintf(os.Stderr, "sensei preflight: %v\n", err)
 		return 1
 	}
