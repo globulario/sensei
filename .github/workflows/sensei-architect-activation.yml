@@ -130,19 +130,102 @@ jobs:
           echo "  declared == served: $declared"
 
           # And the consumer contract: a verified preflight emits its ordinary payload, classified ok
-          # or degraded -- never refused, never malformed.
+          # or degraded -- never refused, never malformed -- AND exits zero.
+          #
+          # BOTH SIGNALS, in both directions. An earlier version of these probes used `|| true` and
+          # then read only the verdict, so "not refused" stood in for "succeeded": a nonzero exit
+          # beside an otherwise-consumable payload would have passed. That is the same half-signal
+          # this family refuses in production, where a refusal must be a typed payload AND a nonzero
+          # exit because either alone is ambiguous. Blind review P2 on fa2ddbe6, and it held.
           source scripts/lib/preflight-verdict.sh
-          probe=$(mktemp)
-          ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
-            --domain "$domain" --addr localhost:19120 --json >"$probe" 2>/dev/null || true
-          verdict=$(preflight_verdict "$probe")
-          echo "  preflight verdict: $verdict"
-          case "$verdict" in
-            refused:*|malformed:*)
-              echo "FAIL: preflight did not produce a consumable payload ($verdict)." >&2
+          probe_consumable() {
+            local label=$1 out rc v
+            out=$(mktemp)
+            set +e
+            ./bin/sensei preflight --task "authority precondition probe" --file cmd/awg/main.go \
+              --domain "$domain" --addr localhost:19120 --json >"$out" 2>/dev/null
+            rc=$?
+            set -e
+            v=$(preflight_verdict "$out")
+            echo "  $label: exit=$rc verdict=$v"
+            if ((rc != 0)); then
+              echo "FAIL: $label exited $rc; a consumable answer must succeed, and an exit code is not" >&2
+              echo "      redundant with the payload -- that is why a refusal carries both." >&2
+              sed -n '1,12p' "$out" >&2
               exit 1
-              ;;
-          esac
+            fi
+            case "$v" in
+              refused:*|malformed:*)
+                echo "FAIL: $label did not produce a consumable payload ($v)." >&2
+                sed -n '1,12p' "$out" >&2
+                exit 1
+                ;;
+            esac
+          }
+          probe_consumable "positive case"
+
+          # AUTHORITY-NEGATIVE CONTROLS.
+          #
+          # The positive case above proves consumption works. These prove the guard is wired to THIS
+          # workflow's canonical publication identity rather than passing for some unrelated reason:
+          # perturb the AUTHORITY STATE only -- never production code -- and require a typed refusal.
+          #
+          # A control that cannot fail proves nothing, so each asserts the verdict, a nonzero exit, and
+          # the absence of a consumable payload. The registry is restored from a copy afterwards, and
+          # the positive case is re-run to prove the perturbation was reversible.
+          cp "$REGISTRY" /tmp/ci-registry.bak
+          probe_refusal() {
+            local want=$1 label=$2 out rc v
+            out=$(mktemp)
+            set +e
+            ./bin/sensei preflight --task "authority negative control" --file cmd/awg/main.go \
+              --domain "$domain" --addr localhost:19120 --json >"$out" 2>/dev/null
+            rc=$?
+            set -e
+            v=$(preflight_verdict "$out")
+            echo "  $label: exit=$rc verdict=$v"
+            if [[ "$v" != "$want" ]]; then
+              echo "FAIL: $label expected $want, got $v" >&2
+              sed -n '1,12p' "$out" >&2
+              exit 1
+            fi
+            if ((rc == 0)); then
+              echo "FAIL: $label refused but exited 0; a payload with a zero exit reads as success" >&2
+              exit 1
+            fi
+            if python3 -c "import json,sys;d=json.load(open('$out'));sys.exit(0 if 'refusal' in d and not any(k in d for k in ('status','risk_class','coverage')) else 1)"; then
+              :
+            else
+              echo "FAIL: $label emitted something mistakable for a consumable payload" >&2
+              exit 1
+            fi
+          }
+
+          # (1) Remove the ACTIVE declaration the canonical publication just recorded.
+          python3 - "$REGISTRY" "$domain" <<'PY'
+          import sys, yaml
+          reg = yaml.safe_load(open(sys.argv[1])) or {}
+          entry = (reg.get("domains") or {}).get(sys.argv[2]) or {}
+          entry.pop("active_generation", None)
+          reg["domains"][sys.argv[2]] = entry
+          yaml.safe_dump(reg, open(sys.argv[1], "w"), sort_keys=False)
+          PY
+          probe_refusal "refused:served_generation_not_established" "ACTIVE removed"
+
+          # (2) Replace it with a different generation.
+          python3 - "$REGISTRY" "$domain" <<'PY'
+          import sys, yaml
+          reg = yaml.safe_load(open(sys.argv[1])) or {}
+          reg["domains"][sys.argv[2]]["active_generation"] = "0" * 64
+          yaml.safe_dump(reg, open(sys.argv[1], "w"), sort_keys=False)
+          PY
+          probe_refusal "refused:served_generation_mismatch" "ACTIVE replaced"
+
+          # Restore, and prove the restoration actually restored: the positive case must pass again, or
+          # the controls have left the activation world broken.
+          cp /tmp/ci-registry.bak "$REGISTRY"
+          probe_consumable "restored"
+          echo "authority-negative controls passed, and the authority state was restored"
 
       - name: Resolve exact diff
         shell: bash

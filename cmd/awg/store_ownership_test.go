@@ -211,14 +211,33 @@ func TestTheOwnershipCheckPrecedesEveryStoreMutation(t *testing.T) {
 			t.Errorf("%s appears before the ownership check (mutator=%d check=%d); a refusal after the bytes are in is not a refusal", mutator, i, call)
 		}
 	}
-	// It must be given the domain and the target store, not a placeholder that always agrees.
+	// It must be given the published governed domain and the target store, not a placeholder that
+	// always agrees.
+	//
+	// THIS CLAUSE USED TO DEMAND THE LITERAL *domain, and that was the wrong proxy for "the domain":
+	// build's --domain is the node TAGGING KIND (repo|shared), not a governed domain. Requiring it in
+	// an identity check required the conflation that let `build --all --domain shared` publish under
+	// "shared". An earlier repair satisfied it by passing publishedDomain(*repo, *domain), which merely
+	// CONTAINED the substring while still falling back to the kind.
+	//
+	// The property was always "the real published identity, not a constant". govDomain is that
+	// identity: resolved once, validated by validateDomain, and refused when it is not a governed
+	// domain. Asserted by what the call USES, as before -- only now the thing it must use is the
+	// identity rather than a string that happens to appear near one.
 	line := src[call:]
 	if j := strings.IndexByte(line, '\n'); j >= 0 {
 		line = line[:j]
 	}
-	for _, want := range []string{"*domain", "*storeURL"} {
+	for _, want := range []string{"govDomain", "*storeURL"} {
 		if !strings.Contains(line, want) {
 			t.Errorf("the check is not given %s: %s", want, strings.TrimSpace(line))
+		}
+	}
+	// And it must NOT be given the tagging kind, directly or through the old fallback helper.
+	for _, forbidden := range []string{"*domain", "publishedDomain("} {
+		if strings.Contains(line, forbidden) {
+			t.Errorf("the ownership check reads %s, which is the node tagging kind or the fallback that "+
+				"substituted it for a governed domain: %s", forbidden, strings.TrimSpace(line))
 		}
 	}
 	// And a refusal must end the command.
@@ -291,15 +310,29 @@ func TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed(t *testing.T) {
 	if j := strings.IndexByte(line, '\n'); j >= 0 {
 		line = line[:j]
 	}
-	// Asserted by what the call USES, not by blacklisting a substring: the correct call
-	// contains *domain inside publishedDomain(*repo, *domain), and an earlier version of
-	// this check rejected it for that reason.
-	if !strings.Contains(line, "publishedDomain(") {
-		t.Errorf("the check does not resolve the published domain through the one helper, so it can disagree with the activation: %s", strings.TrimSpace(line))
+	// Asserted by what the call USES, not by blacklisting a substring.
+	//
+	// The property is unchanged: the ownership check and the activations must name the SAME published
+	// domain, or they can disagree. What changed is the form. publishedDomain(*repo, *domain) fell back
+	// from the governed domain to the node TAGGING KIND, so `--all --domain shared` published under
+	// "shared"; publishedGovernedDomain refuses that and is resolved ONCE into govDomain, which every
+	// consumer then reads. One value is a stronger guarantee than one helper called three times.
+	if !strings.Contains(line, "govDomain") {
+		t.Errorf("the check does not read the one resolved published governed domain, so it can disagree with the activation: %s", strings.TrimSpace(line))
 	}
-	// And the activations must use the same helper, or the two can name different domains.
+	// Resolved exactly once: two resolutions can diverge even when both are correct in isolation.
+	if n := strings.Count(src, "publishedGovernedDomain("); n != 1 {
+		t.Errorf("the published governed domain is resolved %d times in this file; resolve it once and "+
+			"pass the value, or the consumers can disagree", n)
+	}
+	// And the tagging-kind fallback must not come back.
+	if strings.Contains(src, "publishedDomain(") {
+		t.Error("cmd_build.go calls publishedDomain, which fell back from the governed domain to the " +
+			"node tagging kind; publishedGovernedDomain refuses that substitution")
+	}
+	// The activations must read the same value, or the two can name different domains.
 	for _, l := range strings.Split(src, "\n") {
-		if strings.Contains(l, "activateGeneration(") && !strings.Contains(l, "publishedDomain(") && !strings.Contains(l, ", domain,") {
+		if strings.Contains(l, "activateGeneration(") && !strings.Contains(l, "govDomain") && !strings.Contains(l, ", domain,") {
 			t.Errorf("an activation names a domain by another route than the ownership check: %s", strings.TrimSpace(l))
 		}
 	}

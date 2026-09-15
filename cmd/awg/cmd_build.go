@@ -88,6 +88,13 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// ONE RESOLUTION of the published governed domain, refused here rather than at three consumers.
+	// A tagging kind must not become a governed domain; see publishedGovernedDomain.
+	govDomain, govDomainErr := publishedGovernedDomain(*repo, *domain)
+	if govDomainErr != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", govDomainErr)
+		return 2
+	}
 	if err := rejectPathLikeBuildDomain("build --repo", *repo); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -152,7 +159,7 @@ Flags:
 			// a separate flag and may be empty. An empty requested domain makes every
 			// declared store look like another domain's, so the check would refuse a
 			// publication that named no domain at all.
-			if err := verifyStoreOwnership(reg, publishedDomain(*repo, *domain), *storeURL, flagPassed(fs, "store-url")); err != nil {
+			if err := verifyStoreOwnership(reg, govDomain, *storeURL, flagPassed(fs, "store-url")); err != nil {
 				fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 				return 1
 			}
@@ -285,7 +292,7 @@ Flags:
 	}
 
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes, storeMutationIntent{
-		Domain: publishedDomain(*repo, *domain), Overridden: flagPassed(fs, "store-url"), Reason: "sensei build",
+		Domain: govDomain, Overridden: flagPassed(fs, "store-url"), Reason: "sensei build",
 		RegistryPath: buildRegistryPath(*domainRegistry)}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
@@ -303,7 +310,7 @@ Flags:
 			return 1
 		}
 	}
-	if err := activateGeneration(os.Stderr, markerPath, marker, publishedDomain(*repo, *domain), buildRegistryPath(*domainRegistry)); err != nil {
+	if err := activateGeneration(os.Stderr, markerPath, marker, govDomain, buildRegistryPath(*domainRegistry)); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}

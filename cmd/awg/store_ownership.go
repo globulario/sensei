@@ -196,9 +196,43 @@ func buildRegistryPath(flagValue string) string {
 //
 // One helper so the ownership check and the activation cannot disagree about which domain
 // this publication is for.
-func publishedDomain(repoFlag, domainFlag string) string {
+// publishedGovernedDomain resolves the GOVERNED DOMAIN a publication activates, and refuses anything
+// that is not one.
+//
+// TWO VOCABULARIES SHARE A FLAG NAME, and they are not the same identity:
+//
+//	--repo    github.com/owner/name   the governed domain whose graph is being published
+//	--domain  repo | shared           the default TAGGING KIND for untagged nodes
+//
+// The previous form returned the first non-empty of the two, so with --repo omitted the tagging kind
+// BECAME the governed domain -- and that value reached three authorities: store custody, the recorded
+// store mutation intent, and the ACTIVE generation pointer. `build --all --domain shared` would
+// register an ACTIVE generation under "shared", a name that is not a governed domain, through the same
+// call a real publication uses.
+//
+// The authority to separate them already existed. repodomain.Validate, reached through
+// validateDomain, requires host/path and rejects every tagging kind. Nothing consulted it. So this is
+// not a new rule; it is an existing one finally reaching the publication path.
+//
+// There is deliberately NO fallback to --domain. A tagging kind is never a governed domain, so a
+// fallback between the two vocabularies cannot be made safe by validating its result -- the
+// substitution is the defect. An empty result means "this publication names no governed domain",
+// which activateGeneration already reports rather than silently skipping.
+//
+// A governed domain passed to --domain is refused by name rather than ignored: it is an operator
+// error with a clear remedy, and silently dropping it would publish without the pointer they intended.
+func publishedGovernedDomain(repoFlag, domainFlag string) (string, error) {
 	if d := strings.TrimSpace(repoFlag); d != "" {
-		return d
+		if err := validateDomain(d); err != nil {
+			return "", fmt.Errorf("--repo %q is not a governed domain: %w\n"+
+				"  a publication's governed domain is the repository identity it activates, e.g. github.com/owner/name", d, err)
+		}
+		return d, nil
 	}
-	return strings.TrimSpace(domainFlag)
+	if k := strings.TrimSpace(domainFlag); k != "" && validateDomain(k) == nil {
+		return "", fmt.Errorf("--domain %q is a governed domain, but --domain names the node tagging kind (repo|shared).\n"+
+			"  publish that domain with: --repo %s\n"+
+			"  --domain only decides how UNTAGGED nodes are classified, and is never the published identity", k, k)
+	}
+	return "", nil
 }

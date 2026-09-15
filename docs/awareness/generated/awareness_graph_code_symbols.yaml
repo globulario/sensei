@@ -6929,6 +6929,42 @@ test_symbols:
     package: main
     language: go
     doc: "The lossless adapter, proven against REAL Oxigraph with SEEDED state.\n\nEvery other falsifier runs against in-process fakes, which structurally\ncannot catch representation loss at the adapter boundary -- and that boundary\nis exactly where the term-kind defect lived. An earlier version of this test\nread whatever the developer's live store happened to contain and SKIPPED when\nthere was none, so it was not CI evidence at all: it could pass by finding\nnothing. This seeds its own positive and malformed specimens and refuses to\nskip once Oxigraph is available."
+  - id: cmd/awg/publication_governed_domain_test.go:TestAGovernedDomainPassedAsATaggingKindIsRefusedByName
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestAGovernedDomainPassedAsATaggingKindIsRefusedByName
+    package: main
+    language: go
+    doc: "A GOVERNED DOMAIN IN THE TAGGING-KIND FLAG is an operator error with a clear remedy, so it is\nrefused by name rather than silently dropped — dropping it would publish without the pointer they\nintended."
+  - id: cmd/awg/publication_governed_domain_test.go:TestAnInvalidRepoFlagIsRefusedAsAGovernedDomain
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestAnInvalidRepoFlagIsRefusedAsAGovernedDomain
+    package: main
+    language: go
+    doc: "--repo must itself be a governed domain. The flag is the publication identity, so an invalid value\nmust not reach the three authorities that consume it."
+  - id: cmd/awg/publication_governed_domain_test.go:TestBuildRefusesAGovernedDomainPassedAsATaggingKind
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestBuildRefusesAGovernedDomainPassedAsATaggingKind
+    package: main
+    language: go
+    doc: "THE REFUSAL MUST BE FATAL, proven through the real command.\n\nA resolution that computes a refusal and proceeds anyway is worse than no resolution: it publishes\nunder an identity it has already judged invalid. Reachable with no store, because the resolution\nhappens immediately after flag parsing — so this is a behavioural witness, not a source assertion."
+  - id: cmd/awg/publication_governed_domain_test.go:TestBuildStillAcceptsALegitimateTaggingKind
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestBuildStillAcceptsALegitimateTaggingKind
+    package: main
+    language: go
+    doc: "And a legitimate tagging kind must still reach the store path — the refusal must be aimed at the\nidentity conflation, not at --domain existing."
+  - id: cmd/awg/publication_governed_domain_test.go:TestEveryConsumerOfThePublishedGovernedDomainIsAccountedFor
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestEveryConsumerOfThePublishedGovernedDomainIsAccountedFor
+    package: main
+    language: go
+    doc: "The three authorities that consume the published governed domain, named from source so a future\nfourth consumer cannot be added without this specimen noticing."
+  - id: cmd/awg/publication_governed_domain_test.go:TestTaggingKindMustNotBecomeThePublishedGovernedDomain
+    file: cmd/awg/publication_governed_domain_test.go
+    symbol: TestTaggingKindMustNotBecomeThePublishedGovernedDomain
+    package: main
+    language: go
+    doc: "THE INVERTED SPECIMEN. Formerly TestTaggingKindMustNotBecomeThePublishedGovernedDomain recording\nthat the tagging kind DID become the governed domain. It now requires the substitution to be\nrefused, and requires the refusal to rest on the governed-domain authority rather than on a banned\nstring."
   - id: cmd/awg/reachability_unknown_test.go:TestJSONCallersSeeUnknownRatherThanAMissingKey
     file: cmd/awg/reachability_unknown_test.go
     symbol: TestJSONCallersSeeUnknownRatherThanAMissingKey
