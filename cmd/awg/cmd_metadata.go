@@ -46,7 +46,9 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, "")
+	root, _ := resolveProjectRoot("")
+	resolvedAddr := resolveServiceAddr(fs, root, *addr)
+	resp, err := metadataRPC(ctx, resolvedAddr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -96,7 +98,15 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, *domain)
+	// The root error is NOT discarded (G4). Without a project root the default marker
+	// path is relative, so this report would name a different marker from each
+	// directory it ran in. resolveGraphMarkerFile refuses that, and the Endpoint block
+	// states the refusal rather than printing a path that means nothing.
+	root, rootErr := resolveProjectRoot("")
+	// Domain-scoped: the registry can answer `domain -> endpoint`, so this variant
+	// resolves through the G2 owner rather than choosing a port.
+	resolvedAddr, addrSource := resolveDomainServiceAddr(fs, root, *domain, *addr, DefaultDomainRegistryPath())
+	resp, err := metadataRPC(ctx, resolvedAddr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -113,6 +123,21 @@ Flags:
 		fmt.Printf("Server started:        (unstamped)\n")
 	}
 	fmt.Println()
+	// G5: the report must say WHICH graph answered and where that choice came
+	// from. Two runs from different directories can legitimately reach different
+	// graphs and both be right; without this the output cannot be told apart from
+	// a graph having changed.
+	renderEndpointBlock(os.Stdout, endpointReport{
+		Root:         root,
+		RootError:    rootErr,
+		Domain:       *domain,
+		ResolvedAddr: resolvedAddr,
+		AddrSource:   addrSource,
+		RegistryPath: DefaultDomainRegistryPath(),
+		LiveDigest:   resp.GetLiveStoreGraphDigestSha256(),
+		LiveTriples:  int(resp.GetLiveStoreGraphTripleCount()),
+	})
+
 	fmt.Println("Build provenance:")
 	fmt.Printf("  Graph build commit:  %s\n", strOrDash(resp.GetGraphBuildCommit()))
 	if t := resp.GetGraphBuildTimeUnix(); t != 0 {

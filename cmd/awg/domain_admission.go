@@ -96,6 +96,36 @@ type RegisteredDomain struct {
 	// AllowedCorpusRoots are repo-relative corpus directories this domain may
 	// publish from.
 	AllowedCorpusRoots []string `yaml:"allowed_corpus_roots"`
+	// ServiceAddr is the awareness endpoint that serves THIS domain's graph.
+	//
+	// G2 of the graph-identity front: resolve domain -> endpoint through one owner,
+	// so a caller stops choosing a port and the port becomes an implementation
+	// detail this registry returns. The registry is the right owner because it is
+	// already the operator-controlled authority kept OUTSIDE any published
+	// repository -- a repository must not be able to redirect its own graph, for
+	// the same reason it must not vouch for its own corpus.
+	//
+	// Optional, and inert while empty: every existing caller keeps the precedence
+	// it had until an operator fills this in.
+	ServiceAddr string `yaml:"service_addr"`
+	// ActiveGeneration is the graph digest of the generation that is ACTIVE for
+	// THIS domain right now.
+	//
+	// It is the answer Phase 2 of the graph-identity front could not get: before
+	// this, a generation was identified only by a digest in a marker FILE whose
+	// path resolves from the current directory, so which generation was active
+	// depended on where the asker stood. Laws 1, 4, 5 and 12 all rest on there
+	// being one place to ask.
+	//
+	// The registry owns it for the same reason it owns ServiceAddr: it is
+	// operator-controlled and lives OUTSIDE any published repository, and a
+	// repository must not be able to declare its own graph active.
+	//
+	// Written by the transactional publication path once it has proven the served
+	// store holds what the marker certifies, and by an operator. Optional and
+	// inert while empty -- an absent declaration contradicts nothing, so every
+	// existing caller behaves exactly as before.
+	ActiveGeneration string `yaml:"active_generation"`
 	// AllowDirtyWorktree permits publishing uncommitted content. Default false:
 	// a dirty tree must never silently certify only the git commit while
 	// publishing something else.

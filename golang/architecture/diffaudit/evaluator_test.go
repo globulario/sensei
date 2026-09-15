@@ -13,6 +13,18 @@ type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
 	getFileImpactFunc func(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error)
 	readBaseFileFunc  func(ctx context.Context, path string) (string, bool, error)
+	graphGenerationFn func(ctx context.Context) (string, error)
+}
+
+// GraphGeneration makes the fake behave like an authoritative graph, which always
+// knows which generation is answering (law 5). Without it every result here would
+// be unbindable and therefore not available — correctly, but for a reason about the
+// fixture rather than about the case under test.
+func (f *fakeChecker) GraphGeneration(ctx context.Context) (string, error) {
+	if f.graphGenerationFn != nil {
+		return f.graphGenerationFn(ctx)
+	}
+	return "cleangeneration", nil
 }
 
 func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain string) ([]AuditFinding, error) {

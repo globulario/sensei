@@ -61,6 +61,17 @@ func (f fakeClient) Metadata(ctx context.Context, in *awarenesspb.MetadataReques
 	}
 	return f.metadata(ctx, in)
 }
+
+// testServingGeneration stubs the metadata RPC an audit uses to learn WHICH graph
+// generation answered it (law 5 of the graph-identity front). An audit whose graph
+// cannot say that is genuinely unverifiable, so a fixture that omits it is testing
+// the omission rather than the case it names.
+func testServingGeneration(digest string) func(context.Context, *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+	return func(_ context.Context, _ *awarenesspb.MetadataRequest) (*awarenesspb.MetadataResponse, error) {
+		return &awarenesspb.MetadataResponse{LiveStoreGraphDigestSha256: digest}, nil
+	}
+}
+
 func (f fakeClient) Preflight(ctx context.Context, in *awarenesspb.PreflightRequest, _ ...grpc.CallOption) (*awarenesspb.PreflightResponse, error) {
 	if f.preflight == nil {
 		return nil, status.Error(codes.Unavailable, "no stub")
@@ -784,6 +795,7 @@ func TestAwarenessAuditDiffTool_Registered(t *testing.T) {
 func TestAwarenessAuditDiffTool_EvaluatesDiff(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
@@ -855,6 +867,7 @@ new file mode 100644
 func TestAwarenessAuditDiffTool_ExpectedHeadOptional(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
@@ -1005,6 +1018,7 @@ new file mode 100644
 func TestAwarenessAuditDiffTool_IndependentGraphCommitIsNotAMismatch(t *testing.T) {
 	head := testGitHEAD(t)
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, req *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
@@ -1067,6 +1081,7 @@ func TestAwarenessAuditDiffTool_ModifiedFileVerifiesWithIndependentGraphCommit(t
 	firstLine := strings.SplitN(baseBytes, "\n", 2)[0]
 
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(_ context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			return &awarenesspb.EditCheckResponse{}, nil
 		},
@@ -1123,6 +1138,7 @@ func TestMultiFileAuditIsNotStarvedByThePerRequestBudget(t *testing.T) {
 	// pass with the budgets still shared, which is the defect itself.
 	const perCall = 100 * time.Millisecond
 	fake := fakeClient{
+		metadata: testServingGeneration("c0b660fc42a5"),
 		editCheck: func(ctx context.Context, _ *awarenesspb.EditCheckRequest) (*awarenesspb.EditCheckResponse, error) {
 			select {
 			case <-time.After(perCall):

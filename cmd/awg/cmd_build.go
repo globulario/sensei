@@ -113,6 +113,15 @@ Flags:
 			fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 			return 1
 		}
+		// The agreement check above yields to an explicit --store-url, and
+		// `import` cannot load a slice without passing one -- so on that path
+		// the check can never fire. Law 14: the override stays available and
+		// stops being silent.
+		if cfg, cerr := loadEndpointConfig(buildRoot); cerr == nil {
+			if note := nonCanonicalStoreURLNotice(cfg.configuredStoreURL(), *storeURL); note != "" {
+				fmt.Fprintln(os.Stderr, note)
+			}
+		}
 	}
 
 	// PRE-MUTATION ADMISSION — before compiling, before touching the store.
@@ -228,6 +237,20 @@ Flags:
 		return 1
 	}
 
+	// LAW 11: a generation must not be destroyed while something still refers to
+	// it. `rebuild` has guarded this since the self-only/combined clobber; --all,
+	// which is strictly MORE destructive, did not -- it warned and PUT. Same guard,
+	// same thresholds, same documented tolerance for an empty or unreachable store
+	// so cold starts are unaffected.
+	//
+	// Not hypothetical: three stores were live holding 237,049 / 142,739 / 35,268
+	// triples while a scoped build of one corpus compiles to 35,255, and `import`
+	// was recommending --all on a fabricated diagnosis.
+	if err := guardAgainstLiveShrink(*storeURL, len(strings.Split(strings.TrimSpace(string(ntBytes)), "\n"))); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+		return 1
+	}
+
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
@@ -245,8 +268,8 @@ Flags:
 			return 1
 		}
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
+	if err := activateGeneration(os.Stderr, markerPath, marker, strings.TrimSpace(*domain), DefaultDomainRegistryPath()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
 	svcRepo, _ := resolveServicesRepo(*svcRepoFlag)
@@ -708,8 +731,8 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 			return 1
 		}
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-		fmt.Fprintf(os.Stderr, "sensei build: publish graph marker: %v\n", err)
+	if err := activateGeneration(os.Stderr, markerPath, marker, domain, DefaultDomainRegistryPath()); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
 	if err := writePublicationReceipt(markerPath, receipt, marker); err != nil {

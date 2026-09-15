@@ -183,6 +183,63 @@ Flags:
 	}
 
 	// 2) Structural extraction — now safe to scaffold the checkout.
+	// ADMISSIBILITY BEFORE ANY WRITE.
+	//
+	// Steps 2-4 -- structural extraction, cold-bootstrap, project reconstruction
+	// -- all write the CANONICAL CHECKOUT. On 2026-09-13 they ran to completion
+	// and only then did the load discover that import's own input set was
+	// inadmissible for the domain: `.sensei/project` is not in this domain's
+	// allowed corpus roots. The refusal was correct and far too late. It left 12
+	// regenerated skill files, a deleted protection-coverage.yaml, a rebuilt and
+	// quarantined .sensei/project, five new candidate sources and a stale
+	// .sensei/project.lock behind -- from a run that loaded nothing and truthfully
+	// reported mutation_started: false.
+	//
+	// The gate answers this read-only and the inputs are known from `checkout`
+	// alone, so there is no reason to write anything first. This is law 9 of the
+	// graph-identity front: a failed publication must not leave the canonical
+	// checkout rewritten merely because staging was attempted.
+	// The inputs this import will publish, filtered to what the domain admits.
+	// `.sensei/project` is generated reconstruction output rather than authored
+	// corpus, so a domain that allows only docs/awareness refuses it -- correctly.
+	// Filtering here means import builds a command the gate can accept, and the
+	// admissibility check below is asked about the set it will actually use.
+	var allowedRoots []string
+	if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
+		if rd, ok := reg.Domains[dom]; ok {
+			allowedRoots = rd.AllowedCorpusRoots
+		}
+	}
+	allInputs := []string{
+		filepath.Join(checkout, "docs", "awareness"),
+		filepath.Join(checkout, "docs", "awareness", "generated"),
+		filepath.Join(checkout, ".sensei", "project"),
+	}
+	publishInputs, droppedInputs := admissibleCorpusInputs(checkout, allInputs, allowedRoots)
+
+	// LAW 9, the form that actually bit. Refusing here is the only place it can be
+	// caught: an admissibility check cannot see dirtiness this run has not created
+	// yet, and by the time the gate sees it the checkout is already rewritten.
+	if *storeURL != "" {
+		var allowDirty bool
+		if reg, rerr := LoadDomainRegistry(DefaultDomainRegistryPath()); rerr == nil && reg != nil {
+			if rd, ok := reg.Domains[dom]; ok {
+				allowDirty = rd.AllowDirtyWorktree
+			}
+		}
+		if derr := importWouldDefeatItself(allowedRoots, allowDirty); derr != nil {
+			fmt.Fprintf(os.Stderr, "sensei import: %v\n", derr)
+			return 1
+		}
+	}
+
+	if *storeURL != "" {
+		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
+			return 1
+		}
+	}
+
 	fmt.Fprintln(os.Stderr, "\n== [2/5] structural extraction ==")
 	if rc := runBootstrap([]string{"--path", checkout, "--skip-history", "--skip-build"}); rc != 0 {
 		fmt.Fprintln(os.Stderr, "sensei import: structural extraction failed")
@@ -221,14 +278,27 @@ Flags:
 		fmt.Fprintln(os.Stderr, "  (fresh store? seed once with `sensei build --all` first.)")
 	} else {
 		fmt.Fprintln(os.Stderr, "\n== [5/5] load domain-scoped slice ==")
-		ba := []string{"--input", awarenessDir, "--input", generatedDir, "--input", projectDir, "--repo", dom, "--store-url", *storeURL}
+		// Re-asked here as a last-line guard. The hoisted check above is the one
+		// that protects the checkout; this one catches an input set that became
+		// inadmissible while the extraction stages ran.
+		if aerr := AdmitPublication(dom, publishInputs, DefaultDomainRegistryPath()); aerr != nil {
+			fmt.Fprintln(os.Stderr, importLoadRefusal(aerr))
+			return 1
+		}
+		if note := droppedInputsNotice(droppedInputs, allowedRoots); note != "" {
+			fmt.Fprintln(os.Stderr, note)
+		}
+		ba := []string{"--repo", dom, "--store-url", *storeURL}
+		for _, in := range publishInputs {
+			ba = append(ba, "--input", in)
+		}
 		if m := strings.TrimSpace(*markerFile); m != "" {
 			ba = append(ba, "--graph-marker-file", m)
 		} else {
-			fmt.Fprintln(os.Stderr, "  note: no --graph-marker-file given; a live/served store may report freshness-stale for briefing until re-certified")
+			fmt.Fprintln(os.Stderr, "  note: "+importMarkerOmittedNotice())
 		}
 		if rc := runBuild(ba); rc != 0 {
-			fmt.Fprintln(os.Stderr, "sensei import: load failed — a scoped --repo update needs a non-empty store; seed with `sensei build --all` first")
+			fmt.Fprintln(os.Stderr, importLoadFailureNotice())
 			return 1
 		}
 	}
@@ -1671,4 +1741,140 @@ func relativeProjectPath(root, path string) string {
 		return path
 	}
 	return rel
+}
+
+// importLoadFailureNotice is what import says when the scoped load fails.
+//
+// It names no cause, because import HAS none: runBuild returns an int and nothing
+// else, so any cause stated here would be invented. On 2026-09-13 this line
+// claimed "a scoped --repo update needs a non-empty store; seed with `sensei build
+// --all` first" after a failure that was actually PUBLICATION_REFUSED over a dirty
+// awareness corpus, with mutation_started: false and a store holding 35,268
+// triples. The asserted cause was wrong, and the remedy it recommended replaces
+// the ENTIRE store.
+//
+// A fabricated diagnosis is worse than silence when the remedy it implies is
+// destructive. So this points at the build output, which did print the real
+// reason, says why import cannot interpret the exit code, and refuses --all
+// explicitly rather than leaving it as the obvious next thing to try.
+func importLoadFailureNotice() string {
+	return "sensei import: load failed — the reason was printed by the build above; " +
+		"import cannot interpret it, because the build reports only an exit code. " +
+		"Do NOT run `sensei build --all` on the strength of this failure: it replaces the " +
+		"ENTIRE store for every domain, and a scoped load fails for many reasons it would not fix."
+}
+
+// importMarkerOmittedNotice is what import says when no marker path was given.
+//
+// The previous wording claimed a live store "may report freshness-stale for
+// briefing until re-certified". build contradicts that: with an empty flag it
+// calls defaultRuntimeMarkerFile() (cmd_build.go:242 and :705), so a marker IS
+// written and freshness is not necessarily stale.
+//
+// The real hazard is the one that wording hid. defaultRuntimeMarkerFile resolves
+// through resolveProjectRoot(""), which reads the CURRENT DIRECTORY — so the
+// marker binds to whatever project cwd names, not necessarily the checkout being
+// refreshed. Run the same command from elsewhere and it certifies another
+// project's graph identity, silently.
+func importMarkerOmittedNotice() string {
+	return "no --graph-marker-file given; the build will default it from the project root resolved " +
+		"from the current directory, which need not be the checkout being refreshed — " +
+		"pass --graph-marker-file explicitly to bind the marker to this project"
+}
+
+// importLoadRefusal explains a load import declined to attempt.
+//
+// The publication gate would have refused it, and asking the gate first is free.
+// Before this, import ran bootstrap, cold-bootstrap and project reconstruction --
+// all of which write the canonical checkout -- and only then discovered that its
+// own input set was inadmissible for the domain. The refusal carried the gate's
+// reason, but by then the checkout had already been rewritten.
+//
+// It repeats the gate's words rather than paraphrasing them, says plainly that
+// nothing was loaded, and does not reach for `--all`, which fixes no
+// admissibility problem.
+func importLoadRefusal(err error) string {
+	return "sensei import: refusing to load — the publication gate would refuse this input set, " +
+		"so the load was not attempted and nothing was written to the store.\n  " + err.Error()
+}
+
+// admissibleCorpusInputs keeps the inputs the domain admits and reports the rest.
+//
+// `import` used to pass `.sensei/project` unconditionally, and every registered
+// domain allows only `docs/awareness`, so the gate refused every scoped load import
+// generated. `.sensei/project` is GENERATED reconstruction output rather than corpus
+// the repository authored and committed, and publishing generated bytes as corpus is
+// what the gate exists to refuse. The gate is right, so the caller stops asking.
+//
+// An empty allowlist constrains nothing and everything is kept: filtering must not
+// invent a constraint the registry did not state.
+func admissibleCorpusInputs(checkout string, inputs, allowedRoots []string) (kept, dropped []string) {
+	if len(allowedRoots) == 0 {
+		return inputs, nil
+	}
+	for _, in := range inputs {
+		rel, err := filepath.Rel(checkout, in)
+		if err != nil {
+			kept = append(kept, in)
+			continue
+		}
+		if allowedRoot(filepath.ToSlash(rel), allowedRoots) {
+			kept = append(kept, in)
+			continue
+		}
+		dropped = append(dropped, in)
+	}
+	return kept, dropped
+}
+
+// droppedInputsNotice says what was not published and what that costs.
+//
+// A silent filter would turn "your code-symbol coverage did not reach the graph" into
+// "the load succeeded", which is the more expensive of the two mistakes: the run
+// looks complete and the graph stays unable to answer about the files the
+// reconstruction examined.
+func droppedInputsNotice(dropped, allowedRoots []string) string {
+	if len(dropped) == 0 {
+		return ""
+	}
+	return "  note: not published — " + strings.Join(dropped, ", ") +
+		"; this domain admits only " + strings.Join(allowedRoots, ", ") +
+		". Project reconstruction output is generated rather than authored corpus, so the publication gate " +
+		"refuses it. The consequence is real: code-symbol coverage from that reconstruction does not reach " +
+		"the graph, so files it examined can still read as unexamined."
+}
+
+// extractionWriteRoots are the repo-relative directories import's extraction stages
+// write into. Named here so the contradiction below is checked against the same list
+// that causes it.
+var extractionWriteRoots = []string{"docs/awareness"}
+
+// importWouldDefeatItself reports a run that cannot succeed because its own
+// extraction creates the condition the publication gate refuses.
+//
+// Steps 2-4 write candidates and generated contracts under docs/awareness. If the
+// domain publishes that root AND requires a clean worktree -- the default -- then the
+// gate will refuse for uncommitted changes that this very run produced. Measured on
+// 2026-09-13: a clean checkout became 27 changes and nothing was loaded.
+//
+// An earlier admissibility check cannot catch this, because at that moment the corpus
+// IS clean and the dirtiness does not exist yet. The contradiction is structural,
+// decidable from the registry alone, and worth refusing before any work is done.
+func importWouldDefeatItself(allowedRoots []string, allowDirty bool) error {
+	if allowDirty || len(allowedRoots) == 0 {
+		return nil
+	}
+	for _, w := range extractionWriteRoots {
+		if !allowedRoot(w, allowedRoots) {
+			continue
+		}
+		return fmt.Errorf("this import cannot succeed, so nothing has been run and the checkout is untouched.\n"+
+			"  extraction writes into %s (candidates and generated contracts)\n"+
+			"  this domain publishes %s and requires it clean\n\n"+
+			"The run would therefore create the uncommitted changes its own publication gate refuses. "+
+			"Either commit what extraction produces and publish the committed revision in a second step, "+
+			"or give this domain a corpus root that extraction does not write into.",
+			w, strings.Join(allowedRoots, ", "))
+	}
+	return nil
 }

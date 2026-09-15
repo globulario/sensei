@@ -256,13 +256,21 @@ Flags:
 			}
 			markerPath = resolved
 		}
-		if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
-			fmt.Fprintf(os.Stderr, "sensei rebuild: publish graph marker: %v\n", err)
-			return 1
-		}
 		fmt.Println("  Oxigraph reload:    ok")
 		fmt.Println("  Live verification:  ok")
-		fmt.Printf("  Graph marker file:  %s\n", markerPath)
+		// ONE activation transition (G4). rebuild reloads the whole store rather than
+		// promoting a scoped staging graph, so everything upstream of here is its own
+		// work -- but from "the graph is verified" onward it must do exactly what build
+		// does, or the two leave the system in two states while both reporting success.
+		//
+		// rebuild does not know which governed domain it published for, so the pointer
+		// is not updated and activateGeneration says so. Before this it was silent, and
+		// readers resolving through the registry refused a healthy graph with no
+		// explanation anywhere.
+		if err := activateGeneration(os.Stdout, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
+			fmt.Fprintf(os.Stderr, "sensei rebuild: %v\n", err)
+			return 1
+		}
 	}
 
 	fmt.Println("\nDone.")
