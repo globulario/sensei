@@ -27,7 +27,7 @@ func runBriefing(args []string) int {
 	// operator override from ordinary resolution.
 	addr := fs.String("addr", "", "Sensei gRPC server address (default: resolved for the domain)")
 	asJSON := fs.Bool("json", false, "output as JSON")
-	repo := fs.String("repo", ".", "repository checkout for --task active")
+	repo := fs.String("repo", "", "repository checkout for --task active")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei briefing [--file <path>] [--task "description"] [flags]
 
@@ -44,6 +44,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repo = governedRepoRoot(*repo)
 	if *file == "" && *task == "" {
 		fmt.Fprintln(os.Stderr, "sensei briefing: provide --file and/or --task")
 		return 2

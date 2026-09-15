@@ -7080,6 +7080,60 @@ test_symbols:
     package: main
     language: go
     doc: "contract §3.7 correction (fourth review round): a backslash-separated\npath cannot match the slash-separated canonical domain a git remote\nproduces — writeRepositoryDomain must refuse to persist it, exactly like\nany other non-canonical value."
+  - id: cmd/awg/root_domain_coherence_test.go:TestAfterNormalisationBothRootFunctionsAgree
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestAfterNormalisationBothRootFunctionsAgree
+    package: main
+    language: go
+    doc: "WHY THE SHARED-ROOT MUTANT IS NOW EQUIVALENT RATHER THAN MERELY UNTESTED.\n\nThe previous family left a debt: reading the endpoint configuration from resolveProjectRoot instead\nof graphConfigRoot could not be observed behaviourally. After this repair it still cannot — but for\na better reason. The repository hint reaching those calls is already the walked root, so the two\nroot functions provably return the SAME value there. The divergence was eliminated rather than\ntested, which is why the source assertion remains the right instrument for it."
+  - id: cmd/awg/root_domain_coherence_test.go:TestAnExplicitRootIsUsedVerbatimAndNeverWalkedAwayFrom
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestAnExplicitRootIsUsedVerbatimAndNeverWalkedAwayFrom
+    package: main
+    language: go
+    doc: "EXPLICIT ROOTS KEEP THEIR EXPLICIT MEANING. An operator who names a path gets that path, and the\nwalk must not quietly relocate them."
+  - id: cmd/awg/root_domain_coherence_test.go:TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestEndpointEqualityAloneWouldNotHaveCaughtTheDefect
+    package: main
+    language: go
+    doc: "The trap preserved as its own assertion: endpoint equality alone would have certified the broken\nstate. If this ever stops holding, the fixture has lost the property that made it dangerous."
+  - id: cmd/awg/root_domain_coherence_test.go:TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestEveryAffectedSubjectResolvesTheRegistryFromASubdirectory
+    package: main
+    language: go
+    doc: "EVERY AFFECTED SUBJECT, from a subdirectory, with its repository flag OMITTED.\n\nThe registry names a LIVE endpoint and the project config names a DEAD one, so which authority was\nused is visible in whether the live service was contacted — no source inspection. This is the\nbehavioural half of the completion oracle: it is not enough that preflight is coherent."
+  - id: cmd/awg/root_domain_coherence_test.go:TestEverySubjectWithAnEmptyRepositoryHintNormalisesIt
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestEverySubjectWithAnEmptyRepositoryHintNormalisesIt
+    package: main
+    language: go
+    doc: "Every subject that declares an empty repository hint must normalise it, or the empty value reaches\ncode that joins it into a path and silently means \"/\" or the process working directory."
+  - id: cmd/awg/root_domain_coherence_test.go:TestFromASubdirectoryWithNoRepoFlagTheRegistryStillAnswers
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestFromASubdirectoryWithNoRepoFlagTheRegistryStillAnswers
+    package: main
+    language: go
+    doc: "END TO END, through the real command, from a subdirectory with --repo OMITTED.\n\nThe registry names a LIVE endpoint; the project config names a DEAD one. So the authority actually\nused is observable in the exit code and in whether the live service was contacted, with no source\ninspection at all:\n\n\trepaired  the domain resolves by walking up, the registry is consulted, the live endpoint answers\n\tbroken    the domain is empty, the registry is skipped, the dead config endpoint is dialled\n\nThis is what makes the coherence repair behaviourally verifiable rather than only structurally\nasserted, and it is the case that was impossible to construct before the repair: previously a\nnested run could not reach the registry at all, so no fixture could distinguish the two roots by\nbehaviour."
+  - id: cmd/awg/root_domain_coherence_test.go:TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot
+    package: main
+    language: go
+    doc: "THE WITNESS. Same repository, same command shape, two working directories."
+  - id: cmd/awg/root_domain_coherence_test.go:TestNoGraphReaderSubjectDefaultsItsRepositoryHintToDot
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestNoGraphReaderSubjectDefaultsItsRepositoryHintToDot
+    package: main
+    language: go
+    doc: "RE-ENTRY INVARIANT. A production graph-reader subject whose repository/root hint defaults to \".\"\nhas reintroduced the defect: \".\" is never empty, so resolveProjectRoot cannot walk, and the\ngoverned domain is looked for wherever the operator stands.\n\nDerived from the census population every run, so a new subject is caught without anyone updating a\nlist. This is the guard that replaces the hand-written set."
+  - id: cmd/awg/root_domain_coherence_test.go:TestTheWalkUpBranchIsUnreachableForANonEmptyRootHint
+    file: cmd/awg/root_domain_coherence_test.go
+    symbol: TestTheWalkUpBranchIsUnreachableForANonEmptyRootHint
+    package: main
+    language: go
+    doc: "THE MECHANISM, isolated from any subject. resolveProjectRoot walks up only for an empty argument,\nso a flag whose DEFAULT is \".\" can never reach the walking branch."
   - id: cmd/awg/seedfreshness_object_identity_test.go:TestClassifySeedDiff_RemovedExternalLiteralOnSharedEdgeStaysExternal
     file: cmd/awg/seedfreshness_object_identity_test.go
     symbol: TestClassifySeedDiff_RemovedExternalLiteralOnSharedEdgeStaysExternal

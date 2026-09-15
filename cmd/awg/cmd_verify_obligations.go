@@ -37,7 +37,7 @@ func runVerifyObligations(args []string) int {
 	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "emit the obligation report as JSON")
 	domain := fs.String("domain", "", "domain/repo scope passed through to preflight")
-	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
+	repo := fs.String("repo", "", "repository checkout, used to resolve the domain when --domain is omitted")
 	module := fs.String("module", "", "Go module path to strip from package names (default: read go.mod in --repo)")
 	complete := fs.Bool("assert-discovery-complete", false, "caller assertion that the run was exhaustive (no -run filter) over the packages it reported.\n\t\tRecorded as caller-attested: it is reported, but it does NOT authorize a MISSING_IMPLEMENTATION\n\t\tfinding, because nothing here can verify it")
 	var files stringSlice
@@ -77,6 +77,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repo = governedRepoRoot(*repo)
 	if *results == "" {
 		fmt.Fprintln(os.Stderr, "sensei verify-obligations: --results is required")
 		return 2

@@ -22,7 +22,7 @@ func runPreflight(args []string) int {
 	asJSON := fs.Bool("json", false, "output as JSON")
 	mode := fs.String("mode", "standard", "preflight mode: standard | compact")
 	domain := fs.String("domain", "", "domain/repo scope passed through to per-file impact queries")
-	repo := fs.String("repo", ".", "repository checkout, used to resolve the domain when --domain is omitted")
+	repo := fs.String("repo", "", "repository checkout, used to resolve the domain when --domain is omitted")
 	var files stringSlice
 	fs.Var(&files, "file", "repo-relative file (repeatable)")
 	fs.Usage = func() {
@@ -41,6 +41,10 @@ Flags:
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
+	// An omitted repository hint means "the governed repository this command is being run
+	// against", discovered by walking upward -- not the directory the operator happens to be
+	// standing in. Normalised once, here, so every later use resolves the same repository.
+	*repo = governedRepoRoot(*repo)
 	if len(files) == 0 && *task == "" {
 		fmt.Fprintln(os.Stderr, "sensei preflight: provide --file and/or --task")
 		return 2

@@ -542,3 +542,31 @@ func domainOrAny(domain string) string {
 	}
 	return domain
 }
+
+// governedRepoRoot normalises a repository/root hint so that "omitted" and "the operator chose this
+// path" stop being the same value.
+//
+//	empty     no operator-selected root: discover the governed repository by walking upward
+//	non-empty the operator selected exactly that path, and it is used verbatim
+//
+// WHY THIS EXISTS. resolveProjectRoot walks up only for an empty argument, and every graph-reading
+// subject's repository flag defaulted to ".", which is never empty. So the walk-up branch was
+// unreachable by default, and a command run from a subdirectory looked for the governed domain in
+// whatever directory the operator happened to be standing in. It did not fail: it found no domain,
+// which silently removed the registry from endpoint resolution and let the weaker project-config
+// authority answer -- at the same address, so nothing looked wrong. The endpoint path had already
+// been given a walking wrapper in graphConfigRoot; the domain path never was.
+//
+// The result is a CONCRETE root rather than a sentinel, because callers use the value directly --
+// os.ReadFile(root + "/go.mod"), git -C root, filepath.Abs(root) -- and an empty string silently
+// becomes "/" or the process working directory in those. One normalisation, at the point the flag is
+// parsed, so every later use of the value means the same repository.
+//
+// This deliberately does NOT change resolveProjectRoot, which has callers far beyond the graph
+// readers.
+func governedRepoRoot(hint string) string {
+	if strings.TrimSpace(hint) == "" {
+		return graphConfigRoot("")
+	}
+	return hint
+}
