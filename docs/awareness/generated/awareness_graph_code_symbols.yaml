@@ -6811,6 +6811,36 @@ test_symbols:
     package: main
     language: go
     doc: "THE GATE COMPARES WHAT IS COMMITTED, NOT WHAT IT JUST PRODUCED.\n\n--check regenerated generated/ into a temp directory and compared only the\nseed. Both sides of that comparison derive from the fresh scan, so the\ncommitted artifacts never entered any comparison and could drift while the\ngate printed \"fresh\" and exited 0. Reproduced at 58c055fb with a deleted\nsymbol and with discovered_tests: 999999. `sensei build` publishes those\ncommitted files into the served graph, so drift there publishes wrong\nknowledge past the gate meant to prevent it."
+  - id: cmd/awg/sensei_project_not_corpus_test.go:TestADirtyPermittingDomainIsStillNotDefeated
+    file: cmd/awg/sensei_project_not_corpus_test.go
+    symbol: TestADirtyPermittingDomainIsStillNotDefeated
+    package: main
+    language: go
+    doc: "And the escape remains exactly where the registry puts it: a domain that explicitly\npermits a dirty worktree is not contradicting itself. This test exists to prove the\nnew root inherits that rule rather than becoming an unconditional block."
+  - id: cmd/awg/sensei_project_not_corpus_test.go:TestADomainAdmittingNeitherRootStillImports
+    file: cmd/awg/sensei_project_not_corpus_test.go
+    symbol: TestADomainAdmittingNeitherRootStillImports
+    package: main
+    language: go
+    doc: "A domain that admits NEITHER root is unaffected — the guard must not become a blanket\nrefusal of every import."
+  - id: cmd/awg/sensei_project_not_corpus_test.go:TestAdmittingTheProjectWorkingAreaAsCorpusIsRefused
+    file: cmd/awg/sensei_project_not_corpus_test.go
+    symbol: TestAdmittingTheProjectWorkingAreaAsCorpusIsRefused
+    package: main
+    language: go
+    doc: "The teeth: a domain that admits the working area AND requires a clean tree — the\ndefault, and what every registered domain does — cannot run an import at all."
+  - id: cmd/awg/sensei_project_not_corpus_test.go:TestTheAwarenessCorpusRefusalIsUnchanged
+    file: cmd/awg/sensei_project_not_corpus_test.go
+    symbol: TestTheAwarenessCorpusRefusalIsUnchanged
+    package: main
+    language: go
+    doc: "The docs/awareness case must keep working exactly as before: this adds a root, it\ndoes not change the existing contradiction."
+  - id: cmd/awg/sensei_project_not_corpus_test.go:TestTheProjectWorkingAreaIsAnExtractionWriteRoot
+    file: cmd/awg/sensei_project_not_corpus_test.go
+    symbol: TestTheProjectWorkingAreaIsAnExtractionWriteRoot
+    package: main
+    language: go
+    doc: "`.sensei/project` must be recognised as a place extraction writes, so admitting it as\ncorpus is refused rather than silently accepted."
   - id: cmd/awg/serve_compatibility_test.go:TestCheckAwarenessCompatibility_ExactMatchRequired
     file: cmd/awg/serve_compatibility_test.go
     symbol: TestCheckAwarenessCompatibility_ExactMatchRequired
