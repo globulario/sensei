@@ -442,7 +442,7 @@ func loadPilotGraph(pilotDir, agRepo, svcRepo, oxigraphURL string) error {
 		return fmt.Errorf("pilot N-Triples invalid: %d errors (first: %s)", len(errs), errs[0])
 	}
 	fmt.Printf("  pilot triples: %d (%d unique)\n", emitter.Triples, unique)
-	return reloadOxigraphStore(nt, oxigraphURL)
+	return reloadOxigraphStore(nt, oxigraphURL, storeMutationIntent{Overridden: true, Reason: "sensei promote (pilot graph)"})
 }
 
 func findCandidateEntry(dir, id string) (string, map[string]interface{}, error) {

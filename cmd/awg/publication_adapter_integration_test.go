@@ -73,7 +73,7 @@ func TestIntegration_PublicationAdapterPreservesTerms_RealOxigraph(t *testing.T)
 		"<https://globular.io/awareness#publicationSourcePath> \"docs/awareness\"@en .\n"
 
 	nt := append(good.Triples(), []byte(malformed)...)
-	if err := uploadNTriples(http.DefaultClient, storeURL, nt); err != nil {
+	if err := uploadNTriples(http.DefaultClient, storeURL, nt, storeMutationIntent{Reason: "test"}); err != nil {
 		t.Fatalf("seed store: %v", err)
 	}
 
@@ -190,7 +190,7 @@ func TestIntegration_AuthoritySnapshotReadsOneWorld_RealOxigraph(t *testing.T) {
 		SourceDigest: strings.Repeat("c", 64),
 	}
 	nt, marker := seedmeta.AppendMarker(good.Triples())
-	if err := uploadNTriples(http.DefaultClient, "http://"+addr+"/store?default", nt); err != nil {
+	if err := uploadNTriples(http.DefaultClient, "http://"+addr+"/store?default", nt, storeMutationIntent{Reason: "test"}); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
 	c, err := oxigraph.New(queryURL)

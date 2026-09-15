@@ -62,6 +62,12 @@ const (
 	ReasonGovernedCorpusInvalid  ReasonCode = "governed_corpus_invalid"
 	ReasonLimitExceeded          ReasonCode = "bounded_input_limit_exceeded"
 	ReasonResultValidationFail   ReasonCode = "result_validation_failure"
+	// ReasonGraphGenerationSwitched is law 5's refusal: the graph generation
+	// answering this audit changed while it was running. Distinct from
+	// ReasonGraphUnavailable on purpose -- "a different graph answered the second
+	// half" and "the graph did not answer" are opposite diagnoses, and collapsing
+	// them would send a reader to look for an outage that never happened.
+	ReasonGraphGenerationSwitched ReasonCode = "graph_generation_switched"
 )
 
 // AuditFinding represents one governed record finding for a diff.
@@ -92,16 +98,27 @@ type ChangedFileSummary struct {
 
 // AuditResult represents the canonical v1 result schema ("awareness.diff_audit/v1").
 type AuditResult struct {
-	Schema              string               `json:"schema"`
-	Digest              string               `json:"digest"`            // Self-excluding SHA256 hex digest
-	InputDiffDigest     string               `json:"input_diff_digest"` // SHA256 hex of raw diff payload
-	InputTrust          string               `json:"input_trust"`       // "caller_supplied"
-	Availability        Availability         `json:"availability"`
-	Decision            Decision             `json:"decision"`
-	ExpectedHead        string               `json:"expected_head,omitempty"`
-	Domain              string               `json:"domain,omitempty"`
-	Task                string               `json:"task,omitempty"`
-	GraphCommit         string               `json:"graph_commit,omitempty"` // observed authority commit of the rule snapshot; binds the digest to the graph that produced it
+	Schema          string       `json:"schema"`
+	Digest          string       `json:"digest"`            // Self-excluding SHA256 hex digest
+	InputDiffDigest string       `json:"input_diff_digest"` // SHA256 hex of raw diff payload
+	InputTrust      string       `json:"input_trust"`       // "caller_supplied"
+	Availability    Availability `json:"availability"`
+	Decision        Decision     `json:"decision"`
+	ExpectedHead    string       `json:"expected_head,omitempty"`
+	Domain          string       `json:"domain,omitempty"`
+	Task            string       `json:"task,omitempty"`
+	GraphCommit     string       `json:"graph_commit,omitempty"` // observed authority commit of the rule snapshot; binds the digest to the graph that produced it
+	// GraphGeneration is the digest of the graph generation that ANSWERED this
+	// audit -- the bytes, not the rule snapshot.
+	//
+	// Law 5 of the graph-identity front: every graph query a run uses must prove
+	// it belongs to the pinned identity, and a silent generation switch is
+	// forbidden. GraphCommit cannot carry that proof: it identifies the rule
+	// snapshot, which on this installation belongs to the services repository, so
+	// two different Sensei generations built from one snapshot share it. Kept as a
+	// separate field for exactly that reason -- pouring one into the other would
+	// make a measured fact carry a claim it cannot support.
+	GraphGeneration     string               `json:"graph_generation_sha256,omitempty"`
 	ChangedFiles        []ChangedFileSummary `json:"changed_files"`
 	Findings            []AuditFinding       `json:"findings"`
 	ImplicatedTests     []string             `json:"implicated_tests,omitempty"`
@@ -172,6 +189,13 @@ func (r *AuditResult) Validate() error {
 	// succeeded, so a missing graph_commit means the verdict is unanchored.
 	if r.Availability == AvailabilityAvailable && r.GraphCommit == "" {
 		return fmt.Errorf("invalid state: availability is available but graph_commit is empty; an available result must be bound to a rule snapshot")
+	}
+	// The same lock for the generation that answered (law 5). Without it a caller
+	// could construct an "available" verdict bound to a rule snapshot while the
+	// graph that produced the answers is unidentified -- which is the state that
+	// made #134 unreplayable.
+	if r.Availability == AvailabilityAvailable && r.GraphGeneration == "" {
+		return fmt.Errorf("invalid state: availability is available but graph_generation_sha256 is empty; an available result must be bound to the generation that answered it")
 	}
 
 	if hasBlock && r.Decision != DecisionBlock {

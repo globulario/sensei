@@ -13,6 +13,41 @@ type fakeChecker struct {
 	checkFileFunc     func(ctx context.Context, file, content, domain string) ([]AuditFinding, error)
 	getFileImpactFunc func(ctx context.Context, file, domain string) ([]Requirement, []Requirement, []string, string, error)
 	readBaseFileFunc  func(ctx context.Context, path string) (string, bool, error)
+	graphGenerationFn func(ctx context.Context) (string, error)
+}
+
+// GraphGeneration makes the fake behave like an authoritative graph, which always
+// knows which generation is answering (law 5). Without it every result here would
+// be unbindable and therefore not available — correctly, but for a reason about the
+// fixture rather than about the case under test.
+// The fake states the provenance of both of its responses, because the tests below are about
+// DISPOSITION logic and a checker that could not state provenance would make every one of
+// them cannot_verify -- testing the provenance rule instead of the rule they were written for.
+// The provenance rule has its own witnesses in generation_per_query_test.go.
+func (f *fakeChecker) LastImpactGeneration() string { return f.generationOrDefault() }
+func (f *fakeChecker) LastCheckGeneration() string  { return f.generationOrDefault() }
+
+// NOTE for fixtures that embed fakeChecker to model a checker MISSING one reporter: embedding
+// inherits both, so such a fixture must shadow the one it means to lack with a distinct type
+// rather than relying on omission.
+
+// The SAME identity the fake's brackets report, so the two cannot disagree by accident. These
+// tests are about disposition logic, not about which generation; a fixture whose responses
+// named a different graph from its own samples would refuse every one of them for a switch
+// that never happened.
+func (f *fakeChecker) generationOrDefault() string {
+	g, err := f.GraphGeneration(context.Background())
+	if err != nil {
+		return ""
+	}
+	return g
+}
+
+func (f *fakeChecker) GraphGeneration(ctx context.Context) (string, error) {
+	if f.graphGenerationFn != nil {
+		return f.graphGenerationFn(ctx)
+	}
+	return "cleangeneration", nil
 }
 
 func (f *fakeChecker) CheckFile(ctx context.Context, file, content, domain string) ([]AuditFinding, error) {

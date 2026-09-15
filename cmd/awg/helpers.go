@@ -92,14 +92,8 @@ func resolveProjectRoot(explicit string) (string, error) {
 	}
 	dir := cwd
 	for {
-		if _, err := os.Stat(filepath.Join(dir, "docs", "awareness")); err == nil {
+		if looksLikeProjectRoot(dir) {
 			return dir, nil
-		}
-		// Detect a project by its state dir marker (.sensei, or legacy .awg).
-		for _, name := range []string{statedir.DefaultName, statedir.LegacyName} {
-			if _, err := os.Stat(filepath.Join(dir, name, "config.yaml")); err == nil {
-				return dir, nil
-			}
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -283,4 +277,30 @@ func stringsField(m map[string]interface{}, key string) []string {
 		}
 	}
 	return out
+}
+
+// looksLikeProjectRoot is the definition of a project this command set searches for:
+// a corpus at docs/awareness, or a state directory holding a config (.sensei, or the
+// pre-rename .awg).
+//
+// Extracted so the search and every caller that needs the search to have SUCCEEDED
+// share one definition. resolveProjectRoot deliberately fails open — it returns the
+// working directory when the walk finds nothing, and 34 callers depend on that — so a
+// caller for whom the difference matters asks this directly rather than inferring it
+// from a non-empty string. The graph marker resolution is such a caller: a marker
+// under a directory that is not a project certifies a different graph from every
+// directory it is run in.
+func looksLikeProjectRoot(dir string) bool {
+	if strings.TrimSpace(dir) == "" {
+		return false
+	}
+	if _, err := os.Stat(filepath.Join(dir, "docs", "awareness")); err == nil {
+		return true
+	}
+	for _, name := range []string{statedir.DefaultName, statedir.LegacyName} {
+		if _, err := os.Stat(filepath.Join(dir, name, "config.yaml")); err == nil {
+			return true
+		}
+	}
+	return false
 }

@@ -26,7 +26,7 @@ var metadataRPC = func(ctx context.Context, addr, domain string) (*awarenesspb.M
 func runDomains(args []string) int {
 	fs := flag.NewFlagSet("sensei domains", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
 		fmt.Fprint(os.Stderr, `Usage: sensei domains [flags]
@@ -46,7 +46,12 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, "")
+	root, _ := resolveProjectRoot("")
+	// One owner, same as every other production reader (law 3). This variant asks about
+	// no particular domain, so it resolves without one rather than through a different
+	// function.
+	resolvedAddr := resolveGraphReader(fs, root, "", *addr, DefaultDomainRegistryPath()).Addr
+	resp, err := metadataRPC(ctx, resolvedAddr, "")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei domains: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -74,7 +79,7 @@ Flags:
 func runMetadata(args []string) int {
 	fs := flag.NewFlagSet("sensei metadata", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
-	addr := fs.String("addr", defaultServiceAddr(), "Sensei gRPC server address")
+	addr := fs.String("addr", "", "Sensei gRPC server address")
 	domain := fs.String("domain", "", "scope per-class counts to a domain/repo (e.g. github.com/globulario/services); empty = graph-wide")
 	asJSON := fs.Bool("json", false, "output as JSON")
 	fs.Usage = func() {
@@ -96,7 +101,16 @@ Flags:
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	resp, err := metadataRPC(ctx, *addr, *domain)
+	// The root error is NOT discarded (G4). Without a project root the default marker
+	// path is relative, so this report would name a different marker from each
+	// directory it ran in. resolveGraphMarkerFile refuses that, and the Endpoint block
+	// states the refusal rather than printing a path that means nothing.
+	root, rootErr := resolveProjectRoot("")
+	// Domain-scoped: the registry can answer `domain -> endpoint`, so this variant
+	// resolves through the G2 owner rather than choosing a port.
+	reader := resolveGraphReader(fs, root, *domain, *addr, DefaultDomainRegistryPath())
+	resolvedAddr, addrSource := reader.Addr, reader.Source
+	resp, err := metadataRPC(ctx, resolvedAddr, *domain)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei metadata: %s\n", formatReadSurfaceError("metadata", err))
 		return 1
@@ -113,6 +127,21 @@ Flags:
 		fmt.Printf("Server started:        (unstamped)\n")
 	}
 	fmt.Println()
+	// G5: the report must say WHICH graph answered and where that choice came
+	// from. Two runs from different directories can legitimately reach different
+	// graphs and both be right; without this the output cannot be told apart from
+	// a graph having changed.
+	renderEndpointBlock(os.Stdout, endpointReport{
+		Root:         root,
+		RootError:    rootErr,
+		Domain:       *domain,
+		ResolvedAddr: resolvedAddr,
+		AddrSource:   addrSource,
+		RegistryPath: DefaultDomainRegistryPath(),
+		LiveDigest:   resp.GetLiveStoreGraphDigestSha256(),
+		LiveTriples:  int(resp.GetLiveStoreGraphTripleCount()),
+	})
+
 	fmt.Println("Build provenance:")
 	fmt.Printf("  Graph build commit:  %s\n", strOrDash(resp.GetGraphBuildCommit()))
 	if t := resp.GetGraphBuildTimeUnix(); t != 0 {

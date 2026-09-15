@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -42,6 +43,32 @@ type seedStatusResult struct {
 	OverallState          string         `json:"overall_state"`
 	OverallDetail         string         `json:"overall_detail,omitempty"`
 	RequireCurrent        bool           `json:"require_current"`
+	// TransportNotice states that this answer describes the store this command
+	// opened DIRECTLY, which is not necessarily the graph a production reader
+	// resolves (G5, and law 14's requirement that raw store access be visibly
+	// non-canonical). Carried in the JSON as well as the text: a machine reader that
+	// treats this as the canonical state makes the same mistake a person would.
+	TransportNotice string `json:"transport_notice,omitempty"`
+}
+
+// seedStatusTransportNotice explains what this command's answer is ABOUT.
+//
+// seed-status is the most detailed graph report in this codebase and it reaches the
+// store over a different transport from every production reader: it opens Oxigraph
+// directly on --oxigraph-url, whose default is a fixed port, while a production
+// reader asks the awareness service whose endpoint resolves through the domain
+// registry (G2). No domain participates at all, so under law 13 a matching digest and
+// triple count from the WRONG store reads here as agreement.
+//
+// That direct access is the right power for a maintenance instrument and law 14 keeps
+// it -- while requiring it be explicit and visibly non-canonical. So the notice names
+// the store that answered and the command that answers canonically; a caveat with no
+// alternative leaves a reader with the same single answer they already had.
+func seedStatusTransportNotice(queryURL string) string {
+	return "this is NOT the canonical graph state: it describes the store at " + queryURL +
+		", opened directly, which is not necessarily the graph a production reader resolves. " +
+		"For the canonical answer for one domain, including its ACTIVE generation and marker verdict, " +
+		"run `sensei metadata --domain <domain>`."
 }
 
 func runSeedStatus(args []string) int {
@@ -93,13 +120,14 @@ Flags:
 		return 1
 	}
 	res := seedStatusResult{
-		SeedPath:       seedPath,
-		QueryURL:       queryURL,
-		MarkerIRI:      marker.IRI,
-		DigestSHA256:   marker.Digest,
-		TripleCount:    marker.TripleCount,
-		LiveStore:      seedStatusLane{State: "down", Detail: "live store unreachable"},
-		RequireCurrent: *requireCurrent,
+		SeedPath:        seedPath,
+		QueryURL:        queryURL,
+		TransportNotice: seedStatusTransportNotice(queryURL),
+		MarkerIRI:       marker.IRI,
+		DigestSHA256:    marker.Digest,
+		TripleCount:     marker.TripleCount,
+		LiveStore:       seedStatusLane{State: "down", Detail: "live store unreachable"},
+		RequireCurrent:  *requireCurrent,
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -128,8 +156,15 @@ Flags:
 }
 
 func printSeedStatusResult(res seedStatusResult, asJSON bool) int {
+	return writeSeedStatusResult(os.Stdout, res, asJSON)
+}
+
+// writeSeedStatusResult renders the report. It takes a Writer so the output can be
+// asserted: the transport caveat below is the point of G5's change here, and a caveat
+// nothing can prove is printed is a caveat that can quietly stop being printed.
+func writeSeedStatusResult(w io.Writer, res seedStatusResult, asJSON bool) int {
 	if asJSON {
-		enc := json.NewEncoder(os.Stdout)
+		enc := json.NewEncoder(w)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(res)
 		if res.RequireCurrent && res.OverallState != "current" {
@@ -137,39 +172,42 @@ func printSeedStatusResult(res seedStatusResult, asJSON bool) int {
 		}
 		return 0
 	}
-	fmt.Printf("Seed file:           %s\n", res.SeedPath)
-	fmt.Printf("Oxigraph query URL:  %s\n", res.QueryURL)
-	fmt.Printf("Seed digest:         %s\n", res.DigestSHA256)
-	fmt.Printf("Seed triple count:   %d\n", res.TripleCount)
-	fmt.Printf("Marker IRI:          %s\n", res.MarkerIRI)
-	fmt.Printf("Live digest:         %s\n", strOrDash(res.LiveDigestSHA256))
-	fmt.Printf("Live triple count:   %d\n", res.LiveTripleCount)
-	fmt.Printf("Generated vs commit: %s\n", res.GeneratedVsCommitted.State)
+	if res.TransportNotice != "" {
+		fmt.Fprintf(w, "NOTE: %s\n\n", res.TransportNotice)
+	}
+	fmt.Fprintf(w, "Seed file:           %s\n", res.SeedPath)
+	fmt.Fprintf(w, "Oxigraph query URL:  %s\n", res.QueryURL)
+	fmt.Fprintf(w, "Seed digest:         %s\n", res.DigestSHA256)
+	fmt.Fprintf(w, "Seed triple count:   %d\n", res.TripleCount)
+	fmt.Fprintf(w, "Marker IRI:          %s\n", res.MarkerIRI)
+	fmt.Fprintf(w, "Live digest:         %s\n", strOrDash(res.LiveDigestSHA256))
+	fmt.Fprintf(w, "Live triple count:   %d\n", res.LiveTripleCount)
+	fmt.Fprintf(w, "Generated vs commit: %s\n", res.GeneratedVsCommitted.State)
 	if res.GeneratedVsCommitted.Detail != "" {
-		fmt.Printf("  detail:            %s\n", res.GeneratedVsCommitted.Detail)
+		fmt.Fprintf(w, "  detail:            %s\n", res.GeneratedVsCommitted.Detail)
 	}
-	fmt.Printf("Transaction stamp:   %s\n", res.TransactionStamp.State)
+	fmt.Fprintf(w, "Transaction stamp:   %s\n", res.TransactionStamp.State)
 	if res.TransactionStamp.Detail != "" {
-		fmt.Printf("  detail:            %s\n", res.TransactionStamp.Detail)
+		fmt.Fprintf(w, "  detail:            %s\n", res.TransactionStamp.Detail)
 	}
-	fmt.Printf("Live store:          %s\n", res.LiveStore.State)
+	fmt.Fprintf(w, "Live store:          %s\n", res.LiveStore.State)
 	if res.LiveStore.Detail != "" {
-		fmt.Printf("  detail:            %s\n", res.LiveStore.Detail)
+		fmt.Fprintf(w, "  detail:            %s\n", res.LiveStore.Detail)
 	}
-	fmt.Printf("Live content:        %s\n", res.LiveContent.State)
+	fmt.Fprintf(w, "Live content:        %s\n", res.LiveContent.State)
 	if res.LiveContent.Detail != "" {
-		fmt.Printf("  detail:            %s\n", res.LiveContent.Detail)
+		fmt.Fprintf(w, "  detail:            %s\n", res.LiveContent.Detail)
 	}
-	fmt.Printf("Overall state:       %s\n", res.OverallState)
+	fmt.Fprintf(w, "Overall state:       %s\n", res.OverallState)
 	if res.OverallDetail != "" {
-		fmt.Printf("Overall detail:      %s\n", res.OverallDetail)
+		fmt.Fprintf(w, "Overall detail:      %s\n", res.OverallDetail)
 	}
 	if res.OverallState == "current" {
-		fmt.Println("Status:              committed seed, transaction stamp, and live store are aligned")
+		fmt.Fprintln(w, "Status:              committed seed, transaction stamp, and live store are aligned")
 		return 0
 	}
-	fmt.Println("Status:              authority is not fully aligned across generated, committed, and live graph state")
-	fmt.Println("Next step:           run `sensei rebuild` to regenerate, verify, and promote one certified graph state")
+	fmt.Fprintln(w, "Status:              authority is not fully aligned across generated, committed, and live graph state")
+	fmt.Fprintln(w, "Next step:           run `sensei rebuild` to regenerate, verify, and promote one certified graph state")
 	if res.RequireCurrent {
 		return 1
 	}

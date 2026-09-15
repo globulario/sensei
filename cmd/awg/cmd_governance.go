@@ -641,7 +641,8 @@ func runGovernanceActivate(args []string) int {
 		fmt.Fprintf(os.Stderr, "sensei governance activate: invalid --store-url: %v\n", err)
 		return 1
 	}
-	if err := uploadNTriples(httpDefaultClient(), endpoint, combinedNT); err != nil {
+	if err := uploadNTriples(httpDefaultClient(), endpoint, combinedNT, storeMutationIntent{
+		Overridden: true, Reason: "sensei governance activate"}); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureGraphDown, err.Error(), err)
 		fmt.Fprintf(os.Stderr, "sensei governance activate: upload to %s: %v\n", endpoint, err)
 		return 1
@@ -655,9 +656,12 @@ func runGovernanceActivate(args []string) int {
 	if markerPath == "" {
 		markerPath = seedmeta.RuntimeMarkerPath(root)
 	}
-	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
+	// ONE activation transition (G4). The governance pack has its own richer activation
+	// record below; what it must not have is its own way of publishing the marker, since
+	// that is the file every reader consults.
+	if err := activateGeneration(os.Stdout, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
-		fmt.Fprintf(os.Stderr, "sensei governance activate: publish graph marker: %v\n", err)
+		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1
 	}
 	active := governancepack.ActiveRecord{
