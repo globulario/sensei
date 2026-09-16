@@ -117,6 +117,7 @@ components:
       - cmd/awg/cmd_gate_sarif.go
       - cmd/awg/cmd_generate_questions.go
       - cmd/awg/cmd_governance.go
+      - cmd/awg/cmd_graph_export.go
       - cmd/awg/cmd_impact.go
       - cmd/awg/cmd_impact_gate.go
       - cmd/awg/cmd_import.go
@@ -3039,6 +3040,7 @@ components:
       - golang/server/domain_slice.go
       - golang/server/edit_check.go
       - golang/server/embedded_seed.go
+      - golang/server/export_graph.go
       - golang/server/graph_authority.go
       - golang/server/graph_freshness.go
       - golang/server/impact.go
@@ -3164,6 +3166,7 @@ components:
     source_files:
       - golang/store/oxigraph/authority_snapshot.go
       - golang/store/oxigraph/describe_terms.go
+      - golang/store/oxigraph/export_graph.go
       - golang/store/oxigraph/oxigraph.go
       - golang/store/oxigraph/sparql_literal.go
     depends_on:

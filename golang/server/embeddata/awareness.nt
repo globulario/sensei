@@ -455,6 +455,20 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlKind> "Operation" .
 <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> <https://globular.io/awareness#umlView> "interaction" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "GetDomainGraph materializes, read-only, the exact graph this service serves for one domain — bytes and identity together, from one resolved view.  It is the producer half of a law the graph snapshot consumers depend on: the caller may TRANSPORT a graph snapshot, but must not CHOOSE its authority. Exporting changes nothing: no promotion, no marker write, no generation change, no lock. A served graph whose identity cannot be established coherently is refused, never exported best-effort. — rpc GetDomainGraph(GetDomainGraphRequest) returns (GetDomainGraphResponse)" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.GetDomainGraph" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#assertionMethod> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#authoredIn> "docs/awareness/architecture/awareness_graph_proto_contracts.yaml" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#exposedBy> <https://globular.io/awareness#component/component.awareness_graph_service> .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#kind> "grpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#readOrWrite> "read" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#stability> "stable" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#umlConfidence> "inferred" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#umlKind> "Operation" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#umlStereotype> "rpc" .
+<https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
 <https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/2000/01/rdf-schema#comment> "GetOntologyNavigationDescriptor returns ontology.navigation_descriptor/v1 — registry-derived, repository-independent; requires no filesystem context. — rpc GetOntologyNavigationDescriptor(GetOntologyNavigationDescriptorRequest) returns (GetOntologyNavigationDescriptorResponse)" .
 <https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph.GetOntologyNavigationDescriptor" .
@@ -616,7 +630,7 @@
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlStereotype> "rpc" .
 <https://globular.io/awareness#contract/contract.awareness_graph.resolve> <https://globular.io/awareness#umlView> "interaction" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Contract> .
-<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition." .
+<https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#comment> "gRPC service AwarenessGraph with 16 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition, GetDomainGraph." .
 <https://globular.io/awareness#contract/contract.awareness_graph> <http://www.w3.org/2000/01/rdf-schema#label> "AwarenessGraph" .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#anchoredIn> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#contract/contract.awareness_graph> <https://globular.io/awareness#assertionMethod> "inferred" .
@@ -8056,6 +8070,7 @@
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.edit_check> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_artifact_state> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_architecture_control_snapshot> .
+<https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_domain_graph> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.get_ontology_navigation_descriptor> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.impact> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> <https://globular.io/awareness#implements> <https://globular.io/awareness#contract/contract.awareness_graph.list_architecture_artifacts> .
@@ -9806,9 +9821,9 @@
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject> .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fsubjectstate%2Fsubjectstate.go> .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 24d268908ea7" .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <https://globular.io/awareness#seedDigestSha256> "24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1" .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <https://globular.io/awareness#seedTripleCount> "9814" .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-24d268908ea79f06fc97d65f56a45fa6ef70a787c04e0d9f04374fa9a26274c1> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 042293351216" .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <https://globular.io/awareness#seedDigestSha256> "042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf" .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <https://globular.io/awareness#seedTripleCount> "9829" .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-042293351216c931838dab1675272092ea02fdf5d7b5dd4b6697cd46d5888bbf> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
