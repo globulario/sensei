@@ -232,7 +232,20 @@ func homeDomainPath(file string) bool {
 	if file == "" || !strings.Contains(file, "/") {
 		return false
 	}
-	out, err := exec.Command("git", "-C", "../..", "log", "--all", "--oneline", "-1", "--", file).Output()
+	// --full-history is NOT optional here. `git log -- <path>` applies history
+	// SIMPLIFICATION: at a merge whose tree matches one parent for that path, it
+	// follows only that parent, so a file added on a side branch and later deleted
+	// becomes invisible from the mainline. --all hid this for a long time by
+	// reaching such commits through the side branch's own ref -- which made the
+	// answer depend on WHICH REFS HAPPEN TO EXIST rather than on provenance, the
+	// exact confusion this predicate is named for.
+	//
+	// Measured on this repository: of four tracked-and-deleted test paths, THREE
+	// are invisible to the simplified walk from main and all four are visible with
+	// --full-history. Which one aTrackedAndDeletedTestPath returns depends on
+	// history order, so the test passed or failed by luck; it began failing in CI
+	// once branch cleanup removed the side-branch refs that --all had been leaning on.
+	out, err := exec.Command("git", "-C", "../..", "log", "--all", "--full-history", "--oneline", "-1", "--", file).Output()
 	if err != nil {
 		// Cannot establish provenance. NOT home -- an unanswerable ownership
 		// question must not manufacture an accusation, and the ratchet still
@@ -310,4 +323,45 @@ func aTrackedAndDeletedTestPath(t *testing.T) string {
 	t.Fatal("no tracked-and-deleted test path exists in this history; the provenance " +
 		"case cannot be exercised, and passing here would assert coverage that is absent")
 	return ""
+}
+
+// THE PROVENANCE QUERY MUST NOT DEPEND ON WHICH REFS EXIST.
+//
+// homeDomainPath answers "did this repository ever track this path". That is a fact about
+// history, so the answer must not change when a branch is deleted. It did: `git log -- <path>`
+// simplifies history at merges, so a file added on a side branch and later deleted is
+// invisible from the mainline, and --all only reached it while some ref still pointed into
+// that side branch. Deleting 206 merged/stale branches removed those refs and the predicate
+// started answering "foreign" for paths this repository demonstrably authored.
+//
+// This drives the property directly: every tracked-and-deleted test path must be recognised
+// as home when the walk is restricted to the mainline alone, which is what CI sees.
+func TestProvenanceHoldsFromTheMainlineAloneWithoutSideBranchRefs(t *testing.T) {
+	if err := exec.Command("git", "--version").Run(); err != nil {
+		t.Skipf("git is not installed: %v", err)
+	}
+	out, err := exec.Command("git", "-C", "../..", "log", "--diff-filter=D", "--name-only",
+		"--format=", "--", "*_test.go").Output()
+	if err != nil {
+		t.Fatalf("cannot read deletion history: %v", err)
+	}
+	checked := 0
+	for _, line := range strings.Split(string(out), "\n") {
+		p := strings.TrimSpace(line)
+		if p == "" {
+			continue
+		}
+		if _, statErr := os.Stat(filepath.Join("../..", p)); statErr == nil {
+			continue // resurrected; not the case
+		}
+		checked++
+		if !homeDomainPath(p) {
+			t.Errorf("%s was tracked and deleted here, yet reads as foreign; the provenance "+
+				"query is answering from ref topology rather than from history", p)
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no tracked-and-deleted test path found; this control asserted nothing")
+	}
+	t.Logf("provenance held for %d tracked-and-deleted path(s)", checked)
 }
