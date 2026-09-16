@@ -17542,6 +17542,24 @@ test_symbols:
     symbol: TestVerifyReportsOrphanArtifacts
     package: ledger
     language: go
+  - id: golang/architecture/ledger/verify_totality_test.go:TestACorruptEntryInTheMiddleAlsoReturnsAVerdict
+    file: golang/architecture/ledger/verify_totality_test.go
+    symbol: TestACorruptEntryInTheMiddleAlsoReturnsAVerdict
+    package: ledger
+    language: go
+    doc: "The divergence is not special to the first entry: a corrupt entry ANYWHERE makes the two\nslices disagree from that point on. Driven separately so a repair that only special-cases\nindex 0 does not pass."
+  - id: golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
+    file: golang/architecture/ledger/verify_totality_test.go
+    symbol: TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
+    package: ledger
+    language: go
+    doc: "ONE CORRUPT ENTRY MUST PRODUCE A VERDICT, NOT A PANIC.\n\nverifyAndLoadChain iterates the FILES slice and, for an unreadable or invalid entry,\nrecords the error and continues WITHOUT appending to out.Entries. Every later iteration\nthen read out.Entries[idx-1] -- a files index used against the entries slice. After any\nskipped entry the two diverge, so the read runs off the end.\n\nEvery admission loader calls VerifyChain, and appendEntry verifies before every append,\nso this takes a task's whole governance path down by panic rather than producing the\ntyped refusal the design calls for. A fail-closed system that panics has no verdict to\nfail closed WITH: the caller never reaches its refusal branch, and recovers nothing it\ncould report."
+  - id: golang/architecture/ledger/verify_totality_test.go:TestTheRefusalDoesNotFabricateFailuresForEntriesThatAreIntact
+    file: golang/architecture/ledger/verify_totality_test.go
+    symbol: TestTheRefusalDoesNotFabricateFailuresForEntriesThatAreIntact
+    package: ledger
+    language: go
+    doc: "A REFUSAL MUST NAME THE ENTRY THAT IS ACTUALLY AT FAULT.\n\nThe task id was read from files[0]. When files[0] is the corrupt one it is skipped, so\nout.TaskID stayed empty and every later entry compared its own id against \"\" -- reporting\n\"task id changes within one chain\" for a chain in which no id changed. One real defect\nthen arrives as a cascade of invented ones, and an operator reading the report repairs the\nwrong entry.\n\nThis is the half of the repair the panic witnesses cannot reach: they stop at \"did it\nreturn a verdict\", and a verdict full of fabricated errors is still a verdict."
   - id: golang/architecture/ledger/verifyscope_test.go:TestVerificationScope_DifferentBytesRecompute
     file: golang/architecture/ledger/verifyscope_test.go
     symbol: TestVerificationScope_DifferentBytesRecompute
