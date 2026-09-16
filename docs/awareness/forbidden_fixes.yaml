@@ -801,3 +801,9 @@ forbidden_fixes:
     related_invariants:
       - ledger.absence_requires_established_completeness
     reason: 'latestArtifactFromChain returned (false, nil) -- ''no such event'' -- when the latest event of a type lacked its artifact, which is false: an event of that type exists and cannot be read. That let an appended artifact-less event shadow the real record with append rights alone. Nor may the scan continue backwards to an earlier event of the type: that lets a later record be silently overridden by an earlier one, the same defect reversed. Name the damage and refuse it -- and only for artifacts the event contract REQUIRES, since optional keys are genuinely absent when missing.'
+  - id: forbidden_fix.sensei.validate_a_generation_pointer_by_its_basename_alone
+    title: Validate a generation pointer by its basename alone
+    summary: filepath.Base(root) == ptr.DigestSHA256 is satisfied by '../../../../elsewhere/<digest>', because filepath.Join cleans the '..' segments before the basename is taken. A property of the resulting STRING cannot establish a relation between two paths. Use pathContainedIn, and keep it as a conjunct WITH the basename test -- neither alone is sufficient, and each was proven load-bearing by a surviving mutant.
+    related_invariants:
+      - taskcontrol.generation_pointer_confined_to_its_task
+    reason: filepath.Base(root) == ptr.DigestSHA256 is satisfied by '../../../../elsewhere/<digest>', because filepath.Join cleans the '..' segments before the basename is taken. A property of the resulting STRING cannot establish a relation between two paths. Use pathContainedIn, and keep it as a conjunct WITH the basename test -- neither alone is sufficient, and each was proven load-bearing by a surviving mutant.

@@ -2266,3 +2266,8 @@ required_tests:
     protects:
       invariants:
         - ledger.absence_requires_established_completeness
+  - id: golang/architecture/tasksession/generation_containment_test.go:TestAGenerationPointerOutsideTheTaskDirectoryIsRefused
+    title: A generation pointer naming a directory outside its task is refused
+    protects:
+      invariants:
+        - taskcontrol.generation_pointer_confined_to_its_task

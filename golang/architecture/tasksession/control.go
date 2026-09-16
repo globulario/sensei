@@ -781,8 +781,7 @@ func resolveControlTask(repoRoot, taskDir string, active bool) (string, string, 
 		if !filepath.IsAbs(taskDir) {
 			taskDir = filepath.Join(abs, taskDir)
 		}
-		back, relErr := filepath.Rel(abs, taskDir)
-		if relErr != nil || back == ".." || strings.HasPrefix(back, ".."+string(filepath.Separator)) {
+		if !pathContainedIn(abs, taskDir) {
 			return "", "", nil, errors.New("task directory must be inside the repository")
 		}
 		return abs, taskDir, nil, nil
@@ -946,6 +945,25 @@ func appendLedgerControlState(repoRoot, taskDir string, session Session, control
 	return final.Head, nil
 }
 
+// pathContainedIn reports whether candidate lies at or below parent.
+//
+// filepath.Join CLEANS ".." segments, so a path assembled from untrusted input can leave its
+// parent while every property of the RESULTING STRING still looks right -- a basename that
+// matches an expected digest, most of all. Containment is therefore a relation between two
+// paths and cannot be read off one of them.
+//
+// Named once because this file previously held two rules for this one property: the task
+// directory was checked with filepath.Rel, and the generation root with a basename comparison
+// that a ".." segment walks straight through. Two rules for one property is how the weaker one
+// survives.
+func pathContainedIn(parent, candidate string) bool {
+	rel, err := filepath.Rel(parent, candidate)
+	if err != nil {
+		return false
+	}
+	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
+}
+
 func currentControlPaths(taskDir string) (controlPaths, string, error) {
 	base := baseControlPaths(taskDir)
 	data, err := os.ReadFile(filepath.Join(taskDir, "control", "latest-generation.yaml"))
@@ -963,8 +981,18 @@ func currentControlPaths(taskDir string) (controlPaths, string, error) {
 	if ptr.SchemaVersion != SchemaVersion || ptr.Generation == "" || ptr.DigestSHA256 == "" {
 		return controlPaths{}, "", errors.New(ReasonIncompleteGeneration)
 	}
-	root := filepath.Join(taskDir, "control", filepath.FromSlash(ptr.Generation))
-	if filepath.Base(root) != ptr.DigestSHA256 {
+	// The generation root must BE the recorded digest and must LIE INSIDE control/. The
+	// basename test alone admitted "../../../../elsewhere/<digest>": Join cleans the ".."
+	// segments, so the basename still equalled the recorded hex while the path had left the
+	// task entirely.
+	//
+	// This is an authority-selecting operand, not a convenience: the resolved generation
+	// decides which admission-decision.yaml is authoritative, and the inspection capability
+	// and Envelope.ReadPaths are taken from it and spliced into Permission.ExactScope. A
+	// pointer must be confined to the task whose authority it selects.
+	controlDir := filepath.Join(taskDir, "control")
+	root := filepath.Join(controlDir, filepath.FromSlash(ptr.Generation))
+	if filepath.Base(root) != ptr.DigestSHA256 || !pathContainedIn(controlDir, root) {
 		return controlPaths{}, "", errors.New(ReasonIncompleteGeneration)
 	}
 	return controlPaths{
