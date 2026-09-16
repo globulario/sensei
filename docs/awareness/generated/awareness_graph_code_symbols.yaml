@@ -24030,6 +24030,24 @@ test_symbols:
     package: tasksession
     language: go
     doc: "G1 (review body, governance.go:246). A decision carrying the CORRECT request\ndigest but a verdict list adjudicating none of the planned operations must not\nbind. AllAdmitted iterates only the verdicts it is handed, and the grant that\nfollows takes its scope from the recorded ChangePlan -- so every target in the\nplan is exposed for operations the decision never adjudicated.\n\nOriginal witness: a decision carrying the CORRECT request digest but a verdict list\nthat adjudicates none of the planned operations must not bind."
+  - id: golang/architecture/tasksession/generation_containment_test.go:TestAGenerationPointerOutsideTheTaskDirectoryIsRefused
+    file: golang/architecture/tasksession/generation_containment_test.go
+    symbol: TestAGenerationPointerOutsideTheTaskDirectoryIsRefused
+    package: tasksession
+    language: go
+    doc: "A GENERATION POINTER MAY NOT NAME A DIRECTORY OUTSIDE ITS TASK.\n\nThe guard was `filepath.Base(root) != ptr.DigestSHA256`. filepath.Join CLEANS \"..\"\nsegments, so a pointer whose generation is \"../../../../elsewhere/<digest>\" resolves to a\nroot outside the task directory while its basename still equals the recorded hex -- the\ncheck passes on a path that has left the task.\n\nThe resolved generation selects which admission-decision.yaml is authoritative; the\ninspection capability and Envelope.ReadPaths are taken from it and spliced into\nPermission.ExactScope. So a pointer is an authority-selecting operand, and it must be\nconfined to the task whose authority it selects.\n\nThis file performs the containment test correctly for the TASK DIRECTORY itself roughly\n180 lines earlier (filepath.Rel plus a \"..\" prefix test). Two rules for one property in\none file is how the weaker one survives."
+  - id: golang/architecture/tasksession/generation_containment_test.go:TestAGenerationPointerWhoseDirectoryIsNotNamedByItsDigestIsRefused
+    file: golang/architecture/tasksession/generation_containment_test.go
+    symbol: TestAGenerationPointerWhoseDirectoryIsNotNamedByItsDigestIsRefused
+    package: tasksession
+    language: go
+    doc: "THE POINTER'S DIGEST MUST IDENTIFY THE DIRECTORY IT NAMES.\n\nContainment and identity are two conjuncts, and the escape witnesses above prove only the\nfirst: they are satisfied by a check that tests containment alone. This drives the second.\n\nA generation directory is named BY its digest, so a pointer that records digest X while\nnaming a directory called something else has not identified a generation -- it has selected\na directory and then asserted an unrelated digest for it. Both remain authority-selecting,\nso both must refuse."
+  - id: golang/architecture/tasksession/generation_containment_test.go:TestAnOrdinaryGenerationPointerStillResolves
+    file: golang/architecture/tasksession/generation_containment_test.go
+    symbol: TestAnOrdinaryGenerationPointerStillResolves
+    package: tasksession
+    language: go
+    doc: "THE NEGATIVE CONTROL. An ordinary in-task generation still resolves, or the refusal above\nwould be satisfied by a check that refuses everything."
   - id: golang/architecture/tasksession/governance_integrity_test.go:TestGovernanceCorruptConsumptionCannotRestoreGrant
     file: golang/architecture/tasksession/governance_integrity_test.go
     symbol: TestGovernanceCorruptConsumptionCannotRestoreGrant

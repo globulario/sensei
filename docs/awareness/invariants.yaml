@@ -2330,3 +2330,13 @@ invariants:
     required_tests:
       - golang/architecture/ledger/damaged_history_test.go:TestTailTruncationIsAnErrorNotAWarning
     contract: No reader may move a task to an earlier phase, or regrant a spent capability, on the ABSENCE of a ledger event unless the history's completeness has been positively established
+  - id: taskcontrol.generation_pointer_confined_to_its_task
+    title: A task control generation pointer resolves only inside its own task's control directory
+    status: active
+    description: 'The resolved generation selects which admission-decision.yaml is authoritative; the inspection capability and Envelope.ReadPaths are taken from it and spliced into Permission.ExactScope. A pointer is therefore an authority-selecting operand and must be confined to the task whose authority it selects. Containment is a relation between two paths and cannot be read off one of them: filepath.Join cleans ''..'' segments, so a basename test passes on a path that has left the task.'
+    protects:
+      files:
+        - golang/architecture/tasksession/control.go
+    required_tests:
+      - golang/architecture/tasksession/generation_containment_test.go:TestAGenerationPointerOutsideTheTaskDirectoryIsRefused
+    contract: currentControlPaths accepts a generation pointer only when the resolved root is contained in <taskDir>/control AND is named by the recorded digest
