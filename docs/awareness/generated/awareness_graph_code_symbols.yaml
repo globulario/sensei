@@ -6052,6 +6052,12 @@ test_symbols:
     package: main
     language: go
     doc: "Ownership is provenance, not current existence — pinned permanently.\n\nTwo earlier answers used the filesystem AS IT IS NOW to decide ORIGIN, and\nboth had a bypass: `os.Stat(file)` let a DELETED cited test look foreign, and\n`os.Stat(topLevelDir)` let a foreign path look home because we share a `cmd/`\ndirectory, while deleting a home-only directory restored the first bypass.\n\nThe manual experiment that found this — delete a file, run, restore — is not\na test. Without this, re-adding an existence gate breaks nothing that fails."
+  - id: cmd/awg/dangling_baseline_classification_test.go:TestProvenanceHoldsFromTheMainlineAloneWithoutSideBranchRefs
+    file: cmd/awg/dangling_baseline_classification_test.go
+    symbol: TestProvenanceHoldsFromTheMainlineAloneWithoutSideBranchRefs
+    package: main
+    language: go
+    doc: "THE PROVENANCE QUERY MUST NOT DEPEND ON WHICH REFS EXIST.\n\nhomeDomainPath answers \"did this repository ever track this path\". That is a fact about\nhistory, so the answer must not change when a branch is deleted. It did: `git log -- <path>`\nsimplifies history at merges, so a file added on a side branch and later deleted is\ninvisible from the mainline, and --all only reached it while some ref still pointed into\nthat side branch. Deleting 206 merged/stale branches removed those refs and the predicate\nstarted answering \"foreign\" for paths this repository demonstrably authored.\n\nThis drives the property directly: every tracked-and-deleted test path must be recognised\nas home when the walk is restricted to the mainline alone, which is what CI sees."
   - id: cmd/awg/derive_wiring_test.go:TestTheDeriveCommandRefusesAnElidedConstructionOutsideTheOwner
     file: cmd/awg/derive_wiring_test.go
     symbol: TestTheDeriveCommandRefusesAnElidedConstructionOutsideTheOwner
