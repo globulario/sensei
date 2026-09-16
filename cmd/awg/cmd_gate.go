@@ -54,6 +54,31 @@ func reportDegraded(domain, diff, reason string) int {
 	return finalReportLine(0, reason)
 }
 
+// verifyGateServedGeneration proves the endpoint gate is about to consult serves the generation
+// the registry declares ACTIVE for its domain.
+//
+// The comparison itself belongs to the G2 owner (graphReader.requireVerifiedServedGeneration) and
+// is not re-implemented here; this only obtains the served identity.
+//
+// verifyServed, NOT requireVerifiedServedGeneration: a domain that declares no ACTIVE generation
+// contradicts nothing, and gate is the commit-path check every repository runs. Refusing there
+// would stop gate in every repository that has not yet published through the transactional path --
+// a far larger change than binding a verdict to a generation, and one this does not make. Where a
+// declaration EXISTS the reading is strict, including against a response that states none.
+//
+// It spends its own Metadata call so the refusal can arrive BEFORE the first EditCheck. An
+// unreachable or failing Metadata is NOT treated as agreement: not knowing which graph answered is
+// exactly the condition this refuses on.
+func verifyGateServedGeneration(ctx context.Context, c awarenesspb.AwarenessGraphClient, reader graphReader, timeout time.Duration) error {
+	mdCtx, cancel := gateFileContext(ctx, timeout)
+	defer cancel()
+	resp, mdErr := c.Metadata(mdCtx, &awarenesspb.MetadataRequest{Domain: reader.Domain})
+	if mdErr != nil {
+		return fmt.Errorf("cannot prove which graph generation %s serves, so no verdict from it may be enforced: %w", reader.Addr, mdErr)
+	}
+	return reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256())
+}
+
 // fileFinding is one changed file's EditCheck result: the advisory/blocking
 // warnings its added lines tripped, or a scope error if it could not be checked.
 type fileFinding struct {
@@ -384,6 +409,22 @@ Flags:
 	defer conn.Close()
 	client := awarenesspb.NewAwarenessGraphClient(conn)
 
+	// LAW 5, before anything is enforced, interpreted or printed.
+	//
+	// gate enforces a verdict the graph produced, so which graph produced it is part of the
+	// verdict. Asking before the first EditCheck is what makes the refusal a refusal rather than a
+	// late correction of a verdict already rendered.
+	if verr := verifyGateServedGeneration(ctx, client, reader, *rpcTimeout); verr != nil {
+		if *reportOnly {
+			// report-only is fail-open by contract, so it exits 0 -- but DEGRADED states that no
+			// verdict was produced. It must never print the other generation's findings, which is
+			// the whole point of refusing.
+			return reportDegraded(*domain, *diff, verr.Error())
+		}
+		fmt.Fprintf(os.Stderr, "sensei gate: %v\n", verr)
+		return 1
+	}
+
 	// Per-repo enforcement policy (Pillar 2.3): resolve BEFORE evaluating so a
 	// repo can re-level or silence rules with no code change. A bad/missing
 	// explicit policy fails loudly (fail-open only under --report-only).
@@ -426,6 +467,25 @@ Flags:
 			findings = append(findings, fileFinding{File: f, ScopeError: err.Error()})
 			scopeErrs++
 			continue
+		}
+		// EACH VERDICT IS BOUND TO THE GENERATION THAT PRODUCED IT.
+		//
+		// The pre-loop check proves which generation was serving before any query. It cannot speak
+		// for the queries that follow it: the store is external and can be republished mid-run, and
+		// the gRPC connection pins the endpoint, never its contents. EditCheckResponse carries the
+		// authority of the graph that computed THESE warnings, so the interval closes structurally
+		// instead of being narrowed by a second sample taken at yet another moment. Absence is not
+		// agreement: a response that states no generation cannot support an enforced verdict.
+		//
+		// On a mismatch the run STOPS rather than continuing the diff: once the generation has
+		// moved, every remaining verdict would come from a graph this domain does not declare
+		// active, and printing those findings is precisely what this check exists to prevent.
+		if verr := reader.verifyServed(resp.GetAuthority().GetLiveStoreGraphDigestSha256()); verr != nil {
+			if *reportOnly {
+				return reportDegraded(*domain, *diff, verr.Error())
+			}
+			fmt.Fprintf(os.Stderr, "sensei gate: %s: %v\n", f, verr)
+			return 1
 		}
 		// Apply the repo's enforcement policy: re-level per rule and drop any
 		// the policy set to "off". Downstream tally/print then reads the

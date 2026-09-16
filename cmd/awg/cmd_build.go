@@ -95,6 +95,25 @@ Flags:
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", govDomainErr)
 		return 2
 	}
+	// --domain is the node TAGGING KIND, read BY MEMBERSHIP of its closed vocabulary, and refused
+	// before anything is compiled or written. An unrecognised value was previously adopted verbatim
+	// as the default tag for every untagged node -- the permissive direction in which a rule written
+	// as an exclusion fails.
+	//
+	// It runs AFTER publishedGovernedDomain so the more specific diagnosis wins where both apply:
+	// that check names the conflation when a governed domain is typed here with no --repo. It cannot
+	// replace this one, because with --repo set it returns early and never inspects --domain at all.
+	nodeKind := nodeDomainKind(*domain)
+	if err := nodeKind.validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
+		return 1
+	}
+
+	// ONE TRANSACTION -> ONE RESOLVED REGISTRY IDENTITY. Resolved here and passed by value to every
+	// ownership, admission and activation operation, so none of them can substitute the operator
+	// default for the registry the operator named. Activation is the one that WRITES, and it was the
+	// one previously left out of the agreement.
+	registry := selectDomainRegistry(*domainRegistry)
 	if err := rejectPathLikeBuildDomain("build --repo", *repo); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -148,11 +167,10 @@ Flags:
 		// registry has declared no store ownership, which is the inert case. A registry
 		// that exists and cannot be parsed is an operator error, and publishing past it
 		// would be publishing on an unreadable rule.
-		ownershipRegistry := buildRegistryPath(*domainRegistry)
-		reg, rerr := LoadDomainRegistry(ownershipRegistry)
+		reg, rerr := LoadDomainRegistry(registry.Path())
 		switch {
 		case rerr != nil && !os.IsNotExist(rerr):
-			fmt.Fprintf(os.Stderr, "sensei build: refusing to publish against an unreadable domain registry %s, so nothing has been written: %v\n", ownershipRegistry, rerr)
+			fmt.Fprintf(os.Stderr, "sensei build: refusing to publish against an unreadable domain registry %s, so nothing has been written: %v\n", registry.Path(), rerr)
 			return 1
 		case rerr == nil:
 			// THE DOMAIN THIS PUBLICATION IS FOR is --repo on the scoped path; --domain is
@@ -175,7 +193,6 @@ Flags:
 	// single triple changes — the store was destructively replaced three times
 	// on 2026-08-05 while every later verdict was accurate but too late.
 	if strings.TrimSpace(*repo) != "" && *output == "" {
-		registryPath := buildRegistryPath(*domainRegistry)
 		// A hosted runner has no operator registry. The attestation is offered
 		// only when the operator asked for it, so enabling CI admission is a
 		// visible decision in the workflow rather than a silent change of
@@ -185,7 +202,7 @@ Flags:
 			a := ReadGitHubActionsAttestation(os.Getenv)
 			attestation = &a
 		}
-		decision, aerr := AdmitPublicationFromSource(strings.TrimSpace(*repo), inputDirs, registryPath, attestation)
+		decision, aerr := AdmitPublicationFromSource(strings.TrimSpace(*repo), inputDirs, registry.Path(), attestation)
 		if aerr != nil {
 			fmt.Fprintln(os.Stderr, aerr.Error())
 			return 1
@@ -199,7 +216,7 @@ Flags:
 	// world, and one set.
 	sourceWitness := publication.InspectCompiledSources(inputDirs)
 
-	rawProjectNT, _, consumed, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), strings.TrimSpace(*domain), strings.TrimSpace(*sourceSet), *strict)
+	rawProjectNT, _, consumed, err := compileAwarenessInputs(inputDirs, strings.TrimSpace(*repositoryIdentity), strings.TrimSpace(*repo), nodeKind.String(), strings.TrimSpace(*sourceSet), *strict)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
@@ -212,7 +229,7 @@ Flags:
 	if strings.TrimSpace(*repo) != "" && *output == "" {
 		return runScopedRepoUpdate(strings.TrimSpace(*repo), inputDirs, rawProjectNT, sourceWitness, consumed, *storeURL,
 			strings.TrimSpace(*graphMarkerFile), strings.TrimSpace(*graphTransactionFile), *svcRepoFlag, *agRepoFlag,
-			buildRegistryPath(*domainRegistry), flagPassed(fs, "store-url"))
+			registry, flagPassed(fs, "store-url"))
 	}
 
 	ntBytes, marker, uniqueCount, dupCount := finalizeBuildArtifact(rawProjectNT)
@@ -293,7 +310,7 @@ Flags:
 
 	if err := uploadNTriples(http.DefaultClient, endpoint, ntBytes, storeMutationIntent{
 		Domain: govDomain, Overridden: flagPassed(fs, "store-url"), Reason: "sensei build",
-		RegistryPath: buildRegistryPath(*domainRegistry)}); err != nil {
+		RegistryPath: registry.Path()}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: upload to %s: %v\n", endpoint, err)
 		fmt.Fprintf(os.Stderr, "\nIs Oxigraph running? Start it with `sensei serve -no-seed` or `bash ./scripts/install-sensei-user-services.sh`.\n")
 		return 1
@@ -310,7 +327,7 @@ Flags:
 			return 1
 		}
 	}
-	if err := activateGeneration(os.Stderr, markerPath, marker, govDomain, buildRegistryPath(*domainRegistry)); err != nil {
+	if err := activateGeneration(os.Stderr, markerPath, marker, govDomain, registry); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
@@ -572,7 +589,7 @@ func queryEndpointPath(p string) string {
 // N-Triples into an isolated staging graph, then one SPARQL control transaction
 // swaps that graph into the default graph. Raw RDF bytes are never embedded in
 // SPARQL text.
-func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag, registryPath string, storeURLOverridden bool) int {
+func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte, sourceWitness publication.SourceWitness, consumed []publication.ConsumedFile, storeURLFlag, graphMarkerFile, graphTransactionFile, svcRepoFlag, agRepoFlag string, registry domainRegistrySelection, storeURLOverridden bool) int {
 	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 
@@ -735,7 +752,7 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 	// failure direction is a FALSE REFUSAL; rule 1, another domain's store, is unaffected
 	// because an override never relaxes it.
 	if err := putNamedGraph(ctx, storeEndpoint, stagingIRI, stagedNT, storeMutationIntent{
-		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registryPath,
+		Domain: domain, Reason: "sensei build (scoped domain slice)", RegistryPath: registry.Path(),
 		Overridden: storeURLOverridden}); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: stage candidate generation for %s: %v\n", domain, err)
 		return 1
@@ -784,7 +801,7 @@ func runScopedRepoUpdate(domain string, inputDirs []string, rawProjectNT []byte,
 			return 1
 		}
 	}
-	if err := activateGeneration(os.Stderr, markerPath, marker, domain, registryPath); err != nil {
+	if err := activateGeneration(os.Stderr, markerPath, marker, domain, registry); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 		return 1
 	}
