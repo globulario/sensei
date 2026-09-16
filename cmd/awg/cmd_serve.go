@@ -517,7 +517,7 @@ func syncDefaultRuntimeMarkerFromLiveStore(ctx context.Context, markerPath, quer
 	// host certifies, so it goes through the same transition (G4) rather than writing
 	// the file itself. serve does not know the governed domain, and activateGeneration
 	// states that the pointer was left alone instead of leaving it silent.
-	if err := activateGeneration(out, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
+	if err := activateGeneration(out, markerPath, marker, "", selectDomainRegistry("")); err != nil {
 		return err
 	}
 	if err := reconcileRuntimeTransactionStamp(markerPath, marker, out); err != nil {

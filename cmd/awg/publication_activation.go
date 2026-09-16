@@ -51,7 +51,7 @@ import (
 // than skipped, because the observable effect — readers refusing a graph that is
 // otherwise healthy — is indistinguishable from a broken endpoint unless someone says
 // so.
-func activateGeneration(out io.Writer, markerPath string, marker seedmeta.Marker, domain, registryPath string) error {
+func activateGeneration(out io.Writer, markerPath string, marker seedmeta.Marker, domain string, registry domainRegistrySelection) error {
 	if err := seedmeta.WriteMarkerFile(markerPath, marker); err != nil {
 		return fmt.Errorf("publish graph marker: %w", err)
 	}
@@ -63,7 +63,7 @@ func activateGeneration(out io.Writer, markerPath string, marker seedmeta.Marker
 		fmt.Fprintf(out, "    Declare it by setting active_generation: %s for the domain this graph serves.\n", marker.Digest)
 		return nil
 	}
-	if err := recordActiveGeneration(registryPath, domain, marker.Digest); err != nil {
+	if err := recordActiveGeneration(registry.Path(), domain, marker.Digest); err != nil {
 		fmt.Fprintf(out, "  ACTIVE generation pointer: NOT updated for %s: %v\n", domain, err)
 		fmt.Fprintf(out, "    Readers will REFUSE this graph until the registry declares active_generation: %s\n", marker.Digest)
 		return nil
