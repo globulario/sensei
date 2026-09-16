@@ -84,11 +84,11 @@ jobs:
       - name: Prove per-domain named-graph publication
         run: |
           PATH="$PWD/bin:$PATH" go test -tags=integration ./golang/store/oxigraph \
-            -run '^TestIntegration_(PublishingOneDomainLeavesAnotherUntouched|DefaultGraphContentIsAttributableToNoDomain|UnionReadsWouldExposeInFlightStagingGraphs|GraphIRIIsIndependentOfTheEndpoint)$' \
+            -run '^TestIntegration_(PublishingOneDomainLeavesAnotherUntouched|DefaultGraphContentIsAttributableToNoDomain|UnionReadsWouldExposeInFlightStagingGraphs|GraphIRIIsIndependentOfTheEndpoint|OneStoreGenerationCannotIdentifyTwoDomainGraphs|ADomainGraphCarriesNoIdentityOfItsOwn)$' \
             -count=1 -timeout 5m -v 2>&1 | tee namedgraph.log
           # A filter that matches nothing produces a green step with no evidence
           # in it, so every proof must be seen to have run.
-          for want in PublishingOneDomainLeavesAnotherUntouched DefaultGraphContentIsAttributableToNoDomain UnionReadsWouldExposeInFlightStagingGraphs GraphIRIIsIndependentOfTheEndpoint; do
+          for want in PublishingOneDomainLeavesAnotherUntouched DefaultGraphContentIsAttributableToNoDomain UnionReadsWouldExposeInFlightStagingGraphs GraphIRIIsIndependentOfTheEndpoint OneStoreGenerationCannotIdentifyTwoDomainGraphs ADomainGraphCarriesNoIdentityOfItsOwn; do
             if ! grep -q -- "--- PASS: TestIntegration_${want}" namedgraph.log; then
               echo "::error::${want} did not run; the -run filter or the test name has drifted"
               exit 1

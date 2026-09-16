@@ -2848,7 +2848,9 @@ components:
     assertion: inferred
     source_files:
       - golang/graphgeneration/graphgeneration.go
+      - golang/graphgeneration/identity.go
     depends_on:
+      - component.golang.architecture.repodomain
       - component.golang.closure
       - component.golang.seedmeta
     uml:
@@ -3035,6 +3037,7 @@ components:
       - golang/server/controlstate_mutation_rpcs.go
       - golang/server/controlstate_provider.go
       - golang/server/controlstate_rpcs.go
+      - golang/server/domain_generation.go
       - golang/server/domain_publication.go
       - golang/server/domain_scope.go
       - golang/server/domain_slice.go

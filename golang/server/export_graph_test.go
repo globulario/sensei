@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/globulario/sensei/golang/graphgeneration"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store"
@@ -46,6 +47,18 @@ func servedNT(t *testing.T) ([]byte, seedmeta.Marker) {
 	return stamped, marker
 }
 
+// mustDomainGeneration builds the domain-scoped identity a publication would
+// establish if it could. Construction is checked, so a fixture cannot quietly
+// test against an identity the type would itself refuse to produce.
+func mustDomainGeneration(t *testing.T, domain, digest string) graphgeneration.Identity {
+	t.Helper()
+	id, err := graphgeneration.DomainGeneration(domain, digest)
+	if err != nil {
+		t.Fatalf("DomainGeneration(%q, %q): %v", domain, digest, err)
+	}
+	return id
+}
+
 // currentFor makes the server report the fixture's graph as its current,
 // coherent served identity.
 func currentFor(marker seedmeta.Marker) func(context.Context) seedmeta.Verification {
@@ -67,6 +80,11 @@ func TestGetDomainGraphReturnsTheServedGraphWithItsIdentity(t *testing.T) {
 	st := &exportingStore{nt: nt}
 	st.graphFreshness = currentFor(marker)
 	srv := newTestServer(st)
+	// The export is certified against the DOMAIN's published generation. No
+	// production path establishes one yet, so the capability's success contract is
+	// proven against an injected identity — which is what lets this reader be
+	// written, tested and reviewed before the writer that will satisfy it.
+	srv.domainGeneration = fixedDomainGeneration(mustDomainGeneration(t, "github.com/globulario/sensei-code", marker.Digest))
 
 	resp, err := srv.GetDomainGraph(context.Background(), &awarenesspb.GetDomainGraphRequest{
 		Domain: "github.com/globulario/sensei-code",
@@ -99,6 +117,7 @@ func TestGetDomainGraphIsDeterministicForAnUnchangedGraph(t *testing.T) {
 	st := &exportingStore{nt: nt}
 	st.graphFreshness = currentFor(marker)
 	srv := newTestServer(st)
+	srv.domainGeneration = fixedDomainGeneration(mustDomainGeneration(t, "github.com/globulario/sensei-code", marker.Digest))
 
 	first, err := srv.GetDomainGraph(context.Background(), &awarenesspb.GetDomainGraphRequest{Domain: "github.com/globulario/sensei-code"})
 	if err != nil {
@@ -113,13 +132,53 @@ func TestGetDomainGraphIsDeterministicForAnUnchangedGraph(t *testing.T) {
 	}
 }
 
+// THE RESPONSE STATES THE DOMAIN'S GENERATION, NOT THE STORE'S.
+//
+// On a single-domain store those are the same value, so every other fixture in
+// this file would pass whichever one the handler reported — the coincidence this
+// change exists to remove, reproduced inside the test suite itself. This fixture
+// makes them differ the way a multi-domain store does: the store certifies one
+// generation while the bytes served for this domain are a different graph
+// carrying its own published identity.
+func TestGetDomainGraphReportsTheDomainsGenerationNotTheStores(t *testing.T) {
+	_, storeMarker := servedNT(t)
+	domainNT, domainMarker := seedmeta.AppendMarker([]byte("<https://example.org/z> <https://example.org/p> \"Z\" .\n"))
+	if domainMarker.Digest == storeMarker.Digest {
+		t.Fatal("the fixture's two generations coincide, so it cannot tell them apart")
+	}
+
+	st := &exportingStore{nt: domainNT}
+	st.graphFreshness = currentFor(storeMarker)
+	srv := newTestServer(st)
+	srv.domainGeneration = fixedDomainGeneration(mustDomainGeneration(t, "github.com/globulario/sensei-code", domainMarker.Digest))
+
+	resp, err := srv.GetDomainGraph(context.Background(), &awarenesspb.GetDomainGraphRequest{
+		Domain: "github.com/globulario/sensei-code",
+	})
+	if err != nil {
+		t.Fatalf("export: %v", err)
+	}
+	if resp.GetGeneration() != domainMarker.Digest {
+		t.Fatalf("generation=%s, want the DOMAIN's published generation %s; the store certifies %s, "+
+			"and reporting that would attribute the store's identity to one domain's graph",
+			resp.GetGeneration(), domainMarker.Digest, storeMarker.Digest)
+	}
+	if resp.GetGraphDigest() != domainMarker.Digest {
+		t.Fatalf("graph digest=%s, want the digest of the bytes returned (%s)", resp.GetGraphDigest(), domainMarker.Digest)
+	}
+}
+
 // Every way of being unable to certify an export refuses, and refuses BEFORE
 // producing bytes a caller could mistake for a certified snapshot.
 func TestGetDomainGraphRefusesWhatItCannotCertify(t *testing.T) {
 	nt, marker := servedNT(t)
 
 	for name, c := range map[string]struct {
-		store    store.Store
+		store store.Store
+		// gen is the domain-scoped identity resolver. nil is the PRODUCTION
+		// shape, which establishes no identity for any domain — so a case that
+		// leaves it nil is asserting the refusal an operator meets today.
+		gen      domainGenerationResolver
 		domain   string
 		code     codes.Code
 		want     string
@@ -215,20 +274,56 @@ func TestGetDomainGraphRefusesWhatItCannotCertify(t *testing.T) {
 			want:     "no coherent graph identity",
 			neverAsk: true,
 		},
-		"the bytes are not the graph whose identity is served": {
+		"the bytes are not the graph the domain published": {
 			store: func() store.Store {
 				other, _ := seedmeta.AppendMarker([]byte("<https://example.org/z> <https://example.org/p> \"Z\" .\n"))
 				s := &exportingStore{nt: other}
 				s.graphFreshness = currentFor(marker)
 				return s
 			}(),
+			gen:    fixedDomainGeneration(mustDomainGeneration(t, "github.com/globulario/sensei-code", marker.Digest)),
 			domain: "github.com/globulario/sensei-code",
 			code:   codes.FailedPrecondition,
 			want:   "certified only when they are the same graph",
 		},
+		// THE REFUSAL EVERY CALLER MEETS TODAY, commissioning included.
+		//
+		// The store is entirely healthy: current freshness, coherent identity,
+		// exportable bytes. What is missing is any publication proving those bytes
+		// belong to this domain, and that absence is reported as itself rather
+		// than filled in with the store's own generation.
+		"no domain-scoped generation is published for the domain": {
+			store: func() store.Store {
+				s := &exportingStore{nt: nt}
+				s.graphFreshness = currentFor(marker)
+				return s
+			}(),
+			domain:   "github.com/globulario/sensei-code",
+			code:     codes.FailedPrecondition,
+			want:     "no domain-scoped generation is published",
+			neverAsk: true,
+		},
+		// The handler does not trust its resolver. An identity naming a DIFFERENT
+		// domain cannot certify this export even though its digest matches the
+		// exported bytes exactly — which on a single-domain store is the ordinary
+		// case, and is why the scope is compared before the digest.
+		"the published identity names another domain": {
+			store: func() store.Store {
+				s := &exportingStore{nt: nt}
+				s.graphFreshness = currentFor(marker)
+				return s
+			}(),
+			gen:    mislabeledDomainGeneration(mustDomainGeneration(t, "github.com/globulario/services", marker.Digest)),
+			domain: "github.com/globulario/sensei-code",
+			code:   codes.FailedPrecondition,
+			want:   "scope mismatch",
+		},
 	} {
 		t.Run(name, func(t *testing.T) {
 			srv := newTestServer(c.store)
+			if c.gen != nil {
+				srv.domainGeneration = c.gen
+			}
 			resp, err := srv.GetDomainGraph(context.Background(), &awarenesspb.GetDomainGraphRequest{Domain: c.domain})
 			if err == nil {
 				t.Fatalf("the export succeeded and returned %d bytes", len(resp.GetNtriples()))

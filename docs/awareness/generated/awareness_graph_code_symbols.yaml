@@ -290,12 +290,26 @@ code_symbols:
         - globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
       tested_by:
         - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
+  - id: globular.awareness_graph:code.go.server.domain_generation
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/domain_generation.go
+    component: server.domain_generation
+    risk: high
   - id: globular.awareness_graph:code.go.server.export_graph
     namespace: globular.awareness_graph
     language: go
     file: golang/server/export_graph.go
     component: server.export_graph
     risk: high
+  - id: globular.awareness_graph:code.go.server.impact
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/impact.go
+    component: server.impact
+    annotations:
+      implements:
+        - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
   - id: globular.awareness_graph:code.go.server.impact
     namespace: globular.awareness_graph
     language: go
@@ -308,14 +322,6 @@ code_symbols:
         - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
       tested_by:
         - golang/server/package_inference_test.go:TestPackageInference_SiblingAnchorsAreInferredNotDirect
-  - id: globular.awareness_graph:code.go.server.impact
-    namespace: globular.awareness_graph
-    language: go
-    file: golang/server/impact.go
-    component: server.impact
-    annotations:
-      implements:
-        - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
   - id: globular.awareness_graph:code.go.server.impact.server_Impact
     namespace: globular.awareness_graph
     language: go
@@ -27266,6 +27272,72 @@ test_symbols:
     symbol: TestStoreIDIsStableAcrossEquivalentEndpoints
     package: graphgeneration
     language: go
+  - id: golang/graphgeneration/identity_test.go:TestADigestPrefixIsNotTheGeneration
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestADigestPrefixIsNotTheGeneration
+    package: graphgeneration
+    language: go
+    doc: "A prefix is a different string. Accepting one would let a short coincidence\npass for a generation."
+  - id: golang/graphgeneration/identity_test.go:TestADomainGenerationRefusesANoncanonicalDomain
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestADomainGenerationRefusesANoncanonicalDomain
+    package: graphgeneration
+    language: go
+    doc: "A non-canonical spelling addresses a DIFFERENT graph, so minting an identity\nfor it would vouch for a graph nobody publishes to. Refused at construction,\nbefore any comparison can be attempted."
+  - id: golang/graphgeneration/identity_test.go:TestAGenerationWithNoDigestIdentifiesNothing
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAGenerationWithNoDigestIdentifiesNothing
+    package: graphgeneration
+    language: go
+    doc: "A digest with no content identifies nothing, at either scope."
+  - id: golang/graphgeneration/identity_test.go:TestAMatchingIdentitySatisfiesAcrossDigestCaseAndSpacing
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAMatchingIdentitySatisfiesAcrossDigestCaseAndSpacing
+    package: graphgeneration
+    language: go
+    doc: "The matching case still matches, and transport noise is not identity."
+  - id: golang/graphgeneration/identity_test.go:TestAPublishedGenerationIsWholeStoreScopedEvenThoughItNamesTheBuiltDomain
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAPublishedGenerationIsWholeStoreScopedEvenThoughItNamesTheBuiltDomain
+    package: graphgeneration
+    language: go
+    doc: "PublishedDomain IS NOT A SCOPE.\n\nA publication records which domain's build produced the whole-store\ngeneration; every other domain in the store was carried forward, not rebuilt.\nReading that field as a scope would promote a whole-store digest into one\ndomain's identity by nothing more than which build happened to run — the exact\nsilent migration this PR must not perform."
+  - id: golang/graphgeneration/identity_test.go:TestAWholeStoreIdentityCannotAlsoNameADomain
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAWholeStoreIdentityCannotAlsoNameADomain
+    package: graphgeneration
+    language: go
+    doc: "The conflation this package exists to prevent, caught inside a single value:\na whole-store identity that also names a domain."
+  - id: golang/graphgeneration/identity_test.go:TestAnIdentityMustStateItsScope
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAnIdentityMustStateItsScope
+    package: graphgeneration
+    language: go
+    doc: "An identity that does not state its scope is refused rather than defaulted.\nDefaulting is the mechanism the whole file exists to remove."
+  - id: golang/graphgeneration/identity_test.go:TestAnIdentityWithTheSameDigestStillCannotAnswerADifferentQuestion
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAnIdentityWithTheSameDigestStillCannotAnswerADifferentQuestion
+    package: graphgeneration
+    language: go
+    doc: "THE CENTRAL LAW, and the one a single-domain store cannot expose.\n\nEvery identity in these cases carries the SAME digest. If scope were compared\nafter the digest — or not at all — each of them would be accepted. That is not\na hypothetical ordering mistake: on a store serving one domain the whole-store\ndigest and the domain's digest really are the same value, so a digest-only\nimplementation passes every test such a store can write."
+  - id: golang/graphgeneration/identity_test.go:TestAnUnestablishedIdentitySatisfiesNothing
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestAnUnestablishedIdentitySatisfiesNothing
+    package: graphgeneration
+    language: go
+    doc: "Absence is reported as absence. \"Nobody has said what this is\" and \"two\nsources disagree\" have different remedies and must not share a message."
+  - id: golang/graphgeneration/identity_test.go:TestTheRenderingNamesTheScopeNotOnlyTheDigest
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestTheRenderingNamesTheScopeNotOnlyTheDigest
+    package: graphgeneration
+    language: go
+    doc: "The rendering names the scope. A bare digest in a message is how a reader\nconcludes two records agree when they answer different questions."
+  - id: golang/graphgeneration/identity_test.go:TestTheSameReferentAtADifferentGenerationIsAStaleness
+    file: golang/graphgeneration/identity_test.go
+    symbol: TestTheSameReferentAtADifferentGenerationIsAStaleness
+    package: graphgeneration
+    language: go
+    doc: "Same referent, different generation, IS a staleness — and must be reported as\none, because its remedy (republish or re-read) is not the scope remedy."
   - id: golang/netcfg/netcfg_test.go:TestOxigraphBind
     file: golang/netcfg/netcfg_test.go
     symbol: TestOxigraphBind
@@ -29434,6 +29506,30 @@ test_symbols:
     package: controlstateproto
     language: go
     doc: "Mirrors briefing_feedback_adapter_test.go's TestBriefingResponse_FeedbackIsAdditiveFieldSeven:\nthe four control-panel read-model messages must never renumber, retype, or remove an\nexisting field — additions land as new fields with new numbers."
+  - id: golang/server/domain_generation_test.go:TestATagDerivedSliceDigestIsNotADomainGeneration
+    file: golang/server/domain_generation_test.go
+    symbol: TestATagDerivedSliceDigestIsNotADomainGeneration
+    package: main
+    language: go
+    doc: "THE PROPERTY THAT MATTERS MOST IN THIS CHANGE.\n\nA tag-derived slice digest is present, per-domain, and specific-looking. It is\nthe obvious value to hand back as \"this domain's generation\", and handing it\nback would let the server declare an identity no publication ever proved.\n\nThe refusal must survive a proof set that looks entirely healthy: live\npublication, domain covered, closure proven, slice digest recorded."
+  - id: golang/server/domain_generation_test.go:TestAnInjectedDomainGenerationIsUsed
+    file: golang/server/domain_generation_test.go
+    symbol: TestAnInjectedDomainGenerationIsUsed
+    package: main
+    language: go
+    doc: "The hook is consulted when set, so the reader's full contract stays reachable\nand under test while the production path refuses."
+  - id: golang/server/domain_generation_test.go:TestTheProductionResolverEstablishesNoDomainIdentityToday
+    file: golang/server/domain_generation_test.go
+    symbol: TestTheProductionResolverEstablishesNoDomainIdentityToday
+    package: main
+    language: go
+    doc: "The production shape — no injected resolver — establishes nothing. This is the\ntest that says out loud that commissioning still refuses after this change,\nand it is the one that must start failing when publication learns to write a\ndomain's graph under that domain's authority."
+  - id: golang/server/domain_generation_test.go:TestTheWaysOfHavingNoDomainIdentityAreDistinguishable
+    file: golang/server/domain_generation_test.go
+    symbol: TestTheWaysOfHavingNoDomainIdentityAreDistinguishable
+    package: main
+    language: go
+    doc: "The three ways of having no domain identity are distinct, because an operator\ntells a misconfiguration from the migration's state by which one they get.\nCollapsing them into one message would make those indistinguishable."
   - id: golang/server/domain_publication_test.go:TestAGenerationChangeMidCompositionRefusesToAttest
     file: golang/server/domain_publication_test.go
     symbol: TestAGenerationChangeMidCompositionRefusesToAttest
@@ -29691,6 +29787,12 @@ test_symbols:
     package: main
     language: go
     doc: "Every way of being unable to certify an export refuses, and refuses BEFORE\nproducing bytes a caller could mistake for a certified snapshot."
+  - id: golang/server/export_graph_test.go:TestGetDomainGraphReportsTheDomainsGenerationNotTheStores
+    file: golang/server/export_graph_test.go
+    symbol: TestGetDomainGraphReportsTheDomainsGenerationNotTheStores
+    package: main
+    language: go
+    doc: "THE RESPONSE STATES THE DOMAIN'S GENERATION, NOT THE STORE'S.\n\nOn a single-domain store those are the same value, so every other fixture in\nthis file would pass whichever one the handler reported — the coincidence this\nchange exists to remove, reproduced inside the test suite itself. This fixture\nmakes them differ the way a multi-domain store does: the store certifies one\ngeneration while the bytes served for this domain are a different graph\ncarrying its own published identity."
   - id: golang/server/export_graph_test.go:TestGetDomainGraphReturnsTheServedGraphWithItsIdentity
     file: golang/server/export_graph_test.go
     symbol: TestGetDomainGraphReturnsTheServedGraphWithItsIdentity
@@ -31486,6 +31588,12 @@ test_symbols:
     package: oxigraph
     language: go
     doc: "The defect this surface exists to make impossible: one domain's export must\nnever carry another's assertions. A CONSTRUCT over the default graph reads the\nstore's union, and on a single-domain store the difference is invisible."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_ADomainGraphCarriesNoIdentityOfItsOwn
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_ADomainGraphCarriesNoIdentityOfItsOwn
+    package: oxigraph_test
+    language: go
+    doc: "A DOMAIN'S GRAPH CARRIES NO IDENTITY OF ITS OWN, so none can be read back.\n\nThe seed marker is a WHOLE-STORE fact and publication writes it into the\nDEFAULT graph. A domain's named graph therefore holds content and nothing that\nsays which generation that content is — which is precisely why the server\nrefuses to certify a per-domain export today, and why inventing a digest for\none here would be the service declaring an identity nobody published.\n\nTHIS TEST IS A TRIPWIRE. When publication learns to write a domain's graph\nunder that domain's own authority, a marker WILL appear in the domain's slot\nand this test must fail. That failure is the signal to revisit the reader —\nnot a reason to loosen the assertion."
   - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_DefaultGraphContentIsAttributableToNoDomain
     file: golang/store/oxigraph/named_graph_integration_test.go
     symbol: TestIntegration_DefaultGraphContentIsAttributableToNoDomain
@@ -31498,6 +31606,12 @@ test_symbols:
     package: oxigraph_test
     language: go
     doc: "A relative graph name is NOT rejected by Oxigraph -- it is resolved against\nthe server's base URL, so \"github.com/globulario/sensei\" published at\n127.0.0.1:7988 becomes http://127.0.0.1:7988/github.com/globulario/sensei.\nThe endpoint would become part of the domain's identity and the same\nrepository would be a different graph at a different address. This pins the\nmapping against a real store, on two different ports."
+  - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_OneStoreGenerationCannotIdentifyTwoDomainGraphs
+    file: golang/store/oxigraph/named_graph_integration_test.go
+    symbol: TestIntegration_OneStoreGenerationCannotIdentifyTwoDomainGraphs
+    package: oxigraph_test
+    language: go
+    doc: "ONE STORE GENERATION CANNOT BE THE IDENTITY OF TWO DOMAIN GRAPHS.\n\nThis is the coincidence the typed identity split exists to remove, measured\nagainst a real store rather than argued about. A store serving ONE domain\nmakes the whole-store digest and that domain's digest equal, so a reader that\nanswered a domain question with the store's generation was correct — and every\ntest such a store can write passes. Put a second domain in and the two answers\nseparate, with nothing in the old shape to notice.\n\nProving it here rather than on a fixture matters because the digests come from\nbytes a real Oxigraph actually served from two real graph slots."
   - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_PublishingOneDomainLeavesAnotherUntouched
     file: golang/store/oxigraph/named_graph_integration_test.go
     symbol: TestIntegration_PublishingOneDomainLeavesAnotherUntouched
