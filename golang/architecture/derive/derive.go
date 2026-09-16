@@ -89,6 +89,23 @@ const (
 	// a counterexample to confinement, not by itself an architectural defect:
 	// an exported structure may be intentionally caller-mutable.
 	KindStateMutationConfinedToOwner Kind = "state_mutation_confined_to_owner"
+
+	// KindConstructionConfinedToOwner: every observable construction of a named
+	// exported struct type, within a named repository scope, originates from the
+	// package that declares the type. With a Field named, only constructions that
+	// INITIALIZE that field are considered.
+	//
+	// A fourth family, and the one the third cannot answer. Mutation confinement asks
+	// who may CHANGE a field; this asks who may MINT a value carrying it. The two are
+	// not interchangeable: a field set only in a constructor has no writes at all, so
+	// the mutation family correctly establishes nothing about it, and widening that
+	// family to count constructions would destroy the distinction it exists to make
+	// (a constructor filling its own struct is not a caller reaching in).
+	//
+	// For an authority-bearing field this is the question that matters -- a deadline a
+	// restarted waiter must honour means nothing if any package can construct a record
+	// carrying one.
+	KindConstructionConfinedToOwner Kind = "construction_confined_to_owner"
 )
 
 // Proposition is a claim in a shape a derivation can attempt.
@@ -127,6 +144,17 @@ type Proposition struct {
 	SearchPaths []string `json:"search_paths,omitempty" yaml:"search_paths,omitempty"`
 }
 
+// String is the sentence the receipt and the established fact both carry, so it is the
+// wording a consumer actually reads.
+//
+// Every kind is matched BY NAME. The lock family used to sit in `default:`, which meant a
+// kind with no sentence of its own silently borrowed that one: the construction family,
+// registered later, rendered as "every access to ExchangeRecord.Deadline in
+// internal/ghbridge occurs while ExchangeRecord. is held" -- a lock-discipline claim, over
+// a derivation that examined no lock, with the empty Lock showing through as a dangling
+// dot. A DERIVED receipt stating a proposition stronger than and different from the one
+// derived is the worst failure this package can have, so an unnamed kind now says it has
+// no sentence instead of wearing another family's.
 func (p Proposition) String() string {
 	switch p.Kind {
 	case KindCommandInvocationConfinedTo:
@@ -135,9 +163,22 @@ func (p Proposition) String() string {
 	case KindStateMutationConfinedToOwner:
 		return fmt.Sprintf("every observable write to %s.%s under %s originates from its declaring package %s",
 			p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir)
-	default:
+	case KindConstructionConfinedToOwner:
+		// Field is optional for this family, and the two sentences are different claims:
+		// who may construct the TYPE at all, versus who may mint a value carrying one
+		// authority-bearing field.
+		if strings.TrimSpace(p.Field) != "" {
+			return fmt.Sprintf("every observable construction of %s initializing %s under %s originates from its declaring package %s",
+				p.Type, p.Field, strings.Join(p.SearchPaths, ", "), p.Dir)
+		}
+		return fmt.Sprintf("every observable construction of %s under %s originates from its declaring package %s",
+			p.Type, strings.Join(p.SearchPaths, ", "), p.Dir)
+	case KindFieldAccessUnderLock:
 		return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
 			p.Type, p.Field, p.Dir, p.Type, p.Lock)
+	default:
+		return fmt.Sprintf("no proposition text is registered for kind %q (%s.%s in %s); this receipt states no claim",
+			p.Kind, p.Type, p.Field, p.Dir)
 	}
 }
 
@@ -322,7 +363,7 @@ type PinnedSource interface {
 
 // registry is the set of derivations Sensei can attempt. Adding a family is a
 // reviewed change to this list, not something a claimant can request.
-var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}}
+var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}, constructionConfinement{}}
 
 // Derive attempts a proposition against pinned project state.
 //

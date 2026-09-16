@@ -99,6 +99,9 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	// Struct declarations in scope, by declaring directory and name, each
 	// with the imports of the file that declared it.
 	structs := map[typeRef]structDecl{}
+	// EVERY declared type name, struct or not, for Go's shadowing rule: a local alias or
+	// defined type hides a dot-imported name just as a local struct does.
+	declaredNames := map[typeRef]bool{}
 	for i, f := range files {
 		dir := cleanDir(path.Dir(read[i]))
 		imports := importsOf(f)
@@ -109,6 +112,7 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 			}
 			for _, sp := range gd.Specs {
 				ts := sp.(*ast.TypeSpec)
+				declaredNames[typeRef{dir, ts.Name.Name}] = true
 				if st, ok := ts.Type.(*ast.StructType); ok {
 					structs[typeRef{dir, ts.Name.Name}] = structDecl{st: st, imports: imports}
 				}
@@ -126,7 +130,8 @@ func (mutationConfinement) Derive(src PinnedSource, p Proposition) Attempt {
 	for i, f := range files {
 		filePath := read[i]
 		dir := cleanDir(path.Dir(filePath))
-		r := &resolver{structs: structs, imports: importsOf(f), modulePath: modulePath, dir: dir}
+		r := &resolver{structs: structs, imports: importsOf(f), modulePath: modulePath, dir: dir,
+			declaredNames: declaredNames}
 		w := &walker{r: r, field: p.Field, owner: owner, fset: fset, filePath: filePath, dir: dir,
 			sites: &sites, subjects: &subjects, outside: &outside, unresolved: &unresolved}
 		for _, d := range f.Decls {
@@ -457,6 +462,14 @@ type resolver struct {
 	imports    map[string]string // alias -> import path
 	modulePath string
 	dir        string // directory of the file being read
+	// declaredNames is EVERY type name declared per directory in the scope searched, struct or
+	// not. It exists for Go's shadowing rule: a name declared in this package hides a
+	// dot-imported one, and a LOCAL ALIAS or defined type shadows just as a local struct does.
+	// Checking only `structs` let a dot-imported struct win over a local alias of the same name.
+	//
+	// Optional: a nil map means "declarations not collected", and resolution then behaves as it
+	// did before, so a family that does not populate it is unaffected.
+	declaredNames map[typeRef]bool
 }
 
 // typeOfIn binds an expression to a struct type under a scope chain, or
@@ -509,36 +522,143 @@ func (r *resolver) typeExpr(t ast.Expr) (typeRef, bool) { return r.typeExprIn(t,
 // aliases of the file that WROTE the type expression -- the mutation-site
 // file for a binding, the declaring file for a struct field.
 func (r *resolver) typeExprIn(t ast.Expr, dir string, imports map[string]string) (typeRef, bool) {
-	switch x := t.(type) {
-	case *ast.StarExpr:
-		return r.typeExprIn(x.X, dir, imports)
-	case *ast.ParenExpr:
-		return r.typeExprIn(x.X, dir, imports)
-	case *ast.Ident:
-		ref := typeRef{dir, x.Name}
+	// A name that resolves to no struct DECLARATION in the scope searched binds nothing:
+	// this family reasons about fields, and a type whose fields were never read has none.
+	// Candidates rather than one ref, because an unqualified name in a file with a DOT
+	// IMPORT may belong to the imported package -- see refCandidatesOfTypeName.
+	// Scoping is applied by scopedCandidates; this only decides what binds.
+	for _, ref := range scopedCandidates(t, dir, imports, r.modulePath, r.declaredNames) {
 		if _, ok := r.structs[ref]; ok {
 			return ref, true
 		}
-		return typeRef{}, false
+	}
+	return typeRef{}, false
+}
+
+// refCandidatesOfTypeName resolves a type NAME to every directory that could declare it, most
+// likely first.
+//
+// A qualified name has exactly one candidate. An UNQUALIFIED one has the current directory
+// and, when the file dot-imports packages, each of those: `import . "example.com/m/exchange"`
+// followed by `Record{…}` names the imported Record, and attributing it to the current
+// directory made a construction outside the owner invisible -- the analyzer returned DERIVED
+// where it should have REFUTED (review finding mutationconfinement.go:539).
+//
+// Candidates, not a guess: the caller keeps the first that is actually declared, so a local
+// type of the same name still wins over a dot-imported one exactly as Go resolves it.
+func refCandidatesOfTypeName(t ast.Expr, dir string, imports map[string]string, modulePath string) []typeRef {
+	switch x := t.(type) {
+	case *ast.StarExpr:
+		return refCandidatesOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.ParenExpr:
+		return refCandidatesOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.Ident:
+		out := []typeRef{{dir, x.Name}}
+		for _, d := range dotImportDirs(imports, modulePath) {
+			out = append(out, typeRef{d, x.Name})
+		}
+		return out
+	case *ast.SelectorExpr:
+		if ref, ok := refOfTypeName(t, dir, imports, modulePath); ok {
+			return []typeRef{ref}
+		}
+	}
+	return nil
+}
+
+// scopedCandidates narrows refCandidatesOfTypeName by GO'S LEXICAL RULE: when the unqualified
+// name is declared in the current package, that declaration is the ONLY candidate, because a dot
+// import cannot reach past a local declaration.
+//
+// It exists because the rule had grown three implementations -- typeExprIn checked `structs`,
+// ownerRef checked a locally-built predicate, and the construction walk's alias fallback checked
+// nothing, so a local defined type was resolved through a dot-imported alias of the owner. Three
+// copies of one rule is three chances for one of them to be missing, and the missing one is the
+// defect. Consumers now differ only in what they do with the candidates, never in how scoping is
+// applied.
+//
+// `declared` names every type declared per directory, struct or not: a local ALIAS or defined type
+// shadows exactly as a local struct does. A nil map means declarations were not collected, and
+// scoping is then not applied -- the pre-existing behaviour, so a family that does not collect
+// them is unaffected.
+func scopedCandidates(t ast.Expr, dir string, imports map[string]string, modulePath string,
+	declared map[typeRef]bool) []typeRef {
+
+	cands := refCandidatesOfTypeName(t, dir, imports, modulePath)
+	if declared == nil || len(cands) == 0 {
+		return cands
+	}
+	if declared[cands[0]] {
+		return cands[:1]
+	}
+	return cands
+}
+
+// dotImportDirs lists the repository-relative directories a file dot-imports, sorted so
+// resolution never depends on map iteration order.
+func dotImportDirs(imports map[string]string, modulePath string) []string {
+	if modulePath == "" {
+		return nil
+	}
+	var out []string
+	for key, importPath := range imports {
+		if !strings.HasPrefix(key, ".") {
+			continue
+		}
+		if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
+			continue
+		}
+		out = append(out, cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/")))
+	}
+	// Sorted, so resolution never depends on map iteration order.
+	sort.Strings(out)
+	return out
+}
+
+// directTypeRefOf resolves only a BARE type name -- an identifier or a qualified identifier,
+// possibly parenthesised. It deliberately refuses a pointer, slice, array or map type, because
+// `var x *T`, `var xs []T` and `new(*T)` construct no T: they create a nil pointer or an empty
+// container. refOfTypeName strips a star, which is right for binding a field access and wrong
+// for counting a construction.
+func directTypeRefOf(t ast.Expr, dir string, imports map[string]string, modulePath string) ([]typeRef, bool) {
+	switch t.(type) {
+	case *ast.ParenExpr:
+		return directTypeRefOf(t.(*ast.ParenExpr).X, dir, imports, modulePath)
+	case *ast.Ident, *ast.SelectorExpr:
+		return refCandidatesOfTypeName(t, dir, imports, modulePath), true
+	}
+	return nil, false
+}
+
+// refOfTypeName resolves a type NAME to the directory and identifier that declare it,
+// without asking whether that declaration was found. It is the naming rule alone, split
+// out from typeExprIn so that a caller needing to resolve a name that is deliberately NOT
+// a struct -- a type alias, a named slice/map type -- reads the same rule rather than a
+// second copy of it that could drift.
+//
+// A composite type (slice, array, map, func, chan) has no name of its own and resolves to
+// nothing; its ELEMENT may, and that is the caller's business, not this function's.
+func refOfTypeName(t ast.Expr, dir string, imports map[string]string, modulePath string) (typeRef, bool) {
+	switch x := t.(type) {
+	case *ast.StarExpr:
+		return refOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.ParenExpr:
+		return refOfTypeName(x.X, dir, imports, modulePath)
+	case *ast.Ident:
+		return typeRef{dir, x.Name}, true
 	case *ast.SelectorExpr:
 		pkg, ok := x.X.(*ast.Ident)
 		if !ok {
 			return typeRef{}, false
 		}
 		importPath, ok := imports[pkg.Name]
-		if !ok || r.modulePath == "" {
+		if !ok || modulePath == "" {
 			return typeRef{}, false
 		}
-		if importPath != r.modulePath && !strings.HasPrefix(importPath, r.modulePath+"/") {
+		if importPath != modulePath && !strings.HasPrefix(importPath, modulePath+"/") {
 			return typeRef{}, false
 		}
-		ref := typeRef{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, r.modulePath), "/")), x.Sel.Name}
-		if _, ok := r.structs[ref]; ok {
-			return ref, true
-		}
-		return typeRef{}, false
-	case *ast.ArrayType:
-		return typeRef{}, false
+		return typeRef{cleanDir(strings.TrimPrefix(strings.TrimPrefix(importPath, modulePath), "/")), x.Sel.Name}, true
 	}
 	return typeRef{}, false
 }
@@ -573,6 +693,15 @@ func importsOf(f *ast.File) map[string]string {
 		alias := path.Base(p)
 		if imp.Name != nil {
 			alias = imp.Name.Name
+		}
+		if alias == "." {
+			// EVERY dot import, not the last one. Go allows several, and keying them all under
+			// "." meant each overwrote the previous, so an unqualified name from any but the
+			// final dot-imported package resolved nowhere and its constructions were invisible.
+			// Keyed by PATH, which no Go identifier can collide with because an alias never
+			// starts with a dot.
+			out["."+p] = p
+			continue
 		}
 		out[alias] = p
 	}
