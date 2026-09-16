@@ -151,10 +151,10 @@ func TestADomainGenerationRefusesANoncanonicalDomain(t *testing.T) {
 	for _, domain := range []string{
 		"",
 		"   ",
-		"GitHub.com/globulario/sensei-code",         // case
+		"GitHub.com/globulario/sensei-code", // case
 		"https://github.com/globulario/sensei-code", // scheme
-		"github.com",                                // host with no path
-		"github.com/globulario/sensei-code?x=1",     // query
+		"github.com",                            // host with no path
+		"github.com/globulario/sensei-code?x=1", // query
 	} {
 		if id, err := DomainGeneration(domain, testDigest); err == nil {
 			t.Fatalf("domain %q was accepted and produced %s", domain, id)
