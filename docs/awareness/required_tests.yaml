@@ -2261,3 +2261,8 @@ required_tests:
         - ledger.verification_is_total
       failure_modes:
         - failure.sensei.a_files_slice_index_read_against_the_entries_slice_panics_th
+  - id: golang/architecture/ledger/damaged_history_test.go:TestTailTruncationIsAnErrorNotAWarning
+    title: Tail truncation invalidates the chain rather than warning about it
+    protects:
+      invariants:
+        - ledger.absence_requires_established_completeness
