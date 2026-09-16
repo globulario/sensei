@@ -24438,6 +24438,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "A ledger that exists but cannot be verified cannot prove the cache is\ncurrent. The two errors are not symmetric: a needless rebuild costs time,\nwhile a wrongly served cache shows an operator a demand the authority has\nalready terminated."
+  - id: golang/architecture/tasksession/control_cache_overlay_wiring_witness_test.go:TestCacheOverlayPassesTheGovernedDispositionToTheSelector
+    file: golang/architecture/tasksession/control_cache_overlay_wiring_witness_test.go
+    symbol: TestCacheOverlayPassesTheGovernedDispositionToTheSelector
+    package: tasksession
+    language: go
+    doc: "Witness for Antigravity chunk test-c P2 on ede08ebe. TestGovernanceDispositionReachesTheSelector\ncannot fail: its fixture's open architect question wins selection before governed selection is read,\nand replacing the governed disposition with an empty one at control.go (W1: :349/:666, W2: :701) left the\nwhole package green. refreshCachedEvaluation takes the cached projection as a parameter by design (it\nre-derives only what the ledger can invalidate), so a cached state with nothing ahead of the governed\nbranch shows whether the ledger's disposition actually reaches the selector."
   - id: golang/architecture/tasksession/damaged_history_test.go:TestAnArtifactLessAdmissionConsumedCannotBeAppended
     file: golang/architecture/tasksession/damaged_history_test.go
     symbol: TestAnArtifactLessAdmissionConsumedCannotBeAppended
@@ -24635,6 +24641,24 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestLoadCurrentStateSingleSnapshotNoMixedWorld proves the current-state reader\nuses ONE verified snapshot for both head and phase. An append lands after the\nsnapshot (a competing writer advancing to scope_verified); the reconstruction\nmust reflect the pre-append head AND the pre-append phase together — never a\nchimera of head-from-after with phase-from-before."
+  - id: golang/architecture/tasksession/governance_observed_witness_test.go:TestAnObservedMutationFoldsToScopeVerificationNotAdmitted
+    file: golang/architecture/tasksession/governance_observed_witness_test.go
+    symbol: TestAnObservedMutationFoldsToScopeVerificationNotAdmitted
+    package: tasksession
+    language: go
+    doc: "An observed mutation is DOWNSTREAM of the spent capability, and the fold must\nsay so. change_observed is read before admission_consumed in foldGovernance;\nreversing that order, or dropping the branch, projects \"admitted\" for a task\nwhose mutation already happened, and the next action becomes reconciliation\ninstead of scope verification.\n\nFound by adversarial review of aa9e8dd2: the reviewer's claim that the branch\nwas missing was false, but deleting it left the whole package green. This is\nthe witness that deletion now has to get past, built on a real ledger chain\nrather than a hand-constructed governanceState."
+  - id: golang/architecture/tasksession/governance_refused_projection_witness_test.go:TestRefusedTypedDecisionPublishesRefusedNotWaiting
+    file: golang/architecture/tasksession/governance_refused_projection_witness_test.go
+    symbol: TestRefusedTypedDecisionPublishesRefusedNotWaiting
+    package: tasksession
+    language: go
+    doc: "Witness for Antigravity chunk prod-a P2 on ede08ebe. A typed task whose unused\ncapability expired folds to refused; its published permission must say refused, not waiting,\nwhile a SPENT capability keeps publishing waiting."
+  - id: golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go:TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
+    file: golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go
+    symbol: TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
+    package: tasksession
+    language: go
+    doc: "Witness for Antigravity chunk prod-a P1 on ede08ebe. A capability spent INSIDE its\nwindow must not be repudiated once the window closes: expiry withholds a NEW grant, it does\nnot un-spend a recorded one. foldGovernance applies the temporal check before the consumption\nand observation branches."
   - id: golang/architecture/tasksession/governance_test.go:TestAdvanceTaskAfterScopeVerificationIsStable
     file: golang/architecture/tasksession/governance_test.go
     symbol: TestAdvanceTaskAfterScopeVerificationIsStable
@@ -24878,6 +24902,12 @@ test_symbols:
     package: tasksession
     language: go
     doc: "TestTheLockIsReleasedSoNormalSequencingStillWorks: the exclusion must be a\nwindow, not a wall."
+  - id: golang/architecture/tasksession/prepare_unreadable_decision_witness_test.go:TestUnreadableDecisionDoesNotPublishTheHistoricalGrant
+    file: golang/architecture/tasksession/prepare_unreadable_decision_witness_test.go
+    symbol: TestUnreadableDecisionDoesNotPublishTheHistoricalGrant
+    package: tasksession
+    language: go
+    doc: "Witness for Antigravity chunk prod-b P2 on ede08ebe. resultFromSession publishes\nPrepareResult.Modify as CURRENT permission and says it must come from the sole owner. When the\ncurrent decision cannot be loaded, the err==nil guard skips the owner entirely and the session's\nHISTORICAL MutationCapability and NextActions are published instead."
   - id: golang/architecture/tasksession/rename_synthesis_test.go:TestChangePlanFromScopeNeverEmitsRename
     file: golang/architecture/tasksession/rename_synthesis_test.go
     symbol: TestChangePlanFromScopeNeverEmitsRename

@@ -2271,3 +2271,8 @@ required_tests:
     protects:
       invariants:
         - taskcontrol.generation_pointer_confined_to_its_task
+  - id: golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go:TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
+    title: A capability spent inside its window is not refused after expiry
+    protects:
+      invariants:
+        - governance.expiry_withholds_a_grant_it_does_not_repudiate_a_spend

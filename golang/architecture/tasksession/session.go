@@ -1696,7 +1696,14 @@ func resultFromSession(repoRoot, taskRoot string, s Session, disposition string)
 	// public field is left in place for auditability.
 	modify := s.MutationCapability
 	next := firstNext(s)
-	if decision, err := loadCurrentAdmissionDecision(taskRoot); err == nil {
+	if decision, err := loadCurrentAdmissionDecision(taskRoot); err != nil {
+		// The current decision cannot be read, so nothing here can establish what
+		// the sole owner would publish. Falling back to the session's HISTORICAL
+		// grant and instruction is exactly the fail-open this function exists to
+		// prevent: publish no grant and no mutation instruction.
+		modify = admission.CapabilityWaiting
+		next = NextAction{Action: NextAdvanceConverge, Reference: s.TaskID}
+	} else {
 		perm, permErr := resolveMutationPermission(taskRoot, decision, time.Now().UTC())
 		switch {
 		case permErr != nil:
