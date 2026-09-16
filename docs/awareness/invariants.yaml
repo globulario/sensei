@@ -2340,3 +2340,13 @@ invariants:
     required_tests:
       - golang/architecture/tasksession/generation_containment_test.go:TestAGenerationPointerOutsideTheTaskDirectoryIsRefused
     contract: currentControlPaths accepts a generation pointer only when the resolved root is contained in <taskDir>/control AND is named by the recorded digest
+  - id: governance.expiry_withholds_a_grant_it_does_not_repudiate_a_spend
+    title: A capability expiry withholds a new grant; it never repudiates a recorded spend
+    status: active
+    description: Applying the expiry before the consumed and observed branches made a capability spent INSIDE its window fold to refused once the window closed, and an observed mutation did too. Expiry governs whether a NEW grant exists now; it cannot un-spend a receipt already recorded. The spend's own window stays enforced where it belongs, by consumptionBinds against the receipt's recorded ConsumedAt.
+    protects:
+      files:
+        - golang/architecture/tasksession/governance.go
+    required_tests:
+      - golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go:TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
+    contract: foldGovernance checks the TIME-INDEPENDENT binding before any downstream branch, and the temporal binding only on the branch that grants

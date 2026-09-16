@@ -201,7 +201,13 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 		// admit-change; no mutation is granted here.
 		return governanceState{Phase: closureprotocol.PhaseReadyForAdmission, Status: StatusReadyForAdmission, Resolved: true}, nil
 	}
-	if !recordedDecisionBinds(dec, rec, now) {
+	// The decision must be THIS task's decision before anything downstream of it
+	// is believed -- but only the TIME-INDEPENDENT half, here. A capability spent
+	// inside its window, or a mutation observed under it, is not repudiated when
+	// the window later closes: expiry withholds a NEW grant, it does not un-spend
+	// a recorded one. The spend's own window is enforced where it belongs, by
+	// consumptionBinds, against the receipt's recorded ConsumedAt.
+	if !decisionBindsRecord(dec, rec) {
 		return governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: true}, nil
 	}
 
@@ -227,6 +233,12 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 			return governanceState{}, err
 		}
 		return governanceState{Phase: closureprotocol.PhaseAdmitted, Status: StatusAdmitted, Resolved: true}, nil
+	}
+	// TEMPORAL half: a NEW grant exists only while the capability is live NOW.
+	// This is the only branch that grants anything, so it is the only branch the
+	// expiry governs.
+	if !recordedDecisionBinds(dec, rec, now) {
+		return governanceState{Phase: closureprotocol.PhaseRefused, Status: StatusRefused, Resolved: true}, nil
 	}
 	return governanceState{
 		Phase:       closureprotocol.PhaseAdmitted,
@@ -743,10 +755,17 @@ func resolveMutationPermission(taskDir string, decision admission.Decision, now 
 				GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityAvailable: true, Disposition: lifecycleDisposition(gov, gov.Resolved)},
 			}, nil
 		}
-		// No NEW capability. Deliberately not Refused: a consumed capability is
-		// spent, not repudiated.
+		// No NEW capability. A consumed capability is spent, not repudiated, so it
+		// publishes waiting. A decision the fold REFUSED -- one that does not bind
+		// this task, or whose unused capability expired -- publishes refused:
+		// "waiting" beside a Next of "no legal advance" asserts a grant may still
+		// come when none can.
+		capability := admission.CapabilityWaiting
+		if gov.Status == StatusRefused {
+			capability = admission.CapabilityRefused
+		}
 		return MutationPermission{
-			Capability:       admission.CapabilityWaiting,
+			Capability:       capability,
 			LedgerDerived:    true,
 			Disposition:      gov,
 			GovernedMutation: taskcontrol.GovernedMutationDisposition{Governed: true, CapabilityConsumed: gov.Status == StatusAdmitted, Disposition: lifecycleDisposition(gov, gov.Resolved)},
