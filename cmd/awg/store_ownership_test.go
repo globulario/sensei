@@ -298,7 +298,7 @@ func TestTheBuildWiringUsesTheSelectedRegistryAndFailsClosed(t *testing.T) {
 		}
 	}
 	// 2. The ownership check must not be skipped when the registry cannot load.
-	if strings.Contains(src, "LoadDomainRegistry(buildRegistryPath(*domainRegistry)); rerr == nil {") {
+	if strings.Contains(src, "LoadDomainRegistry(ownershipRegistry.Path()); rerr == nil {") {
 		t.Error("a registry that cannot be read SKIPS the ownership check; a malformed registry must refuse, as LoadDomainRegistry's own validation does")
 	}
 	// 3. The scoped path publishes under *repo, so that is the domain the check must see.

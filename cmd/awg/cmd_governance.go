@@ -659,7 +659,7 @@ func runGovernanceActivate(args []string) int {
 	// ONE activation transition (G4). The governance pack has its own richer activation
 	// record below; what it must not have is its own way of publishing the marker, since
 	// that is the file every reader consults.
-	if err := activateGeneration(os.Stdout, markerPath, marker, "", DefaultDomainRegistryPath()); err != nil {
+	if err := activateGeneration(os.Stdout, markerPath, marker, "", selectDomainRegistry("")); err != nil {
 		appendGovernanceFailureLog(logPath, prevActive, &verified, governancepack.FailureActivationIncomplete, err.Error(), err)
 		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1

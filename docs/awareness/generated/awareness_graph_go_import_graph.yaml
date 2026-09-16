@@ -60,6 +60,7 @@ components:
       - cmd/awg/bootstrap_candidates.go
       - cmd/awg/bootstrap_extract.go
       - cmd/awg/boundary_extract.go
+      - cmd/awg/build_domain_kind.go
       - cmd/awg/build_transaction.go
       - cmd/awg/builtin_skills.go
       - cmd/awg/cmd_abandon_task.go
@@ -192,6 +193,7 @@ components:
       - cmd/awg/domain_registry_lock.go
       - cmd/awg/domain_registry_lock_unix.go
       - cmd/awg/domain_registry_lock_windows.go
+      - cmd/awg/domain_registry_selection.go
       - cmd/awg/endpoint_binding.go
       - cmd/awg/factextract_adapter.go
       - cmd/awg/gate_policy.go

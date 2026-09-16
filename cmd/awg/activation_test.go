@@ -49,7 +49,7 @@ func TestActivationWritesTheMarkerAndRecordsThePointer(t *testing.T) {
     active_generation: 000000000000
 `)
 	var out bytes.Buffer
-	if err := activateGeneration(&out, markerPath, testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", registry); err != nil {
+	if err := activateGeneration(&out, markerPath, testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", selectDomainRegistry(registry)); err != nil {
 		t.Fatalf("activateGeneration: %v", err)
 	}
 	m, err := seedmeta.ReadMarkerFile(markerPath)
@@ -79,7 +79,7 @@ func TestAFailedMarkerWriteLeavesThePointerAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := activateGeneration(&out, filepath.Join(blocker, "graph-authority.json"),
-		testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", registry)
+		testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", selectDomainRegistry(registry))
 	if err == nil {
 		t.Fatal("a marker that could not be written reported success")
 	}
@@ -95,7 +95,7 @@ func TestActivationWithoutADomainSaysThePointerWasNotUpdated(t *testing.T) {
 	root := projectRoot(t, t.TempDir())
 	markerPath := filepath.Join(root, ".sensei", "graph-authority.json")
 	var out bytes.Buffer
-	if err := activateGeneration(&out, markerPath, testMarker("c0b660fcaaaa", 10), "", ""); err != nil {
+	if err := activateGeneration(&out, markerPath, testMarker("c0b660fcaaaa", 10), "", selectDomainRegistry("")); err != nil {
 		t.Fatalf("activateGeneration: %v", err)
 	}
 	if _, err := seedmeta.ReadMarkerFile(markerPath); err != nil {
@@ -123,7 +123,7 @@ func TestActivationReportsWhatItDid(t *testing.T) {
 `)
 	var out bytes.Buffer
 	if err := activateGeneration(&out, filepath.Join(root, ".sensei", "graph-authority.json"),
-		testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", registry); err != nil {
+		testMarker("c0b660fcaaaa", 10), "example.com/acme/thing", selectDomainRegistry(registry)); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()

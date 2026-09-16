@@ -580,7 +580,7 @@ func TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain(t *testing.
 			":\n        repository_identity: acme/generation\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, registry); err != nil {
+		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, selectDomainRegistry(registry)); err != nil {
 			t.Fatalf("activateGeneration: %v", err)
 		}
 		if got := read(registry, catCDomain); got != gen {
@@ -594,7 +594,7 @@ func TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain(t *testing.
 		if err := os.WriteFile(registry, []byte("domains: {}\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, registry); err != nil {
+		if err := activateGeneration(io.Discard, filepath.Join(dir, "marker.json"), marker, catCDomain, selectDomainRegistry(registry)); err != nil {
 			t.Fatalf("activateGeneration: %v", err)
 		}
 		if got := read(registry, catCDomain); got != "" {
@@ -614,7 +614,7 @@ func TestActivateGenerationRecordsThePointerOnlyForARegisteredDomain(t *testing.
 			t.Fatal(err)
 		}
 		var buf bytes.Buffer
-		if err := activateGeneration(&buf, filepath.Join(dir, "marker.json"), marker, "", registry); err != nil {
+		if err := activateGeneration(&buf, filepath.Join(dir, "marker.json"), marker, "", selectDomainRegistry(registry)); err != nil {
 			t.Fatalf("activateGeneration: %v", err)
 		}
 		if got := read(registry, catCDomain); got != "" {

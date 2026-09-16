@@ -175,17 +175,6 @@ func (r *DomainRegistry) validateStoreOwnership() error {
 		"Give each domain its own store.", strings.Join(problems, "\n  "))
 }
 
-// buildRegistryPath resolves the registry a build consults: the flag when given, else the
-// operator's default. Extracted so the pre-mutation store-ownership check and the
-// pre-mutation admission check cannot end up reading two different registries — which
-// would let one of them vouch for a world the other never saw.
-func buildRegistryPath(flagValue string) string {
-	if p := strings.TrimSpace(flagValue); p != "" {
-		return p
-	}
-	return DefaultDomainRegistryPath()
-}
-
 // publishedDomain is the domain a build is publishing FOR.
 //
 // The scoped publication path is selected by --repo and passes that value as the domain;

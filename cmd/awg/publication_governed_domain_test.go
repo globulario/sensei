@@ -73,7 +73,7 @@ func TestTaggingKindMustNotBecomeThePublishedGovernedDomain(t *testing.T) {
 	const gen = "7777777777777777777777777777777777777777777777777777777777777777"
 	marker := seedmeta.Marker{Digest: gen, IRI: "urn:sensei:graph:" + gen, TripleCount: 99}
 	var notice bytes.Buffer
-	if err := activateGeneration(&notice, filepath.Join(dir, "marker.json"), marker, got, registry); err != nil {
+	if err := activateGeneration(&notice, filepath.Join(dir, "marker.json"), marker, got, selectDomainRegistry(registry)); err != nil {
 		t.Fatalf("activateGeneration: %v", err)
 	}
 	reg, err := LoadDomainRegistry(registry)
