@@ -28,6 +28,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/globulario/sensei/golang/graphgeneration"
+	"github.com/globulario/sensei/golang/seedmeta"
 	"github.com/globulario/sensei/golang/store/oxigraph"
 )
 
@@ -282,6 +284,130 @@ func TestIntegration_UnionReadsWouldExposeInFlightStagingGraphs(t *testing.T) {
 					"so this test no longer demonstrates the hazard")
 			}
 		})
+	}
+}
+
+// ONE STORE GENERATION CANNOT BE THE IDENTITY OF TWO DOMAIN GRAPHS.
+//
+// This is the coincidence the typed identity split exists to remove, measured
+// against a real store rather than argued about. A store serving ONE domain
+// makes the whole-store digest and that domain's digest equal, so a reader that
+// answered a domain question with the store's generation was correct — and every
+// test such a store can write passes. Put a second domain in and the two answers
+// separate, with nothing in the old shape to notice.
+//
+// Proving it here rather than on a fixture matters because the digests come from
+// bytes a real Oxigraph actually served from two real graph slots.
+func TestIntegration_OneStoreGenerationCannotIdentifyTwoDomainGraphs(t *testing.T) {
+	queryURL := startPrivateOxigraph(t, false)
+	c, err := oxigraph.New(queryURL)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	ctx := context.Background()
+
+	const (
+		sensei   = "github.com/globulario/sensei"
+		services = "github.com/globulario/services"
+	)
+	if err := c.LoadGraph(ctx, sensei, strings.NewReader(triple("https://ex.org/inv.a", "TestFromSensei"))); err != nil {
+		t.Fatalf("publish sensei: %v", err)
+	}
+	if err := c.LoadGraph(ctx, services, strings.NewReader(triple("https://ex.org/inv.b", "TestFromServices"))); err != nil {
+		t.Fatalf("publish services: %v", err)
+	}
+
+	senseiNT, err := c.ExportDomainGraph(ctx, sensei)
+	if err != nil {
+		t.Fatalf("export sensei: %v", err)
+	}
+	servicesNT, err := c.ExportDomainGraph(ctx, services)
+	if err != nil {
+		t.Fatalf("export services: %v", err)
+	}
+
+	_, senseiMarker := seedmeta.AppendMarker(senseiNT)
+	_, servicesMarker := seedmeta.AppendMarker(servicesNT)
+	if senseiMarker.Digest == servicesMarker.Digest {
+		t.Fatalf("two different domain graphs digested identically (%s); this test can no longer "+
+			"distinguish a per-domain identity from a shared one", senseiMarker.Digest)
+	}
+
+	// A whole-store generation cannot answer for either of them. Note the store
+	// digest is deliberately set to sensei's OWN digest below: even at the
+	// value that matches byte-for-byte, the scope refuses.
+	store := graphgeneration.StoreGeneration(senseiMarker.Digest)
+	want, err := graphgeneration.DomainGeneration(sensei, senseiMarker.Digest)
+	if err != nil {
+		t.Fatalf("domain generation: %v", err)
+	}
+	if err := store.Satisfies(want); err == nil {
+		t.Fatal("a whole-store generation answered for one domain's graph because their digests matched; " +
+			"on a two-domain store that is how one domain's identity comes to certify another's bytes")
+	}
+
+	// And one domain's identity cannot answer for the other's.
+	otherWant, err := graphgeneration.DomainGeneration(services, servicesMarker.Digest)
+	if err != nil {
+		t.Fatalf("domain generation: %v", err)
+	}
+	if err := want.Satisfies(otherWant); err == nil {
+		t.Fatal("one domain's generation satisfied a request for another domain's graph")
+	}
+}
+
+// A DOMAIN'S GRAPH CARRIES NO IDENTITY OF ITS OWN, so none can be read back.
+//
+// The seed marker is a WHOLE-STORE fact and publication writes it into the
+// DEFAULT graph. A domain's named graph therefore holds content and nothing that
+// says which generation that content is — which is precisely why the server
+// refuses to certify a per-domain export today, and why inventing a digest for
+// one here would be the service declaring an identity nobody published.
+//
+// THIS TEST IS A TRIPWIRE. When publication learns to write a domain's graph
+// under that domain's own authority, a marker WILL appear in the domain's slot
+// and this test must fail. That failure is the signal to revisit the reader —
+// not a reason to loosen the assertion.
+func TestIntegration_ADomainGraphCarriesNoIdentityOfItsOwn(t *testing.T) {
+	queryURL := startPrivateOxigraph(t, false)
+	c, err := oxigraph.New(queryURL)
+	if err != nil {
+		t.Fatalf("new: %v", err)
+	}
+	ctx := context.Background()
+
+	const domain = "github.com/globulario/sensei"
+
+	// The store as publication actually leaves it: the whole-store marker in the
+	// DEFAULT graph, the domain's content in its named graph.
+	stamped, storeMarker := seedmeta.AppendMarker([]byte(triple("https://ex.org/inv.default", "TestDefault")))
+	if err := c.Load(ctx, strings.NewReader(string(stamped))); err != nil {
+		t.Fatalf("load default graph: %v", err)
+	}
+	if err := c.LoadGraph(ctx, domain, strings.NewReader(triple("https://ex.org/inv.x", "TestX"))); err != nil {
+		t.Fatalf("publish domain: %v", err)
+	}
+
+	// The marker exists, and it is in the default graph — claimed by no domain.
+	inNamedGraphs := countMatching(t, queryURL, `SELECT ?g ?s WHERE { GRAPH ?g { ?s ?p ?o } }`)
+	if strings.Contains(inNamedGraphs, "seedBuild") {
+		t.Fatalf("the whole-store marker was found inside a named graph; it certifies the store, not one domain:\n%s", inNamedGraphs)
+	}
+	if strings.TrimSpace(storeMarker.Digest) == "" {
+		t.Fatal("the fixture produced no store marker, so it proves nothing about where one lives")
+	}
+
+	// So the domain's own graph has content but states no generation.
+	nt, err := c.ExportDomainGraph(ctx, domain)
+	if err != nil {
+		t.Fatalf("export domain: %v", err)
+	}
+	if len(strings.TrimSpace(string(nt))) == 0 {
+		t.Fatal("the domain's graph is empty, so the absence of an identity in it proves nothing")
+	}
+	if marker, ok := seedmeta.ParseMarker(nt); ok {
+		t.Fatalf("the domain's graph now carries its own identity (%s). Publication has begun proving "+
+			"domain attribution — revisit GetDomainGraph's resolver rather than relaxing this test", marker.Digest)
 	}
 }
 

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/globulario/sensei/golang/graphgeneration"
 	awarenesspb "github.com/globulario/sensei/golang/pb"
 	"github.com/globulario/sensei/golang/seedmeta"
 )
@@ -86,31 +87,59 @@ func (s *server) GetDomainGraph(ctx context.Context, req *awarenesspb.GetDomainG
 			snap.verification.State, snap.verification.Detail)
 	}
 
+	// THE IDENTITY THIS EXPORT MUST BE CERTIFIED AGAINST IS THE DOMAIN'S, NOT THE
+	// STORE'S.
+	//
+	// This originally compared the exported bytes against the served WHOLE-STORE
+	// generation. On a single-domain store that comparison passes, because the
+	// store's only content is that domain's — so the check was correct by
+	// coincidence and would have started certifying one domain's graph against
+	// another's identity as soon as a second domain existed.
+	//
+	// Asking for the domain's own generation makes the coincidence impossible to
+	// rely on: a whole-store answer cannot satisfy a domain-scoped question even
+	// when the two digests are byte-identical.
+	//
+	// Today no domain-scoped generation is established for anyone, so this refuses
+	// for every domain. That is the true state of the system rather than a
+	// regression: publication promotes into the default graph and never writes a
+	// domain's graph under that domain's authority, so there is nothing that could
+	// honestly certify a per-domain export. The refusal names that, so an operator
+	// reads the migration's state instead of guessing at a misconfiguration.
+	declared, established, why := s.resolveDomainGeneration(ctx, domain)
+	if !established {
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"no domain-scoped generation is published for %s, so no export of its graph can be certified: %s",
+			domain, why)
+	}
+
 	nt, err := exporter.ExportDomainGraph(ctx, domain)
 	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition, "the graph for %s could not be materialized: %v", domain, err)
 	}
 
-	// The identity is RECOMPUTED from the bytes being returned, with the same
-	// rules that produced the served digest: canonicalize, strip the marker,
-	// hash. A digest copied from the freshness snapshot would describe what the
-	// server believes rather than what the caller is about to receive.
+	// The identity is RECOMPUTED from the bytes being returned: canonicalize,
+	// strip the marker, hash. A digest copied from a record would describe what
+	// the server believes rather than what the caller is about to receive.
 	_, recomputed := seedmeta.AppendMarker(nt)
-	if !strings.EqualFold(strings.TrimSpace(recomputed.Digest), served) {
-		// The store's whole-graph identity and this domain's slice legitimately
-		// differ on a multi-domain store. Saying so is the honest answer: this
-		// server cannot certify that the slice it just read IS the graph whose
-		// identity it reports, and inventing a per-slice generation here would be
-		// this service declaring an identity nobody published.
+	exported, err := graphgeneration.DomainGeneration(domain, recomputed.Digest)
+	if err != nil {
 		return nil, status.Errorf(codes.FailedPrecondition,
-			"the exported graph for %s digests to %s and this server serves generation %s; "+
-				"an export is certified only when they are the same graph",
-			domain, recomputed.Digest, served)
+			"the exported graph for %s could not be given a domain-scoped identity: %v", domain, err)
+	}
+	if err := exported.Satisfies(declared); err != nil {
+		// Scope, domain and digest are each refused by their own message, because
+		// "you are holding another domain's graph" and "you are holding an older
+		// generation of this one" have different remedies.
+		return nil, status.Errorf(codes.FailedPrecondition,
+			"the exported graph for %s is not the generation published for it; "+
+				"an export is certified only when they are the same graph: %v",
+			domain, err)
 	}
 
 	return &awarenesspb.GetDomainGraphResponse{
 		Domain:      domain,
-		Generation:  served,
+		Generation:  declared.Digest,
 		GraphDigest: recomputed.Digest,
 		TripleCount: recomputed.TripleCount,
 		Format:      "ntriples",

@@ -148,6 +148,17 @@ type server struct {
 	// set it, and only to declare their own synthetic publication closed.
 	closureEval func(domain string) (closure.SemanticState, string)
 
+	// domainGeneration overrides how this server resolves the DOMAIN-scoped
+	// generation of one publication domain. Nil means "read the store's
+	// publication record", which is the production path and today establishes no
+	// domain-scoped identity for any domain — see domain_generation.go.
+	//
+	// A field rather than a package global, for the same reason feedbackMapper
+	// is one: a test can supply a domain identity without mutating shared state,
+	// so the reader's full contract stays exercised under parallel tests while
+	// the production path continues to refuse.
+	domainGeneration domainGenerationResolver
+
 	// awarenessDir is the source docs/awareness directory. When set, the Propose
 	// RPC writes agent-submitted candidates under <awarenessDir>/candidates/.
 	// Empty disables the write path (Propose returns Unavailable) — the default,
