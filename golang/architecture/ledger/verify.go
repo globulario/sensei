@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/globulario/sensei/golang/architecture/closureprotocol"
 )
@@ -29,6 +30,20 @@ func verifyTaskLedger(ctx context.Context, taskDir string, validator PayloadVali
 	}
 	report.Valid = len(report.Errors) == 0
 	return report, nil
+}
+
+// headEntryStillOnDisk reports whether the entry HEAD names is present.
+//
+// It is the seam that gives a HEAD/chain disagreement its direction. An empty EntryPath is
+// read as PRESENT: a HEAD that records no path makes no claim about a specific file, and a
+// corrupted HEAD file is recoverable from the chain rather than evidence against it.
+func headEntryStillOnDisk(taskDir string, head Head) bool {
+	rel := strings.TrimSpace(head.EntryPath)
+	if rel == "" {
+		return true
+	}
+	_, err := os.Stat(filepath.Join(taskDir, filepath.FromSlash(rel)))
+	return err == nil
 }
 
 func loadVerifiedChain(ctx context.Context, taskDir string, validator PayloadValidator) (VerifiedChain, error) {
@@ -157,34 +172,38 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			// DISAGREEMENT BETWEEN HEAD AND THE CHAIN HAS A DIRECTION, and the two directions
 			// are different facts with different remedies.
 			//
-			// The discriminator is the SEQUENCE, not the digest. A HEAD that names a digest the
-			// chain does not contain may be either a truncated chain or simply a damaged HEAD,
-			// and those need opposite remedies; what separates them is whether HEAD claims MORE
-			// entries than the chain holds.
+			// The discriminator is whether THE ENTRY HEAD NAMES IS STILL ON DISK -- HEAD's own
+			// claim, tested directly. Neither digest membership nor a length comparison works:
 			//
-			// BEHIND OR DAMAGED: head.Sequence <= len(entries). An append writes the entry and
-			// then updates HEAD, so an interrupted append leaves HEAD naming an earlier entry;
-			// a corrupted HEAD file names nonsense at a low sequence. In both the chain holds at
-			// least as much as HEAD claims, so the chain is the authority and HEAD is rebuilt
-			// from it. This stays a warning, or every crashed append and every damaged HEAD
-			// becomes an unrecoverable task.
+			//   - membership: a corrupted HEAD also names a digest the chain lacks, so requiring
+			//     membership turns every damaged HEAD into an unrecoverable task (caught by
+			//     resultrecording's TestStaleHeadRecovery);
+			//   - length: a reader that does not hold the append lock can list the directory
+			//     BEFORE an entry lands and read HEAD AFTER it updates, so head.Sequence briefly
+			//     exceeds the entries it saw. That torn read is transient and the entry is on
+			//     disk the whole time -- counting cannot tell it from a deletion, and eight
+			//     concurrent writers reproduce it.
 			//
-			// LOST: head.Sequence > len(entries). HEAD attests to entries the chain does not
-			// have, and nothing but a deletion produces that. A truncated chain is a valid
-			// PREFIX -- every sequence link and previous-digest check is satisfied -- so HEAD is
-			// the ONLY witness that the chain was ever longer, and recording that witness as a
-			// warning made it invisible:
+			// PRESENT: the entry HEAD names exists. Whatever the disagreement -- an interrupted
+			// append, a corrupted HEAD, a listing taken a moment too early -- the chain holds
+			// what HEAD attests to, so the chain is the authority and HEAD is rebuilt from it.
+			// This stays a warning, or every crashed append becomes an unrecoverable task.
+			//
+			// GONE: HEAD names an entry that is not there. Nothing but a deletion produces that.
+			// A truncated chain is a valid PREFIX -- every sequence link and previous-digest
+			// check is satisfied -- so HEAD is the ONLY witness that the chain was ever longer,
+			// and recording that witness as a warning made it invisible:
 			// report.Valid is len(report.Errors) == 0, and no caller in the governance path
 			// inspects warnings. One deletion then let a reader see genuine ABSENCE of an event
 			// and reconstruct authority that event had already spent.
 			//
 			// Integrity checks verify LINKS, not LENGTH. This is the length check.
-			if head.Sequence <= len(out.Entries) {
+			if headEntryStillOnDisk(taskDir, head) {
 				report.Warnings = append(report.Warnings, VerificationWarning{Code: "ledger.head_stale", Detail: "HEAD does not match verified last entry", Path: filepath.ToSlash(s.headPath())})
 			} else {
 				report.Errors = append(report.Errors, VerificationError{
 					Code:   "ledger.head_not_in_chain",
-					Detail: fmt.Sprintf("HEAD attests to sequence %d but the chain holds %d entries: history is incomplete, not merely stale", head.Sequence, len(out.Entries)),
+					Detail: fmt.Sprintf("HEAD attests to entry %s at sequence %d, which is no longer on disk: history is incomplete, not merely stale", head.EntryDigestSHA256, head.Sequence),
 					Path:   filepath.ToSlash(s.headPath()),
 				})
 			}

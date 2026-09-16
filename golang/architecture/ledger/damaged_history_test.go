@@ -157,3 +157,37 @@ func TestAHeadNamingAnUnknownDigestBelowTheChainLengthStaysRecoverable(t *testin
 			"corrupted HEAD an unrecoverable task: %+v", report.Errors)
 	}
 }
+
+// THE TORN READ. HEAD AHEAD OF THE ENTRIES A READER SAW IS NOT TRUNCATION.
+//
+// A reader that does not hold the append lock can list the ledger directory BEFORE an entry
+// lands and read HEAD AFTER it is published, so head.Sequence briefly exceeds the entries that
+// listing contains. The entry is on disk the whole time.
+//
+// This is why the discriminator is not a length comparison. An earlier form of this repair
+// compared head.Sequence against the entries loaded, and eight concurrent writers turned that
+// transient window into "invalid ledger chain" -- a legitimate concurrent append refused as
+// history damage. CI caught it; it is witnessed here so a length comparison cannot come back.
+func TestAHeadAheadOfTheEntriesReadButStillOnDiskIsNotTruncation(t *testing.T) {
+	store, chain := buildScopeChain(t, 3)
+	last := chain.Entries[len(chain.Entries)-1]
+
+	// HEAD claims a sequence beyond the chain while naming an entry that EXISTS.
+	if err := writeHeadForTest(store, Head{
+		SchemaVersion:     HeadSchemaVersion,
+		TaskID:            chain.TaskID,
+		Sequence:          len(chain.Entries) + 5,
+		EntryDigestSHA256: last.Entry.EntryDigestSHA256,
+		EntryPath:         filepath.ToSlash(filepath.Join("ledger", filepath.Base(last.EntryPath))),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	report, err := store.Verify()
+	if err != nil {
+		t.Fatalf("a head ahead of the read entries returned an error: %v", err)
+	}
+	if !report.Valid {
+		t.Errorf("a HEAD ahead in SEQUENCE but naming an entry still on disk was reported "+
+			"INVALID; a concurrent append would be refused as history damage: %+v", report.Errors)
+	}
+}

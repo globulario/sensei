@@ -17512,6 +17512,12 @@ test_symbols:
     symbol: TestConcurrentAppendAllowsExactlyOneWriterPerHead
     package: ledger
     language: go
+  - id: golang/architecture/ledger/damaged_history_test.go:TestAHeadAheadOfTheEntriesReadButStillOnDiskIsNotTruncation
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestAHeadAheadOfTheEntriesReadButStillOnDiskIsNotTruncation
+    package: ledger
+    language: go
+    doc: "THE TORN READ. HEAD AHEAD OF THE ENTRIES A READER SAW IS NOT TRUNCATION.\n\nA reader that does not hold the append lock can list the ledger directory BEFORE an entry\nlands and read HEAD AFTER it is published, so head.Sequence briefly exceeds the entries that\nlisting contains. The entry is on disk the whole time.\n\nThis is why the discriminator is not a length comparison. An earlier form of this repair\ncompared head.Sequence against the entries loaded, and eight concurrent writers turned that\ntransient window into \"invalid ledger chain\" -- a legitimate concurrent append refused as\nhistory damage. CI caught it; it is witnessed here so a length comparison cannot come back."
   - id: golang/architecture/ledger/damaged_history_test.go:TestAHeadBehindAChainItStillContainsRemainsARecoverableWarning
     file: golang/architecture/ledger/damaged_history_test.go
     symbol: TestAHeadBehindAChainItStillContainsRemainsARecoverableWarning
