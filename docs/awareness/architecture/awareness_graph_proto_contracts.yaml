@@ -4,7 +4,7 @@
 contracts:
   - id: contract.awareness_graph
     name: AwarenessGraph
-    description: 'gRPC service AwarenessGraph with 15 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition.'
+    description: 'gRPC service AwarenessGraph with 16 RPC(s): Briefing, Impact, Query, Resolve, Metadata, Preflight, EditCheck, Propose, ReferenceSites, GetArchitectureControlSnapshot, ListArchitectureArtifacts, GetArchitectureArtifactState, GetOntologyNavigationDescriptor, PrepareArchitectAnswerDisposition, RecordArchitectAnswerDisposition, GetDomainGraph.'
     kind: grpc
     stability: stable
     read_or_write: read
@@ -248,6 +248,22 @@ contracts:
     kind: grpc
     stability: stable
     read_or_write: unknown
+    assertion: inferred
+    exposed_by:
+      - component.awareness_graph_service
+    source_files:
+      - proto/awareness_graph.proto
+    uml:
+      kind: Operation
+      stereotype: rpc
+      view: interaction
+      confidence: inferred
+  - id: contract.awareness_graph.get_domain_graph
+    name: AwarenessGraph.GetDomainGraph
+    description: 'GetDomainGraph materializes, read-only, the exact graph this service serves for one domain — bytes and identity together, from one resolved view.  It is the producer half of a law the graph snapshot consumers depend on: the caller may TRANSPORT a graph snapshot, but must not CHOOSE its authority. Exporting changes nothing: no promotion, no marker write, no generation change, no lock. A served graph whose identity cannot be established coherently is refused, never exported best-effort. — rpc GetDomainGraph(GetDomainGraphRequest) returns (GetDomainGraphResponse)'
+    kind: grpc
+    stability: stable
+    read_or_write: read
     assertion: inferred
     exposed_by:
       - component.awareness_graph_service

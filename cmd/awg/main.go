@@ -23,6 +23,7 @@
 //	sensei resolve <class> <id>             Fetch a single node by class + id
 //	sensei query --mode <mode>              Structured browse of the graph
 //	sensei metadata                         Graph-level coverage and freshness
+//	sensei graph-export                     Read-only export of the served ACTIVE graph
 //	sensei domains                          List selectable graph domains
 //	sensei governance status                Show local managed-governance state
 //	sensei check                            Validate YAML sources without building
@@ -185,6 +186,8 @@ func dispatch(cmd string, args []string) int {
 		return runQuery(args)
 	case "metadata":
 		return runMetadata(args)
+	case "graph-export":
+		return runGraphExport(args)
 	case "domains":
 		return runDomains(args)
 	case "governance":
@@ -414,6 +417,7 @@ Query before editing:
   resolve        Fetch a single awareness node by class + id
   query          Structured browse (by_file | by_id | by_class | related)
   metadata       Show graph-level coverage and freshness
+  graph-export   Export the served ACTIVE graph for one domain (read-only)
   domains        List selectable graph domains from Metadata
 
 Record or promote a lesson:

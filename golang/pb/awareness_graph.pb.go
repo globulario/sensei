@@ -10332,6 +10332,171 @@ func (x *RecordArchitectAnswerDispositionResponse) GetRefusal() *ArchitectureMut
 	return nil
 }
 
+// ─── GetDomainGraph (read-only materialization of the served graph) ──────────
+//
+// The missing authority capability: a caller that needs the graph AS BYTES had
+// no way to obtain the one this service serves. Every other RPC answers a
+// scoped question, so a consumer wanting a snapshot had to query the backing
+// store itself, reconstruct the graph from storage internals, and then argue
+// the result equalled what the service serves. That argument is exactly where
+// "wrong store / wrong named graph / stale generation" creeps back in.
+//
+// So the authority that says "this is the graph I serve" also emits the bytes,
+// and emits them WITH their identity in one answer. A caller transports a
+// snapshot; it does not choose that snapshot's authority.
+//
+// Deliberately narrow: no SPARQL, no caller-selected named graph, no store URL.
+// GetDomainGraph(domain) means "the exact graph this instance currently serves for
+// that domain, or a refusal" — never a best-effort assembly.
+//
+// WHAT IT DOES NOT ASSERT. The registry that declares which generation is
+// ACTIVE is operator-owned and outside any published repository, and this
+// service does not read it — a repository must not be able to declare its own
+// graph active. So the response states the SERVED identity, and whether that is
+// the ACTIVE generation is a comparison the caller makes against the registry.
+// Both halves are needed and neither vouches for itself.
+type GetDomainGraphRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Domain to export. Required, canonical host/path form. An empty domain is
+	// refused rather than resolved to a favourite: exporting "whatever this
+	// server calls home" would produce a well-formed snapshot of something the
+	// caller did not ask for.
+	Domain        string `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDomainGraphRequest) Reset() {
+	*x = GetDomainGraphRequest{}
+	mi := &file_awareness_graph_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDomainGraphRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDomainGraphRequest) ProtoMessage() {}
+
+func (x *GetDomainGraphRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDomainGraphRequest.ProtoReflect.Descriptor instead.
+func (*GetDomainGraphRequest) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *GetDomainGraphRequest) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+type GetDomainGraphResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The domain these bytes are the graph of, echoed so a stored snapshot can
+	// never be read as belonging to a different repository.
+	Domain string `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
+	// generation is the served graph's identity: the marker-free semantic digest
+	// this instance reports as its live graph. A caller compares it with the
+	// ACTIVE generation its registry declares.
+	Generation string `protobuf:"bytes,2,opt,name=generation,proto3" json:"generation,omitempty"`
+	// graph_digest is recomputed from the returned bytes by the server before it
+	// answers. It equals generation for a coherent graph; a disagreement is a
+	// refusal rather than two fields for a reader to reconcile.
+	GraphDigest string `protobuf:"bytes,3,opt,name=graph_digest,json=graphDigest,proto3" json:"graph_digest,omitempty"`
+	TripleCount int64  `protobuf:"varint,4,opt,name=triple_count,json=tripleCount,proto3" json:"triple_count,omitempty"`
+	// format names the serialization, so a consumer never infers it from a file
+	// extension. "ntriples" today; a second value would be a new contract.
+	Format        string `protobuf:"bytes,5,opt,name=format,proto3" json:"format,omitempty"`
+	Ntriples      []byte `protobuf:"bytes,6,opt,name=ntriples,proto3" json:"ntriples,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDomainGraphResponse) Reset() {
+	*x = GetDomainGraphResponse{}
+	mi := &file_awareness_graph_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDomainGraphResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDomainGraphResponse) ProtoMessage() {}
+
+func (x *GetDomainGraphResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_awareness_graph_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDomainGraphResponse.ProtoReflect.Descriptor instead.
+func (*GetDomainGraphResponse) Descriptor() ([]byte, []int) {
+	return file_awareness_graph_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *GetDomainGraphResponse) GetDomain() string {
+	if x != nil {
+		return x.Domain
+	}
+	return ""
+}
+
+func (x *GetDomainGraphResponse) GetGeneration() string {
+	if x != nil {
+		return x.Generation
+	}
+	return ""
+}
+
+func (x *GetDomainGraphResponse) GetGraphDigest() string {
+	if x != nil {
+		return x.GraphDigest
+	}
+	return ""
+}
+
+func (x *GetDomainGraphResponse) GetTripleCount() int64 {
+	if x != nil {
+		return x.TripleCount
+	}
+	return 0
+}
+
+func (x *GetDomainGraphResponse) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
+}
+
+func (x *GetDomainGraphResponse) GetNtriples() []byte {
+	if x != nil {
+		return x.Ntriples
+	}
+	return nil
+}
+
 var File_awareness_graph_proto protoreflect.FileDescriptor
 
 const file_awareness_graph_proto_rawDesc = "" +
@@ -11099,7 +11264,18 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\"expected_ledger_head_digest_sha256\x18\x02 \x01(\tR\x1eexpectedLedgerHeadDigestSha256\"\xcf\x01\n" +
 	"(RecordArchitectAnswerDispositionResponse\x12R\n" +
 	"\areceipt\x18\x01 \x01(\v28.globular.awareness_graph.ArchitectureDispositionReceiptR\areceipt\x12O\n" +
-	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal*\xa6\x01\n" +
+	"\arefusal\x18\x02 \x01(\v25.globular.awareness_graph.ArchitectureMutationRefusalR\arefusal\"/\n" +
+	"\x15GetDomainGraphRequest\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\"\xca\x01\n" +
+	"\x16GetDomainGraphResponse\x12\x16\n" +
+	"\x06domain\x18\x01 \x01(\tR\x06domain\x12\x1e\n" +
+	"\n" +
+	"generation\x18\x02 \x01(\tR\n" +
+	"generation\x12!\n" +
+	"\fgraph_digest\x18\x03 \x01(\tR\vgraphDigest\x12!\n" +
+	"\ftriple_count\x18\x04 \x01(\x03R\vtripleCount\x12\x16\n" +
+	"\x06format\x18\x05 \x01(\tR\x06format\x12\x1a\n" +
+	"\bntriples\x18\x06 \x01(\fR\bntriples*\xa6\x01\n" +
 	"\x0eBriefingStatus\x12\x16\n" +
 	"\x12BRIEFING_STATUS_OK\x10\x00\x12\x19\n" +
 	"\x15BRIEFING_STATUS_EMPTY\x10\x01\x12\x1c\n" +
@@ -11347,7 +11523,7 @@ const file_awareness_graph_proto_rawDesc = "" +
 	")ARCHITECTURE_DISPOSITION_OUTCOME_RECORDED\x10\x01\x12-\n" +
 	")ARCHITECTURE_DISPOSITION_OUTCOME_REPLAYED\x10\x02\x12/\n" +
 	"+ARCHITECTURE_DISPOSITION_OUTCOME_RECONCILED\x10\x03\x12.\n" +
-	"*ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED\x10\x042\xef\x0e\n" +
+	"*ARCHITECTURE_DISPOSITION_OUTCOME_CONTESTED\x10\x042\xe4\x0f\n" +
 	"\x0eAwarenessGraph\x12a\n" +
 	"\bBriefing\x12).globular.awareness_graph.BriefingRequest\x1a*.globular.awareness_graph.BriefingResponse\x12[\n" +
 	"\x06Impact\x12'.globular.awareness_graph.ImpactRequest\x1a(.globular.awareness_graph.ImpactResponse\x12X\n" +
@@ -11363,7 +11539,8 @@ const file_awareness_graph_proto_rawDesc = "" +
 	"\x1cGetArchitectureArtifactState\x12=.globular.awareness_graph.GetArchitectureArtifactStateRequest\x1a>.globular.awareness_graph.GetArchitectureArtifactStateResponse\x12\xa6\x01\n" +
 	"\x1fGetOntologyNavigationDescriptor\x12@.globular.awareness_graph.GetOntologyNavigationDescriptorRequest\x1aA.globular.awareness_graph.GetOntologyNavigationDescriptorResponse\x12\xac\x01\n" +
 	"!PrepareArchitectAnswerDisposition\x12B.globular.awareness_graph.PrepareArchitectAnswerDispositionRequest\x1aC.globular.awareness_graph.PrepareArchitectAnswerDispositionResponse\x12\xa9\x01\n" +
-	" RecordArchitectAnswerDisposition\x12A.globular.awareness_graph.RecordArchitectAnswerDispositionRequest\x1aB.globular.awareness_graph.RecordArchitectAnswerDispositionResponseB4Z2github.com/globulario/sensei/golang/pb;awarenesspbb\x06proto3"
+	" RecordArchitectAnswerDisposition\x12A.globular.awareness_graph.RecordArchitectAnswerDispositionRequest\x1aB.globular.awareness_graph.RecordArchitectAnswerDispositionResponse\x12s\n" +
+	"\x0eGetDomainGraph\x12/.globular.awareness_graph.GetDomainGraphRequest\x1a0.globular.awareness_graph.GetDomainGraphResponseB4Z2github.com/globulario/sensei/golang/pb;awarenesspbb\x06proto3"
 
 var (
 	file_awareness_graph_proto_rawDescOnce sync.Once
@@ -11378,7 +11555,7 @@ func file_awareness_graph_proto_rawDescGZIP() []byte {
 }
 
 var file_awareness_graph_proto_enumTypes = make([]protoimpl.EnumInfo, 36)
-var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 81)
+var file_awareness_graph_proto_msgTypes = make([]protoimpl.MessageInfo, 83)
 var file_awareness_graph_proto_goTypes = []any{
 	(BriefingStatus)(0),                               // 0: globular.awareness_graph.BriefingStatus
 	(BriefingFeedbackAvailability)(0),                 // 1: globular.awareness_graph.BriefingFeedbackAvailability
@@ -11497,6 +11674,8 @@ var file_awareness_graph_proto_goTypes = []any{
 	(*ArchitectureDispositionReceipt)(nil),            // 114: globular.awareness_graph.ArchitectureDispositionReceipt
 	(*RecordArchitectAnswerDispositionRequest)(nil),   // 115: globular.awareness_graph.RecordArchitectAnswerDispositionRequest
 	(*RecordArchitectAnswerDispositionResponse)(nil),  // 116: globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	(*GetDomainGraphRequest)(nil),                     // 117: globular.awareness_graph.GetDomainGraphRequest
+	(*GetDomainGraphResponse)(nil),                    // 118: globular.awareness_graph.GetDomainGraphResponse
 }
 var file_awareness_graph_proto_depIdxs = []int32{
 	0,   // 0: globular.awareness_graph.BriefingResponse.status:type_name -> globular.awareness_graph.BriefingStatus
@@ -11646,23 +11825,25 @@ var file_awareness_graph_proto_depIdxs = []int32{
 	106, // 144: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:input_type -> globular.awareness_graph.GetOntologyNavigationDescriptorRequest
 	112, // 145: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:input_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionRequest
 	115, // 146: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:input_type -> globular.awareness_graph.RecordArchitectAnswerDispositionRequest
-	37,  // 147: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
-	43,  // 148: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
-	50,  // 149: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
-	52,  // 150: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
-	56,  // 151: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
-	68,  // 152: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
-	73,  // 153: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
-	75,  // 154: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
-	78,  // 155: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
-	101, // 156: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
-	103, // 157: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
-	105, // 158: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
-	107, // 159: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
-	113, // 160: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
-	116, // 161: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
-	147, // [147:162] is the sub-list for method output_type
-	132, // [132:147] is the sub-list for method input_type
+	117, // 147: globular.awareness_graph.AwarenessGraph.GetDomainGraph:input_type -> globular.awareness_graph.GetDomainGraphRequest
+	37,  // 148: globular.awareness_graph.AwarenessGraph.Briefing:output_type -> globular.awareness_graph.BriefingResponse
+	43,  // 149: globular.awareness_graph.AwarenessGraph.Impact:output_type -> globular.awareness_graph.ImpactResponse
+	50,  // 150: globular.awareness_graph.AwarenessGraph.Query:output_type -> globular.awareness_graph.QueryResponse
+	52,  // 151: globular.awareness_graph.AwarenessGraph.Resolve:output_type -> globular.awareness_graph.ResolveResponse
+	56,  // 152: globular.awareness_graph.AwarenessGraph.Metadata:output_type -> globular.awareness_graph.MetadataResponse
+	68,  // 153: globular.awareness_graph.AwarenessGraph.Preflight:output_type -> globular.awareness_graph.PreflightResponse
+	73,  // 154: globular.awareness_graph.AwarenessGraph.EditCheck:output_type -> globular.awareness_graph.EditCheckResponse
+	75,  // 155: globular.awareness_graph.AwarenessGraph.Propose:output_type -> globular.awareness_graph.ProposeResponse
+	78,  // 156: globular.awareness_graph.AwarenessGraph.ReferenceSites:output_type -> globular.awareness_graph.ReferenceSitesResponse
+	101, // 157: globular.awareness_graph.AwarenessGraph.GetArchitectureControlSnapshot:output_type -> globular.awareness_graph.GetArchitectureControlSnapshotResponse
+	103, // 158: globular.awareness_graph.AwarenessGraph.ListArchitectureArtifacts:output_type -> globular.awareness_graph.ListArchitectureArtifactsResponse
+	105, // 159: globular.awareness_graph.AwarenessGraph.GetArchitectureArtifactState:output_type -> globular.awareness_graph.GetArchitectureArtifactStateResponse
+	107, // 160: globular.awareness_graph.AwarenessGraph.GetOntologyNavigationDescriptor:output_type -> globular.awareness_graph.GetOntologyNavigationDescriptorResponse
+	113, // 161: globular.awareness_graph.AwarenessGraph.PrepareArchitectAnswerDisposition:output_type -> globular.awareness_graph.PrepareArchitectAnswerDispositionResponse
+	116, // 162: globular.awareness_graph.AwarenessGraph.RecordArchitectAnswerDisposition:output_type -> globular.awareness_graph.RecordArchitectAnswerDispositionResponse
+	118, // 163: globular.awareness_graph.AwarenessGraph.GetDomainGraph:output_type -> globular.awareness_graph.GetDomainGraphResponse
+	148, // [148:164] is the sub-list for method output_type
+	132, // [132:148] is the sub-list for method input_type
 	132, // [132:132] is the sub-list for extension type_name
 	132, // [132:132] is the sub-list for extension extendee
 	0,   // [0:132] is the sub-list for field type_name
@@ -11683,7 +11864,7 @@ func file_awareness_graph_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_awareness_graph_proto_rawDesc), len(file_awareness_graph_proto_rawDesc)),
 			NumEnums:      36,
-			NumMessages:   81,
+			NumMessages:   83,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

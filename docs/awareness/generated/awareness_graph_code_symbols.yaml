@@ -290,14 +290,12 @@ code_symbols:
         - globular.awareness_graph:invariant.controlstate.cursor_must_remain_opaque_and_owner_validated
       tested_by:
         - golang/server/controlstate_rpcs_test.go:TestListArtifactsRPC_CursorOpaqueAndRegistryResolved
-  - id: globular.awareness_graph:code.go.server.impact
+  - id: globular.awareness_graph:code.go.server.export_graph
     namespace: globular.awareness_graph
     language: go
-    file: golang/server/impact.go
-    component: server.impact
-    annotations:
-      implements:
-        - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
+    file: golang/server/export_graph.go
+    component: server.export_graph
+    risk: high
   - id: globular.awareness_graph:code.go.server.impact
     namespace: globular.awareness_graph
     language: go
@@ -310,6 +308,14 @@ code_symbols:
         - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
       tested_by:
         - golang/server/package_inference_test.go:TestPackageInference_SiblingAnchorsAreInferredNotDirect
+  - id: globular.awareness_graph:code.go.server.impact
+    namespace: globular.awareness_graph
+    language: go
+    file: golang/server/impact.go
+    component: server.impact
+    annotations:
+      implements:
+        - globular.awareness_graph:intent.awareness.impact_distinguishes_direct_and_inferred
   - id: globular.awareness_graph:code.go.server.impact.server_Impact
     namespace: globular.awareness_graph
     language: go
@@ -3191,6 +3197,24 @@ test_symbols:
     symbol: TestRunRebuild_FailsClosedWhenManagedGovernanceEnabledAndActivePackMissing
     package: main
     language: go
+  - id: cmd/awg/cmd_graph_export_test.go:TestGraphExportRefusesWhenTheServedGraphIsNotProvenActive
+    file: cmd/awg/cmd_graph_export_test.go
+    symbol: TestGraphExportRefusesWhenTheServedGraphIsNotProvenActive
+    package: main
+    language: go
+    doc: "Every way of failing to establish that the served graph is the ACTIVE one\nrefuses, and writes NOTHING. A snapshot on disk is evidence; a snapshot\nwritten beside a refusal is a lie with a timestamp."
+  - id: cmd/awg/cmd_graph_export_test.go:TestGraphExportRequiresADomain
+    file: cmd/awg/cmd_graph_export_test.go
+    symbol: TestGraphExportRequiresADomain
+    package: main
+    language: go
+    doc: "A snapshot of an unnamed domain names no repository, so the command refuses\nbefore it asks anything."
+  - id: cmd/awg/cmd_graph_export_test.go:TestGraphExportWritesTheServedActiveGraphWithItsProvenance
+    file: cmd/awg/cmd_graph_export_test.go
+    symbol: TestGraphExportWritesTheServedActiveGraphWithItsProvenance
+    package: main
+    language: go
+    doc: "The whole point: the served graph IS the declared ACTIVE generation, so the\nsnapshot is written with provenance naming exactly what was proven."
   - id: cmd/awg/cmd_impact_gate_test.go:TestLoadImpactInvariants_ParsesAnchorsAndTests
     file: cmd/awg/cmd_impact_gate_test.go
     symbol: TestLoadImpactInvariants_ParsesAnchorsAndTests
@@ -29655,6 +29679,24 @@ test_symbols:
     symbol: TestEditCheck_UnknownRequestedDomainFailsClosed
     package: main
     language: go
+  - id: golang/server/export_graph_test.go:TestGetDomainGraphIsDeterministicForAnUnchangedGraph
+    file: golang/server/export_graph_test.go
+    symbol: TestGetDomainGraphIsDeterministicForAnUnchangedGraph
+    package: main
+    language: go
+    doc: "Exporting the same unchanged graph twice yields the same identity, so anything\nbinding to a snapshot binds to a stable graph."
+  - id: golang/server/export_graph_test.go:TestGetDomainGraphRefusesWhatItCannotCertify
+    file: golang/server/export_graph_test.go
+    symbol: TestGetDomainGraphRefusesWhatItCannotCertify
+    package: main
+    language: go
+    doc: "Every way of being unable to certify an export refuses, and refuses BEFORE\nproducing bytes a caller could mistake for a certified snapshot."
+  - id: golang/server/export_graph_test.go:TestGetDomainGraphReturnsTheServedGraphWithItsIdentity
+    file: golang/server/export_graph_test.go
+    symbol: TestGetDomainGraphReturnsTheServedGraphWithItsIdentity
+    package: main
+    language: go
+    doc: "The capability itself: bytes and identity together, from one resolution."
   - id: golang/server/final_form_golden_test.go:TestAwarenessFinalForm_DoctorRemediationPath
     file: golang/server/final_form_golden_test.go
     symbol: TestAwarenessFinalForm_DoctorRemediationPath
@@ -31420,6 +31462,30 @@ test_symbols:
     package: store
     language: go
     doc: "The validator rejects ALL Unicode whitespace/control characters — not only ASCII — while\nlegal non-ASCII IRI characters stay accepted."
+  - id: golang/store/oxigraph/export_graph_test.go:TestExportDomainGraphIsDeterministicForAnUnchangedGraph
+    file: golang/store/oxigraph/export_graph_test.go
+    symbol: TestExportDomainGraphIsDeterministicForAnUnchangedGraph
+    package: oxigraph
+    language: go
+    doc: "Two exports of one unchanged graph are the same bytes, so anything deriving\nidentity from them derives the same identity."
+  - id: golang/store/oxigraph/export_graph_test.go:TestExportDomainGraphRefusesNoncanonicalAndUnnamedDomains
+    file: golang/store/oxigraph/export_graph_test.go
+    symbol: TestExportDomainGraphRefusesNoncanonicalAndUnnamedDomains
+    package: oxigraph
+    language: go
+    doc: "A non-canonical spelling addresses a DIFFERENT graph URL, so it would export\nan empty graph nobody publishes to and be indistinguishable from a domain that\nexists and is empty. It is refused before any request is issued -- the same\ncontract LoadGraph applies to writes."
+  - id: golang/store/oxigraph/export_graph_test.go:TestExportDomainGraphReportsAnUnpublishedDomainRatherThanEmptyBytes
+    file: golang/store/oxigraph/export_graph_test.go
+    symbol: TestExportDomainGraphReportsAnUnpublishedDomainRatherThanEmptyBytes
+    package: oxigraph
+    language: go
+    doc: "A domain this store publishes nothing for is NOT an empty graph. Returning\nempty bytes would let a caller snapshot nothing and bind work to it."
+  - id: golang/store/oxigraph/export_graph_test.go:TestExportDomainGraphReturnsOnlyThatDomainsGraph
+    file: golang/store/oxigraph/export_graph_test.go
+    symbol: TestExportDomainGraphReturnsOnlyThatDomainsGraph
+    package: oxigraph
+    language: go
+    doc: "The defect this surface exists to make impossible: one domain's export must\nnever carry another's assertions. A CONSTRUCT over the default graph reads the\nstore's union, and on a single-domain store the difference is invisible."
   - id: golang/store/oxigraph/named_graph_integration_test.go:TestIntegration_DefaultGraphContentIsAttributableToNoDomain
     file: golang/store/oxigraph/named_graph_integration_test.go
     symbol: TestIntegration_DefaultGraphContentIsAttributableToNoDomain
