@@ -2254,3 +2254,10 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_witness_attested_a_property_it_never_evaluated_and_a_fixtu
+  - id: golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
+    title: One corrupt entry yields a typed refusal, not a panic
+    protects:
+      invariants:
+        - ledger.verification_is_total
+      failure_modes:
+        - failure.sensei.a_files_slice_index_read_against_the_entries_slice_panics_th

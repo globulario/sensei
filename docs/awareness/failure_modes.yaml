@@ -2297,3 +2297,15 @@ failure_modes:
       - 'SHADOWING: TestNestedExecutionResolvesTheSameGovernedIdentityAsTheRoot aborted on atRoot.Endpoint != atSub.Endpoint before the loop collecting its five dimensions, so the canonical-endpoint branch could never fire. It announced a five-dimension invariant and evaluated four, and its abort message blamed the fixture, so a genuine root-versus-nested divergence would have been reported as a broken test setup rather than as the invariant violation it is'
       - Both were found by an independent blind reviewer on exact heads 40a5932b and ab1a17cf, in rounds 2 and 3 of the same pull request. Neither was found by the author's own sweeps; those established only that each defect was bounded, after being told where to look
       - 'Repaired and proven by perturbing the CLAIMS rather than the production code: config names a different address KILLED, config omits server.addr KILLED, registry names a different address KILLED, config read from the wrong directory KILLED; and perturbing only the nested endpoint now yields ''disagree on 1 of 5 dimensions: canonical endpoint'' under the invariant message'
+  - id: failure.sensei.a_files_slice_index_read_against_the_entries_slice_panics_th
+    title: A files-slice index read against the entries slice panics the ledger verifier
+    description: 'verifyAndLoadChain recorded an unreadable or invalid entry as an error and continued WITHOUT appending to out.Entries, then read out.Entries[idx-1] using the FILES index. After any skipped entry the two slices diverge and the read runs off the end. A second, quieter half: the task id was taken from files[0], so corrupting the first entry left it empty and every later entry was reported to change task id -- one real fault arriving as a cascade of invented ones.'
+    protects:
+      files:
+        - golang/architecture/ledger/verify.go
+    related_invariants:
+      - ledger.verification_is_total
+    required_tests:
+      - golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
+    evidence:
+      - 'sensei#356; reproduced at 13e4b8b6: corrupting entry 1 of a 5-entry chain panicked with ''index out of range [0] with length 0'''

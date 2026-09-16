@@ -2308,3 +2308,13 @@ invariants:
     evidence:
       - 'wiring change-impact to the owner removed a residual asymmetry nobody had reported: examination compared a LIVE count over three classes against a RAW count over five, and hasAnchors was set in two loops only'
     contract: Every governed decision reads a single canonical subject state, built once from the complete raw material and lifecycle-filtered once. A surface may not rebuild that answer from raw slices. Examination has three states -- governed, WITHDRAWN, unknown -- and only the unknown state may consult a secondary source; a withdrawal is a determined negative no fallback may overturn. The governed class set is closed and read by membership; a decision that is deliberately narrower must NAME its classes at the point of use. Caps, sorting and truncation are applied to a response after the decision, never before it.
+  - id: ledger.verification_is_total
+    title: Chain verification returns a verdict for every chain, including a damaged one
+    status: active
+    description: A fail-closed governance path needs a verdict to fail closed WITH. VerifyChain is called by every admission loader and before every append, so a verifier that aborts the process denies its callers the refusal they are written to handle. Any entry the verifier cannot read or validate is recorded as a typed error and the walk continues; no index derived from the file list may be used against the entry list, because a skipped entry makes the two diverge.
+    protects:
+      files:
+        - golang/architecture/ledger/verify.go
+    required_tests:
+      - golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
+    contract: 'VerifyChain is total over stored chains: it returns a VerificationReport for any directory contents, and signals damage only through typed errors in that report'

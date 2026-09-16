@@ -82,13 +82,26 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 			}
 			report.Errors = append(report.Errors, VerificationError{Code: "ledger.entry_digest_mismatch", Detail: detail, Path: filepath.ToSlash(path)})
 		}
-		if idx == 0 {
+		// The task id is taken from the first entry that could be READ, not from files[0]:
+		// when the first file is corrupt it is skipped, and comparing every later entry
+		// against an empty id reported "task id changes within one chain" for a chain in
+		// which nothing changed.
+		if out.TaskID == "" {
 			out.TaskID = entry.Task.ID
+		}
+		if idx == 0 {
 			if entry.PreviousEntryDigestSHA256 != "" {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.first_entry_previous_digest", Detail: "first entry must not carry previous digest", Path: filepath.ToSlash(path)})
 			}
-		} else {
-			prev := out.Entries[idx-1].Entry
+		} else if n := len(out.Entries); n > 0 {
+			// out.Entries, NOT files: an entry that failed to read or validate was recorded
+			// as an error and NOT appended, so after any skip the two slices diverge and
+			// out.Entries[idx-1] indexes past the end. Every admission loader calls
+			// VerifyChain and appendEntry verifies before every append, so that read took a
+			// task's whole governance path down by panic instead of returning the typed
+			// refusal the design calls for -- and a fail-closed system that panics has no
+			// verdict to fail closed with.
+			prev := out.Entries[n-1].Entry
 			if entry.PreviousEntryDigestSHA256 != prev.EntryDigestSHA256 {
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.previous_digest_mismatch", Detail: "previous digest does not match prior entry", Path: filepath.ToSlash(path)})
 			}
@@ -96,6 +109,11 @@ func verifyAndLoadChain(ctx context.Context, taskDir string, validator PayloadVa
 				report.Errors = append(report.Errors, VerificationError{Code: "ledger.task_id_changed", Detail: "task id changes within one chain", Path: filepath.ToSlash(path)})
 			}
 		}
+		// n == 0 with idx > 0 means every preceding entry was unreadable. The link to a
+		// predecessor that could not be read is not checkable, and NOT checking it asserts
+		// nothing: the unreadable entry is already a recorded error, so the chain is invalid
+		// either way, and inventing a second failure here would misname which entry is at
+		// fault.
 		payloadPath := filepath.Join(taskDir, filepath.FromSlash(entry.Payload.Path))
 		usedPaths[filepath.ToSlash(entry.Payload.Path)] = true
 		info, err := os.Lstat(payloadPath)
