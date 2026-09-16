@@ -17512,6 +17512,36 @@ test_symbols:
     symbol: TestConcurrentAppendAllowsExactlyOneWriterPerHead
     package: ledger
     language: go
+  - id: golang/architecture/ledger/damaged_history_test.go:TestAHeadAheadOfTheEntriesReadButStillOnDiskIsNotTruncation
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestAHeadAheadOfTheEntriesReadButStillOnDiskIsNotTruncation
+    package: ledger
+    language: go
+    doc: "THE TORN READ. HEAD AHEAD OF THE ENTRIES A READER SAW IS NOT TRUNCATION.\n\nA reader that does not hold the append lock can list the ledger directory BEFORE an entry\nlands and read HEAD AFTER it is published, so head.Sequence briefly exceeds the entries that\nlisting contains. The entry is on disk the whole time.\n\nThis is why the discriminator is not a length comparison. An earlier form of this repair\ncompared head.Sequence against the entries loaded, and eight concurrent writers turned that\ntransient window into \"invalid ledger chain\" -- a legitimate concurrent append refused as\nhistory damage. CI caught it; it is witnessed here so a length comparison cannot come back."
+  - id: golang/architecture/ledger/damaged_history_test.go:TestAHeadBehindAChainItStillContainsRemainsARecoverableWarning
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestAHeadBehindAChainItStillContainsRemainsARecoverableWarning
+    package: ledger
+    language: go
+    doc: "THE NEGATIVE CONTROL, AND THE REASON THE REPAIR IS NOT \"MAKE head_stale AN ERROR\".\n\nDisagreement between HEAD and the chain has a DIRECTION. An entry written whose HEAD update\nhad not yet landed -- an interrupted append -- leaves HEAD naming an entry the chain still\nCONTAINS, at a lower sequence. That is recoverable staleness and must stay a warning, or\nevery crashed append becomes an unrecoverable task.\n\nTruncation is the other direction: HEAD names a digest the chain does not contain at all.\nOne predicate cannot serve both, which is why the repair distinguishes them rather than\npromoting the existing warning."
+  - id: golang/architecture/ledger/damaged_history_test.go:TestAHeadNamingAnUnknownDigestBelowTheChainLengthStaysRecoverable
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestAHeadNamingAnUnknownDigestBelowTheChainLengthStaysRecoverable
+    package: ledger
+    language: go
+    doc: "THE SECOND DIRECTION: A DAMAGED HEAD IS RECOVERABLE, A SHORT CHAIN IS NOT.\n\nA HEAD naming a digest the chain does not contain is NOT sufficient evidence of truncation:\na corrupted HEAD file names nonsense too. What separates them is whether HEAD claims MORE\nentries than the chain holds. Here HEAD names an unknown digest at a LOW sequence -- it\nattests to less than the chain has -- so the chain is the authority and HEAD is rebuilt.\n\nWithout this control the repair would have been \"HEAD's digest must be in the chain\", which\nturns every damaged HEAD into an unrecoverable task."
+  - id: golang/architecture/ledger/damaged_history_test.go:TestATaskWithNoLedgerYetIsStillValid
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestATaskWithNoLedgerYetIsStillValid
+    package: ledger
+    language: go
+    doc: "A task that genuinely has no chain yet must still verify, or no task could ever be created.\nThe destroyed-history case is separated in tasksession, which can see the task's own state;\nthe verifier cannot, because appendEntry verifies before it writes a payload and a legacy\nimport writes artifacts before its first entry -- both legitimately show artifacts with an\nempty chain."
+  - id: golang/architecture/ledger/damaged_history_test.go:TestTailTruncationIsAnErrorNotAWarning
+    file: golang/architecture/ledger/damaged_history_test.go
+    symbol: TestTailTruncationIsAnErrorNotAWarning
+    package: ledger
+    language: go
+    doc: "TAIL TRUNCATION IS DESTRUCTION, NOT STALENESS.\n\nA truncated chain is a valid PREFIX: every per-entry check -- sequence links, previous\ndigests -- is satisfied, so nothing else objects. HEAD.yaml is the only witness that the\nchain was ever longer, and its disagreement was recorded as a WARNING. report.Valid is\nlen(report.Errors) == 0, so warnings do not affect validity and no caller in the governance\npath inspects them.\n\nThe consequence (sensei#352) is that a single file deletion resurrects a spent mutation\ncapability: the fold sees genuine ABSENCE of admission_consumed, and absence is\nindistinguishable from deletion.\n\nIntegrity checks verify LINKS, not LENGTH. This is the length check."
   - id: golang/architecture/ledger/legacy_test.go:TestImportLegacyTaskCreatesLimitedLedgerWithoutCertification
     file: golang/architecture/ledger/legacy_test.go
     symbol: TestImportLegacyTaskCreatesLimitedLedgerWithoutCertification
@@ -23851,6 +23881,30 @@ test_symbols:
     package: tasksession
     language: go
     doc: "A ledger that exists but cannot be verified cannot prove the cache is\ncurrent. The two errors are not symmetric: a needless rebuild costs time,\nwhile a wrongly served cache shows an operator a demand the authority has\nalready terminated."
+  - id: golang/architecture/tasksession/damaged_history_test.go:TestAnArtifactLessAdmissionConsumedCannotBeAppended
+    file: golang/architecture/tasksession/damaged_history_test.go
+    symbol: TestAnArtifactLessAdmissionConsumedCannotBeAppended
+    package: tasksession
+    language: go
+    doc: "#354. AN APPENDED ARTIFACT-LESS EVENT MUST NOT HIDE AN EXISTING RECORD.\n\nNothing is deleted. The chain stays complete, valid and append-only as designed, so this\nsurvives any integrity anchor that establishes history COMPLETENESS -- and it needs only\nAPPEND rights, not delete rights. Two predicates were conflated:\n\n\tlatest event of a type   treated as   the current fact\n\ta malformed record       treated as   an absent record\n\nlatestArtifactFromChain scanned backwards for the latest event of the type and returned\n(false, nil) -- \"not found, no error\" -- the moment that event lacked the artifact key,\nnever consulting the earlier event that carries the real record. ValidateTaskEventPayload\nrequired an artifact for only 2 of 19 event types, and admission_consumed was not one, so\nsuch an event could be appended at all."
+  - id: golang/architecture/tasksession/damaged_history_test.go:TestAnIntactGovernedTaskStillAdvances
+    file: golang/architecture/tasksession/damaged_history_test.go
+    symbol: TestAnIntactGovernedTaskStillAdvances
+    package: tasksession
+    language: go
+    doc: "THE NEGATIVE CONTROL. An intact governed task still advances, or the two refusals above\nwould be satisfied by refusing every task."
+  - id: golang/architecture/tasksession/damaged_history_test.go:TestDestroyingTheLedgerDoesNotReturnTheTaskToWaitingGovernance
+    file: golang/architecture/tasksession/damaged_history_test.go
+    symbol: TestDestroyingTheLedgerDoesNotReturnTheTaskToWaitingGovernance
+    package: tasksession
+    language: go
+    doc: "#353. DESTROYING THE HISTORY MUST NOT ERASE WHAT IT RECORDED.\n\n`rm -rf <taskDir>/ledger` leaves listLedgerEntryFiles returning (nil, nil): the chain\nverifies as valid with zero entries, indistinguishable from a task that has no chain yet.\nThe terminal is not bypassed, it is REMOVED, and the task returns to waiting_governance\nwhere fresh authority can be issued."
+  - id: golang/architecture/tasksession/damaged_history_test.go:TestTruncatingTheChainDoesNotRegrantASpentCapability
+    file: golang/architecture/tasksession/damaged_history_test.go
+    symbol: TestTruncatingTheChainDoesNotRegrantASpentCapability
+    package: tasksession
+    language: go
+    doc: "#352. TAIL TRUNCATION MUST NOT RESURRECT A SPENT MUTATION CAPABILITY.\n\nOne file deleted -- the highest-sequence entry, admission_consumed -- and no tampering,\nforgery or privileged access. The truncated chain is a valid PREFIX, so every per-entry\ncheck passes; HEAD's disagreement was a WARNING, and report.Valid ignores warnings.\nfoldGovernance then saw genuine ABSENCE of admission_consumed and re-granted the\nsingle-use capability."
   - id: golang/architecture/tasksession/disposition_fold_test.go:TestGovernedDispositionsFailClosedWithoutALedger
     file: golang/architecture/tasksession/disposition_fold_test.go
     symbol: TestGovernedDispositionsFailClosedWithoutALedger

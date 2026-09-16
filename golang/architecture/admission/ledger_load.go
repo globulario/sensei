@@ -69,6 +69,24 @@ func latestArtifactFromChain(taskDir string, chain ledger.VerifiedChain, eventTy
 		}
 		ref, ok := payload.Artifacts[artifactKey]
 		if !ok {
+			// A MALFORMED RECORD IS NOT AN ABSENT ONE.
+			//
+			// Returning (false, nil) here said "no such event", which is false: an event of
+			// this type exists, it simply cannot be read. That conflation let an appended
+			// artifact-less event SHADOW the real record below it -- append rights alone, no
+			// deletion, and a chain that stays complete and valid throughout.
+			//
+			// Nor may this keep scanning backwards to the previous event of the type: that
+			// would let a later record be silently overridden by an earlier one, which is the
+			// same defect pointed the other way. The damage is named and refused.
+			// Only for an artifact the event contract REQUIRES. Some keys are genuinely
+			// optional -- authority_resolved carries delegation_receipts only when delegation
+			// occurred -- and for those, absence really is absence.
+			if requiredArtifact(eventType, artifactKey) {
+				return false, fmt.Errorf("ledger event %s at sequence %d carries no %q artifact, "+
+					"which events of this type must carry: the record is damaged, not absent",
+					eventType, ve.Entry.Sequence, artifactKey)
+			}
 			return false, nil
 		}
 		artifactData, err := os.ReadFile(filepath.Join(taskDir, filepath.FromSlash(ref.Path)))
@@ -270,4 +288,15 @@ func LoadEventProducedAt(taskDir string, eventType closureprotocol.LedgerEventTy
 		}
 	}
 	return "", fmt.Errorf("no %s event found in task ledger", eventType)
+}
+
+// requiredArtifact reports whether the event contract obliges this event type to carry this
+// artifact. It is the seam that separates a DAMAGED record from a merely absent optional one.
+func requiredArtifact(eventType closureprotocol.LedgerEventType, key string) bool {
+	for _, k := range ledger.RequiredArtifactKeys(eventType) {
+		if k == key {
+			return true
+		}
+	}
+	return false
 }

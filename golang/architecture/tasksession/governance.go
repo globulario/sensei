@@ -116,6 +116,34 @@ func foldGovernance(chain ledger.VerifiedChain, taskDir string, now time.Time) (
 		latest[ve.Entry.EventType] = ve
 	}
 
+	// ABSENCE MAY BE READ ONLY FROM A HISTORY WHOSE COMPLETENESS IS ESTABLISHED.
+	//
+	// Every rule below moves the task to an EARLIER phase on the genuine absence of an event,
+	// and each is correct in isolation. They are wrong together the moment absence becomes
+	// indistinguishable from destruction: `rm -rf <taskDir>/ledger` leaves listLedgerEntryFiles
+	// returning (nil, nil), the chain verifies as valid with zero entries, and a scope_verified
+	// terminal is not bypassed but REMOVED -- the task returns here, to waiting_governance,
+	// where fresh authority can be issued.
+	//
+	// The two cases are separated by EVIDENCE, not assumption. Content-addressed artifacts live
+	// OUTSIDE the ledger directory and are written only as part of appending an entry, so
+	// artifacts with an empty chain mean entries existed and are gone. A task that has genuinely
+	// not engaged governance yet has neither.
+	//
+	// This is a read path, not the append path: appendEntry verifies BEFORE it writes a
+	// payload, so the window in which artifacts legitimately precede the first entry is not
+	// observed here.
+	if len(chain.Entries) == 0 {
+		if orphans, err := taskHasContentAddressedArtifacts(taskDir); err != nil {
+			return governanceState{}, err
+		} else if orphans {
+			return governanceState{}, fmt.Errorf("task %s: the ledger holds no entries but the task "+
+				"retains content-addressed artifacts, which are written only when an entry is "+
+				"appended: this history is incomplete rather than absent, and no earlier authority "+
+				"state may be reconstructed from it", chain.TaskID)
+		}
+	}
+
 	// authority_resolved ABSENT → the task never engaged typed governance.
 	authVE, ok := latest[closureprotocol.LedgerEventAuthorityResolved]
 	if !ok {
@@ -733,4 +761,23 @@ func resolveMutationPermission(taskDir string, decision admission.Decision, now 
 		Scope:       append([]string{}, decision.Envelope.ModifyPaths...),
 		Disposition: gov,
 	}, nil
+}
+
+// taskHasContentAddressedArtifacts reports whether the task retains any artifact under
+// artifacts/sha256. They are written as part of appending an entry and live OUTSIDE the ledger
+// directory, so they survive its deletion and are the positive witness that a chain existed.
+func taskHasContentAddressedArtifacts(taskDir string) (bool, error) {
+	entries, err := os.ReadDir(filepath.Join(taskDir, "artifacts", "sha256"))
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			return true, nil
+		}
+	}
+	return false, nil
 }

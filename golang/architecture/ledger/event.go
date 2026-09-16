@@ -80,23 +80,33 @@ func ValidateTaskEventPayload(eventType closureprotocol.LedgerEventType, data []
 			return err
 		}
 	}
-	// A result_transition_recorded event must reference the content-addressed
-	// ResultTransitionReceipt it records. The receipt's fields are validated where
-	// it is loaded (closureprotocol.ValidateResultTransitionReceipt); here the
-	// event contract only requires the artifact to be present.
-	if eventType == closureprotocol.LedgerEventResultTransitionRecorded {
-		if _, ok := payload.Artifacts["result_transition_receipt"]; !ok {
-			return fmt.Errorf("result_transition_recorded event requires a result_transition_receipt artifact")
-		}
-	}
-	// A question_disposition_recorded event must reference the content-addressed
-	// QuestionDispositionReceipt it records (Phase 8.1a). The receipt's fields are
-	// validated where it is loaded; here the event contract only requires the
-	// artifact to be present.
-	if eventType == closureprotocol.LedgerEventQuestionDispositionRecorded {
-		if _, ok := payload.Artifacts["question_disposition_receipt"]; !ok {
-			return fmt.Errorf("question_disposition_recorded event requires a question_disposition_receipt artifact")
+	for _, key := range RequiredArtifactKeys(eventType) {
+		if _, ok := payload.Artifacts[key]; !ok {
+			return fmt.Errorf("%s event requires a %s artifact", eventType, key)
 		}
 	}
 	return nil
+}
+
+// requiredEventArtifacts names, per event type, the content-addressed artifacts an event of
+// that type MUST reference. The receipts' own fields are validated where they are loaded; the
+// event contract here only requires the artifact to be present.
+//
+// A TABLE RATHER THAN A CHAIN OF IF-BLOCKS, because the set is the thing that was wrong. Two
+// of nineteen event types declared a requirement, and admission_consumed -- which records that
+// a single-use mutation capability was SPENT -- was not one of them. So an event of that type
+// carrying no artifact validated, appended, and became the latest event of its type; the reader
+// scanning backwards stopped at it and never reached the real record.
+//
+// Adding an authority-bearing event type is now a data change in one place that a test can
+// enumerate, instead of a rule someone must remember to write.
+var requiredEventArtifacts = map[closureprotocol.LedgerEventType][]string{
+	closureprotocol.LedgerEventResultTransitionRecorded:    {"result_transition_receipt"},
+	closureprotocol.LedgerEventQuestionDispositionRecorded: {"question_disposition_receipt"},
+	closureprotocol.LedgerEventAdmissionConsumed:           {"capability_consumption"},
+}
+
+// RequiredArtifactKeys returns the artifact keys an event of this type must carry.
+func RequiredArtifactKeys(eventType closureprotocol.LedgerEventType) []string {
+	return requiredEventArtifacts[eventType]
 }

@@ -2318,3 +2318,15 @@ invariants:
     required_tests:
       - golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
     contract: 'VerifyChain is total over stored chains: it returns a VerificationReport for any directory contents, and signals damage only through typed errors in that report'
+  - id: ledger.absence_requires_established_completeness
+    title: Earlier authority state is reconstructed only from a history whose completeness is established
+    status: active
+    description: 'Every fail-closed rule that reads absence is correct in isolation and wrong together, because absence is indistinguishable from destruction. Three shapes were reproduced: deleting the highest-sequence entry (a truncated chain is a valid PREFIX, so only HEAD witnesses the missing length); destroying the ledger directory (listLedgerEntryFiles returns nil,nil, so a destroyed history reads as a task that never had one); and appending an artifact-less event of an existing type (nothing deleted, append rights only). Integrity checks verify LINKS, not LENGTH.'
+    protects:
+      files:
+        - golang/architecture/ledger/verify.go
+        - golang/architecture/tasksession/governance.go
+        - golang/architecture/admission/ledger_load.go
+    required_tests:
+      - golang/architecture/ledger/damaged_history_test.go:TestTailTruncationIsAnErrorNotAWarning
+    contract: No reader may move a task to an earlier phase, or regrant a spent capability, on the ABSENCE of a ledger event unless the history's completeness has been positively established
