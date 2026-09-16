@@ -152,6 +152,16 @@ service AwarenessGraph {
   // identity only — filesystem roots come from the startup-owned context.
   rpc PrepareArchitectAnswerDisposition(PrepareArchitectAnswerDispositionRequest) returns (PrepareArchitectAnswerDispositionResponse);
   rpc RecordArchitectAnswerDisposition(RecordArchitectAnswerDispositionRequest) returns (RecordArchitectAnswerDispositionResponse);
+
+  // GetDomainGraph materializes, read-only, the exact graph this service serves
+  // for one domain — bytes and identity together, from one resolved view.
+  //
+  // It is the producer half of a law the graph snapshot consumers depend on:
+  // the caller may TRANSPORT a graph snapshot, but must not CHOOSE its
+  // authority. Exporting changes nothing: no promotion, no marker write, no
+  // generation change, no lock. A served graph whose identity cannot be
+  // established coherently is refused, never exported best-effort.
+  rpc GetDomainGraph(GetDomainGraphRequest) returns (GetDomainGraphResponse);
 }
 
 // ─── Briefing ─────────────────────────────────────────────────────────────
@@ -2115,4 +2125,54 @@ message RecordArchitectAnswerDispositionRequest {
 message RecordArchitectAnswerDispositionResponse {
   ArchitectureDispositionReceipt receipt = 1;
   ArchitectureMutationRefusal refusal = 2;
+}
+
+// ─── GetDomainGraph (read-only materialization of the served graph) ──────────
+//
+// The missing authority capability: a caller that needs the graph AS BYTES had
+// no way to obtain the one this service serves. Every other RPC answers a
+// scoped question, so a consumer wanting a snapshot had to query the backing
+// store itself, reconstruct the graph from storage internals, and then argue
+// the result equalled what the service serves. That argument is exactly where
+// "wrong store / wrong named graph / stale generation" creeps back in.
+//
+// So the authority that says "this is the graph I serve" also emits the bytes,
+// and emits them WITH their identity in one answer. A caller transports a
+// snapshot; it does not choose that snapshot's authority.
+//
+// Deliberately narrow: no SPARQL, no caller-selected named graph, no store URL.
+// GetDomainGraph(domain) means "the exact graph this instance currently serves for
+// that domain, or a refusal" — never a best-effort assembly.
+//
+// WHAT IT DOES NOT ASSERT. The registry that declares which generation is
+// ACTIVE is operator-owned and outside any published repository, and this
+// service does not read it — a repository must not be able to declare its own
+// graph active. So the response states the SERVED identity, and whether that is
+// the ACTIVE generation is a comparison the caller makes against the registry.
+// Both halves are needed and neither vouches for itself.
+message GetDomainGraphRequest {
+  // Domain to export. Required, canonical host/path form. An empty domain is
+  // refused rather than resolved to a favourite: exporting "whatever this
+  // server calls home" would produce a well-formed snapshot of something the
+  // caller did not ask for.
+  string domain = 1;
+}
+
+message GetDomainGraphResponse {
+  // The domain these bytes are the graph of, echoed so a stored snapshot can
+  // never be read as belonging to a different repository.
+  string domain = 1;
+  // generation is the served graph's identity: the marker-free semantic digest
+  // this instance reports as its live graph. A caller compares it with the
+  // ACTIVE generation its registry declares.
+  string generation = 2;
+  // graph_digest is recomputed from the returned bytes by the server before it
+  // answers. It equals generation for a coherent graph; a disagreement is a
+  // refusal rather than two fields for a reader to reconcile.
+  string graph_digest = 3;
+  int64 triple_count = 4;
+  // format names the serialization, so a consumer never infers it from a file
+  // extension. "ntriples" today; a second value would be a new contract.
+  string format = 5;
+  bytes ntriples = 6;
 }

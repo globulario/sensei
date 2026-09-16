@@ -161,6 +161,20 @@ func (c *Client) MetadataScoped(ctx context.Context, domain string) (*awarenessp
 	return c.stub.Metadata(ctx, &awarenesspb.MetadataRequest{Domain: domain})
 }
 
+// GetDomainGraph materializes, read-only, the exact graph the service serves for
+// one domain: the bytes and their identity together.
+//
+// The domain is required and is never defaulted here. A convenience wrapper
+// that filled in an empty domain would turn "the caller did not say" into "the
+// server's favourite", which is the substitution the RPC refuses on purpose.
+//
+// What comes back states the SERVED identity. Whether that is the ACTIVE
+// generation is a comparison the caller makes against its own registry: the
+// service does not read the registry, and the registry does not serve graphs.
+func (c *Client) GetDomainGraph(ctx context.Context, domain string) (*awarenesspb.GetDomainGraphResponse, error) {
+	return c.stub.GetDomainGraph(ctx, &awarenesspb.GetDomainGraphRequest{Domain: domain})
+}
+
 // Preflight returns pre-edit decision support: risk class, required actions,
 // forbidden fixes, and tests to run.
 func (c *Client) Preflight(ctx context.Context, req *awarenesspb.PreflightRequest) (*awarenesspb.PreflightResponse, error) {
