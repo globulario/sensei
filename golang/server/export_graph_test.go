@@ -174,6 +174,47 @@ func TestGetDomainGraphRefusesWhatItCannotCertify(t *testing.T) {
 			code:   codes.FailedPrecondition,
 			want:   "disagree (unknown)",
 		},
+		// THE E3 WITNESS, and why it took a real one to reach.
+		//
+		// servedGraphDigest falls through to the independent live-authority
+		// observation whenever the verification is not current, and
+		// AdmitLiveMarker declines to admit an identity for several real store
+		// conditions. Ambiguity is the one this branch's message describes: TWO
+		// live SeedBuild markers, each internally coherent at its own
+		// digest-derived IRI, so neither is rejected for incoherence and the
+		// store simply cannot say which generation it serves. The observation is
+		// integrity-failed, the served digest is empty, and the handler refuses
+		// BEFORE the freshness check it would otherwise reach.
+		//
+		// The earlier attempt at this case was contrived and reached the identity
+		// comparison instead, which is why it was deleted rather than tuned: a
+		// fixture that passes through a different branch proves nothing about
+		// this one.
+		"the live authority is ambiguous, so no identity is served": {
+			store: func() store.Store {
+				_, first := seedmeta.AppendMarker([]byte("<https://example.org/one> <https://example.org/p> \"1\" .\n"))
+				_, second := seedmeta.AppendMarker([]byte("<https://example.org/two> <https://example.org/p> \"2\" .\n"))
+				s := &exportingStore{nt: nt}
+				s.seedMarkerFacts = func(context.Context) []store.ImpactFact {
+					return append(
+						seedBuildMarkerFacts(first.IRI, first.Digest, first.TripleCount),
+						seedBuildMarkerFacts(second.IRI, second.Digest, second.TripleCount)...,
+					)
+				}
+				s.graphFreshness = func(context.Context) seedmeta.Verification {
+					return seedmeta.Verification{
+						State:    seedmeta.FreshnessStale,
+						Expected: marker,
+						Detail:   "test fixture: the store holds two live markers and matches neither",
+					}
+				}
+				return s
+			}(),
+			domain:   "github.com/globulario/sensei-code",
+			code:     codes.FailedPrecondition,
+			want:     "no coherent graph identity",
+			neverAsk: true,
+		},
 		"the bytes are not the graph whose identity is served": {
 			store: func() store.Store {
 				other, _ := seedmeta.AppendMarker([]byte("<https://example.org/z> <https://example.org/p> \"Z\" .\n"))
