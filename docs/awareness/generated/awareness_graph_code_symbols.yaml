@@ -25252,6 +25252,36 @@ test_symbols:
     package: testobligation
     language: go
     doc: "The zero values must be the honest ones: an obligation nobody reported on,\nand a report nobody filled in, must not read as proof."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestAWellFormedRecordReadsBackItsRealValue
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestAWellFormedRecordReadsBackItsRealValue
+    package: trustkernel
+    language: go
+    doc: "THE NEGATIVE CONTROL FOR THE EVIDENCE CLASS.\n\nThe refusals above are all satisfiable by a loader that refuses every record. A\nwell-formed consumption must read back the value that was actually recorded -- not\nmerely \"some record loaded\"."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestAnIntactChainStillVerifiesValid
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestAnIntactChainStillVerifiesValid
+    package: trustkernel
+    language: go
+    doc: "THE NEGATIVE CONTROL FOR THE HISTORY CLASS.\n\nEvery refusal above is satisfiable by a reader that refuses everything. An intact\nchain must still verify, with its entries counted and nothing orphaned."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestDestroyedOrCorruptHistoryIsNeverAbsence
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestDestroyedOrCorruptHistoryIsNeverAbsence
+    package: trustkernel
+    language: go
+    doc: "DESTROYED OR CORRUPT HISTORY IS NEVER ABSENCE.\n\nTwo defects, one class. Removing a task's ledger directory made listLedgerEntryFiles\nreturn (nil, nil), so a destroyed history verified as VALID with zero entries (#353).\nDeleting the highest-sequence entry left a valid PREFIX -- every sequence link and\nprevious-digest check satisfied -- whose only witness was HEAD, recorded as a warning\nthat report.Valid ignores and no governance caller inspects (#352). Either way a\nreader saw genuine ABSENCE of an event and could reconstruct authority that event had\nalready spent.\n\nThe class is asserted over a TABLE rather than one example, because a single example\nproves only that one deletion is caught. The shapes differ in which guard has to fire:\nthe HEAD/chain direction check, the per-entry checks, the orphan scan."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestMalformedAuthorityEvidenceFailsClosedWithATypedRefusal
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestMalformedAuthorityEvidenceFailsClosedWithATypedRefusal
+    package: trustkernel
+    language: go
+    doc: "MALFORMED AUTHORITY EVIDENCE FAILS CLOSED WITH A TYPED REFUSAL AND NEVER DOWNGRADES\nTO A WEAKER PATH.\n\nlatestArtifactFromChain returned (false, nil) -- \"no such event\" -- when the latest\nevent of a type lacked a REQUIRED artifact (#354). That conflation let an appended\nartifact-less event SHADOW the real record below it: append rights alone, no deletion,\nand a chain that stays complete and valid throughout.\n\nTwo damage shapes, because the two halves fail at different gates: an event type whose\ncontract DECLARES a required artifact is refused when the chain is verified, while an\nevent whose required artifacts are known only to its loader gets that far and must be\nrefused there."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestNoPackageImportsTheTrustKernel
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestNoPackageImportsTheTrustKernel
+    package: trustkernel
+    language: go
+    doc: "THE LEAF LAW.\n\nThis surface may import the packages that decide authority; none of them may import\nit. A guard the guarded code can reach is a guard the guarded code can weaken -- and\nan import cycle would force the assertions to move INTO the package they check, where\nthey would be one refactor away from being adjusted to match the behaviour they exist\nto constrain."
   - id: golang/architecture/whyinvestigation/git_test.go:TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
     file: golang/architecture/whyinvestigation/git_test.go
     symbol: TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
