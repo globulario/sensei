@@ -25252,6 +25252,126 @@ test_symbols:
     package: testobligation
     language: go
     doc: "The zero values must be the honest ones: an obligation nobody reported on,\nand a report nobody filled in, must not read as proof."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestAFunctionThatReadsNoLedgerIsNotACensusSubject
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestAFunctionThatReadsNoLedgerIsNotACensusSubject
+    package: trustkernel
+    language: go
+    doc: "A FUNCTION THAT READS NO LEDGER IS NOT A SUBJECT, and must not be demanded to verify\nanything. Without this the census would grow to demand verification of every function\nin four packages, and the first person to hit that would loosen the rule."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestANewlyAddedReaderIsDiscoveredAndJudged
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestANewlyAddedReaderIsDiscoveredAndJudged
+    package: trustkernel
+    language: go
+    doc: "A NEW READER IS DISCOVERED THE MOMENT IT IS WRITTEN. This is the census's standing\npromise about the future: the covered set is whatever the parser derives, not a number\nanyone maintains."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestAValidatorsOwnArtifactCheckIsNotAnUnverifiedRead
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestAValidatorsOwnArtifactCheckIsNotAnUnverifiedRead
+    package: trustkernel
+    language: go
+    doc: "A VALIDATOR'S OWN PRESENCE CHECK IS NOT A READ. dispositionPayloadValidator reaches\nvalidateDispositionEventPayload, which tests payload.Artifacts[ArtifactKeyReceipt]\nwhile running INSIDE verification, over the bytes being verified. Counting that as an\nunverified extraction condemns a real function in a real package -- and the first false\npositive is what gets a census disabled."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestAdmissionsValidatorRefusesEveryArtifactTheEventTableRequires
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestAdmissionsValidatorRefusesEveryArtifactTheEventTableRequires
+    package: trustkernel
+    language: go
+    doc: "THE VALIDATOR ACTUALLY REFUSES WHAT THE TABLE REQUIRES.\n\nThe structural half proves a validator is installed and that it invokes\nValidateTaskEventPayload. That is worth nothing on its own: a validator that is present\nand enforces nothing satisfies it exactly.\n\nTWO LEGS, over the SOURCE OF TRUTH rather than a hand-listed set -- every event type\nfor which ledger.RequiredArtifactKeys declares a requirement:\n\n\tthe real read path   admission.LoadLatestArtifactOptional, which builds the store with\n\t                     admission's own validator, must REFUSE an artifact-less event of\n\t                     that type instead of reporting it present or absent.\n\tthe refusal's words  the validator must NAME the missing key. The read path cannot show\n\t                     this: loadVerifiedChain collapses every verification error into\n\t                     \"invalid ledger chain\" and keeps the detail in the report. So the\n\t                     naming is asserted against ValidateTaskEventPayload directly, run\n\t                     over the SAME BYTES the ledger wrote -- and the structural half\n\t                     above is what pins that function as the one every reader reaches."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestAnonymousClosureValidatorsAreDiscoveredAndClassified
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestAnonymousClosureValidatorsAreDiscoveredAndClassified
+    package: trustkernel
+    language: go
+    doc: "AN ANONYMOUS CLOSURE IS A VALIDATOR LIKE ANY OTHER.\n\ntasksession installs three inline func literals -- control.go, session.go, session.go.\nDiscovery keyed on named validator functions finds NONE of them and certifies the\npackage by describing nothing. This requires the real package to still contain them and\nthe census to have classified each on the literal's own body."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestDelegatingToASelfVerifyingLoaderIsNotAnUnverifiedRead
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestDelegatingToASelfVerifyingLoaderIsNotAnUnverifiedRead
+    package: trustkernel
+    language: go
+    doc: "DELEGATION IS NOT SMUGGLING. admission.LoadRecordedConsumption hands\n\"capability_consumption\" to LoadLatestArtifact, which verifies its own ledger before\nextracting; no chain crosses that call, so the delegator owes nothing. Demanding a store\nof it would be a false positive on a real production function."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestDelegatingWrapperValidatorsAreAccepted
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestDelegatingWrapperValidatorsAreAccepted
+    package: trustkernel
+    language: go
+    doc: "A WRAPPER THAT DELEGATES AND ADDS RULES IS A VALID VALIDATOR -- INVOKES, NOT IS.\n\nrecordingPayloadValidator and dispositionPayloadValidator both call\nledger.ValidateTaskEventPayload and then enforce stricter event contracts of their own.\nAn equality test against ValidateTaskEventPayload would reject both and condemn two of\nthe four packages outright, so this pins the rule that makes them legal -- against the\nREAL packages, where the wrappers actually live."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestEveryGovernedArtifactReadCrossesADelegatingValidator
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestEveryGovernedArtifactReadCrossesADelegatingValidator
+    package: trustkernel
+    language: go
+    doc: "EVERY PRODUCTION READ OF A GOVERNED ARTIFACT CROSSES A VALIDATOR THAT INVOKES\nledger.ValidateTaskEventPayload BEFORE EXTRACTION.\n\nThis is the assumption that makes admission.requiredArtifact's mutant EQUIVALENT. It is\nasserted over whatever the parser finds in four packages, never over a maintained list:\na reader added tomorrow is a subject the moment it is written."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestEveryRequiredArtifactEventTypeIsInTheIteratedVocabulary
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestEveryRequiredArtifactEventTypeIsInTheIteratedVocabulary
+    package: trustkernel
+    language: go
+    doc: "THE TABLE IS FULLY REACHABLE FROM THE VOCABULARY THE HALF ABOVE ITERATES.\n\nThe behavioural half enumerates closureprotocol.LedgerEventTypes and asks the table\nabout each. A requirement declared for an event type that vocabulary omits would be\nsilently untested, and the half would still report PASS. This reads the table's own\nkeys out of the source and requires the vocabulary to cover them."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestFactoryBuiltStoresAreDiscoveredAndAttributed
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestFactoryBuiltStoresAreDiscoveredAndAttributed
+    package: trustkernel
+    language: go
+    doc: "A STORE BUILT BY A FACTORY IS STILL A STORE.\n\nquestiondisposition constructs all five of its stores through newStore(taskDir), which\nRETURNS ledger.NewStore(...). Discovery that only sees a NewStore call bound to a local\nvariable finds ZERO stores in that package, reports no failure, and certifies it."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestNoPackageOutsideTheCensusReadsAGovernedArtifact
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestNoPackageOutsideTheCensusReadsAGovernedArtifact
+    package: trustkernel
+    language: go
+    doc: "NO SIBLING PACKAGE READS A GOVERNED ARTIFACT OUTSIDE THE CENSUS.\n\nTHE FAILURE THIS EXISTS FOR. censusPackageDirs is a written list, and a written list is\nthe one part of this census nobody's edit can be caught by: dropping a package from it,\nor adding a fifth reader in a package nobody added, leaves every witness above green\nwhile the claim silently shrinks. That is exactly how the admission-only intermediate\ncovered one seam of three and passed.\n\nSo the subject set is CHECKED rather than trusted: every Go package in the repository is\nscanned for a read of a governed key, and each one found must be inside the census. The\nlist stops being an assertion about four packages and becomes an assertion about all of\nthem."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestOneSoundReaderCannotCertifyABrokenSibling
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestOneSoundReaderCannotCertifyABrokenSibling
+    package: trustkernel
+    language: go
+    doc: "ONE SOUND READER MUST NOT CERTIFY A BROKEN SIBLING, and the case that matters is both\nin ONE file -- which is how a whole file gets excused by its best function."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestTheCensusDiscoversNothingWhenThereIsNothingToDiscover
+    package: trustkernel
+    language: go
+    doc: "ANTI-VACUITY, DRIVEN RATHER THAN ASSERTED. The discovery must find nothing in a package\nwith no readers, and the census's per-package floor is what turns that into a failure.\nWithout this, removing the floor changes no test."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestTheCensusPassesSoundlyVerifiedReaders
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestTheCensusPassesSoundlyVerifiedReaders
+    package: trustkernel
+    language: go
+    doc: "THE NEGATIVE CONTROLS. Every refusal above is satisfiable by a census that fails\neverything. A correctly wired reader must produce NO failure, or the census is noise\nand the real-tree assertion means nothing."
+  - id: golang/architecture/trustkernel/authority_reader_census_test.go:TestTheCensusReportsEveryWayTheVerifiedBoundaryBreaks
+    file: golang/architecture/trustkernel/authority_reader_census_test.go
+    symbol: TestTheCensusReportsEveryWayTheVerifiedBoundaryBreaks
+    package: trustkernel
+    language: go
+    doc: "EVERY WAY THE BOUNDARY BREAKS, each driven against the classifier and each REQUIRED to\nbe reported. A census whose mutants all survive is not evidence."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestAWellFormedRecordReadsBackItsRealValue
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestAWellFormedRecordReadsBackItsRealValue
+    package: trustkernel
+    language: go
+    doc: "THE NEGATIVE CONTROL FOR THE EVIDENCE CLASS.\n\nThe refusals above are all satisfiable by a loader that refuses every record. A\nwell-formed consumption must read back the value that was actually recorded -- not\nmerely \"some record loaded\"."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestAnIntactChainStillVerifiesValid
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestAnIntactChainStillVerifiesValid
+    package: trustkernel
+    language: go
+    doc: "THE NEGATIVE CONTROL FOR THE HISTORY CLASS.\n\nEvery refusal above is satisfiable by a reader that refuses everything. An intact\nchain must still verify, with its entries counted and nothing orphaned."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestDestroyedOrCorruptHistoryIsNeverAbsence
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestDestroyedOrCorruptHistoryIsNeverAbsence
+    package: trustkernel
+    language: go
+    doc: "DESTROYED OR CORRUPT HISTORY IS NEVER ABSENCE.\n\nTwo defects, one class. Removing a task's ledger directory made listLedgerEntryFiles\nreturn (nil, nil), so a destroyed history verified as VALID with zero entries (#353).\nDeleting the highest-sequence entry left a valid PREFIX -- every sequence link and\nprevious-digest check satisfied -- whose only witness was HEAD, recorded as a warning\nthat report.Valid ignores and no governance caller inspects (#352). Either way a\nreader saw genuine ABSENCE of an event and could reconstruct authority that event had\nalready spent.\n\nThe class is asserted over a TABLE rather than one example, because a single example\nproves only that one deletion is caught. The shapes differ in which guard has to fire:\nthe HEAD/chain direction check, the per-entry checks, the orphan scan."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestMalformedAuthorityEvidenceFailsClosedWithATypedRefusal
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestMalformedAuthorityEvidenceFailsClosedWithATypedRefusal
+    package: trustkernel
+    language: go
+    doc: "MALFORMED AUTHORITY EVIDENCE FAILS CLOSED WITH A TYPED REFUSAL AND NEVER DOWNGRADES\nTO A WEAKER PATH.\n\nlatestArtifactFromChain returned (false, nil) -- \"no such event\" -- when the latest\nevent of a type lacked a REQUIRED artifact (#354). That conflation let an appended\nartifact-less event SHADOW the real record below it: append rights alone, no deletion,\nand a chain that stays complete and valid throughout.\n\nTwo damage shapes, because the two halves fail at different gates: an event type whose\ncontract DECLARES a required artifact is refused when the chain is verified, while an\nevent whose required artifacts are known only to its loader gets that far and must be\nrefused there."
+  - id: golang/architecture/trustkernel/history_is_not_absence_test.go:TestNoPackageImportsTheTrustKernel
+    file: golang/architecture/trustkernel/history_is_not_absence_test.go
+    symbol: TestNoPackageImportsTheTrustKernel
+    package: trustkernel
+    language: go
+    doc: "THE LEAF LAW.\n\nThis surface may import the packages that decide authority; none of them may import\nit. A guard the guarded code can reach is a guard the guarded code can weaken -- and\nan import cycle would force the assertions to move INTO the package they check, where\nthey would be one refactor away from being adjusted to match the behaviour they exist\nto constrain."
   - id: golang/architecture/whyinvestigation/git_test.go:TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
     file: golang/architecture/whyinvestigation/git_test.go
     symbol: TestCaptureTimestampDoesNotChangeGitEvidenceIdentity
