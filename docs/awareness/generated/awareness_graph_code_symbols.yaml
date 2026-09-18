@@ -4429,6 +4429,36 @@ test_symbols:
     symbol: TestRenderProofPlanText_IncludesPromotionChecklist
     package: main
     language: go
+  - id: cmd/awg/cmd_propose_store_authority_test.go:TestChangingOnlyTheDefaultCannotRedirectPublicationSilently
+    file: cmd/awg/cmd_propose_store_authority_test.go
+    symbol: TestChangingOnlyTheDefaultCannotRedirectPublicationSilently
+    package: main
+    language: go
+    doc: "4. Moving only the default cannot redirect publication without detection.\n\nThe default is exactly what changed under sensei-code#183: nobody edited a\nconfig, and the publication went somewhere else anyway."
+  - id: cmd/awg/cmd_propose_store_authority_test.go:TestProposeDoesNotGateThePathsThatTouchNoStore
+    file: cmd/awg/cmd_propose_store_authority_test.go
+    symbol: TestProposeDoesNotGateThePathsThatTouchNoStore
+    package: main
+    language: go
+    doc: "The paths that publish nothing are not gated: they make no claim to be wrong\nabout, and refusing them would make the guard fire where there is no defect."
+  - id: cmd/awg/cmd_propose_store_authority_test.go:TestProposeRecordsTheStoreItRefreshed
+    file: cmd/awg/cmd_propose_store_authority_test.go
+    symbol: TestProposeRecordsTheStoreItRefreshed
+    package: main
+    language: go
+    doc: "2. The project declares store A and the command refreshes A: success, and the\n    result says which store it was."
+  - id: cmd/awg/cmd_propose_store_authority_test.go:TestProposeRefusesAStoreTheProjectDoesNotName
+    file: cmd/awg/cmd_propose_store_authority_test.go
+    symbol: TestProposeRefusesAStoreTheProjectDoesNotName
+    package: main
+    language: go
+    doc: "1. The project declares store A and the command would refresh store B:\n    refused, before anything is written, and never reported as success."
+  - id: cmd/awg/cmd_propose_store_authority_test.go:TestProposeWithNoConfiguredStoreSaysSoRatherThanImplyingAgreement
+    file: cmd/awg/cmd_propose_store_authority_test.go
+    symbol: TestProposeWithNoConfiguredStoreSaysSoRatherThanImplyingAgreement
+    package: main
+    language: go
+    doc: "3. No project-configured authority: the claim is explicit, not inferred."
   - id: cmd/awg/cmd_propose_test.go:TestApplyProposal_ContractUnknownGoesToCandidatesNoRebuild
     file: cmd/awg/cmd_propose_test.go
     symbol: TestApplyProposal_ContractUnknownGoesToCandidatesNoRebuild

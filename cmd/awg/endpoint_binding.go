@@ -98,6 +98,17 @@ func requireEndpointAgreement(fs *flag.FlagSet, root, flagName, configKey, confi
 	if flagPassed(fs, strings.TrimPrefix(flagName, "-")) {
 		return nil
 	}
+	return endpointDisagreement(root, flagName, configKey, configured, resolved)
+}
+
+// endpointDisagreement is the comparison itself, without the command line.
+//
+// Split out so the verdict can be formed where the flag set is visible and
+// consumed where the command knows whether it will touch an endpoint at all
+// (#377). The operator-named-it-at-the-point-of-use rule stays above, in the
+// one function that can see the flags: this half only knows what the config
+// says and what was resolved.
+func endpointDisagreement(root, flagName, configKey, configured, resolved string) error {
 	configured = strings.TrimSpace(configured)
 	if configured == "" {
 		return nil
