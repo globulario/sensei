@@ -54,11 +54,19 @@ type ProposeResult struct {
 	FilesChanged     []string `json:"files_changed"`
 	Validation       string   `json:"validation"` // ok | errors
 	ValidationErrors []string `json:"validation_errors,omitempty"`
-	Reload           string   `json:"reload"` // ok | skipped | failed | n/a
+	Reload           string   `json:"reload"` // ok | skipped | failed | refused | n/a
 	ReloadDetail     string   `json:"reload_detail,omitempty"`
-	DiffSummary      string   `json:"diff_summary,omitempty"`
-	NextCommand      string   `json:"next_command,omitempty"`
-	Note             string   `json:"note,omitempty"`
+	// ReloadStore is the store identity this command actually refreshed.
+	//
+	// The checkable record #377 asks for. "reload: ok" said an operation
+	// succeeded without saying where, so a reload of the built-in default read
+	// exactly like a reload of the project's declared authority -- and on
+	// sensei-code#183 an invariant was authored, reported reloaded, and was not
+	// reachable from the store the project declares.
+	ReloadStore string `json:"reload_store,omitempty"`
+	DiffSummary string `json:"diff_summary,omitempty"`
+	NextCommand string `json:"next_command,omitempty"`
+	Note        string `json:"note,omitempty"`
 }
 
 // proposeRebuild is the rebuild entry point. It is a package var so tests can
@@ -75,6 +83,18 @@ type proposeOptions struct {
 	noRebuild   bool
 	noStage     bool
 	oxigraphURL string
+	// storeAgreement is the project-config endpoint verdict, evaluated where
+	// the flag set is visible and consumed where the reload is decided.
+	//
+	// Carried rather than re-derived: whether the operator named the endpoint
+	// at the point of use is a property of the command line, and a second
+	// reading of it here would be a second precedence rule. nil means the
+	// endpoint this command would refresh is one the project config names, or
+	// that the operator named it explicitly.
+	storeAgreement error
+	// storeNotice explains a resolved endpoint the project config does not
+	// corroborate, for the case where there is nothing to disagree with.
+	storeNotice string
 }
 
 func runPropose(args []string) int {
@@ -222,6 +242,21 @@ Flags:
 		noStage:     *noStage,
 		oxigraphURL: *oxigraphURL,
 	}
+	// WHICH STORE THIS COMMAND WOULD REFRESH, decided by the one owner of that
+	// precedence rather than by this command's flag default (#377).
+	//
+	// `propose` rebuilds and reloads, which is a publication; `build` has
+	// refused a resolved endpoint the project config does not name since #212,
+	// and this simply asks the same question. It is evaluated here because only
+	// the flag set knows whether the operator named the endpoint at the point
+	// of use, and consumed further down, where the command knows whether a
+	// reload will happen at all.
+	if proposeRoot, rerr := resolveProjectRoot(""); rerr == nil {
+		opt.storeAgreement = requireStoreURLAgreement(fs, proposeRoot, *oxigraphURL)
+		if cfg, cerr := loadEndpointConfig(proposeRoot); cerr == nil {
+			opt.storeNotice = nonCanonicalStoreURLNotice(cfg.configuredStoreURL(), *oxigraphURL)
+		}
+	}
 
 	res, code := applyProposal(&req, opt)
 	printProposeResult(res, *format)
@@ -301,6 +336,23 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 	}
 
 	if !plan.IsCandidate && !opt.noRebuild {
+		// A RELOAD IS A PUBLICATION, so it is refused before anything is
+		// written -- not reported as a successful reload of somewhere else.
+		//
+		// Positioned beside the other pre-reload prerequisite deliberately:
+		// after this point the governed-mutation lock is held and YAML is
+		// appended, and a command that had already authored an entry could only
+		// report that its publication went to an endpoint nobody declared. The
+		// paths that touch no store (--no-rebuild, and a candidate that is not
+		// yet a live node) are not gated, because they make no publication
+		// claim to be wrong about.
+		if opt.storeAgreement != nil {
+			res.Status = "validation_failed"
+			res.Validation = "errors"
+			res.ValidationErrors = []string{opt.storeAgreement.Error()}
+			res.Reload = "refused"
+			return res, 1
+		}
 		if err := ensureCrossRepoRebuildPrereqs(opt.agRepo, opt.svcRepo); err != nil {
 			res.Status = "validation_failed"
 			res.Validation = "errors"
@@ -356,6 +408,13 @@ func applyProposal(req *ProposeRequest, opt proposeOptions) (ProposeResult, int)
 		}
 		if rc := proposeRebuild(rebuildArgs); rc == 0 {
 			res.Reload = "ok"
+			// NAMED, always. A success that does not say where it published is
+			// the claim #377 was filed about.
+			res.ReloadStore = opt.oxigraphURL
+			// And when the project declares no store there is nothing to
+			// disagree with, so the absence of corroboration is stated rather
+			// than read as agreement.
+			res.ReloadDetail = opt.storeNotice
 		} else {
 			res.Reload = "failed"
 			res.ReloadDetail = proposeReloadFailureDetail(req.Domain)
@@ -551,6 +610,9 @@ func printProposeResult(res ProposeResult, format string) {
 	}
 	if res.Reload != "" {
 		line := res.Reload
+		if res.ReloadStore != "" {
+			line += " -> " + res.ReloadStore
+		}
 		if res.ReloadDetail != "" {
 			line += " (" + res.ReloadDetail + ")"
 		}
