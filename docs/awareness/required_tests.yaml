@@ -2281,3 +2281,13 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
+  - id: golang/scipingest/identity_test.go:TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
+    title: A symbol scoped by a type keeps that scope in its identity
+    protects:
+      failure_modes:
+        - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
+  - id: golang/scipingest/identity_test.go:TestAnUnseparableCollisionResolvesTheSameWayEveryRunAndIsCounted
+    title: A collision no scope can separate resolves identically every run and is counted
+    protects:
+      failure_modes:
+        - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
