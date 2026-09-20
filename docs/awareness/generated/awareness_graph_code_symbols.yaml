@@ -29524,6 +29524,40 @@ test_symbols:
     symbol: TestTSScanner_SymbolAttachmentAndKinds
     package: scanner
     language: go
+  - id: golang/scipingest/identity_test.go:TestAPackageIsNotADeclarationOfTheFileThatNamesIt
+    file: golang/scipingest/identity_test.go
+    symbol: TestAPackageIsNotADeclarationOfTheFileThatNamesIt
+    package: scipingest
+    language: go
+    doc: "A package is not declared in any one file -- scip-go emits one symbol per\ndocument -- so minting it as a CodeSymbol of the file that names it invents a\ndeclaration and collides with a real function of the same name. `package\nmain` and `func main()` in one file were the last collision in the real\ncorpus."
+  - id: golang/scipingest/identity_test.go:TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
+    file: golang/scipingest/identity_test.go
+    symbol: TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
+    package: scipingest
+    language: go
+  - id: golang/scipingest/identity_test.go:TestATypeAndAFunctionOfOneNameAreTwoIdentities
+    file: golang/scipingest/identity_test.go
+    symbol: TestATypeAndAFunctionOfOneNameAreTwoIdentities
+    package: scipingest
+    language: go
+  - id: golang/scipingest/identity_test.go:TestOneDeclarationReportedTwiceIsNotALoss
+    file: golang/scipingest/identity_test.go
+    symbol: TestOneDeclarationReportedTwiceIsNotALoss
+    package: scipingest
+    language: go
+    doc: "An indexer may report one declaration twice. That is one declaration: the\nrepeat must not be counted as a discarded definition, or the loss counter --\nwhose only value is that it is believed -- cries loss where there is none."
+  - id: golang/scipingest/identity_test.go:TestTheBlankIdentifierIsNotADeclaration
+    file: golang/scipingest/identity_test.go
+    symbol: TestTheBlankIdentifierIsNotADeclaration
+    package: scipingest
+    language: go
+    doc: "`_` is Go's deliberate anonymity: it cannot be referenced, so it can never be\nthe subject of a question the graph is asked. Two of them in one file are not\ntwo declarations of anything, and counting the second as a discarded\ndefinition would make the loss counter report a loss that did not happen."
+  - id: golang/scipingest/identity_test.go:TestTheSymbolCensusDoesNotDependOnIndexOrder
+    file: golang/scipingest/identity_test.go
+    symbol: TestTheSymbolCensusDoesNotDependOnIndexOrder
+    package: scipingest
+    language: go
+    doc: "The census must be a function of the declarations, not of the order the\nindexer happened to emit them in. scip-go visits packages concurrently, so\ntwo runs over one unchanged tree can present the same symbols in a different\norder; if identity collapses, whichever arrives first wins and unchanged\nsource appears to change kind between runs."
   - id: golang/scipingest/scipingest_test.go:TestIngest_ExcludeTestFiles
     file: golang/scipingest/scipingest_test.go
     symbol: TestIngest_ExcludeTestFiles

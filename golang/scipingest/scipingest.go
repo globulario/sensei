@@ -45,6 +45,10 @@ type Ref struct {
 type Result struct {
 	Symbols []scanner.CodeSymbol
 	Refs    []Ref
+	// Dropped counts definitions discarded because another definition in the
+	// same file already claimed their id. Every one is a declaration the graph
+	// cannot answer questions about, so it is reported rather than hidden.
+	Dropped int
 }
 
 // Options tunes the translation.
@@ -66,6 +70,9 @@ func Ingest(idx *scip.Index, opts Options) Result {
 	// scipToID maps a SCIP symbol string -> our code-symbol ID, for definitions
 	// we saw, so references can be resolved to internal targets.
 	scipToID := map[string]string{}
+	// seenDef remembers (id, SCIP symbol) pairs already taken, so one
+	// declaration reported twice is recorded once and counted never.
+	seenDef := map[string]bool{}
 
 	// First pass: definitions (Document.Symbols).
 	for _, doc := range idx.GetDocuments() {
@@ -85,7 +92,23 @@ func Ingest(idx *scip.Index, opts Options) Result {
 			if name == "" || isLocalSymbol(si.GetSymbol()) {
 				continue // unnamed or function-local symbol — not a stable node
 			}
-			id := symbolID(file, name)
+			if isPackageSymbol(si.GetSymbol()) {
+				continue // a package is not declared in one file — see isPackageSymbol
+			}
+			if isBlankIdentifier(name) {
+				continue // `_` names nothing, so nothing can ever ask about it
+			}
+			kind := symbolKind(si)
+			id := symbolID(file, name, kind)
+			// One declaration reported twice is one declaration. Counting the
+			// repeat as a discarded definition would make the loss counter --
+			// the whole point of which is to be believable -- cry loss where
+			// there is none.
+			if defKey := id + "\x00" + si.GetSymbol(); seenDef[defKey] {
+				continue
+			} else {
+				seenDef[defKey] = true
+			}
 			scipToID[si.GetSymbol()] = id
 			res.Symbols = append(res.Symbols, scanner.CodeSymbol{
 				ID:        id,
@@ -93,7 +116,7 @@ func Ingest(idx *scip.Index, opts Options) Result {
 				Language:  lang,
 				File:      file,
 				Symbol:    name,
-				Kind:      symbolKind(si),
+				Kind:      kind,
 			})
 		}
 	}
@@ -250,13 +273,15 @@ func hasRole(roles int32, role scip.SymbolRole) bool { return roles&int32(role) 
 // symbolDisplayName returns the best human name for a defined symbol: SCIP's
 // display_name when the indexer set it, else the last meaningful descriptor.
 func symbolDisplayName(si *scip.SymbolInformation) string {
-	// scip-go commonly reports a bare DisplayName for methods (for example
-	// "Render"), even though the canonical symbol descriptors carry the
-	// receiver ("JSON.Render"). Prefer that descriptor-derived qualified name
-	// for methods so same-named methods in one file do not collapse onto the
-	// same file:method identity. Functions keep the indexer's display name.
+	// scip-go commonly reports a bare DisplayName for anything scoped by a type
+	// (for example "Render" for JSON.Render, or "Mode" for the Mode field of
+	// TaskMode), even though the canonical symbol descriptors carry that scope.
+	// Prefer the descriptor-derived qualified name whenever the symbol has one,
+	// so two declarations that differ only in scope do not collapse onto a
+	// single file:name identity. Package-level declarations have no enclosing
+	// type, parse to a bare name, and keep the indexer's display name.
 	parsed := symbolStringName(si.GetSymbol())
-	if symbolKind(si) == "method" && strings.Contains(parsed, ".") {
+	if strings.Contains(parsed, ".") {
 		return parsed
 	}
 	if n := strings.TrimSpace(si.GetDisplayName()); n != "" {
@@ -278,13 +303,23 @@ func symbolStringName(symbol string) string {
 	if name == "" {
 		return ""
 	}
-	// Prefix an immediately-preceding Type descriptor so methods read as
-	// Recv.Method rather than a bare, ambiguous method name.
-	if last.GetSuffix() == scip.Descriptor_Method && len(descs) >= 2 {
-		if prev := descs[len(descs)-2]; prev.GetSuffix() == scip.Descriptor_Type {
-			if recv := strings.TrimSpace(prev.GetName()); recv != "" {
-				return recv + "." + name
+	// Prefix the enclosing Type descriptors so a declaration scoped by a type
+	// reads as Recv.Method or Struct.Field rather than a bare, ambiguous name.
+	// Methods (`Recv#Method().`) and terms -- fields, and constants or vars
+	// declared inside a type -- both carry that scope; package-level
+	// declarations are preceded by a Package descriptor and keep a bare name.
+	switch last.GetSuffix() {
+	case scip.Descriptor_Method, scip.Descriptor_Term:
+		var scopes []string
+		for i := len(descs) - 2; i >= 0 && descs[i].GetSuffix() == scip.Descriptor_Type; i-- {
+			enclosing := strings.TrimSpace(descs[i].GetName())
+			if enclosing == "" {
+				break
 			}
+			scopes = append([]string{enclosing}, scopes...)
+		}
+		if len(scopes) > 0 {
+			return strings.Join(scopes, ".") + "." + name
 		}
 	}
 	return name
@@ -321,17 +356,61 @@ func symbolKind(si *scip.SymbolInformation) string {
 	return "function"
 }
 
+// isBlankIdentifier reports whether a name is Go's blank identifier, possibly
+// scoped by a type. `_` deliberately names nothing: it cannot be referenced, so
+// it can never be the subject of a question the graph is asked, and two of them
+// in one file are not two declarations of anything.
+func isBlankIdentifier(name string) bool {
+	return name == "_" || strings.HasSuffix(name, "._")
+}
+
 // isLocalSymbol reports whether a SCIP symbol string denotes a function-local
 // symbol (scheme "local ..."), which is not worth a graph node.
 func isLocalSymbol(symbol string) bool {
 	return strings.HasPrefix(symbol, "local ")
 }
 
+// typeMarker distinguishes a type from anything else of the same name declared
+// in one file. SCIP already draws that line -- `Handler#` is the type,
+// `Handler().` the function -- and an id that drops it lets two different
+// declarations claim one identity, which no tie-break can repair: one of them
+// simply stops existing in the graph.
+//
+// The marker goes on the type rather than the function because a function's id
+// is load-bearing: an authored required_test anchor (path_test.go:TestFoo) and
+// the ingested symbol deliberately share one id so the Test node and the code
+// symbol are the same subject. Marking functions would break that unification
+// at 347 sites; marking types costs one authored reference.
+//
+// It is '~type' and not SCIP's own '#' because these ids are encoded into IRIs
+// whose class part already carries a '#'. EncodeIRIPath does not escape it, so
+// a second one would put a '#' inside a fragment, which RFC 3986 does not
+// allow. '~' is unreserved and survives encoding unchanged.
+const typeMarker = "~type"
+
 // symbolID builds a stable, readable, IRI-safe-after-encoding id for a symbol
 // defined in file. Format mirrors the existing TestSymbol convention
 // (file:Name) so ids stay human-legible in impact output.
-func symbolID(file, name string) string {
+func symbolID(file, name, kind string) string {
+	if kind == "type" {
+		return fmt.Sprintf("%s:%s%s", file, name, typeMarker)
+	}
 	return fmt.Sprintf("%s:%s", file, name)
+}
+
+// isPackageSymbol reports whether a SCIP symbol denotes a package rather than
+// something declared inside a file. scip-go emits one per document, so a
+// package is not a file-scoped declaration at all: minting it as a CodeSymbol
+// of the file that happens to declare it both mislabels it (no descriptor kind
+// maps to "package", so it fell through to "function") and makes it collide
+// with a real function of the same name -- `package main` against `func
+// main()` in the same file.
+func isPackageSymbol(symbol string) bool {
+	sym, err := scip.ParseSymbol(symbol)
+	if err != nil || len(sym.GetDescriptors()) == 0 {
+		return false
+	}
+	return sym.GetDescriptors()[len(sym.GetDescriptors())-1].GetSuffix() == scip.Descriptor_Package
 }
 
 // isRepoRelative reports whether a SCIP document path is a real repo-relative
@@ -386,11 +465,26 @@ func normalizeLanguage(lang string) string {
 	}
 }
 
+// dedupeSymbols keeps one symbol per id. Two symbols reaching the same id is a
+// collapsed identity, so the survivor must not depend on the order the indexer
+// emitted them in: scip-go visits packages concurrently, and an order-dependent
+// winner makes unchanged source appear to change kind between runs. Sorting
+// first makes the choice a function of the declarations alone, and Dropped
+// reports how many were discarded so a collapse is countable rather than
+// silent.
 func dedupeSymbols(res *Result) {
+	sort.SliceStable(res.Symbols, func(i, j int) bool {
+		a, b := res.Symbols[i], res.Symbols[j]
+		if a.ID != b.ID {
+			return a.ID < b.ID
+		}
+		return a.Kind < b.Kind
+	})
 	seen := map[string]bool{}
 	out := res.Symbols[:0]
 	for _, s := range res.Symbols {
 		if seen[s.ID] {
+			res.Dropped++
 			continue
 		}
 		seen[s.ID] = true
