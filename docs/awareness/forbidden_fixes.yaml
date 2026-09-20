@@ -819,3 +819,9 @@ forbidden_fixes:
     related_invariants:
       - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
     reason: 'Sorting before dedupe stops the kind from flipping between runs, so the symptom disappears and the index looks stable. It is not the repair: the two declarations still share one id, so one of them stays absent from the graph and every question about it is answered about the other. Scope that the SCIP symbol already carries must be kept in the id; a deterministic tie-break is only the residue for declarations no scope can separate, and that residue must be counted.'
+  - id: forbidden_fix.accept_a_same_name_type_and_function_as_an_unseparable_colli
+    title: Accept a same-name type and function as an unseparable collision
+    summary: 'Handler# and Handler(). differ in the SCIP descriptor SCIP already provides. Calling that pair unseparable and settling for a deterministic winner keeps the index stable while one declaration stops existing, which is the original defect wearing a tidier face. Kind discrimination belongs in the id. The only definitions that may be discarded are those that are not declarations: a package, which is not declared in any one file, and the blank identifier, which names nothing.'
+    related_invariants:
+      - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    reason: 'Handler# and Handler(). differ in the SCIP descriptor SCIP already provides. Calling that pair unseparable and settling for a deterministic winner keeps the index stable while one declaration stops existing, which is the original defect wearing a tidier face. Kind discrimination belongs in the id. The only definitions that may be discarded are those that are not declarations: a package, which is not declared in any one file, and the blank identifier, which names nothing.'

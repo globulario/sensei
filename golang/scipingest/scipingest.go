@@ -70,6 +70,9 @@ func Ingest(idx *scip.Index, opts Options) Result {
 	// scipToID maps a SCIP symbol string -> our code-symbol ID, for definitions
 	// we saw, so references can be resolved to internal targets.
 	scipToID := map[string]string{}
+	// seenDef remembers (id, SCIP symbol) pairs already taken, so one
+	// declaration reported twice is recorded once and counted never.
+	seenDef := map[string]bool{}
 
 	// First pass: definitions (Document.Symbols).
 	for _, doc := range idx.GetDocuments() {
@@ -89,7 +92,23 @@ func Ingest(idx *scip.Index, opts Options) Result {
 			if name == "" || isLocalSymbol(si.GetSymbol()) {
 				continue // unnamed or function-local symbol — not a stable node
 			}
-			id := symbolID(file, name)
+			if isPackageSymbol(si.GetSymbol()) {
+				continue // a package is not declared in one file — see isPackageSymbol
+			}
+			if isBlankIdentifier(name) {
+				continue // `_` names nothing, so nothing can ever ask about it
+			}
+			kind := symbolKind(si)
+			id := symbolID(file, name, kind)
+			// One declaration reported twice is one declaration. Counting the
+			// repeat as a discarded definition would make the loss counter --
+			// the whole point of which is to be believable -- cry loss where
+			// there is none.
+			if defKey := id + "\x00" + si.GetSymbol(); seenDef[defKey] {
+				continue
+			} else {
+				seenDef[defKey] = true
+			}
 			scipToID[si.GetSymbol()] = id
 			res.Symbols = append(res.Symbols, scanner.CodeSymbol{
 				ID:        id,
@@ -97,7 +116,7 @@ func Ingest(idx *scip.Index, opts Options) Result {
 				Language:  lang,
 				File:      file,
 				Symbol:    name,
-				Kind:      symbolKind(si),
+				Kind:      kind,
 			})
 		}
 	}
@@ -337,17 +356,61 @@ func symbolKind(si *scip.SymbolInformation) string {
 	return "function"
 }
 
+// isBlankIdentifier reports whether a name is Go's blank identifier, possibly
+// scoped by a type. `_` deliberately names nothing: it cannot be referenced, so
+// it can never be the subject of a question the graph is asked, and two of them
+// in one file are not two declarations of anything.
+func isBlankIdentifier(name string) bool {
+	return name == "_" || strings.HasSuffix(name, "._")
+}
+
 // isLocalSymbol reports whether a SCIP symbol string denotes a function-local
 // symbol (scheme "local ..."), which is not worth a graph node.
 func isLocalSymbol(symbol string) bool {
 	return strings.HasPrefix(symbol, "local ")
 }
 
+// typeMarker distinguishes a type from anything else of the same name declared
+// in one file. SCIP already draws that line -- `Handler#` is the type,
+// `Handler().` the function -- and an id that drops it lets two different
+// declarations claim one identity, which no tie-break can repair: one of them
+// simply stops existing in the graph.
+//
+// The marker goes on the type rather than the function because a function's id
+// is load-bearing: an authored required_test anchor (path_test.go:TestFoo) and
+// the ingested symbol deliberately share one id so the Test node and the code
+// symbol are the same subject. Marking functions would break that unification
+// at 347 sites; marking types costs one authored reference.
+//
+// It is '~type' and not SCIP's own '#' because these ids are encoded into IRIs
+// whose class part already carries a '#'. EncodeIRIPath does not escape it, so
+// a second one would put a '#' inside a fragment, which RFC 3986 does not
+// allow. '~' is unreserved and survives encoding unchanged.
+const typeMarker = "~type"
+
 // symbolID builds a stable, readable, IRI-safe-after-encoding id for a symbol
 // defined in file. Format mirrors the existing TestSymbol convention
 // (file:Name) so ids stay human-legible in impact output.
-func symbolID(file, name string) string {
+func symbolID(file, name, kind string) string {
+	if kind == "type" {
+		return fmt.Sprintf("%s:%s%s", file, name, typeMarker)
+	}
 	return fmt.Sprintf("%s:%s", file, name)
+}
+
+// isPackageSymbol reports whether a SCIP symbol denotes a package rather than
+// something declared inside a file. scip-go emits one per document, so a
+// package is not a file-scoped declaration at all: minting it as a CodeSymbol
+// of the file that happens to declare it both mislabels it (no descriptor kind
+// maps to "package", so it fell through to "function") and makes it collide
+// with a real function of the same name -- `package main` against `func
+// main()` in the same file.
+func isPackageSymbol(symbol string) bool {
+	sym, err := scip.ParseSymbol(symbol)
+	if err != nil || len(sym.GetDescriptors()) == 0 {
+		return false
+	}
+	return sym.GetDescriptors()[len(sym.GetDescriptors())-1].GetSuffix() == scip.Descriptor_Package
 }
 
 // isRepoRelative reports whether a SCIP document path is a real repo-relative

@@ -2291,3 +2291,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
+  - id: golang/scipingest/identity_test.go:TestATypeAndAFunctionOfOneNameAreTwoIdentities
+    title: A type and a function of one name are two identities
+    protects:
+      failure_modes:
+        - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
