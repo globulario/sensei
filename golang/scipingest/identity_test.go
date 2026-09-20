@@ -76,6 +76,13 @@ func TestTheSymbolCensusDoesNotDependOnIndexOrder(t *testing.T) {
 	if !reflect.DeepEqual(forward.Symbols, reverse.Symbols) {
 		t.Fatalf("the same declarations produced two different censuses\nforward: %+v\nreverse: %+v", forward.Symbols, reverse.Symbols)
 	}
+	// Order-independence alone is not the property this test is named for: a
+	// census that loses the same declarations every run is also stable. The
+	// census must be the WHOLE census, so nothing may be discarded.
+	if forward.Dropped != 0 || len(forward.Symbols) != len(scopedIndex(false).GetDocuments()[0].GetSymbols()) {
+		t.Fatalf("the census is stable but incomplete: %d of %d declarations survived, %d dropped",
+			len(forward.Symbols), len(scopedIndex(false).GetDocuments()[0].GetSymbols()), forward.Dropped)
+	}
 }
 
 // collidingIndex models the residue: two declarations that reach one id even
