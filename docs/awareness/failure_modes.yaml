@@ -2309,3 +2309,15 @@ failure_modes:
       - golang/architecture/ledger/verify_totality_test.go:TestOneCorruptEntryReturnsATypedRefusalRatherThanPanicking
     evidence:
       - 'sensei#356; reproduced at 13e4b8b6: corrupting entry 1 of a 5-entry chain panicked with ''index out of range [0] with length 0'''
+  - id: failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
+    title: A code symbol's identity dropped the scope that distinguished it
+    description: 'scip-ingest built a code-symbol id as file:DisplayName, keeping the enclosing type only for methods. A type and a field named alike in one file (type Mode string and TaskMode.Mode) therefore reached one id, and dedupe kept whichever the indexer emitted first. scip-go visits packages concurrently, so two regenerations of one unchanged tree disagreed: 36 symbols changed kind in both directions, and 218 declarations were silently discarded.'
+    protects:
+      files:
+        - golang/scipingest/scipingest.go
+    related_invariants:
+      - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    required_tests:
+      - golang/scipingest/identity_test.go:TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
+    evidence:
+      - two independent regenerations at sensei-code df9923d0 produced 36 bidirectional kind flips over an identical id set; a census over the same index found 199 colliding ids and 218 dropped definitions

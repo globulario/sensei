@@ -813,3 +813,9 @@ forbidden_fixes:
     related_invariants:
       - governance.expiry_withholds_a_grant_it_does_not_repudiate_a_spend
     reason: 'resultFromSession fell back to s.MutationCapability and firstNext(s) when loadCurrentAdmissionDecision failed, publishing a HISTORICAL Modify=admitted and ''perform admitted edit'' as CURRENT permission. That is precisely the fail-open the function exists to prevent: an unreadable decision establishes nothing, so it must publish waiting and advance-converge. Equally forbidden: projecting a REFUSED decision as CapabilityWaiting, which asserts a grant may still come while Next says no legal advance.'
+  - id: forbidden_fix.break_the_id_collision_by_choosing_a_winner_and_keeping_the
+    title: Break the id collision by choosing a winner and keeping the collapsed id
+    summary: 'Sorting before dedupe stops the kind from flipping between runs, so the symptom disappears and the index looks stable. It is not the repair: the two declarations still share one id, so one of them stays absent from the graph and every question about it is answered about the other. Scope that the SCIP symbol already carries must be kept in the id; a deterministic tie-break is only the residue for declarations no scope can separate, and that residue must be counted.'
+    related_invariants:
+      - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
+    reason: 'Sorting before dedupe stops the kind from flipping between runs, so the symptom disappears and the index looks stable. It is not the repair: the two declarations still share one id, so one of them stays absent from the graph and every question about it is answered about the other. Scope that the SCIP symbol already carries must be kept in the id; a deterministic tie-break is only the residue for declarations no scope can separate, and that residue must be counted.'

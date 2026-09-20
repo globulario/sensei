@@ -127,6 +127,9 @@ Flags:
 	if !*quiet {
 		fmt.Printf("scip-ingest: %d symbols, %d references from %d document(s) → %s\n",
 			len(res.Symbols), len(res.Refs), nDocs, *outDir)
+		if res.Dropped > 0 {
+			fmt.Printf("scip-ingest: %d definition(s) dropped onto an id another definition already held; the graph cannot answer about them\n", res.Dropped)
+		}
 	}
 	return 0
 }

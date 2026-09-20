@@ -45,6 +45,10 @@ type Ref struct {
 type Result struct {
 	Symbols []scanner.CodeSymbol
 	Refs    []Ref
+	// Dropped counts definitions discarded because another definition in the
+	// same file already claimed their id. Every one is a declaration the graph
+	// cannot answer questions about, so it is reported rather than hidden.
+	Dropped int
 }
 
 // Options tunes the translation.
@@ -250,13 +254,15 @@ func hasRole(roles int32, role scip.SymbolRole) bool { return roles&int32(role) 
 // symbolDisplayName returns the best human name for a defined symbol: SCIP's
 // display_name when the indexer set it, else the last meaningful descriptor.
 func symbolDisplayName(si *scip.SymbolInformation) string {
-	// scip-go commonly reports a bare DisplayName for methods (for example
-	// "Render"), even though the canonical symbol descriptors carry the
-	// receiver ("JSON.Render"). Prefer that descriptor-derived qualified name
-	// for methods so same-named methods in one file do not collapse onto the
-	// same file:method identity. Functions keep the indexer's display name.
+	// scip-go commonly reports a bare DisplayName for anything scoped by a type
+	// (for example "Render" for JSON.Render, or "Mode" for the Mode field of
+	// TaskMode), even though the canonical symbol descriptors carry that scope.
+	// Prefer the descriptor-derived qualified name whenever the symbol has one,
+	// so two declarations that differ only in scope do not collapse onto a
+	// single file:name identity. Package-level declarations have no enclosing
+	// type, parse to a bare name, and keep the indexer's display name.
 	parsed := symbolStringName(si.GetSymbol())
-	if symbolKind(si) == "method" && strings.Contains(parsed, ".") {
+	if strings.Contains(parsed, ".") {
 		return parsed
 	}
 	if n := strings.TrimSpace(si.GetDisplayName()); n != "" {
@@ -278,13 +284,23 @@ func symbolStringName(symbol string) string {
 	if name == "" {
 		return ""
 	}
-	// Prefix an immediately-preceding Type descriptor so methods read as
-	// Recv.Method rather than a bare, ambiguous method name.
-	if last.GetSuffix() == scip.Descriptor_Method && len(descs) >= 2 {
-		if prev := descs[len(descs)-2]; prev.GetSuffix() == scip.Descriptor_Type {
-			if recv := strings.TrimSpace(prev.GetName()); recv != "" {
-				return recv + "." + name
+	// Prefix the enclosing Type descriptors so a declaration scoped by a type
+	// reads as Recv.Method or Struct.Field rather than a bare, ambiguous name.
+	// Methods (`Recv#Method().`) and terms -- fields, and constants or vars
+	// declared inside a type -- both carry that scope; package-level
+	// declarations are preceded by a Package descriptor and keep a bare name.
+	switch last.GetSuffix() {
+	case scip.Descriptor_Method, scip.Descriptor_Term:
+		var scopes []string
+		for i := len(descs) - 2; i >= 0 && descs[i].GetSuffix() == scip.Descriptor_Type; i-- {
+			enclosing := strings.TrimSpace(descs[i].GetName())
+			if enclosing == "" {
+				break
 			}
+			scopes = append([]string{enclosing}, scopes...)
+		}
+		if len(scopes) > 0 {
+			return strings.Join(scopes, ".") + "." + name
 		}
 	}
 	return name
@@ -386,11 +402,26 @@ func normalizeLanguage(lang string) string {
 	}
 }
 
+// dedupeSymbols keeps one symbol per id. Two symbols reaching the same id is a
+// collapsed identity, so the survivor must not depend on the order the indexer
+// emitted them in: scip-go visits packages concurrently, and an order-dependent
+// winner makes unchanged source appear to change kind between runs. Sorting
+// first makes the choice a function of the declarations alone, and Dropped
+// reports how many were discarded so a collapse is countable rather than
+// silent.
 func dedupeSymbols(res *Result) {
+	sort.SliceStable(res.Symbols, func(i, j int) bool {
+		a, b := res.Symbols[i], res.Symbols[j]
+		if a.ID != b.ID {
+			return a.ID < b.ID
+		}
+		return a.Kind < b.Kind
+	})
 	seen := map[string]bool{}
 	out := res.Symbols[:0]
 	for _, s := range res.Symbols {
 		if seen[s.ID] {
+			res.Dropped++
 			continue
 		}
 		seen[s.ID] = true

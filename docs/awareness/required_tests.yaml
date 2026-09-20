@@ -2276,3 +2276,8 @@ required_tests:
     protects:
       invariants:
         - governance.expiry_withholds_a_grant_it_does_not_repudiate_a_spend
+  - id: golang/scipingest/identity_test.go:TestTheSymbolCensusDoesNotDependOnIndexOrder
+    title: The symbol census is a function of the declarations, not of index order
+    protects:
+      failure_modes:
+        - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
