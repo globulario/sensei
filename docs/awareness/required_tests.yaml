@@ -2296,3 +2296,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_code_symbol_s_identity_dropped_the_scope_that_distinguishe
+  - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestADiffPayloadKeepsItsTrailingBlankContextLine
+    title: A diff payload keeps its trailing blank context line
+    protects:
+      failure_modes:
+        - failure.a_trimmed_diff_payload_is_refused_as_malformed

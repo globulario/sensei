@@ -825,3 +825,8 @@ forbidden_fixes:
     related_invariants:
       - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
     reason: 'Handler# and Handler(). differ in the SCIP descriptor SCIP already provides. Calling that pair unseparable and settling for a deterministic winner keeps the index stable while one declaration stops existing, which is the original defect wearing a tidier face. Kind discrimination belongs in the id. The only definitions that may be discarded are those that are not declarations: a package, which is not declared in any one file, and the blank identifier, which names nothing.'
+  - id: forbidden_fix.loosen_the_diff_line_count_check_to_tolerate_a_trimmed_paylo
+    title: Loosen the diff line-count check to tolerate a trimmed payload
+    summary: The parser was never at fault. Relaxing ParseDiff's hunk line accounting to accept the off-by-one a trimmed payload produces would blind it to genuinely malformed diffs in order to accommodate damage done upstream by the reader. Repair the reader, never the check.
+    reason: 'A payload reader is lossless transport: whitespace INSIDE a payload is data, not formatting, and a reader must not normalize it before the payload''s own parser sees it'
+    contract: 'A payload reader is lossless transport: whitespace INSIDE a payload is data, not formatting, and a reader must not normalize it before the payload''s own parser sees it'

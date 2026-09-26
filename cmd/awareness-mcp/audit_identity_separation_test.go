@@ -60,3 +60,34 @@ func TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit(t *testing.T) {
 		t.Fatalf("graph snapshot identity = %q, want %q", gotGraphCommit, graphCommit)
 	}
 }
+
+// A unified diff's final line may be a single space: the context line for a
+// blank source line. A context line counts toward BOTH sides of its hunk, so
+// trimming it makes a valid diff miscount by exactly one in each direction.
+//
+// This asserts the BOUNDARY, not the parser. ParseDiff handles the blank line
+// correctly and always did; the payload was being damaged before it arrived,
+// by the shared trimming arg reader. Measured 2026-09-26: a 49 KB candidate was
+// refused as malformed_diff and the refusal was reported as a structural
+// failure of the candidate, which was intact.
+func TestADiffPayloadKeepsItsTrailingBlankContextLine(t *testing.T) {
+	const withBlankFinalContext = "diff --git a/x.go b/x.go\n" +
+		"index 1111111..2222222 100644\n" +
+		"--- a/x.go\n+++ b/x.go\n" +
+		"@@ -1,3 +1,4 @@\n package x\n \n+var Added = 1\n \n"
+
+	args := map[string]interface{}{"diff": withBlankFinalContext}
+
+	if got := argStringExact(args, "diff"); got != withBlankFinalContext {
+		t.Fatalf("the diff payload was altered on the way in:\n got %q\nwant %q", got, withBlankFinalContext)
+	}
+
+	// The shared reader is still allowed to trim: that is correct for a path or
+	// a SHA. This pins WHY a separate reader exists, so the two cannot be merged
+	// back together without this failing.
+	if trimmed := argString(args, "diff"); trimmed == withBlankFinalContext {
+		t.Fatal("argString no longer trims; this test no longer distinguishes the two readers")
+	} else if strings.HasSuffix(trimmed, " \n") {
+		t.Fatalf("argString kept the trailing context line, so the readers are no longer distinct: %q", trimmed)
+	}
+}
