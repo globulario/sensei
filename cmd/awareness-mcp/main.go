@@ -1156,6 +1156,22 @@ func argString(args map[string]interface{}, key string) string {
 	return strings.TrimSpace(s)
 }
 
+// argStringExact reads a string arg WITHOUT trimming, for payloads where
+// surrounding whitespace is data rather than formatting.
+//
+// A unified diff is the motivating case. Its final line may legitimately be a
+// single space -- the context line for a blank source line -- and a context
+// line counts toward BOTH the old and new side of its hunk. Trimming it makes a
+// valid diff miscount by exactly one in both directions, which ParseDiff then
+// reports, correctly, as a line count mismatch. Measured 2026-09-26: a 49 KB
+// candidate was refused as malformed_diff and its caller reported the refusal
+// as a structural failure of the candidate, which was intact. The parser was
+// never at fault; the payload was damaged before it arrived.
+func argStringExact(args map[string]interface{}, key string) string {
+	s, _ := args[key].(string)
+	return s
+}
+
 // argStrings reads a []string arg from a JSON array (skips empty/non-string
 // entries); nil when absent.
 func argStrings(args map[string]interface{}, key string) []string {
@@ -2681,7 +2697,8 @@ func (b *bridge) callAuditDiff(ctx context.Context, args map[string]interface{})
 		}
 	}
 
-	diffText := argString(args, "diff")
+	// Whitespace in a diff payload is DATA: see argStringExact.
+	diffText := argStringExact(args, "diff")
 	if strings.TrimSpace(diffText) == "" {
 		return nil, fmt.Errorf("diff is required and must be non-empty")
 	}

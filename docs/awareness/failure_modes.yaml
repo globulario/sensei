@@ -2321,3 +2321,13 @@ failure_modes:
       - golang/scipingest/identity_test.go:TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
     evidence:
       - two independent regenerations at sensei-code df9923d0 produced 36 bidirectional kind flips over an identical id set; a census over the same index found 199 colliding ids and 218 dropped definitions
+  - id: failure.a_trimmed_diff_payload_is_refused_as_malformed
+    title: A trimmed diff payload is refused as malformed
+    protects:
+      files:
+        - cmd/awareness-mcp/main.go
+    required_tests:
+      - cmd/awareness-mcp/audit_identity_separation_test.go:TestADiffPayloadKeepsItsTrailingBlankContextLine
+    evidence:
+      - a 49 KB candidate diff whose final line was a single-space context line (the context line for a blank source line) was trimmed by argString before ParseDiff; a context line counts toward BOTH sides of its hunk, so the trim made the counts disagree by one in both directions and audit_diff returned malformed_diff. The caller then reported that refusal as a structural failure of the candidate, which was intact
+    contract: 'A payload reader is lossless transport: whitespace INSIDE a payload is data, not formatting, and a reader must not normalize it before the payload''s own parser sees it'
