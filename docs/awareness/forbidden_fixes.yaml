@@ -825,3 +825,8 @@ forbidden_fixes:
     related_invariants:
       - invariant.an_identity_claim_must_be_derived_from_the_exact_thing_it_cl
     reason: 'Handler# and Handler(). differ in the SCIP descriptor SCIP already provides. Calling that pair unseparable and settling for a deterministic winner keeps the index stable while one declaration stops existing, which is the original defect wearing a tidier face. Kind discrimination belongs in the id. The only definitions that may be discarded are those that are not declarations: a package, which is not declared in any one file, and the blank identifier, which names nothing.'
+  - id: forbidden_fix.register_a_store_url_alias_so_the_hardcoded_advice_becomes_t
+    title: Register a -store-url alias so the hardcoded advice becomes true
+    summary: Adding a hidden -store-url alias to propose would make the advice technically followable while leaving the real defect -- one shared check asserting a flag name it cannot know -- in place for the next command that registers a third name. The check must be told which flag its caller registers.
+    reason: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'
+    contract: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'

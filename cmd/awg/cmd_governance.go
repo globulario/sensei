@@ -77,7 +77,7 @@ func runGovernanceFetch(args []string) int {
 	// Activation loads triples; refuse a store the config does not name
 	// before anything is fetched or written (issue #212).
 	if *activate {
-		if err := requireStoreURLAgreement(fs, root, *storeURL); err != nil {
+		if err := requireStoreURLAgreement(fs, root, "-store-url", *storeURL); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei governance fetch: %v\n", err)
 			return 1
 		}
@@ -606,7 +606,7 @@ func runGovernanceActivate(args []string) int {
 		fmt.Fprintf(os.Stderr, "sensei governance activate: resolve project root: %v\n", err)
 		return 1
 	}
-	if err := requireStoreURLAgreement(fs, root, *storeURL); err != nil {
+	if err := requireStoreURLAgreement(fs, root, "-store-url", *storeURL); err != nil {
 		fmt.Fprintf(os.Stderr, "sensei governance activate: %v\n", err)
 		return 1
 	}
