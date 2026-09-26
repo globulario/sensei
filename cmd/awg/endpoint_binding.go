@@ -366,12 +366,21 @@ func nonCanonicalStoreURLNotice(configured, resolved string) string {
 
 // requireStoreURLAgreement is requireEndpointAgreement for a command's
 // -store-url, the flag that decides which store a load mutates.
-func requireStoreURLAgreement(fs *flag.FlagSet, root, resolved string) error {
+// flagName is the endpoint flag THIS command registers, and it is a parameter
+// rather than a constant because the commands sharing this check do not agree
+// on it: build and governance register -store-url, propose registers
+// -oxigraph-url. Hardcoding one name broke the other command in two ways at
+// once -- the refusal advised a flag that command does not accept, and
+// requireEndpointAgreement's escape hatch looked for that same absent flag, so
+// flagPassed could never be true and the operator could not override the
+// refusal AT ALL. Measured 2026-09-26: `sensei propose -oxigraph-url <other>`
+// was refused and told to pass -store-url, which propose rejects.
+func requireStoreURLAgreement(fs *flag.FlagSet, root, flagName, resolved string) error {
 	cfg, err := loadEndpointConfig(root)
 	if err != nil {
 		return fmt.Errorf("endpoint configuration is malformed: %w", err)
 	}
-	return requireEndpointAgreement(fs, root, "-store-url", "store.store_url", cfg.configuredStoreURL(), resolved)
+	return requireEndpointAgreement(fs, root, flagName, "store.store_url", cfg.configuredStoreURL(), resolved)
 }
 
 // requireServerAddrAgreement is requireEndpointAgreement for a command's
