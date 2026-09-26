@@ -52,7 +52,7 @@ server:
 
 func TestRequireStoreURLAgreementAcceptsAnEndpointTheConfigNames(t *testing.T) {
 	root := endpointConfigProject(t, endpointConfigBody)
-	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "http://localhost:7878/store?default")
+	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "-store-url", "http://localhost:7878/store?default")
 	if err != nil {
 		t.Fatalf("agreeing endpoints were refused: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestRequireStoreURLAgreementAcceptsAnEndpointTheConfigNames(t *testing.T) {
 
 func TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName(t *testing.T) {
 	root := endpointConfigProject(t, endpointConfigBody)
-	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "http://localhost:9999/store?default")
+	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "-store-url", "http://localhost:9999/store?default")
 	if err == nil {
 		t.Fatal("a store the config does not name was accepted")
 	}
@@ -81,7 +81,7 @@ func TestRequireStoreURLAgreementRefusesAnEndpointTheConfigDoesNotName(t *testin
 func TestRequireStoreURLAgreementYieldsToAnExplicitFlag(t *testing.T) {
 	root := endpointConfigProject(t, endpointConfigBody)
 	fs := storeURLFlagSet(t, "-store-url", "http://localhost:9999/store?default")
-	if err := requireStoreURLAgreement(fs, root, "http://localhost:9999/store?default"); err != nil {
+	if err := requireStoreURLAgreement(fs, root, "-store-url", "http://localhost:9999/store?default"); err != nil {
 		t.Fatalf("an endpoint named on the command line was refused: %v", err)
 	}
 }
@@ -95,7 +95,7 @@ func TestRequireStoreURLAgreementIgnoresAProjectThatStatesNoEndpoint(t *testing.
 	} {
 		t.Run(name, func(t *testing.T) {
 			root := endpointConfigProject(t, body)
-			if err := requireStoreURLAgreement(storeURLFlagSet(t), root, "http://localhost:9999/store?default"); err != nil {
+			if err := requireStoreURLAgreement(storeURLFlagSet(t), root, "-store-url", "http://localhost:9999/store?default"); err != nil {
 				t.Fatalf("a project stating no endpoint constrained the command: %v", err)
 			}
 		})
@@ -108,7 +108,7 @@ func TestRequireStoreURLAgreementIgnoresAProjectThatStatesNoEndpoint(t *testing.
 // supposed to decide could not be read.
 func TestRequireStoreURLAgreementRefusesAMalformedConfig(t *testing.T) {
 	root := endpointConfigProject(t, "store:\n  store_url: [unterminated\n")
-	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "http://localhost:7878/store?default")
+	err := requireStoreURLAgreement(storeURLFlagSet(t), root, "-store-url", "http://localhost:7878/store?default")
 	if err == nil {
 		t.Fatal("a malformed endpoint configuration was silently skipped")
 	}
@@ -141,5 +141,62 @@ func TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName(t *testing
 	}
 	if err := requireServerAddrAgreement(agreeing, root, "localhost:10120"); err != nil {
 		t.Fatalf("agreeing endpoints were refused: %v", err)
+	}
+}
+
+// oxigraphURLFlagSet builds a flag set shaped like `sensei propose`: it
+// registers -oxigraph-url and NOT -store-url. Parsed with args, so flagPassed
+// observes exactly what an operator typed.
+func oxigraphURLFlagSet(t *testing.T, args ...string) *flag.FlagSet {
+	t.Helper()
+	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	fs.String("oxigraph-url", "http://localhost:7878/store?default", "")
+	if err := fs.Parse(args); err != nil {
+		t.Fatal(err)
+	}
+	return fs
+}
+
+// TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters is the
+// regression guard for a refusal an operator could not obey.
+//
+// requireStoreURLAgreement hardcoded "-store-url". `sensei propose` registers
+// -oxigraph-url instead, so the check broke in BOTH directions at once:
+// requireEndpointAgreement asked flagPassed about "store-url", a flag that
+// command cannot have, so the escape hatch was unreachable and NO explicit
+// endpoint could be named; and the refusal then advised that same flag, which
+// propose rejects. Measured 2026-09-26 against the real binary.
+//
+// What must break for this to fail: hardcoding any single flag name in
+// requireStoreURLAgreement again.
+func TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters(t *testing.T) {
+	root := endpointConfigProject(t, endpointConfigBody)
+	const other = "http://localhost:9999/store?default"
+
+	// A propose-shaped command naming its own flag is the operator naming the
+	// endpoint at the point of use, and must be accepted.
+	fs := oxigraphURLFlagSet(t, "-oxigraph-url", other)
+	if err := requireStoreURLAgreement(fs, root, "-oxigraph-url", other); err != nil {
+		t.Fatalf("an endpoint named with the command's own flag was refused, so the operator has no override at all:\n%v", err)
+	}
+}
+
+// TestAnEndpointRefusalAdvisesAFlagTheCommandAccepts is the other half: when
+// the command DOES refuse, the way out it prints has to be one this command
+// can take.
+func TestAnEndpointRefusalAdvisesAFlagTheCommandAccepts(t *testing.T) {
+	root := endpointConfigProject(t, endpointConfigBody)
+	err := requireStoreURLAgreement(oxigraphURLFlagSet(t), root, "-oxigraph-url", "http://localhost:9999/store?default")
+	if err == nil {
+		t.Fatal("a store the config does not name was accepted")
+	}
+	if !strings.Contains(err.Error(), "-oxigraph-url") {
+		t.Errorf("refusal does not advise the flag this command registers:\n%v", err)
+	}
+	// Advising a flag the command rejects is the defect itself, not a cosmetic
+	// slip: an operator who follows it gets a usage error.
+	if strings.Contains(err.Error(), "-store-url") {
+		t.Errorf("refusal advises -store-url, which this command does not accept:\n%v", err)
 	}
 }

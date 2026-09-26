@@ -2321,3 +2321,13 @@ failure_modes:
       - golang/scipingest/identity_test.go:TestASymbolScopedByATypeKeepsThatScopeInItsIdentity
     evidence:
       - two independent regenerations at sensei-code df9923d0 produced 36 bidirectional kind flips over an identical id set; a census over the same index found 199 colliding ids and 218 dropped definitions
+  - id: failure.an_endpoint_refusal_advised_a_flag_the_command_does_not_acce
+    title: An endpoint refusal advised a flag the command does not accept
+    protects:
+      files:
+        - cmd/awg/endpoint_binding.go
+    required_tests:
+      - cmd/awg/endpoint_binding_test.go:TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters
+    evidence:
+      - 'requireStoreURLAgreement hardcoded -store-url while sensei propose registers -oxigraph-url. Measured 2026-09-26 against the real binary: ''sensei propose -oxigraph-url <other>'' was refused and advised -store-url, which propose rejects with a usage error. Because requireEndpointAgreement asks flagPassed about the SAME hardcoded name, the escape hatch was unreachable and NO explicit endpoint could override the refusal for that command'
+    contract: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'

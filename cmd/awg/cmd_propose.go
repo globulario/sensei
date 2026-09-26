@@ -252,7 +252,7 @@ Flags:
 	// of use, and consumed further down, where the command knows whether a
 	// reload will happen at all.
 	if proposeRoot, rerr := resolveProjectRoot(""); rerr == nil {
-		opt.storeAgreement = requireStoreURLAgreement(fs, proposeRoot, *oxigraphURL)
+		opt.storeAgreement = requireStoreURLAgreement(fs, proposeRoot, "-oxigraph-url", *oxigraphURL)
 		if cfg, cerr := loadEndpointConfig(proposeRoot); cerr == nil {
 			opt.storeNotice = nonCanonicalStoreURLNotice(cfg.configuredStoreURL(), *oxigraphURL)
 		}

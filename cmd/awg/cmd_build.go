@@ -135,7 +135,7 @@ Flags:
 	// store at all, so it is unaffected.
 	if *output == "" {
 		buildRoot, _ := resolveProjectRoot("")
-		if err := requireStoreURLAgreement(fs, buildRoot, *storeURL); err != nil {
+		if err := requireStoreURLAgreement(fs, buildRoot, "-store-url", *storeURL); err != nil {
 			fmt.Fprintf(os.Stderr, "sensei build: %v\n", err)
 			return 1
 		}
