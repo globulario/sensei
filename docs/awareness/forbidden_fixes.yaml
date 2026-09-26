@@ -830,3 +830,8 @@ forbidden_fixes:
     summary: The parser was never at fault. Relaxing ParseDiff's hunk line accounting to accept the off-by-one a trimmed payload produces would blind it to genuinely malformed diffs in order to accommodate damage done upstream by the reader. Repair the reader, never the check.
     reason: 'A payload reader is lossless transport: whitespace INSIDE a payload is data, not formatting, and a reader must not normalize it before the payload''s own parser sees it'
     contract: 'A payload reader is lossless transport: whitespace INSIDE a payload is data, not formatting, and a reader must not normalize it before the payload''s own parser sees it'
+  - id: forbidden_fix.register_a_store_url_alias_so_the_hardcoded_advice_becomes_t
+    title: Register a -store-url alias so the hardcoded advice becomes true
+    summary: Adding a hidden -store-url alias to propose would make the advice technically followable while leaving the real defect -- one shared check asserting a flag name it cannot know -- in place for the next command that registers a third name. The check must be told which flag its caller registers.
+    reason: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'
+    contract: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'

@@ -2301,3 +2301,8 @@ required_tests:
     protects:
       failure_modes:
         - failure.a_trimmed_diff_payload_is_refused_as_malformed
+  - id: cmd/awg/endpoint_binding_test.go:TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters
+    title: The endpoint escape hatch uses the flag the command actually registers
+    protects:
+      failure_modes:
+        - failure.an_endpoint_refusal_advised_a_flag_the_command_does_not_acce
