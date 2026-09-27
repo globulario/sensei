@@ -553,6 +553,12 @@ test_symbols:
     package: main
     language: go
     doc: "A STALE per-response generation must never stand in for a missing one, and the identity the\naudit binds to must come from the RESPONSE rather than from a separate sample.\n\nLastImpactGeneration reports the identity carried by the most recent impact response. If the\nfield were not cleared before each query, a response stating no generation would inherit the\nprevious one, and the audit would bind a query to a graph that did not answer it -- the exact\nconfusion this provenance model replaced."
+  - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestADiffPayloadKeepsItsTrailingBlankContextLine
+    file: cmd/awareness-mcp/audit_identity_separation_test.go
+    symbol: TestADiffPayloadKeepsItsTrailingBlankContextLine
+    package: main
+    language: go
+    doc: "A unified diff's final line may be a single space: the context line for a\nblank source line. A context line counts toward BOTH sides of its hunk, so\ntrimming it makes a valid diff miscount by exactly one in each direction.\n\nThis asserts the BOUNDARY, not the parser. ParseDiff handles the blank line\ncorrectly and always did; the payload was being damaged before it arrived,\nby the shared trimming arg reader. Measured 2026-09-26: a 49 KB candidate was\nrefused as malformed_diff and the refusal was reported as a structural\nfailure of the candidate, which was intact."
   - id: cmd/awareness-mcp/audit_identity_separation_test.go:TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
     file: cmd/awareness-mcp/audit_identity_separation_test.go
     symbol: TestAuditTargetBaseIsIndependentFromGraphSnapshotCommit
