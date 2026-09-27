@@ -6368,6 +6368,12 @@ test_symbols:
     package: main
     language: go
     doc: "POSITIVE CONTROL 3 — owner-resolution agreement, stated on its own. This is the direct opposite of\nthe defective raw-flag comparison: with no override, the canonical owner chooses exactly the\nendpoint the project configuration names."
+  - id: cmd/awg/endpoint_binding_test.go:TestAnEndpointRefusalAdvisesAFlagTheCommandAccepts
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestAnEndpointRefusalAdvisesAFlagTheCommandAccepts
+    package: main
+    language: go
+    doc: "TestAnEndpointRefusalAdvisesAFlagTheCommandAccepts is the other half: when\nthe command DOES refuse, the way out it prints has to be one this command\ncan take."
   - id: cmd/awg/endpoint_binding_test.go:TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
     file: cmd/awg/endpoint_binding_test.go
     symbol: TestRequireServerAddrAgreementRefusesAServerTheConfigDoesNotName
@@ -6399,6 +6405,12 @@ test_symbols:
     symbol: TestRequireStoreURLAgreementYieldsToAnExplicitFlag
     package: main
     language: go
+  - id: cmd/awg/endpoint_binding_test.go:TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters
+    file: cmd/awg/endpoint_binding_test.go
+    symbol: TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters
+    package: main
+    language: go
+    doc: "TestTheEndpointEscapeHatchUsesTheFlagTheCommandActuallyRegisters is the\nregression guard for a refusal an operator could not obey.\n\nrequireStoreURLAgreement hardcoded \"-store-url\". `sensei propose` registers\n-oxigraph-url instead, so the check broke in BOTH directions at once:\nrequireEndpointAgreement asked flagPassed about \"store-url\", a flag that\ncommand cannot have, so the escape hatch was unreachable and NO explicit\nendpoint could be named; and the refusal then advised that same flag, which\npropose rejects. Measured 2026-09-26 against the real binary.\n\nWhat must break for this to fail: hardcoding any single flag name in\nrequireStoreURLAgreement again."
   - id: cmd/awg/endpoint_ownership_test.go:TestATargetCheckoutResolvesItsOwnEndpointFromOutsideTheTree
     file: cmd/awg/endpoint_ownership_test.go
     symbol: TestATargetCheckoutResolvesItsOwnEndpointFromOutsideTheTree
