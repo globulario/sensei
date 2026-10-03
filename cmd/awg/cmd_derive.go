@@ -40,7 +40,7 @@ func runDerive(args []string) int {
 	field := fs.String("field", "", "field claimed to be protected")
 	lock := fs.String("lock", "", "field holding the lock")
 	command := fs.String("command", "", "executable, for command_invocation_confined_to")
-	owner := fs.String("owner", "", "package the invocations are claimed to be confined to")
+	owner := fs.String("owner", "", "package the invocations are claimed to be confined to; for package_import_confined_to, the one directory outside --dir allowed to import it (optional)")
 	var searchPaths repeatableFlag
 	fs.Var(&searchPaths, "search", "repository subtree to search (repeat); a narrower search is a WEAKER claim")
 	asJSON := fs.Bool("json", false, "print the receipt as JSON")
@@ -85,6 +85,13 @@ Exit status:
 		// carrying one authority-bearing field.
 		if strings.TrimSpace(*dir) == "" || strings.TrimSpace(*typeName) == "" || len(searchPaths) == 0 {
 			fmt.Fprintln(os.Stderr, "error: --dir (the declaring package), --type and at least one --search are required (--field is optional)")
+			return 2
+		}
+	case derive.KindPackageImportConfinedTo:
+		// --owner is OPTIONAL: without it the claim is that nothing outside --dir
+		// imports the package at all.
+		if strings.TrimSpace(*dir) == "" || len(searchPaths) == 0 {
+			fmt.Fprintln(os.Stderr, "error: --dir (the package) and at least one --search are required (--owner is optional)")
 			return 2
 		}
 	default:

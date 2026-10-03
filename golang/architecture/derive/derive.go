@@ -106,6 +106,19 @@ const (
 	// restarted waiter must honour means nothing if any package can construct a record
 	// carrying one.
 	KindConstructionConfinedToOwner Kind = "construction_confined_to_owner"
+
+	// KindPackageImportConfinedTo: every observable non-test import of the package
+	// declared by a named directory, within a named repository scope, originates
+	// from that directory or from a named owner directory. With no owner, no
+	// non-test source outside the directory may import the package.
+	//
+	// A fifth family, for seams whose architecture is expressed through functions
+	// rather than state: an adapter or converter has no field to be confined and
+	// no literal to be invoked, so the earlier families could state nothing true
+	// about it. Its boundary is its import edge. It is an ISOLATION, so zero
+	// outside importers is the fact it states rather than vacuity -- but it never
+	// derives over a package it could not identify (see packageimportconfinement.go).
+	KindPackageImportConfinedTo Kind = "package_import_confined_to"
 )
 
 // Proposition is a claim in a shape a derivation can attempt.
@@ -128,7 +141,9 @@ type Proposition struct {
 	// Command is the executable whose invocation sites are in question, for
 	// KindCommandInvocationConfinedTo.
 	Command string `json:"command,omitempty" yaml:"command,omitempty"`
-	// Owner is the package the invocations are claimed to be confined to.
+	// Owner is the package the invocations are claimed to be confined to, for
+	// KindCommandInvocationConfinedTo; for KindPackageImportConfinedTo it is the
+	// one directory outside Dir that may import Dir's package, and is optional.
 	Owner string `json:"owner,omitempty" yaml:"owner,omitempty"`
 	// SearchPaths is the repository subtree searched, and it is a term of the
 	// proposition rather than a convenience: "all invocations" means nothing
@@ -173,6 +188,13 @@ func (p Proposition) String() string {
 		}
 		return fmt.Sprintf("every observable construction of %s under %s originates from its declaring package %s",
 			p.Type, strings.Join(p.SearchPaths, ", "), p.Dir)
+	case KindPackageImportConfinedTo:
+		if strings.TrimSpace(p.Owner) != "" {
+			return fmt.Sprintf("every observable non-test import of the package declared by %s under %s originates from %s or %s",
+				p.Dir, strings.Join(p.SearchPaths, ", "), p.Dir, p.Owner)
+		}
+		return fmt.Sprintf("no non-test source under %s outside %s imports the package declared by %s",
+			strings.Join(p.SearchPaths, ", "), p.Dir, p.Dir)
 	case KindFieldAccessUnderLock:
 		return fmt.Sprintf("every access to %s.%s in %s occurs while %s.%s is held",
 			p.Type, p.Field, p.Dir, p.Type, p.Lock)
@@ -363,7 +385,7 @@ type PinnedSource interface {
 
 // registry is the set of derivations Sensei can attempt. Adding a family is a
 // reviewed change to this list, not something a claimant can request.
-var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}, constructionConfinement{}}
+var registry = []Deriver{lockDiscipline{}, commandConfinement{}, mutationConfinement{}, constructionConfinement{}, packageImportConfinement{}}
 
 // Derive attempts a proposition against pinned project state.
 //
