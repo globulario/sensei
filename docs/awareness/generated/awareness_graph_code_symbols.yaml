@@ -14174,6 +14174,78 @@ test_symbols:
     package: derive
     language: go
     doc: "sensei#313 review, P1: a nested := that shadows the receiver must not erase\na genuine bypass after the block. One function-wide binding map did."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestAPrefixSharingPathIsNotTheSamePackage
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestAPrefixSharingPathIsNotTheSamePackage
+    package: derive
+    language: go
+    doc: "A path that merely SHARES A PREFIX with the package's import path is another\npackage; matching by prefix would refute an isolation that holds."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestAProductionImportOutsideTheOwnerRefutesIsolation
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestAProductionImportOutsideTheOwnerRefutesIsolation
+    package: derive
+    language: go
+    doc: "W2. One production import from outside the owner region refutes the\nisolation, and the receipt names the importer."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestARootPackageWithACommandOwnerIsDerived
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestARootPackageWithACommandOwnerIsDerived
+    package: derive
+    language: go
+    doc: "W4 GENERICITY, in fixture form: a different seam -- a root-level package whose\nimport path IS the module path, imported by a command that is its owner."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestASubpackageImportIsFromOutside
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestASubpackageImportIsFromOutside
+    package: derive
+    language: go
+    doc: "A subdirectory of the package is a DIFFERENT package. Its import is an edge\nfrom outside, not the package importing itself."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestATestOnlyImporterDoesNotRefuteIsolation
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestATestOnlyImporterDoesNotRefuteIsolation
+    package: derive
+    language: go
+    doc: "W4a TEST-ONLY IMPORT CONTROL. A test outside the package that imports it is a\ntest dependency, not the production graph reaching the adapter: the isolation\nstill DERIVES, and neither the test nor a testdata fixture becomes a subject."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestAnIncompleteIsolationPropositionIsUnknown
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestAnIncompleteIsolationPropositionIsUnknown
+    package: derive
+    language: go
+    doc: "A proposition missing its package or its search scope is not one this family\ncan attempt; nothing else may answer it in its place."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestAnIsolatedFunctionOnlyPackageIsDerived
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestAnIsolatedFunctionOnlyPackageIsDerived
+    package: derive
+    language: go
+    doc: "W1. An isolated function-only package DERIVES with zero outside importers,\nand the proposition is ABOUT the package's own files -- the specimen shape the\nearlier families could not state."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestAnUnboundablePackageIdentityIsUnresolved
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestAnUnboundablePackageIdentityIsUnresolved
+    package: derive
+    language: go
+    doc: "W3. An import path the pinned tree does not let this bind is UNRESOLVED,\nnever DERIVED: finding no imports of a path nobody could have used proves\nnothing."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestEveryImportSpellingIsAnImportEdge
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestEveryImportSpellingIsAnImportEdge
+    package: derive
+    language: go
+    doc: "W2, every spelling of an import edge. An alias, a blank import and a dot\nimport all put the package in the importer's program; none may hide."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestNoPackageIsUnknownNotIsolated
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestNoPackageIsUnknownNotIsolated
+    package: derive
+    language: go
+    doc: "No package, no proposition: a directory with only tests, or none at all, is\nUNKNOWN rather than an isolation of nothing."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestTheNamedOwnerMayImportThePackage
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestTheNamedOwnerMayImportThePackage
+    package: derive
+    language: go
+    doc: "A named owner is the one outside directory allowed to import the package; the\nsame tree without it is refuted. The owner's own import is not a subject."
+  - id: golang/architecture/derive/packageimportconfinement_test.go:TestThePackagesOwnTestsAreNotSubjects
+    file: golang/architecture/derive/packageimportconfinement_test.go
+    symbol: TestThePackagesOwnTestsAreNotSubjects
+    package: derive
+    language: go
+    doc: "The package's OWN test files are not part of what the proposition is about\neither: only its non-test files are subjects."
   - id: golang/architecture/derive/review_test.go:TestADeferredCallSiteIsUnresolved
     file: golang/architecture/derive/review_test.go
     symbol: TestADeferredCallSiteIsUnresolved
