@@ -835,3 +835,9 @@ forbidden_fixes:
     summary: Adding a hidden -store-url alias to propose would make the advice technically followable while leaving the real defect -- one shared check asserting a flag name it cannot know -- in place for the next command that registers a third name. The check must be told which flag its caller registers.
     reason: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'
     contract: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'
+  - id: forbidden_fix.sensei.treat_a_pinned_source_digest_as_evidence_that_the_source_is
+    title: Treat a pinned source digest as evidence that the source is current
+    summary: A resolved, well-formed digest on a premise receipt proves the extractor read some content, not that the file still has that content. Freshness is decided only by maintenance's source verification (premise.source_digest_changed). Suppressing a question, or closing a claim, because a digest is pinned treats stale evidence as sufficient; the stale claim must be routed to refresh_extraction and reassessed.
+    related_invariants:
+      - closure.liveness_every_blocker_has_a_discharge_path
+    reason: A resolved, well-formed digest on a premise receipt proves the extractor read some content, not that the file still has that content. Freshness is decided only by maintenance's source verification (premise.source_digest_changed). Suppressing a question, or closing a claim, because a digest is pinned treats stale evidence as sufficient; the stale claim must be routed to refresh_extraction and reassessed.

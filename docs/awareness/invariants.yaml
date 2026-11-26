@@ -2350,3 +2350,17 @@ invariants:
     required_tests:
       - golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go:TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
     contract: foldGovernance checks the TIME-INDEPENDENT binding before any downstream branch, and the temporal binding only on the branch that grants
+  - id: closure.liveness_every_blocker_has_a_discharge_path
+    title: 'INV-CLOSURE-LIVENESS: every blocking obligation has a resolution path, a responsible party and a valid next action'
+    status: active
+    description: Every blocker closure emits carries a required_next_action registered in closure.DischargePaths with a responsible party, and no blocker demands a question or evidence for a claim whose shared disposition says no question can resolve it. When no such path exists Sensei reports closure.tooling.no_discharge_path (wait class sensei_tooling) instead of attributing the obstruction to an implementor or architect. An available action that discharges nothing (e.g. advance_convergence re-emitting the same blocker) is not a path.
+    protects:
+      files:
+        - golang/architecture/closure/disposition.go
+        - golang/architecture/closure/model.go
+    related_failure_modes:
+      - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
+    required_tests:
+      - golang/architecture/closure/liveness_test.go:TestEveryEmittableActionHasADischargePath
+      - golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+    contract: Closure must never emit an obligation that no participant or Sensei mechanism can discharge; sufficient current evidence permits closure without an artificial question, and a governance machinery that cannot offer a path reports its own defect.

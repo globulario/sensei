@@ -1824,6 +1824,7 @@ failure_modes:
     evidence:
       - 'globulario/sensei#230: a three-file modify task ran 242 static probes, completed none, and stopped on provide_external_evidence for a claim whose premises were already source-backed observations.'
       - taskcontrol.selectNextAction falls through to advance_convergence when no question is available, so declining to raise one does not leave the task without an action — verified in golang/architecture/taskcontrol/project.go.
+      - 'Correction (R-CLOSURE-01, globulario/sensei#387): the line above is false in practice. advance_convergence re-emits the same blocker (replay_no_new_iteration), so an action is available but discharges nothing; a stale-source claim then deadlocked closure (see failure.sensei.a_stale_source_claim_deadlocks_closure_closure_demands_a_que). Availability of an action is not a resolution path (closure.liveness_every_blocker_has_a_discharge_path).'
   - id: failure.sensei.a_repository_outside_the_observation_surface_reports_as_empt
     title: A repository outside the observation surface reports as empty rather than unreadable
     description: Fact extraction reads .go files in both its semantic and AST passes. Run over a repository written in another language it returned an empty report whose only note was a non-blocking Go module-load message, so 'I cannot see this language' was indistinguishable from 'I looked and there is nothing to say'. An evaluation calibrating against such a repository would measure the surface while believing it measured the reasoning.
@@ -2341,3 +2342,17 @@ failure_modes:
     evidence:
       - 'requireStoreURLAgreement hardcoded -store-url while sensei propose registers -oxigraph-url. Measured 2026-09-26 against the real binary: ''sensei propose -oxigraph-url <other>'' was refused and advised -store-url, which propose rejects with a usage error. Because requireEndpointAgreement asks flagPassed about the SAME hardcoded name, the escape hatch was unreachable and NO explicit endpoint could override the refusal for that command'
     contract: 'A refusal''s escape hatch must be reachable by the command that printed it: the flag it advises is one THAT command registers, and the same name is what its passed-check consults'
+  - id: failure.sensei.a_stale_source_claim_deadlocks_closure_closure_demands_a_que
+    title: 'A stale-source claim deadlocks closure: closure demands a question that generation declines as self-evidenced'
+    description: Closure and question generation each judged whether a claim was answerable. For a derived observed claim whose source changed after extraction, closure demanded an OpenQuestion (closure.question.missing_artifact) and evidence (closure.evidence.claim_stale/add_evidence) while question generation declined both as self-evidenced, because SourceDigestPinsContent only checks that a digest is present, not that it matches the file. No blocker had a path out and task-status presented an architect question.
+    protects:
+      files:
+        - golang/architecture/closure/model.go
+        - golang/architecture/questiongen/questiongen.go
+    related_invariants:
+      - closure.liveness_every_blocker_has_a_discharge_path
+    required_tests:
+      - golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+    evidence:
+      - 'github.com/davecourtois/persona G0 task: 14 stale claims on persona/llm/anthropic_adapter.py, 30 self_evidenced skips, inspect and modify refused across 3 consecutive task sessions; premise digest 4fa0ca89 pinned, working-tree digest 754e90c6'
+      - 'globulario/sensei#387: C1 red at cec8b234, green at 1cf2824a; C8 on an isolated copy: 16 stale blockers routed to refresh_extraction, 0 after re-extraction'
