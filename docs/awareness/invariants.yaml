@@ -2350,3 +2350,17 @@ invariants:
     required_tests:
       - golang/architecture/tasksession/governance_spent_after_expiry_witness_test.go:TestCapabilitySpentInsideItsWindowIsNotRefusedAfterExpiry
     contract: foldGovernance checks the TIME-INDEPENDENT binding before any downstream branch, and the temporal binding only on the branch that grants
+  - id: authority.semantic_scope_not_path_overlap
+    title: 'INV-AUTHORITY-SEMANTIC-SCOPE: authority conflicts are judged against the governed truth, not overlapping paths'
+    status: active
+    description: Authority over a truth and authority over the code implementing the mechanism that governs that truth are different relations. An authority record's covers_paths claims the files' own repository truth; a task-truth authority declares the truth it governs in owns_state and names its implementing code in implemented_in, which is briefing relevance only. Two records may govern different decisions stored in the same ledger, be implemented by the same source file, apply during the same task, or belong to the same truth layer; none of those alone is a contradiction. Two authorities with different owners, writers or mutation paths claiming the same truth are a contradiction and block. Editing implementing code grants no authority over the truth, and holding the truth grants no right to edit the code.
+    protects:
+      files:
+        - docs/awareness/authority_domains.yaml
+        - golang/server/authority_domains.go
+    required_tests:
+      - golang/architecture/closure/authority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation
+      - golang/architecture/closure/authority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict
+      - golang/coverage/authority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths
+      - golang/architecture/completion/abandon_test.go:TestQuestionDispositionGrantCannotAbandonATask
+    contract: closure binds a task to an authority only through the truth it governs (covers_paths for repository truth, owns_state for any other); implemented_in never binds; each separated authority keeps its own grant

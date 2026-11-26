@@ -985,6 +985,38 @@ func TestAbandonmentRequiresItsOwnGrant(t *testing.T) {
 	}
 }
 
+// Cross-authority escalation (INV-AUTHORITY-SEMANTIC-SCOPE). Question
+// disposition and abandonment share the action verb "dispose" and the same
+// holder role. With abandonment's own grant removed and the question-disposition
+// grant still present, the disposition grant must not authorize an abandonment:
+// disposing of a question grants no terminal decision.
+func TestQuestionDispositionGrantCannotAbandonATask(t *testing.T) {
+	w := seedWorldWithoutResult(t)
+	setActivePointer(t, w, taskID(t, w.TaskDir))
+	grants := filepath.Join(w.Repo, "docs", "awareness", "authority_grants.yaml")
+	body, err := os.ReadFile(grants)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripped, removed := removeGrant(string(body), "grant.sensei.terminal_abandonment")
+	if !removed {
+		t.Fatal("no abandonment grant exists to remove")
+	}
+	if !strings.Contains(stripped, "- id: grant.sensei.question_disposition") {
+		t.Fatal("the question-disposition grant is absent, so no escalation is attempted and this test asserts nothing")
+	}
+	if err := os.WriteFile(grants, []byte(stripped), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	res := abandon(t, w, currentHead(t, w.TaskDir), whyAbandoned)
+	if res.Outcome != OutcomeAuthorityRefusal {
+		t.Fatalf("outcome = %q: the question-disposition grant authorized a terminal abandonment", res.Outcome)
+	}
+	if n := abandonedEvents(t, w.TaskDir); n != 0 {
+		t.Fatalf("abandoned events = %d, want 0", n)
+	}
+}
+
 // removeGrant drops one grant block from an authority_grants.yaml body.
 func removeGrant(body, id string) (string, bool) {
 	lines := strings.Split(body, "\n")
