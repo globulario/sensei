@@ -112,6 +112,8 @@ func livenessBinding(rev string) architecture.ClaimDocumentBinding {
 type livenessRun struct {
 	maintenance maintenance.Result
 	closure     closure.Report
+	attestation closure.ResolutionAttestation
+	claims      architecture.ClaimDocument
 	questions   Report
 }
 
@@ -135,7 +137,7 @@ func assessAndAsk(t *testing.T, root string, doc architecture.ClaimDocument) liv
 		Domain: "repository", TaskClass: "feature", RiskClass: closure.RiskArchitectureSensitive,
 		AccessMode: closure.AccessWrite, DirectionRequirement: closure.DirectionNotApplicable, Files: []string{"state.go"},
 	}}
-	rep, err := closure.Evaluate(closure.Context{
+	rep, attestation, err := closure.EvaluateAttested(closure.Context{
 		Request: req, Claims: m.Document, Maintenance: &m.Report, Plane: &p, Dialogue: dialogue, Evidence: evidence,
 		GraphReceipt:   graphsnapshot.Receipt{Status: architecture.GraphDigestResolved, DigestSHA256: livenessGraph, Verified: true},
 		RepositoryRoot: root, RepositoryRev: b.Revision, RepositoryStatus: architecture.RevisionResolved,
@@ -144,11 +146,11 @@ func assessAndAsk(t *testing.T, root string, doc architecture.ClaimDocument) liv
 		t.Fatal(err)
 	}
 	gen, err := Generate(Context{Closure: rep, Claims: m.Document, CreatedAt: "2026-11-26T00:00:00Z",
-		ClosureAssessmentDigestSHA256: strings.Repeat("d", 64)}, nil)
+		ClosureAssessmentDigestSHA256: strings.Repeat("d", 64), ResolutionAttestation: attestation}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return livenessRun{maintenance: m, closure: rep, questions: gen.Report}
+	return livenessRun{maintenance: m, closure: rep, attestation: attestation, claims: m.Document, questions: gen.Report}
 }
 
 // questionDemand: actions only a question (or a human supplying evidence that
@@ -231,8 +233,8 @@ func TestStaleSourceClaimIsRoutedToReextractionWithoutAQuestion(t *testing.T) {
 		t.Fatal("a stale claim must still block: refreshing is required before closure")
 	}
 	for _, bl := range bls {
-		if bl.ClaimDisposition != string(closure.DispositionStaleSource) {
-			t.Fatalf("%s disposition=%q, want stale_source", bl.Code, bl.ClaimDisposition)
+		if bl.ClaimResolution != string(closure.ResolutionStaleSource) {
+			t.Fatalf("%s disposition=%q, want stale_source", bl.Code, bl.ClaimResolution)
 		}
 		if bl.RequiredNextAction != closure.ActionRefreshExtraction || closure.DischargePaths[bl.RequiredNextAction] != closure.PartySensei {
 			t.Fatalf("%s routed to %q (%s); want refresh_extraction owned by Sensei", bl.Code, bl.RequiredNextAction, closure.DischargePaths[bl.RequiredNextAction])
@@ -310,8 +312,8 @@ func TestGenuinelyUnresolvedClaimsStillBlockAndAreAsked(t *testing.T) {
 			}
 			asked := 0
 			for _, bl := range bls {
-				if bl.ClaimDisposition == string(closure.DispositionEvidencedCurrent) || bl.ClaimDisposition == string(closure.DispositionStaleSource) {
-					t.Fatalf("%s mis-disposed as %s", bl.Code, bl.ClaimDisposition)
+				if bl.ClaimResolution == string(closure.ResolutionEvidencedCurrent) || bl.ClaimResolution == string(closure.ResolutionStaleSource) {
+					t.Fatalf("%s mis-disposed as %s", bl.Code, bl.ClaimResolution)
 				}
 				asked += questionsFor(run, bl.ID)
 			}
@@ -390,8 +392,47 @@ func TestNonSourcePremiseIsNeverRecordedAsSourceEvidence(t *testing.T) {
 		t.Fatalf("a non-source premise was recorded as source evidence: %+v", run.closure.EvidencedClaims)
 	}
 	for _, bl := range claimBlockers(run) {
-		if bl.ClaimDisposition == string(closure.DispositionEvidencedCurrent) {
+		if bl.ClaimResolution == string(closure.ResolutionEvidencedCurrent) {
 			t.Fatalf("mis-disposed: %+v", bl)
+		}
+	}
+}
+
+// #387 review, finding A: a report whose provenance is not established — loaded
+// from a file, or altered after evaluation — cannot suppress a question through
+// its stamped fields. The authority of the decision is verified, never
+// recomputed.
+func TestUnattestedOrAlteredReportCannotSuppressQuestions(t *testing.T) {
+	root, doc := livenessFixture(t)
+	writeState(t, root, stateV2)
+	run := assessAndAsk(t, root, doc)
+	ask := func(rep closure.Report, att closure.ResolutionAttestation) Report {
+		gen, err := Generate(Context{Closure: rep, Claims: run.claims, CreatedAt: "2026-11-26T00:00:00Z",
+			ClosureAssessmentDigestSHA256: strings.Repeat("d", 64), ResolutionAttestation: att}, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return gen.Report
+	}
+	if !run.attestation.Covers(run.closure) {
+		t.Fatal("the attestation does not cover the report it was issued for")
+	}
+	for name, rep := range map[string]Report{
+		"no attestation (e.g. generate-questions --closure <file>)": ask(run.closure, closure.ResolutionAttestation{}),
+		"report altered after evaluation": func() Report {
+			altered := run.closure
+			altered.Blockers = append([]closure.Blocker{}, run.closure.Blockers...)
+			altered.Blockers[0].Summary += " (edited)"
+			if run.attestation.Covers(altered) {
+				t.Fatal("an altered report is still covered")
+			}
+			return ask(altered, run.attestation)
+		}(),
+	} {
+		for _, s := range rep.Skipped {
+			if s.ReasonCode == "questiongen.self_evidenced" || strings.Contains(s.Detail, "attested claim resolution") {
+				t.Fatalf("%s: a stamped field suppressed a question: %+v", name, s)
+			}
 		}
 	}
 }

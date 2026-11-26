@@ -58,6 +58,11 @@ type Context struct {
 	Existing                      *architecture.DialogueDocument
 	CreatedAt                     string
 	ClosureAssessmentDigestSHA256 string
+	// ResolutionAttestation is issued only by closure.EvaluateAttested, for
+	// the exact report in Closure. Without it (e.g. a report loaded from a
+	// caller-editable file) the stamped claim resolutions are not authoritative
+	// and suppress nothing: questions are asked as before (fail-closed).
+	ResolutionAttestation closure.ResolutionAttestation
 }
 
 type Candidate struct {
@@ -294,6 +299,7 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 		SchemaVersion: SchemaVersion, GeneratedBy: GeneratedBy, Binding: ctx.Closure.Request.Binding,
 		SourceClosureAssessmentDigestSHA256: ctx.ClosureAssessmentDigestSHA256,
 	}
+	attested := ctx.ResolutionAttestation.Covers(ctx.Closure)
 	currentBlockers := map[string]closure.Blocker{}
 	for _, blocker := range ctx.Closure.Blockers {
 		currentBlockers[blocker.ID] = blocker
@@ -328,11 +334,18 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 			report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing, "questiongen.existing_covers", "existing question covers blocker"))
 			continue
 		}
+		// R-CLOSURE-01: re-extraction and tooling defects are resolved by
+		// Sensei itself, never by a question — but only an attested report
+		// may say so; a stamped action in an unverified file suppresses nothing.
+		if attested && (blocker.RequiredNextAction == closure.ActionRefreshExtraction || blocker.RequiredNextAction == closure.ActionReportToolingDefect) {
+			report.Skipped = append(report.Skipped, item(blocker, DispositionSkippedMechanical, "", "", "questiongen.skipped_mechanical", "Sensei resolves this itself ("+blocker.RequiredNextAction+"); attested claim resolution"))
+			continue
+		}
 		if mechanical(blocker) {
 			report.Skipped = append(report.Skipped, item(blocker, DispositionSkippedMechanical, "", "", "questiongen.skipped_mechanical", "blocker requires mechanical input or repair"))
 			continue
 		}
-		if reason, ok := selfEvidenced(blocker); ok {
+		if reason, ok := selfEvidenced(blocker, attested); ok {
 			report.Skipped = append(report.Skipped, item(blocker, DispositionSelfEvidenced, "", "", "questiongen.self_evidenced", reason))
 			continue
 		}
@@ -547,11 +560,6 @@ func mechanical(b closure.Blocker) bool {
 		b.Code == "closure.agent.access_mode_unknown" || b.Code == "closure.agent.direction_unknown" {
 		return true
 	}
-	// R-CLOSURE-01: re-extraction and tooling defects are resolved by Sensei
-	// itself, never by a question.
-	if b.RequiredNextAction == closure.ActionRefreshExtraction || b.RequiredNextAction == closure.ActionReportToolingDefect {
-		return true
-	}
 	if b.RequiredNextAction == "answer_open_question" || strings.Contains(b.Code, "question_unresolved") || b.Code == "closure.question.accepted_unknown_blocks" {
 		return true
 	}
@@ -563,21 +571,25 @@ func mechanical(b closure.Blocker) bool {
 // (#230 item 2).
 //
 // R-CLOSURE-01: this no longer re-reads the claim. Closure computes ONE
-// disposition per claim (closure.DisposeClaim) and stamps it on the blocker;
+// disposition per claim (closure.ResolveClaim) and stamps it on the blocker;
 // two readers each deciding "is this claim answerable?" is what deadlocked
 // task sessions — closure demanded a question this function had suppressed,
 // for a claim whose source had CHANGED since extraction (a pinned digest is
-// not a current one). Only DispositionEvidencedCurrent qualifies, which
+// not a current one). Only ResolutionEvidencedCurrent qualifies, which
 // requires maintenance to have verified, this assessment, that every premise
 // digest still matches the file.
 //
 // The narrowness is kept: evidence-class blockers only, never authority,
 // contract or direction questions, which ask a human for a decision rather
 // than for a pointer. Derived/observed/source-backed shape is enforced by the
-// disposition itself. The skip stays recorded with its own disposition.
-func selfEvidenced(b closure.Blocker) (string, bool) {
-	if !evidenceBlockerCode(b.Code) || len(b.ClaimIDs) == 0 ||
-		closure.ClaimDisposition(b.ClaimDisposition) != closure.DispositionEvidencedCurrent {
+// resolution itself. The skip stays recorded with its own disposition.
+//
+// Provenance (#387 review, finding A): the stamp is authoritative only when
+// the report carries closure's ResolutionAttestation. Question generation
+// verifies the authority of the decision; it never recomputes it.
+func selfEvidenced(b closure.Blocker, attested bool) (string, bool) {
+	if !attested || !evidenceBlockerCode(b.Code) || len(b.ClaimIDs) == 0 ||
+		closure.ClaimResolution(b.ClaimResolution) != closure.ResolutionEvidencedCurrent {
 		return "", false
 	}
 	return fmt.Sprintf("every premise behind this blocker's %d claim(s) is a source-backed observation whose digest matches the current file; the only evidence anyone could supply is the source the extractor already read",

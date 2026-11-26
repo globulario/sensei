@@ -13,6 +13,8 @@ import (
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/maintenance"
+	"github.com/globulario/sensei/golang/architecture/plane"
 )
 
 // C6 (INV-CLOSURE-LIVENESS), the general half: every required_next_action
@@ -84,13 +86,13 @@ func TestImpossibleObligationIsReportedAsAToolingDefect(t *testing.T) {
 	}{
 		{"unregistered action", Blocker{Code: "closure.x.y", RequiredNextAction: "consult_oracle"}},
 		{"question demanded for current evidence", Blocker{Code: "closure.question.missing_artifact", RequiredNextAction: "create_open_question",
-			ClaimIDs: []string{"claim.a"}, ClaimDisposition: string(DispositionEvidencedCurrent)}},
+			ClaimIDs: []string{"claim.a"}, ClaimResolution: string(ResolutionEvidencedCurrent)}},
 		{"evidence demanded for a stale source claim", Blocker{Code: "closure.evidence.claim_stale", RequiredNextAction: "add_evidence",
-			ClaimIDs: []string{"claim.a"}, ClaimDisposition: string(DispositionStaleSource)}},
+			ClaimIDs: []string{"claim.a"}, ClaimResolution: string(ResolutionStaleSource)}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			b := &assessmentBuilder{dispByClaim: map[string]ClaimDisposition{}}
+			b := &assessmentBuilder{resolutionByClaim: map[string]ClaimResolution{}}
 			b.addBlocker(tc.bl)
 			b.checkLiveness()
 			var defect *Blocker
@@ -110,22 +112,22 @@ func TestImpossibleObligationIsReportedAsAToolingDefect(t *testing.T) {
 			}
 		})
 	}
-	ok := &assessmentBuilder{dispByClaim: map[string]ClaimDisposition{}}
+	ok := &assessmentBuilder{resolutionByClaim: map[string]ClaimResolution{}}
 	ok.addBlocker(Blocker{Code: "closure.evidence.claim_stale", RequiredNextAction: ActionRefreshExtraction,
-		ClaimIDs: []string{"claim.a"}, ClaimDisposition: string(DispositionStaleSource)})
+		ClaimIDs: []string{"claim.a"}, ClaimResolution: string(ResolutionStaleSource)})
 	ok.addBlocker(Blocker{Code: "closure.question.missing_artifact", RequiredNextAction: "create_open_question",
-		ClaimIDs: []string{"claim.b"}, ClaimDisposition: string(DispositionNeedsQuestion)})
+		ClaimIDs: []string{"claim.b"}, ClaimResolution: string(ResolutionNeedsQuestion)})
 	ok.checkLiveness()
 	if len(ok.blockers) != 2 {
 		t.Fatalf("a dischargeable blocker was reported as a defect: %+v", ok.blockers)
 	}
 }
 
-// DisposeClaim never treats unverified or stale freshness as current.
-func TestDisposeClaimRequiresVerifiedCurrentPremises(t *testing.T) {
+// ResolveClaim never treats unverified or stale freshness as current.
+func TestResolveClaimRequiresVerifiedCurrentPremises(t *testing.T) {
 	// covered end to end in questiongen/closure_liveness_test.go; here the
 	// nil-evaluation edge, which the pipeline never produces for a scoped claim.
-	if d := DisposeClaim(sourceShapedClaimForTest(), sourceShapedReceiptsForTest(), nil); d != DispositionNeedsInvestigation {
+	if d := ResolveClaim(sourceShapedClaimForTest(), sourceShapedReceiptsForTest(), nil, plane.StateJustified); d != ResolutionNeedsInvestigation {
 		t.Fatalf("unverified freshness disposed as %s", d)
 	}
 }
@@ -141,4 +143,73 @@ func sourceShapedReceiptsForTest() map[string]architecture.ClaimFactReceipt {
 		Provenance: architecture.Provenance{SourceKind: "source_file", SourceDigestStatus: architecture.SourceDigestResolved,
 			SourceDigest: strings.Repeat("c", 64)},
 	}}
+}
+
+// #387 review, finding B: an incomplete resolution set never yields
+// evidenced_current — the old generator required EVERY referenced claim to be
+// resolved, and that guarantee is kept.
+func TestIncompleteResolutionSetNeverClosesOnEvidence(t *testing.T) {
+	by := map[string]ClaimResolution{"claim.a": ResolutionEvidencedCurrent, "claim.q": ResolutionNeedsQuestion}
+	cases := map[string]struct {
+		ids  []string
+		want ClaimResolution
+	}{
+		"all evidenced":                    {[]string{"claim.a"}, ResolutionEvidencedCurrent},
+		"one claim has no resolution":      {[]string{"claim.a", "claim.missing"}, ResolutionNeedsInvestigation},
+		"one claim needs a question":       {[]string{"claim.a", "claim.q"}, ResolutionNeedsQuestion},
+		"only unknown claims":              {[]string{"claim.missing"}, ResolutionNeedsInvestigation},
+		"an unrecognized resolution value": {[]string{"claim.a", "claim.weird"}, ResolutionNeedsInvestigation},
+	}
+	by["claim.weird"] = ClaimResolution("something_new")
+	for name, tc := range cases {
+		if got := combineResolutions(tc.ids, by); got != tc.want {
+			t.Errorf("%s: got %s, want %s", name, got, tc.want)
+		}
+	}
+	b := &assessmentBuilder{resolutionByClaim: by}
+	b.addBlocker(Blocker{Code: "closure.evidence.claim_unknown", RequiredNextAction: "create_open_question", ClaimIDs: []string{"claim.a", "claim.missing"}})
+	if b.blockers[0].ClaimResolution == string(ResolutionEvidencedCurrent) {
+		t.Fatalf("blocker inherited evidenced_current: %+v", b.blockers[0])
+	}
+}
+
+// #387 review, finding C: liveness is a property of the whole report. A defect
+// reopens the agent dimension even after it was assessed closed, and the
+// verdict is never closed while a defect stands, whatever the policy.
+func TestLivenessIsUnconditionalAndFailsClosed(t *testing.T) {
+	b := &assessmentBuilder{resolutionByClaim: map[string]ClaimResolution{},
+		dimensions: []DimensionAssessment{{Dimension: DimensionAgent, Required: false, Applicable: true, State: StateClosed}}}
+	b.addBlocker(Blocker{Dimension: DimensionEvidence, Code: "closure.x.y", RequiredNextAction: "consult_oracle"})
+	b.checkLiveness()
+	if b.dimensions[0].State != StateOpen || len(b.dimensions[0].BlockerIDs) == 0 {
+		t.Fatalf("agent dimension not reopened by the defect: %+v", b.dimensions[0])
+	}
+	if !hasToolingDefect(b.blockers) {
+		t.Fatal("defect not recorded")
+	}
+	// The verdict guard in Evaluate: a non-required agent dimension must not
+	// let a report with a tooling defect close.
+	rep := Report{Request: Request{Scope: Scope{RiskClass: RiskLowRisk}}, Dimensions: b.dimensions, Blockers: b.blockers}
+	v := calculateVerdict(rep, Policy{})
+	if hasToolingDefect(rep.Blockers) && (v == VerdictClosed || v == VerdictConditionallyClosed) {
+		v = VerdictOpen
+	}
+	if v == VerdictClosed || v == VerdictConditionallyClosed {
+		t.Fatalf("verdict %s with a tooling defect", v)
+	}
+}
+
+// Freshness is not sufficiency (architect review of #386/#387): current
+// premises prove the source did not change, not that the inference is sound.
+func TestCurrentPremisesWithoutAJustifiedPlaneAreNotEvidenced(t *testing.T) {
+	ev := &maintenance.ClaimEvaluation{EvaluatedStatus: architecture.StatusSupported,
+		ProofLanes: maintenance.ProofLanes{PremiseFacts: maintenance.LaneState{State: maintenance.LaneCurrent}}}
+	if d := ResolveClaim(sourceShapedClaimForTest(), sourceShapedReceiptsForTest(), ev, plane.StateJustified); d != ResolutionEvidencedCurrent {
+		t.Fatalf("justified and current: %s", d)
+	}
+	for _, st := range []string{plane.StateUnderSupported, plane.StateInvalid, plane.StateUnknown, plane.StateStale, ""} {
+		if d := ResolveClaim(sourceShapedClaimForTest(), sourceShapedReceiptsForTest(), ev, st); d == ResolutionEvidencedCurrent {
+			t.Fatalf("plane %q with current premises closed on evidence", st)
+		}
+	}
 }

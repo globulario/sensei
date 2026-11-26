@@ -2353,7 +2353,7 @@ invariants:
   - id: closure.liveness_every_blocker_has_a_discharge_path
     title: 'INV-CLOSURE-LIVENESS: every blocking obligation has a resolution path, a responsible party and a valid next action'
     status: active
-    description: Every blocker closure emits carries a required_next_action registered in closure.DischargePaths with a responsible party, and no blocker demands a question or evidence for a claim whose shared disposition says no question can resolve it. When no such path exists Sensei reports closure.tooling.no_discharge_path (wait class sensei_tooling) instead of attributing the obstruction to an implementor or architect. An available action that discharges nothing (e.g. advance_convergence re-emitting the same blocker) is not a path.
+    description: Every blocker closure emits carries a required_next_action registered in closure.DischargePaths with a responsible party, and no blocker demands a question or evidence for a claim whose shared claim resolution (claim_resolution) says no question can resolve it. When no such path exists Sensei reports closure.tooling.no_discharge_path (wait class sensei_tooling) instead of attributing the obstruction to an implementor or architect. An available action that discharges nothing (e.g. advance_convergence re-emitting the same blocker) is not a path.
     protects:
       files:
         - golang/architecture/closure/disposition.go

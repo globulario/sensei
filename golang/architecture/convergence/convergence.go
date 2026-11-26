@@ -557,7 +557,7 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 	if err != nil {
 		return out, err
 	}
-	before, err := closure.Evaluate(closure.Context{
+	before, attestation, err := closure.EvaluateAttested(closure.Context{
 		Request: inputs.Request, Claims: maint.Document, Maintenance: &maint.Report, Plane: &planeReport, Dialogue: &inputs.Dialogue, Evidence: &inputs.Evidence,
 		Graph: closureGraph, GraphReceipt: inputs.GraphReceipt, RepositoryRoot: inputs.RepositoryRoot, RepositoryRev: inputs.RepoRevision, RepositoryStatus: architecture.RevisionResolved,
 	})
@@ -583,6 +583,7 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 			Existing:                      &inputs.Dialogue,
 			CreatedAt:                     inputs.Manifest.QuestionCreatedAt,
 			ClosureAssessmentDigestSHA256: Digest(out.Bytes["closure-before-dialogue.yaml"]),
+			ResolutionAttestation:         attestation, // evaluated in this process just above
 		}, nil)
 		if err != nil {
 			return out, err
