@@ -8,11 +8,19 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/maintenance"
+	"github.com/globulario/sensei/golang/architecture/plane"
 )
 
 // evidenceCtx is a context whose single blocker asks for evidence about one
 // derived observed claim, with the premise receipt the claim cites.
 func evidenceCtx(t *testing.T, mutate func(*architecture.Claim, *architecture.ClaimFactReceipt)) Context {
+	t.Helper()
+	return evidenceCtxWithEval(t, mutate, nil)
+}
+
+// evidenceCtxWithEval also lets a case change what maintenance verified.
+func evidenceCtxWithEval(t *testing.T, mutate func(*architecture.Claim, *architecture.ClaimFactReceipt), mutateEval func(*maintenance.ClaimEvaluation)) Context {
 	t.Helper()
 	ctx := questionGenContext()
 	fact := architecture.Fact{
@@ -34,16 +42,28 @@ func evidenceCtx(t *testing.T, mutate func(*architecture.Claim, *architecture.Cl
 		AssertionOrigin: architecture.OriginDerived, PremiseFacts: []string{fact.ID},
 		Statement: architecture.ClaimStatement{Subject: "cluster/state", Predicate: "has_observed_writer_set", Object: "doctor.Configured"},
 	}
+	// R-CLOSURE-01: maintenance has verified, this assessment, that the
+	// premise digest still matches the file. Without that verification a
+	// pinned digest proves nothing about the current source.
+	eval := maintenance.ClaimEvaluation{ClaimID: claim.ID, EvaluatedStatus: architecture.StatusSupported,
+		ProofLanes: maintenance.ProofLanes{PremiseFacts: maintenance.LaneState{State: maintenance.LaneCurrent}}}
 	if mutate != nil {
 		mutate(&claim, &receipt)
 	}
+	if mutateEval != nil {
+		mutateEval(&eval)
+	}
 	ctx.Claims.Claims = []architecture.Claim{claim}
 	ctx.Claims.FactReceipts = []architecture.ClaimFactReceipt{receipt}
+	// The disposition is closure's, computed by the one authoritative function;
+	// question generation only consumes it.
+	disp := closure.ResolveClaim(claim, map[string]architecture.ClaimFactReceipt{fact.ID: receipt}, &eval, plane.StateJustified)
 	ctx.Closure.Blockers = []closure.Blocker{{
 		ID: "blocker.evidence.abcdef012345", Dimension: closure.DimensionEvidence,
 		Severity: architecture.QuestionPriorityHigh, Code: "closure.evidence.claim_unknown",
 		Summary: "Claim has no evidence.", ClaimIDs: []string{claim.ID},
 		Files: []string{"internal/doctor/doctor.go"}, RequiredNextAction: "add_evidence",
+		ClaimResolution: string(disp),
 	}}
 	return ctx
 }
@@ -51,19 +71,39 @@ func evidenceCtx(t *testing.T, mutate func(*architecture.Claim, *architecture.Cl
 // #230 item 2: asking a human for evidence about a claim whose every premise is
 // already source-backed has exactly one possible answer — read the source the
 // extractor already read — and the unanswered question blocks closure.
+//
+// Since R-CLOSURE-01 the guarantee is held where the decision is made: through
+// closure's attested pipeline, a current, justified source-derived claim raises
+// no evidence question and is closed on recorded evidence (the premise facts
+// and the current digest).
 func TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence(t *testing.T) {
+	root, doc := livenessFixture(t)
+	run := assessAndAsk(t, root, doc)
+	for _, g := range run.questions.Generated {
+		if strings.HasPrefix(g.BlockerCode, "closure.evidence.") || g.BlockerCode == "closure.question.missing_artifact" {
+			t.Fatalf("a self-evidenced claim produced a question: %+v", g)
+		}
+	}
+	if len(run.closure.EvidencedClaims) != 1 || run.closure.EvidencedClaims[0].ClaimID != "claim.observed.writer" {
+		t.Fatalf("the claim was not closed on recorded evidence: %+v", run.closure.EvidencedClaims)
+	}
+}
+
+// #387 review, finding A: the same blocker in a hand-built (unattested) report —
+// stamped evidenced_current, as a caller-editable file could be — suppresses
+// nothing. The question is asked.
+func TestUnattestedSelfEvidencedStampSuppressesNothing(t *testing.T) {
 	report, err := generateReport(t, evidenceCtx(t, nil))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(report.Generated) != 0 {
-		t.Fatalf("a self-evidenced claim produced a question: %+v", report.Generated)
+	for _, s := range report.Skipped {
+		if s.Disposition == DispositionSelfEvidenced {
+			t.Fatalf("an unattested stamp suppressed a question: %+v", s)
+		}
 	}
-	if len(report.Skipped) != 1 || report.Skipped[0].Disposition != DispositionSelfEvidenced {
-		t.Fatalf("the skip was not recorded as self-evidenced: %+v", report.Skipped)
-	}
-	if !strings.Contains(report.Skipped[0].Detail, "source the extractor already read") {
-		t.Fatalf("the detail does not say why nobody can answer it: %q", report.Skipped[0].Detail)
+	if len(report.Generated) != 1 {
+		t.Fatalf("the question was not asked: generated=%+v skipped=%+v", report.Generated, report.Skipped)
 	}
 }
 
@@ -97,6 +137,19 @@ func TestQuestionsThatAreStillAsked(t *testing.T) {
 		{"a claim with no premises at all", func(t *testing.T) Context {
 			return evidenceCtx(t, func(c *architecture.Claim, _ *architecture.ClaimFactReceipt) {
 				c.PremiseFacts = nil
+			})
+		}},
+		// R-CLOSURE-01: a pinned digest that no longer matches the file is not
+		// self-evidence; the source the extractor read is gone.
+		{"a premise whose source changed since extraction", func(t *testing.T) Context {
+			return evidenceCtxWithEval(t, nil, func(e *maintenance.ClaimEvaluation) {
+				e.EvaluatedStatus = architecture.StatusStale
+				e.ProofLanes.PremiseFacts.State = maintenance.LaneStale
+			})
+		}},
+		{"a premise whose freshness was never verified", func(t *testing.T) Context {
+			return evidenceCtxWithEval(t, nil, func(e *maintenance.ClaimEvaluation) {
+				e.ProofLanes.PremiseFacts.State = maintenance.LaneUnknown
 			})
 		}},
 	}

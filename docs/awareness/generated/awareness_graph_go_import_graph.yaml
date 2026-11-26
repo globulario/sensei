@@ -969,9 +969,11 @@ components:
     assertion: inferred
     source_files:
       - golang/architecture/closure/model.go
+      - golang/architecture/closure/resolution.go
       - golang/architecture/closure/util.go
     depends_on:
       - component.golang.architecture
+      - component.golang.architecture.closureprotocol
       - component.golang.architecture.graphsnapshot
       - component.golang.architecture.maintenance
       - component.golang.architecture.plane

@@ -390,6 +390,38 @@ func dominanceRoots(blockers []closure.Blocker, edges []DominanceEdge) (map[stri
 	return out, nil
 }
 
+// firstUndeliveredRootBlocker returns the first active load-bearing root
+// blocker that no question covers, and the party closure registers as able to
+// discharge its action.
+func firstUndeliveredRootBlocker(state TaskControlState) (*ClassifiedBlocker, string) {
+	byID := map[string]*ClassifiedBlocker{}
+	for i := range state.Blockers {
+		byID[state.Blockers[i].ID] = &state.Blockers[i]
+	}
+	for _, g := range state.Groups {
+		b := byID[g.RootBlockerID]
+		if b == nil || !b.LoadBearing || len(b.QuestionIDs) > 0 || len(g.QuestionIDs) > 0 ||
+			b.Disposition == ClassDominated || b.Disposition == ClassDuplicate || b.Disposition == ClassMechanicallyAnswerable {
+			continue
+		}
+		if party, ok := closure.DischargePaths[b.Consequence]; ok {
+			return b, party
+		}
+	}
+	return nil, ""
+}
+
+// firstBlockerWithConsequence returns the first non-dominated, non-duplicate
+// blocker whose required next action is the given one.
+func firstBlockerWithConsequence(blockers []ClassifiedBlocker, action string) string {
+	for _, b := range blockers {
+		if b.Consequence == action && b.Disposition != ClassDominated && b.Disposition != ClassDuplicate {
+			return b.ID
+		}
+	}
+	return ""
+}
+
 func blockerClassFromQuestions(ids []string, questions map[string]ClassifiedQuestion) string {
 	best := ClassActiveUnresolved
 	for _, id := range ids {
@@ -580,6 +612,16 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 	if state.Evidence.Eligible > 0 {
 		return NextAction{Kind: ActionRunStaticEvidence, TargetID: firstEligibleProbe(state.Probes), Summary: "execute the next bounded static evidence batch", CommandHint: "sensei advance-task --active"}
 	}
+	// R-CLOSURE-01 (INV-CLOSURE-LIVENESS): Sensei's own obstructions come
+	// first. A tooling defect is reported as Sensei's, and stale extraction is
+	// refreshed before any participant is asked something the refresh may
+	// change or retire. Neither is presented as a participant's missing input.
+	if id := firstBlockerWithConsequence(state.Blockers, closure.ActionReportToolingDefect); id != "" {
+		return NextAction{Kind: ActionReportToolingDefect, TargetID: id, Summary: "Sensei cannot offer a path out of this blocker; report the governance tooling defect to the Sensei maintainer"}
+	}
+	if id := firstBlockerWithConsequence(state.Blockers, closure.ActionRefreshExtraction); id != "" {
+		return NextAction{Kind: ActionRefreshExtraction, TargetID: id, Summary: "re-extract the claims whose source changed since extraction, then reassess (a refresh may confirm, contradict, replace or retire them)", CommandHint: "sensei import --refresh"}
+	}
 	for _, q := range state.Questions {
 		if q.ResolutionClass == ClassActiveUnresolved {
 			return NextAction{Kind: ActionProvideExternalEvidence, TargetID: q.ID, Summary: "provide the missing evidence for the primary unresolved question"}
@@ -589,6 +631,15 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 		return NextAction{Kind: ActionAnswerArchitectQuestion, TargetID: state.PrimaryQuestion.ID, Summary: state.PrimaryQuestion.QuestionText}
 	}
 	if state.Summary.ActiveRootBlockers > 0 {
+		// INV-CLOSURE-LIVENESS: an obligation must reach its responsible party.
+		if b, party := firstUndeliveredRootBlocker(state); b != nil {
+			switch party {
+			case closure.PartyArchitect:
+				return NextAction{Kind: ActionArchitectDecisionRequired, TargetID: b.ID, Summary: "architect decision required (" + b.Consequence + "): " + b.Statement}
+			case closure.PartyImplementor:
+				return NextAction{Kind: ActionImplementorActionRequired, TargetID: b.ID, Summary: "implementor action required (" + b.Consequence + "): " + b.Statement}
+			}
+		}
 		return NextAction{Kind: ActionAdvanceConvergence, TargetID: state.TaskID, Summary: "advance one convergence iteration with the current evidence"}
 	}
 	// A TYPED governed task selects from the ledger disposition. The permission

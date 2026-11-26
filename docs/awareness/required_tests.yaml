@@ -2306,6 +2306,23 @@ required_tests:
     protects:
       failure_modes:
         - failure.an_endpoint_refusal_advised_a_flag_the_command_does_not_acce
+  - id: golang/architecture/closure/liveness_test.go:TestEveryEmittableActionHasADischargePath
+    title: Every required_next_action closure can emit has a registered discharge path and responsible party
+    protects:
+      invariants:
+        - closure.liveness_every_blocker_has_a_discharge_path
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+    title: A stale source-derived claim never leaves a blocker with no path out (C1)
+    protects:
+      invariants:
+        - closure.liveness_every_blocker_has_a_discharge_path
+      failure_modes:
+        - failure.sensei.a_stale_source_claim_deadlocks_closure_closure_demands_a_que
+  - id: golang/architecture/taskcontrol/closure_liveness_test.go:TestUndeliveredObligationIsNamedForItsResponsibleParty
+    title: A load-bearing obligation no question covers is named in the next action for its responsible party
+    protects:
+      invariants:
+        - closure.liveness_every_blocker_has_a_discharge_path
   - id: golang/architecture/closure/authority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation
     title: Editing authority-implementing code binds only repository mutation, with no contradiction
     protects:

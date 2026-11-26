@@ -37,9 +37,17 @@ const (
 	ActionProvideExternalEvidence = "provide_external_evidence"
 	ActionAdjudicateAnswer        = "adjudicate_answer"
 	ActionAdvanceConvergence      = "advance_convergence"
-	ActionRequestInspection       = "request_inspection_admission"
-	ActionRequestMutation         = "request_mutation_admission"
-	ActionPerformAdmittedEdit     = "perform_admitted_edit"
+	// R-CLOSURE-01: Sensei-owned resolutions, never addressed to a participant.
+	ActionRefreshExtraction   = "refresh_extraction"
+	ActionReportToolingDefect = "report_sensei_tooling_defect"
+	// A load-bearing root blocker no question covers is delivered to its
+	// responsible party by name, never left to advance_convergence, which
+	// re-emits the same blocker and discharges nothing.
+	ActionArchitectDecisionRequired = "architect_decision_required"
+	ActionImplementorActionRequired = "implementor_action_required"
+	ActionRequestInspection         = "request_inspection_admission"
+	ActionRequestMutation           = "request_mutation_admission"
+	ActionPerformAdmittedEdit       = "perform_admitted_edit"
 	// ActionConsumeCapability is the step between an admitted capability and any
 	// edit. It reuses the token tasksession already uses for the same step
 	// (AdvanceNextConsumeCapability, "consume_capability"); this vocabulary

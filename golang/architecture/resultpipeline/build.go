@@ -262,7 +262,7 @@ func assembleBuildResult(ctx context.Context, req BuildRequest) (BuildResult, er
 		closureReq.Scope.Domain = domain
 	}
 	graphReceipt := graphsnapshot.Receipt{DigestSHA256: rb.GraphDigestSHA256, Status: architecture.GraphDigestResolved, Verified: true}
-	closureReport, err := closure.Evaluate(closure.Context{
+	closureReport, closureAttestation, err := closure.EvaluateAttested(closure.Context{
 		Request:          closureReq,
 		Claims:           maintResult.Document,
 		Maintenance:      &maintResult.Report,
@@ -295,6 +295,7 @@ func assembleBuildResult(ctx context.Context, req BuildRequest) (BuildResult, er
 		Existing:                      emptyResultDialogue(resultBinding),
 		CreatedAt:                     evaluatedAt,
 		ClosureAssessmentDigestSHA256: closureSemantic,
+		ResolutionAttestation:         closureAttestation, // evaluated in this process just above
 	}, qReg)
 	if err != nil {
 		return BuildResult{}, fmt.Errorf("resultpipeline: architect questions: %w", err)

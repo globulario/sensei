@@ -51,6 +51,9 @@ const (
 	WaitEvidence         = "evidence"
 	WaitGovernance       = "governance"
 	WaitMechanicalRepair = "mechanical_repair"
+	// WaitSenseiTooling: the obstacle is Sensei's own machinery
+	// (INV-CLOSURE-LIVENESS), not a participant's missing input.
+	WaitSenseiTooling = "sensei_tooling"
 
 	StageProduced              = "produced"
 	StageSkippedUncertifiable  = "skipped_uncertifiable"
@@ -554,7 +557,7 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 	if err != nil {
 		return out, err
 	}
-	before, err := closure.Evaluate(closure.Context{
+	before, attestation, err := closure.EvaluateAttested(closure.Context{
 		Request: inputs.Request, Claims: maint.Document, Maintenance: &maint.Report, Plane: &planeReport, Dialogue: &inputs.Dialogue, Evidence: &inputs.Evidence,
 		Graph: closureGraph, GraphReceipt: inputs.GraphReceipt, RepositoryRoot: inputs.RepositoryRoot, RepositoryRev: inputs.RepoRevision, RepositoryStatus: architecture.RevisionResolved,
 	})
@@ -580,6 +583,7 @@ func runStages(inputs loadedInputs) (stageOutputs, error) {
 			Existing:                      &inputs.Dialogue,
 			CreatedAt:                     inputs.Manifest.QuestionCreatedAt,
 			ClosureAssessmentDigestSHA256: Digest(out.Bytes["closure-before-dialogue.yaml"]),
+			ResolutionAttestation:         attestation, // evaluated in this process just above
 		}, nil)
 		if err != nil {
 			return out, err
@@ -848,6 +852,9 @@ func WaitClasses(report closure.Report, dialogue architecture.DialogueDocument, 
 		if mechanicalAction(b.RequiredNextAction) {
 			seen[WaitMechanicalRepair] = true
 		}
+		if b.RequiredNextAction == closure.ActionReportToolingDefect {
+			seen[WaitSenseiTooling] = true
+		}
 	}
 	return sortedKeys(seen)
 }
@@ -902,6 +909,9 @@ func NextActions(report closure.Report, dialogue architecture.DialogueDocument, 
 	for _, b := range report.Blockers {
 		if mechanicalAction(b.RequiredNextAction) {
 			out = append(out, NextAction{mapMechanicalAction(b.RequiredNextAction), b.Severity, b.ID, b.RequiredNextAction + " for " + b.ID})
+		}
+		if b.RequiredNextAction == closure.ActionReportToolingDefect {
+			out = append(out, NextAction{WaitSenseiTooling, b.Severity, b.ID, b.Summary})
 		}
 	}
 	sort.SliceStable(out, func(i, j int) bool {
@@ -1476,7 +1486,8 @@ func closureRank(v string) int {
 
 func mechanicalAction(action string) bool {
 	switch action {
-	case "provide_input", "repair_binding", "repair_claim", "add_test", "add_failure_mode", "reassess_scope":
+	case "provide_input", "repair_binding", "repair_claim", "add_test", "add_failure_mode", "reassess_scope",
+		closure.ActionRefreshExtraction:
 		return true
 	default:
 		return false
@@ -1495,6 +1506,8 @@ func mapMechanicalAction(action string) string {
 		return "add_failure_mode"
 	case "reassess_scope":
 		return "reassess_scope"
+	case closure.ActionRefreshExtraction:
+		return closure.ActionRefreshExtraction
 	default:
 		return "provide_evidence"
 	}

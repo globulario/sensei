@@ -11443,6 +11443,42 @@ test_symbols:
     symbol: TestProjectApplicableBehavioral_NoArbitraryCountLimit
     package: closure
     language: go
+  - id: golang/architecture/closure/liveness_test.go:TestCurrentPremisesWithoutAJustifiedPlaneAreNotEvidenced
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestCurrentPremisesWithoutAJustifiedPlaneAreNotEvidenced
+    package: closure
+    language: go
+    doc: "Freshness is not sufficiency (architect review of #386/#387): current\npremises prove the source did not change, not that the inference is sound."
+  - id: golang/architecture/closure/liveness_test.go:TestEveryEmittableActionHasADischargePath
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestEveryEmittableActionHasADischargePath
+    package: closure
+    language: go
+    doc: "C6 (INV-CLOSURE-LIVENESS), the general half: every required_next_action\nclosure can emit has a registered discharge path and a responsible party.\nThe emitters are read from the source itself — every literal action passed\nto addOpen / addUncertifiable / addCondition, and every RequiredNextAction\nfield literal — so a new blocker cannot be introduced with an obligation\nnobody can meet. Nothing here names a particular file, claim or blocker."
+  - id: golang/architecture/closure/liveness_test.go:TestImpossibleObligationIsReportedAsAToolingDefect
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestImpossibleObligationIsReportedAsAToolingDefect
+    package: closure
+    language: go
+    doc: "C6, the runtime half: a blocker whose obligation cannot be met is reported\nas Sensei's own defect — never left for a participant to fail."
+  - id: golang/architecture/closure/liveness_test.go:TestIncompleteResolutionSetNeverClosesOnEvidence
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestIncompleteResolutionSetNeverClosesOnEvidence
+    package: closure
+    language: go
+    doc: "#387 review, finding B: an incomplete resolution set never yields\nevidenced_current — the old generator required EVERY referenced claim to be\nresolved, and that guarantee is kept."
+  - id: golang/architecture/closure/liveness_test.go:TestLivenessIsUnconditionalAndFailsClosed
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestLivenessIsUnconditionalAndFailsClosed
+    package: closure
+    language: go
+    doc: "#387 review, finding C: liveness is a property of the whole report. A defect\nreopens the agent dimension even after it was assessed closed, and the\nverdict is never closed while a defect stands, whatever the policy."
+  - id: golang/architecture/closure/liveness_test.go:TestResolveClaimRequiresVerifiedCurrentPremises
+    file: golang/architecture/closure/liveness_test.go
+    symbol: TestResolveClaimRequiresVerifiedCurrentPremises
+    package: closure
+    language: go
+    doc: "ResolveClaim never treats unverified or stale freshness as current."
   - id: golang/architecture/closure/model_test.go:TestAbsentAuthoredFileRemainsUnrepresented
     file: golang/architecture/closure/model_test.go
     symbol: TestAbsentAuthoredFileRemainsUnrepresented
@@ -20675,6 +20711,60 @@ test_symbols:
     symbol: TestValidateRejectsPerDispositionViolations
     package: questiondisposition_test
     language: go
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestCurrentSourceDerivedClaimClosesWithoutAQuestion
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestCurrentSourceDerivedClaimClosesWithoutAQuestion
+    package: questiongen
+    language: go
+    doc: "C4: the generic path — a claim never edited closes on current evidence\nwithout a question. Nothing here names a particular file or claim."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestFailedOrInconclusiveReextractionNeitherLoopsNorClosesSilently
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestFailedOrInconclusiveReextractionNeitherLoopsNorClosesSilently
+    package: questiongen
+    language: go
+    doc: "Extra (architect): re-extraction fails (the claim document is unchanged).\nThe assessment is deterministic — the same blockers with the same IDs — so\nconvergence's no-effect rule (NoEffectInputLimit) ends it as stalled instead\nof an infinite refresh loop. And re-extraction that yields an unresolved\nclaim falls back to an ordinary question, never to silent closure."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestGenuinelyUnresolvedClaimsStillBlockAndAreAsked
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestGenuinelyUnresolvedClaimsStillBlockAndAreAsked
+    package: questiongen
+    language: go
+    doc: "C5: genuinely unresolved claims still block, and are still asked."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestNonSourcePremiseIsNeverRecordedAsSourceEvidence
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestNonSourcePremiseIsNeverRecordedAsSourceEvidence
+    package: questiongen
+    language: go
+    doc: "A claim whose premise is not a pinned source fact is never closed BY SOURCE\nEVIDENCE, whatever else maintenance concludes about it: the disposition is\nnot widened past source-backed observations (forbidden fix\nwiden_self_evidenced_suppression...)."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestReextractedClaimClosesOnTraceableCurrentEvidence
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestReextractedClaimClosesOnTraceableCurrentEvidence
+    package: questiongen
+    language: go
+    doc: "C3: after re-extraction pins the claim to the current content, it closes on\nrecorded, traceable evidence — the new digest, not the old one."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestSourceChangingAgainAfterReextractionDoesNotCloseSilently
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestSourceChangingAgainAfterReextractionDoesNotCloseSilently
+    package: questiongen
+    language: go
+    doc: "Extra (architect): the source changes AGAIN between re-extraction and\nclosure. The refreshed claim is stale again; nothing closes silently."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimIsRoutedToReextractionWithoutAQuestion
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestStaleSourceClaimIsRoutedToReextractionWithoutAQuestion
+    package: questiongen
+    language: go
+    doc: "C2: a stale source-derived claim is routed to re-extraction — by Sensei —\nwith no question manufactured and nothing addressed to a participant."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+    package: questiongen
+    language: go
+    doc: "C1: the reproduction. It fails on the code that produced the PERSONA\ndeadlock and must pass once every claim blocker has a dischargeable path."
+  - id: golang/architecture/questiongen/closure_liveness_test.go:TestUnattestedOrAlteredReportCannotSuppressQuestions
+    file: golang/architecture/questiongen/closure_liveness_test.go
+    symbol: TestUnattestedOrAlteredReportCannotSuppressQuestions
+    package: questiongen
+    language: go
+    doc: "#387 review, finding A: a report whose provenance is not established — loaded\nfrom a file, or altered after evaluation — cannot suppress a question through\nits stamped fields. The authority of the decision is verified, never\nrecomputed."
   - id: golang/architecture/questiongen/deviation_questions_test.go:TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate
     file: golang/architecture/questiongen/deviation_questions_test.go
     symbol: TestDeviationQuestionAnswerPathDoesNotPromoteOrWeakenCandidate
@@ -20823,13 +20913,19 @@ test_symbols:
     symbol: TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence
     package: questiongen
     language: go
-    doc: "#230 item 2: asking a human for evidence about a claim whose every premise is\nalready source-backed has exactly one possible answer — read the source the\nextractor already read — and the unanswered question blocks closure."
+    doc: "#230 item 2: asking a human for evidence about a claim whose every premise is\nalready source-backed has exactly one possible answer — read the source the\nextractor already read — and the unanswered question blocks closure.\n\nSince R-CLOSURE-01 the guarantee is held where the decision is made: through\nclosure's attested pipeline, a current, justified source-derived claim raises\nno evidence question and is closed on recorded evidence (the premise facts\nand the current digest)."
   - id: golang/architecture/questiongen/self_evidenced_test.go:TestQuestionsThatAreStillAsked
     file: golang/architecture/questiongen/self_evidenced_test.go
     symbol: TestQuestionsThatAreStillAsked
     package: questiongen
     language: go
     doc: "Narrow in four ways, because suppressing a real question is a worse failure\nthan asking an awkward one. Each of these must still be asked."
+  - id: golang/architecture/questiongen/self_evidenced_test.go:TestUnattestedSelfEvidencedStampSuppressesNothing
+    file: golang/architecture/questiongen/self_evidenced_test.go
+    symbol: TestUnattestedSelfEvidencedStampSuppressesNothing
+    package: questiongen
+    language: go
+    doc: "#387 review, finding A: the same blocker in a hand-built (unattested) report —\nstamped evidenced_current, as a caller-editable file could be — suppresses\nnothing. The question is asked."
   - id: golang/architecture/questionpromotion/authority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
     file: golang/architecture/questionpromotion/authority_composition_test.go
     symbol: TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
@@ -24239,6 +24335,18 @@ test_symbols:
     symbol: TestRunReceiptSchemaRejectsInventedMergeAuthority
     package: synthesisdriver
     language: go
+  - id: golang/architecture/taskcontrol/closure_liveness_test.go:TestSenseiOwnedObstructionsLeadTheNextAction
+    file: golang/architecture/taskcontrol/closure_liveness_test.go
+    symbol: TestSenseiOwnedObstructionsLeadTheNextAction
+    package: taskcontrol
+    language: go
+    doc: "R-CLOSURE-01: Sensei must not present its own obstruction as a\nparticipant's missing input. A tooling defect is reported first; a stale\nextraction is refreshed before any participant is asked a question the\nrefresh may change or retire; only then does the architect's question lead."
+  - id: golang/architecture/taskcontrol/closure_liveness_test.go:TestUndeliveredObligationIsNamedForItsResponsibleParty
+    file: golang/architecture/taskcontrol/closure_liveness_test.go
+    symbol: TestUndeliveredObligationIsNamedForItsResponsibleParty
+    package: taskcontrol
+    language: go
+    doc: "A load-bearing root blocker that no question covers is delivered to its\nresponsible party by name. advance_convergence would re-emit it unchanged\n(observed in Sensei's self-admission of #387: define_authority blockers had\nno question template and the next action was advance_convergence)."
   - id: golang/architecture/taskcontrol/disposition_test.go:TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion
     file: golang/architecture/taskcontrol/disposition_test.go
     symbol: TestAnsweredDispositionDoesNotSuppressAnUnansweredQuestion

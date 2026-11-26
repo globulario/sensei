@@ -58,6 +58,11 @@ type Context struct {
 	Existing                      *architecture.DialogueDocument
 	CreatedAt                     string
 	ClosureAssessmentDigestSHA256 string
+	// ResolutionAttestation is issued only by closure.EvaluateAttested, for
+	// the exact report in Closure. Without it (e.g. a report loaded from a
+	// caller-editable file) the stamped claim resolutions are not authoritative
+	// and suppress nothing: questions are asked as before (fail-closed).
+	ResolutionAttestation closure.ResolutionAttestation
 }
 
 type Candidate struct {
@@ -294,6 +299,7 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 		SchemaVersion: SchemaVersion, GeneratedBy: GeneratedBy, Binding: ctx.Closure.Request.Binding,
 		SourceClosureAssessmentDigestSHA256: ctx.ClosureAssessmentDigestSHA256,
 	}
+	attested := ctx.ResolutionAttestation.Covers(ctx.Closure)
 	currentBlockers := map[string]closure.Blocker{}
 	for _, blocker := range ctx.Closure.Blockers {
 		currentBlockers[blocker.ID] = blocker
@@ -328,11 +334,18 @@ func Generate(ctx Context, registry *Registry) (Result, error) {
 			report.ExistingCoverage = append(report.ExistingCoverage, item(blocker, DispositionExistingCovers, "", existing, "questiongen.existing_covers", "existing question covers blocker"))
 			continue
 		}
+		// R-CLOSURE-01: re-extraction and tooling defects are resolved by
+		// Sensei itself, never by a question — but only an attested report
+		// may say so; a stamped action in an unverified file suppresses nothing.
+		if attested && (blocker.RequiredNextAction == closure.ActionRefreshExtraction || blocker.RequiredNextAction == closure.ActionReportToolingDefect) {
+			report.Skipped = append(report.Skipped, item(blocker, DispositionSkippedMechanical, "", "", "questiongen.skipped_mechanical", "Sensei resolves this itself ("+blocker.RequiredNextAction+"); attested claim resolution"))
+			continue
+		}
 		if mechanical(blocker) {
 			report.Skipped = append(report.Skipped, item(blocker, DispositionSkippedMechanical, "", "", "questiongen.skipped_mechanical", "blocker requires mechanical input or repair"))
 			continue
 		}
-		if reason, ok := selfEvidenced(ctx, blocker); ok {
+		if reason, ok := selfEvidenced(blocker, attested); ok {
 			report.Skipped = append(report.Skipped, item(blocker, DispositionSelfEvidenced, "", "", "questiongen.self_evidenced", reason))
 			continue
 		}
@@ -554,75 +567,33 @@ func mechanical(b closure.Blocker) bool {
 }
 
 // selfEvidenced reports whether asking a human for evidence about this blocker
-// has exactly one possible answer: read the source the extractor already read.
-//
-// It fires only for an EVIDENCE blocker whose claims are all mechanically
-// derived observations, every premise of which is a source-backed fact already
-// carrying a resolved digest and a line range. Such a claim's evidence is the
-// extraction that produced it; escalating it produces a question nobody can
-// answer, and an unanswered question blocks closure, which gates admission
+// has exactly one possible answer: read the source the extractor already read
 // (#230 item 2).
 //
-// Deliberately narrow, in four ways, because suppressing a real question is a
-// worse failure than asking an awkward one:
+// R-CLOSURE-01: this no longer re-reads the claim. Closure computes ONE
+// disposition per claim (closure.ResolveClaim) and stamps it on the blocker;
+// two readers each deciding "is this claim answerable?" is what deadlocked
+// task sessions — closure demanded a question this function had suppressed,
+// for a claim whose source had CHANGED since extraction (a pinned digest is
+// not a current one). Only ResolutionEvidencedCurrent qualifies, which
+// requires maintenance to have verified, this assessment, that every premise
+// digest still matches the file.
 //
-//   - only evidence-class blockers, never authority, contract, or direction
-//     questions, which ask a human for a decision rather than for a pointer;
-//   - only DERIVED claims — an authored claim is somebody's assertion and is
-//     answerable by them;
-//   - only the OBSERVED plane — an intended or desired claim is about what
-//     should be, which source cannot settle;
-//   - only when EVERY premise resolves to a source-backed receipt. One premise
-//     that does not is a claim reaching past the source, and it stays asked.
+// The narrowness is kept: evidence-class blockers only, never authority,
+// contract or direction questions, which ask a human for a decision rather
+// than for a pointer. Derived/observed/source-backed shape is enforced by the
+// resolution itself. The skip stays recorded with its own disposition.
 //
-// A blocker with no question does not become actionless: taskcontrol falls
-// through to advance_convergence. And the skip is recorded with its own
-// disposition, so a suppressed question is visible in the report rather than
-// silently absent.
-func selfEvidenced(ctx Context, b closure.Blocker) (string, bool) {
-	if !evidenceBlockerCode(b.Code) || len(b.ClaimIDs) == 0 {
+// Provenance (#387 review, finding A): the stamp is authoritative only when
+// the report carries closure's ResolutionAttestation. Question generation
+// verifies the authority of the decision; it never recomputes it.
+func selfEvidenced(b closure.Blocker, attested bool) (string, bool) {
+	if !attested || !evidenceBlockerCode(b.Code) || len(b.ClaimIDs) == 0 ||
+		closure.ClaimResolution(b.ClaimResolution) != closure.ResolutionEvidencedCurrent {
 		return "", false
 	}
-	receipts := map[string]architecture.ClaimFactReceipt{}
-	for _, r := range ctx.Claims.FactReceipts {
-		receipts[r.Fact.ID] = r
-	}
-	claims := resolvedClaims(ctx.Claims, b.ClaimIDs)
-	if len(claims) != len(b.ClaimIDs) {
-		// A claim the document does not carry cannot be shown to be
-		// self-evidenced, so the blocker stays asked.
-		return "", false
-	}
-	premises := 0
-	for _, c := range claims {
-		if c.AssertionOrigin != architecture.OriginDerived || c.ArchitecturalPlane != architecture.PlaneObserved {
-			return "", false
-		}
-		if len(c.PremiseFacts) == 0 {
-			return "", false
-		}
-		for _, id := range c.PremiseFacts {
-			r, ok := receipts[id]
-			if !ok || r.Provenance.SourceKind != "source_file" ||
-				strings.TrimSpace(r.Fact.Evidence.SourceFile) == "" {
-				return "", false
-			}
-			// The STATUS is not the evidence. ValidateClaimDocument accepts
-			// source_digest_status: resolved with an empty digest, while
-			// maintenance.VerifySourceReceipt correctly reads that as unknown —
-			// so a receipt claiming resolution without carrying one must not
-			// suppress a question. The digest itself has to be there.
-			// Asked of the type that owns the field, so this reader and
-			// inference and maintenance cannot drift into disagreeing about
-			// whether one fact is pinned.
-			if !r.Provenance.SourceDigestPinsContent() {
-				return "", false
-			}
-			premises++
-		}
-	}
-	return fmt.Sprintf("every one of the %d premise fact(s) behind this blocker's %d claim(s) is a source-backed observation with a resolved digest; the only evidence anyone could supply is the source the extractor already read",
-		premises, len(claims)), true
+	return fmt.Sprintf("every premise behind this blocker's %d claim(s) is a source-backed observation whose digest matches the current file; the only evidence anyone could supply is the source the extractor already read",
+		len(b.ClaimIDs)), true
 }
 
 // evidenceBlockerCode is the claim-evidence template's blocker set, kept beside
