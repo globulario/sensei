@@ -315,6 +315,8 @@ components:
     external_imports:
       - github.com/gorilla/websocket
       - github.com/scip-code/scip/bindings/go/scip
+      - github.com/tree-sitter/go-tree-sitter
+      - github.com/tree-sitter/tree-sitter-python/bindings/go
       - golang.org/x/sys/windows
       - google.golang.org/grpc
       - google.golang.org/grpc/codes
@@ -1367,12 +1369,15 @@ components:
       - golang/architecture/factextract/factextract.go
       - golang/architecture/factextract/invariant_rules.go
       - golang/architecture/factextract/invariants.go
+      - golang/architecture/factextract/python.go
       - golang/architecture/factextract/util.go
     depends_on:
       - component.golang.architecture
       - component.golang.architecture.extractbudget
       - component.golang.architecture.gosemantics
     external_imports:
+      - github.com/tree-sitter/go-tree-sitter
+      - github.com/tree-sitter/tree-sitter-python/bindings/go
       - gopkg.in/yaml.v3
     uml:
       kind: Component
