@@ -2353,14 +2353,15 @@ invariants:
   - id: closure.liveness_every_blocker_has_a_discharge_path
     title: 'INV-CLOSURE-LIVENESS: every blocking obligation has a resolution path, a responsible party and a valid next action'
     status: active
-    description: Every blocker closure emits carries a required_next_action registered in closure.DischargePaths with a responsible party, and no blocker demands a question or evidence for a claim whose shared claim resolution (claim_resolution) says no question can resolve it. When no such path exists Sensei reports closure.tooling.no_discharge_path (wait class sensei_tooling) instead of attributing the obstruction to an implementor or architect. An available action that discharges nothing (e.g. advance_convergence re-emitting the same blocker) is not a path.
+    description: Every blocker closure emits carries a required_next_action registered in closure.DischargePaths with a responsible party, and no blocker demands a question or evidence for a claim whose shared claim resolution (claim_resolution) says no question can resolve it. When no such path exists Sensei reports closure.tooling.no_discharge_path (wait class sensei_tooling) instead of attributing the obstruction to an implementor or architect. An available action that discharges nothing (e.g. advance_convergence re-emitting the same blocker) is not a path. An obligation must also reach its responsible party; a load-bearing root blocker that no question covers is named in the next action for that party (architect_decision_required / implementor_action_required), never left to advance_convergence.
     protects:
       files:
-        - golang/architecture/closure/disposition.go
+        - golang/architecture/closure/resolution.go
         - golang/architecture/closure/model.go
     related_failure_modes:
       - failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e
     required_tests:
       - golang/architecture/closure/liveness_test.go:TestEveryEmittableActionHasADischargePath
       - golang/architecture/questiongen/closure_liveness_test.go:TestStaleSourceClaimNeverLeavesAnUndischargeableBlocker
+      - golang/architecture/taskcontrol/closure_liveness_test.go:TestUndeliveredObligationIsNamedForItsResponsibleParty
     contract: Closure must never emit an obligation that no participant or Sensei mechanism can discharge; sufficient current evidence permits closure without an artificial question, and a governance machinery that cannot offer a path reports its own defect.

@@ -390,6 +390,27 @@ func dominanceRoots(blockers []closure.Blocker, edges []DominanceEdge) (map[stri
 	return out, nil
 }
 
+// firstUndeliveredRootBlocker returns the first active load-bearing root
+// blocker that no question covers, and the party closure registers as able to
+// discharge its action.
+func firstUndeliveredRootBlocker(state TaskControlState) (*ClassifiedBlocker, string) {
+	byID := map[string]*ClassifiedBlocker{}
+	for i := range state.Blockers {
+		byID[state.Blockers[i].ID] = &state.Blockers[i]
+	}
+	for _, g := range state.Groups {
+		b := byID[g.RootBlockerID]
+		if b == nil || !b.LoadBearing || len(b.QuestionIDs) > 0 || len(g.QuestionIDs) > 0 ||
+			b.Disposition == ClassDominated || b.Disposition == ClassDuplicate || b.Disposition == ClassMechanicallyAnswerable {
+			continue
+		}
+		if party, ok := closure.DischargePaths[b.Consequence]; ok {
+			return b, party
+		}
+	}
+	return nil, ""
+}
+
 // firstBlockerWithConsequence returns the first non-dominated, non-duplicate
 // blocker whose required next action is the given one.
 func firstBlockerWithConsequence(blockers []ClassifiedBlocker, action string) string {
@@ -610,6 +631,15 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 		return NextAction{Kind: ActionAnswerArchitectQuestion, TargetID: state.PrimaryQuestion.ID, Summary: state.PrimaryQuestion.QuestionText}
 	}
 	if state.Summary.ActiveRootBlockers > 0 {
+		// INV-CLOSURE-LIVENESS: an obligation must reach its responsible party.
+		if b, party := firstUndeliveredRootBlocker(state); b != nil {
+			switch party {
+			case closure.PartyArchitect:
+				return NextAction{Kind: ActionArchitectDecisionRequired, TargetID: b.ID, Summary: "architect decision required (" + b.Consequence + "): " + b.Statement}
+			case closure.PartyImplementor:
+				return NextAction{Kind: ActionImplementorActionRequired, TargetID: b.ID, Summary: "implementor action required (" + b.Consequence + "): " + b.Statement}
+			}
+		}
 		return NextAction{Kind: ActionAdvanceConvergence, TargetID: state.TaskID, Summary: "advance one convergence iteration with the current evidence"}
 	}
 	// A TYPED governed task selects from the ledger disposition. The permission
