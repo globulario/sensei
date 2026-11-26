@@ -33,7 +33,7 @@ jobs:
           - platform: windows-amd64
             runner: windows-latest
           - platform: darwin-arm64
-            runner: macos-14
+            runner: macos-15
 
     steps:
       - name: Checkout awareness-graph
