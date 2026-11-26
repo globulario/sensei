@@ -5,6 +5,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/globulario/sensei/golang/architecture"
@@ -271,4 +272,59 @@ func keysOf(m map[string]bootstrapComponent) []string {
 		out = append(out, k)
 	}
 	return out
+}
+
+func TestExtractPythonCodeSymbolsWithoutNamespaceRegistry(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "state.py"), `raise RuntimeError("do not execute source")
+def decorator(fn):
+    return fn
+@decorator
+class Store:
+    @decorator
+    async def apply(self, value):
+        def nested():
+            return value
+        return nested()
+`)
+	writeFile(t, filepath.Join(root, ".venv", "dependency.py"), "def ignored(): pass\n")
+	writeFile(t, filepath.Join(root, "tests", "test_state.py"), "def test_ignored(): pass\n")
+	symbols, err := extractPythonCodeSymbols(root, []bootstrapComponent{{ID: "component.src", SourceFiles: []string{"src/state.py"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]string{
+		"src.state.decorator": "function", "src.state.Store": "type",
+		"src.state.Store.apply": "method", "src.state.Store.apply.nested": "function",
+	}
+	if len(symbols) != len(want) {
+		t.Fatalf("symbols=%+v", symbols)
+	}
+	for _, symbol := range symbols {
+		if want[symbol.Symbol] != symbol.Kind || symbol.File != "src/state.py" || symbol.Language != "python" || symbol.Component == "" {
+			t.Fatalf("invalid structural Python symbol: %+v", symbol)
+		}
+	}
+}
+
+func TestExtractPythonCodeSymbolsHonorsGitIgnore(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, ".gitignore"), "runs/\n")
+	writeFile(t, filepath.Join(root, "src/state.py"), "def keep(): pass\n")
+	writeFile(t, filepath.Join(root, "runs/experiment_source/copy.py"), "def ignored(): pass\n")
+	runGit(t, root, "init", "-q")
+	runGit(t, root, "add", ".gitignore", "src/state.py")
+	writeFile(t, filepath.Join(root, "src/new.py"), "def new(): pass\n")
+	symbols, err := extractPythonCodeSymbols(root, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(symbols) != 2 {
+		t.Fatalf("symbols=%+v", symbols)
+	}
+	for _, s := range symbols {
+		if strings.HasPrefix(s.File, "runs/") {
+			t.Fatalf("ignored runtime snapshot became a symbol: %+v", s)
+		}
+	}
 }

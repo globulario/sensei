@@ -226,7 +226,7 @@ Flags:
 	}
 
 	// Code symbols / annotations. A registry enriches identities and edges; when
-	// absent, retain ordinary Go declarations as structural symbol facts.
+	// absent, retain ordinary Go and Python declarations as structural symbol facts.
 	if reg := findRegistry(root); reg != "" {
 		syms, serr := extractCodeSymbols(root, reg)
 		if serr != nil {
@@ -237,17 +237,17 @@ Flags:
 			generated = append(generated, genFile{filepath.Join(generatedDir, "source_edges.yaml"), syms.edgesYAML})
 		}
 	} else {
-		syms, serr := extractGoCodeSymbols(root, comps)
+		syms, serr := extractStructuralCodeSymbols(root, comps)
 		if serr != nil {
-			rep.notes = append(rep.notes, "source_symbols: structural Go scan failed: "+serr.Error())
+			rep.notes = append(rep.notes, "source_symbols: structural scan failed: "+serr.Error())
 		} else if len(syms) > 0 {
 			rep.sourceAnchors = len(syms)
-			if data, rerr := renderGenerated("Go declarations inferred from source structure; no annotation edges were inferred.", bootstrapCodeSymbolsDoc{CodeSymbols: syms}); rerr == nil {
+			if data, rerr := renderGenerated("Go and Python declarations inferred from source structure; no annotation edges were inferred.", bootstrapCodeSymbolsDoc{CodeSymbols: syms}); rerr == nil {
 				generated = append(generated, genFile{filepath.Join(generatedDir, "source_symbols.yaml"), data})
 			}
-			rep.notes = append(rep.notes, "source_symbols: used structural Go fallback (no namespaces registry)")
+			rep.notes = append(rep.notes, "source_symbols: used structural Go/Python fallback (no namespaces registry)")
 		} else {
-			rep.notes = append(rep.notes, "source_symbols: no registry and no Go declarations found")
+			rep.notes = append(rep.notes, "source_symbols: no registry and no Go/Python declarations found")
 		}
 	}
 

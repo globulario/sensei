@@ -1430,6 +1430,16 @@ test_symbols:
     symbol: TestExtractGoLibraryAPICandidates
     package: main
     language: go
+  - id: cmd/awg/bootstrap_extract_test.go:TestExtractPythonCodeSymbolsHonorsGitIgnore
+    file: cmd/awg/bootstrap_extract_test.go
+    symbol: TestExtractPythonCodeSymbolsHonorsGitIgnore
+    package: main
+    language: go
+  - id: cmd/awg/bootstrap_extract_test.go:TestExtractPythonCodeSymbolsWithoutNamespaceRegistry
+    file: cmd/awg/bootstrap_extract_test.go
+    symbol: TestExtractPythonCodeSymbolsWithoutNamespaceRegistry
+    package: main
+    language: go
   - id: cmd/awg/bootstrap_extract_test.go:TestExtractTests
     file: cmd/awg/bootstrap_extract_test.go
     symbol: TestExtractTests
@@ -3554,6 +3564,11 @@ test_symbols:
     symbol: TestInferClaimsPreservesConflictingGovernedDirections
     package: main
     language: go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsPythonProjectProducesBoundObservedClaims
+    file: cmd/awg/cmd_infer_claims_test.go
+    symbol: TestInferClaimsPythonProjectProducesBoundObservedClaims
+    package: main
+    language: go
   - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
     file: cmd/awg/cmd_infer_claims_test.go
     symbol: TestInferClaimsRefusesToBindAWorkingTreeThatDiffersFromHEAD
@@ -3619,6 +3634,11 @@ test_symbols:
   - id: cmd/awg/cmd_infer_claims_test.go:TestInferClaimsWithoutGraphNTKeepsGovernedDirectionInactive
     file: cmd/awg/cmd_infer_claims_test.go
     symbol: TestInferClaimsWithoutGraphNTKeepsGovernedDirectionInactive
+    package: main
+    language: go
+  - id: cmd/awg/cmd_infer_claims_test.go:TestPythonProjectReconstructionProducesClaimsAndSymbols
+    file: cmd/awg/cmd_infer_claims_test.go
+    symbol: TestPythonProjectReconstructionProducesClaimsAndSymbols
     package: main
     language: go
   - id: cmd/awg/cmd_init_test.go:TestBuiltSenseiBinaryInitializesSkillsOutsideSourceTree
@@ -16440,6 +16460,43 @@ test_symbols:
     package: factextract
     language: go
     doc: "A repository the extractor cannot see must say so, blocking.\n\nThe observation surface is Go: both passes read .go files and nothing else.\nRun over a repository in another language, extraction returned an empty\nreport whose only note was a non-blocking \"directory prefix . does not\ncontain main module\" — which reads as \"I looked and there was nothing to say\"\nrather than \"I cannot see this language at all\". Measured on sqlite/sqlite:\n315 C files, 0 facts, nothing blocking (#131 world 3)."
+  - id: golang/architecture/factextract/python_test.go:TestContainedSourceRefusesEscapeThroughSymlinkedParent
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestContainedSourceRefusesEscapeThroughSymlinkedParent
+    package: factextract
+    language: go
+    doc: "The explicit guard, tested directly: a path through a symlinked parent that\nleaves the repository is refused; one that stays inside is accepted."
+  - id: golang/architecture/factextract/python_test.go:TestPythonExtractionExcludesDependenciesAndOptionalTests
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonExtractionExcludesDependenciesAndOptionalTests
+    package: factextract
+    language: go
+  - id: golang/architecture/factextract/python_test.go:TestPythonExtractionHonorsGitIgnoreAndKeepsTrackedSources
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonExtractionHonorsGitIgnoreAndKeepsTrackedSources
+    package: factextract
+    language: go
+  - id: golang/architecture/factextract/python_test.go:TestPythonExtractionObservesSyntaxWithoutExecutingCode
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonExtractionObservesSyntaxWithoutExecutingCode
+    package: factextract
+    language: go
+  - id: golang/architecture/factextract/python_test.go:TestPythonExtractionReportsCancellation
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonExtractionReportsCancellation
+    package: factextract
+    language: go
+  - id: golang/architecture/factextract/python_test.go:TestPythonParseFailureRemainsBlocking
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonParseFailureRemainsBlocking
+    package: factextract
+    language: go
+  - id: golang/architecture/factextract/python_test.go:TestPythonSourcesNeverEscapeThroughASymlinkedParentDirectory
+    file: golang/architecture/factextract/python_test.go
+    symbol: TestPythonSourcesNeverEscapeThroughASymlinkedParentDirectory
+    package: factextract
+    language: go
+    doc: "#386 review: containment must hold for symlinked PARENT directories, not only\nfor a symlinked file. A directory inside the repository that links outside it\nmust never contribute Python sources — in a Git checkout or a plain directory."
   - id: golang/architecture/generatedartifact/generatedartifact_test.go:TestEmbeddedGraphReusesStageThree
     file: golang/architecture/generatedartifact/generatedartifact_test.go
     symbol: TestEmbeddedGraphReusesStageThree
@@ -17405,6 +17462,12 @@ test_symbols:
     package: inference
     language: go
     doc: "TestReadersAgreeOnWhetherAPremiseIsPinned is the cross-projection form of the\nproperty behind this repair.\n\nThree readers decide something from the same provenance and each has its own\nvocabulary for it — maintenance produces a lane state, inference produces an\nepistemic status, and questiongen decides whether to suppress a question.\nTheir outputs are not comparable and are not meant to be. What must hold is\nthat none of them treats a premise as pinned when the authority — the digest\nthat pins the bytes — does not pin it.\n\nThe defect this replaces: architecture.ValidateFact accepts\nsource_digest_status: resolved carrying an empty or malformed digest, and\ninference read the status alone, so one reader called a fact bound while\nanother called the same fact unknown."
+  - id: golang/architecture/inference/python_epistemic_scope_test.go:TestPythonWriteFactsNeverBecomeOwnershipOrAuthorityClaims
+    file: golang/architecture/inference/python_epistemic_scope_test.go
+    symbol: TestPythonWriteFactsNeverBecomeOwnershipOrAuthorityClaims
+    package: inference_test
+    language: go
+    doc: "#386 review: a syntactic attribute assignment observed in Python must never\nbecome an unsupported claim of exclusive architectural ownership — through\nANY default inference rule, not only the writer-set rule. Fresh source\nevidence (R-CLOSURE-01) proves the source did not change; it does not\nupgrade what may be inferred from it. Freshness and sufficiency are separate."
   - id: golang/architecture/inference/rules_test.go:TestBuildClaimDocumentIncludesOnlyUsedFactReceipts
     file: golang/architecture/inference/rules_test.go
     symbol: TestBuildClaimDocumentIncludesOnlyUsedFactReceipts
