@@ -23,7 +23,9 @@
 //	    truth_layer:   repository | desired | installed | runtime
 //	    owner_service: service that owns the state
 //	    covers_paths:        []repo-relative path prefixes (file → domain matching)
-//	    owns_state:          []owned state object names
+//	    owns_state:          []owned state object names (the governed truth)
+//	    implemented_in:      []path prefixes of code implementing the authority;
+//	                         briefing relevance only, never an authority binding
 //	    may_write:           []allowed writers
 //	    may_read:            []allowed readers
 //	    must_mutate_via:     []legal mutation paths
@@ -54,6 +56,7 @@ type yamlAuthorityDomain struct {
 	OwnerService      string   `yaml:"owner_service"`
 	CoversPaths       []string `yaml:"covers_paths"`
 	OwnsState         []string `yaml:"owns_state"`
+	ImplementedIn     []string `yaml:"implemented_in"`
 	MayWrite          []string `yaml:"may_write"`
 	MayWriteRoleIDs   []string `yaml:"may_write_role_ids"`
 	MayRead           []string `yaml:"may_read"`
@@ -105,6 +108,7 @@ func importAuthorityDomains(e *rdf.Emitter, path string) error {
 
 		emitOptLits(e, subj, rdf.PropCoversPath, d.CoversPaths)
 		emitOptLits(e, subj, rdf.PropOwnsState, d.OwnsState)
+		emitOptLits(e, subj, rdf.PropAuthorityImplementedIn, d.ImplementedIn)
 		emitOptLits(e, subj, rdf.PropMayWrite, d.MayWrite)
 		emitOptLits(e, subj, rdf.PropMayWriteRoleID, d.MayWriteRoleIDs)
 		emitOptLits(e, subj, rdf.PropMayRead, d.MayRead)

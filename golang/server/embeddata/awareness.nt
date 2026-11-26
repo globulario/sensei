@@ -24,7 +24,8 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei governed reusable-knowledge promotion" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#coversPath> "docs/awareness/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#authorityImplementedIn> "cmd/awg/cmd_promote_answer.go" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#authorityImplementedIn> "golang/architecture/questionpromotion/" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "promotion binds the exact disposition receipt, committed source manifest, and rebuilt repository graph by digest" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#hasTruthLayer> "repository" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#mayRead> "repository maintainer" .
@@ -37,15 +38,13 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#mustReadVia> "bound repository read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#ownerService> "service.sensei.question_promotion" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#ownsState> "governed_knowledge.promoted_record" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_governed_promotion> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei architect-question disposition" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#coversPath> "cmd/awg/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#coversPath> "docs/awareness/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#coversPath> "golang/architecture/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#coversPath> "golang/extractor/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#coversPath> "golang/rdf/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#authorityImplementedIn> "cmd/awg/cmd_disposition_question.go" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#authorityImplementedIn> "golang/architecture/questiondisposition/" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "disposition binds the exact task result and architect-questions bundle by digest" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#hasTruthLayer> "task" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#mayRead> "repository maintainer" .
@@ -58,15 +57,12 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#mustReadVia> "bound repository read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#ownerService> "service.sensei.question_disposition" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#ownsState> "task_ledger.event.question_disposition_recorded" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_disposition> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei bounded question-resolution certification" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#coversPath> "cmd/awg/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#coversPath> "docs/awareness/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#coversPath> "golang/architecture/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#coversPath> "golang/extractor/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#coversPath> "golang/rdf/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#authorityImplementedIn> "golang/architecture/questionresolution/" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "the certificate binds the task ledger head, each question's disposition receipt, each satisfying promotion receipt, and the governed source manifest by digest" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#hasTruthLayer> "task" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#mayRead> "repository maintainer" .
@@ -79,6 +75,7 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#mustReadVia> "bound repository read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#ownerService> "service.sensei.question_resolution" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#ownsState> "task_artifact.question_resolution_certificate" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_question_resolution_certification> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_repository_mutation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_repository_mutation> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei repository mutation" .
@@ -104,11 +101,8 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task abandonment" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "cmd/awg/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "docs/awareness/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/architecture/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/extractor/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#coversPath> "golang/rdf/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#authorityImplementedIn> "cmd/awg/cmd_abandon_task.go" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#authorityImplementedIn> "golang/architecture/completion/" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "abandonment binds the exact task, the pre-abandonment ledger head, the stated reason and the abandoning actor by digest under one lock; it binds no result, because there is none" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#hasTruthLayer> "task" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mayRead> "repository maintainer" .
@@ -121,15 +115,13 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustReadVia> "bound repository read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#ownerService> "service.sensei.completion" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#ownsState> "task_ledger.event.abandoned" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_abandonment> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityDomain> .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei terminal task completion" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#authoredIn> "docs/awareness/authority_domains.yaml" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#coversPath> "cmd/awg/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#coversPath> "docs/awareness/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#coversPath> "golang/architecture/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#coversPath> "golang/extractor/" .
-<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#coversPath> "golang/rdf/" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#authorityImplementedIn> "cmd/awg/cmd_complete_task.go" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#authorityImplementedIn> "golang/architecture/completion/" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#hasEvidenceFreshnessWindow> "completion binds the exact task, current result, pre-completion ledger head, readiness assessment, correctness receipt, question-resolution certificate, and governed manifest by digest under one lock" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#hasTruthLayer> "task" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#mayRead> "repository maintainer" .
@@ -142,6 +134,7 @@
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#mustReadVia> "bound repository read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#mustReadViaId> "observation_path.repository_read" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#ownerService> "service.sensei.completion" .
+<https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#ownsState> "task_ledger.event.completed" .
 <https://globular.io/awareness#authorityDomain/authority.sensei_terminal_completion> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#authorityGrant/grant.sensei.governed_promotion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#AuthorityGrant> .
 <https://globular.io/awareness#authorityGrant/grant.sensei.governed_promotion> <http://www.w3.org/2000/01/rdf-schema#label> "Sensei governed reusable-knowledge promotion grant" .
@@ -3423,6 +3416,19 @@
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fstore%2Foxigraph%2Foxigraph.go> .
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/proto%2Fawareness_graph.proto> .
 <https://globular.io/awareness#incidentPattern/pat.raw_sparql_query_passthrough> <https://globular.io/awareness#severity> "critical" .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <http://www.w3.org/2000/01/rdf-schema#label> "INV-AUTHORITY-SEMANTIC-SCOPE: authority conflicts are judged against the governed truth, not overlapping paths" .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_domains.yaml> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fauthority_domains.go> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fabandon_test.go:TestQuestionDispositionGrantCannotAbandonATask> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Fauthority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fpromotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#requiresTest> <https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths> .
+<https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> <https://globular.io/awareness#status> "active" .
 <https://globular.io/awareness#invariant/awareness.annotation_grammar_is_language_neutral> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Invariant> .
 <https://globular.io/awareness#invariant/awareness.annotation_grammar_is_language_neutral> <http://www.w3.org/2000/01/rdf-schema#label> "The @awareness key=value comment grammar is one grammar for all languages" .
 <https://globular.io/awareness#invariant/awareness.annotation_grammar_is_language_neutral> <https://globular.io/awareness#authoredIn> "docs/awareness/invariants.yaml" .
@@ -6930,6 +6936,7 @@
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Farchitecture%2Fpatterns%2F> <https://globular.io/awareness#repoRelativePath> "docs/awareness/architecture/patterns/" .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_domains.yaml> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_domains.yaml> <https://globular.io/awareness#implements> <https://globular.io/awareness#guardrail/github.com%2Fglobulario%2Fsensei/awareness.high_risk_files> .
+<https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_domains.yaml> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_domains.yaml> <https://globular.io/awareness#repoRelativePath> "docs/awareness/authority_domains.yaml" .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_grants.yaml> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/docs%2Fawareness%2Fauthority_grants.yaml> <https://globular.io/awareness#implements> <https://globular.io/awareness#guardrail/github.com%2Fglobulario%2Fsensei/awareness.high_risk_files> .
@@ -7962,6 +7969,9 @@
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Farchitecture_evidence_probe_server_test.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Farchitecture_evidence_probe_server_test.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#test/golang%2Fserver%2Farchitecture_evidence_probe_server_test.go:TestQueryByClassEvidenceProbe> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Farchitecture_evidence_probe_server_test.go> <https://globular.io/awareness#repoRelativePath> "golang/server/architecture_evidence_probe_server_test.go" .
+<https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fauthority_domains.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
+<https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fauthority_domains.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fauthority_domains.go> <https://globular.io/awareness#repoRelativePath> "golang/server/authority_domains.go" .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fblast_radius.go> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SourceFile> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fblast_radius.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#failureMode/failure.sensei.a_presentation_cap_silently_changed_a_governance_verdict> .
 <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fserver%2Fblast_radius.go> <https://globular.io/awareness#implements> <https://globular.io/awareness#invariant/invariant.a_risk_verdict_an_agent_must_act_on_is_published_as_structur> .
@@ -8653,6 +8663,14 @@
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fchangebindingproducer%2Fproducer_test.go:TestProduce_StagedFailures> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/closure.change_task_binding_producer_is_authoritative_and_deterministic> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fchangebindingproducer%2Fproducer_test.go:TestProduce_StagedFailures> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fchangebindingproducer%2Fproducer_test.go:TestProduce_StagedFailures> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Farchitecture%2Fchangebindingproducer%2Fproduce.go> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation> <http://www.w3.org/2000/01/rdf-schema#label> "Editing authority-implementing code binds only repository mutation, with no contradiction" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict> <http://www.w3.org/2000/01/rdf-schema#label> "Two authorities claiming the same truth with different facts still contradict" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fauthority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fbehavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fbehavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic> <http://www.w3.org/2000/01/rdf-schema#label> "Behavioral claim binding is narrow, explainable, and deterministic for identical inputs" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosure%2Fbehavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/awareness.task_claim_scoping_is_task_local_and_explainable> .
@@ -8691,6 +8709,10 @@
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosureprotocol%2Ffixtures_test.go:TestFixtures> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/closure.no_verdict_improves_by_omitting_a_weakening_computation> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosureprotocol%2Ffixtures_test.go:TestFixtures> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fclosureprotocol%2Ffixtures_test.go:TestFixtures> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Farchitecture%2Fclosureprotocol%2Ffixtures_test.go> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fabandon_test.go:TestQuestionDispositionGrantCannotAbandonATask> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fabandon_test.go:TestQuestionDispositionGrantCannotAbandonATask> <http://www.w3.org/2000/01/rdf-schema#label> "The question-disposition grant cannot authorize a terminal abandonment" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fabandon_test.go:TestQuestionDispositionGrantCannotAbandonATask> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fabandon_test.go:TestQuestionDispositionGrantCannotAbandonATask> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fassess_test.go:TestAssessReadyRequiresEveryObligation> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fassess_test.go:TestAssessReadyRequiresEveryObligation> <http://www.w3.org/2000/01/rdf-schema#label> "Readiness fails closed unless every required completion obligation is satisfied" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fcompletion%2Fassess_test.go:TestAssessReadyRequiresEveryObligation> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/closure.certification_or_completion_over_unresolved_or_stale_promotion> .
@@ -9111,6 +9133,10 @@
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestiongen%2Fself_evidenced_test.go:TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence> <http://www.w3.org/2000/01/rdf-schema#label> "No evidence question is raised for a claim that carries its own evidence" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestiongen%2Fself_evidenced_test.go:TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/failure.sensei.an_unanswerable_evidence_question_blocks_closure_on_a_self_e> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestiongen%2Fself_evidenced_test.go:TestQuestionIsNotRaisedWhenTheClaimCarriesItsOwnEvidence> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Fauthority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Fauthority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite> <http://www.w3.org/2000/01/rdf-schema#label> "Promotion without repository-mutation authority for its governed-source write is refused and writes nothing" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Fauthority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Fauthority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Ffinal_test.go:TestAuthorityNonCollapse> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Ffinal_test.go:TestAuthorityNonCollapse> <http://www.w3.org/2000/01/rdf-schema#label> "No single durable artifact (journal, source, graph, marker, receipt) establishes reusable truth alone" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionpromotion%2Ffinal_test.go:TestAuthorityNonCollapse> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/closure.promotion_journal_mistaken_for_governed_truth> .
@@ -9183,6 +9209,10 @@
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fcertify_test.go:TestGateSatisfiedByPromotionAndTaskLocal> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/closure.certification_requires_verified_question_resolution_summary> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fcertify_test.go:TestGateSatisfiedByPromotionAndTaskLocal> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fcertify_test.go:TestGateSatisfiedByPromotionAndTaskLocal> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Farchitecture%2Fquestionresolution%2Fcertify_test.go> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fpromotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fpromotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion> <http://www.w3.org/2000/01/rdf-schema#label> "A record written into the corpus by a plain repository edit is not certified as promoted knowledge" .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fpromotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fpromotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fsummarize_test.go:TestSummaryExactPerQuestionStates> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fsummarize_test.go:TestSummaryExactPerQuestionStates> <http://www.w3.org/2000/01/rdf-schema#label> "The question-resolution summary computes exact typed per-question states with preserved provenance, never a blind status" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fquestionresolution%2Fsummarize_test.go:TestSummaryExactPerQuestionStates> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/closure.status_blind_unresolved_question_computation> .
@@ -9392,6 +9422,14 @@
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fworkspacecontract%2Fadmission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID> <https://globular.io/awareness#affects> <https://globular.io/awareness#failureMode/failure.projectverification_composed_a_verification_record_without_c> .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fworkspacecontract%2Fadmission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Farchitecture%2Fworkspacecontract%2Fadmission_test.go:TestProjectVerification_RejectsMismatchedAdmissionID> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Farchitecture%2Fworkspacecontract%2Fadmission.go> .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently> <http://www.w3.org/2000/01/rdf-schema#label> "No two authorities cover the same files with different authority facts" .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths> <http://www.w3.org/2000/01/rdf-schema#label> "Task-truth authorities declare their governed truth and implementing code, and cover no source path" .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/authority.semantic_scope_not_path_overlap> .
+<https://globular.io/awareness#test/golang%2Fcoverage%2Fauthority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fcoverage%2Fbriefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#Test> .
 <https://globular.io/awareness#test/golang%2Fcoverage%2Fbriefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary> <http://www.w3.org/2000/01/rdf-schema#label> "server never consumes questionpromotion directly (briefing-feedback ownership)" .
 <https://globular.io/awareness#test/golang%2Fcoverage%2Fbriefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.cp6_control_panel_closure_adds_display_and_proof_only_no_new> .
@@ -10013,9 +10051,9 @@
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#affects> <https://globular.io/awareness#invariant/invariant.sensei.one_canonical_owner_answers_what_the_graph_knows_about_a_subject> .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#authoredIn> "docs/awareness/required_tests.yaml" .
 <https://globular.io/awareness#test/golang%2Fsubjectstate%2Fsubjectstate_test.go:TestOnlyTheUnknownStateMayConsultTheIndex> <https://globular.io/awareness#protects> <https://globular.io/awareness#sourceFile/github.com%2Fglobulario%2Fsensei/golang%2Fsubjectstate%2Fsubjectstate.go> .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 015861aabe30" .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <https://globular.io/awareness#seedDigestSha256> "015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1" .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <https://globular.io/awareness#seedTripleCount> "10021" .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <https://globular.io/awareness#seedMarkerVersion> "v2" .
-<https://globular.io/awareness#seedBuild/sha256-015861aabe30363f7e93a2f4dbf3ba2ebc93197ed5f02f7ada3b45ca39d3cff1> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://globular.io/awareness#SeedBuild> .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <http://www.w3.org/2000/01/rdf-schema#label> "Embedded seed sha256 324c11b0d012" .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <https://globular.io/awareness#seedDigestSha256> "324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1" .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <https://globular.io/awareness#seedTripleCount> "10059" .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <https://globular.io/awareness#seedMarkerVersion> "v2" .
+<https://globular.io/awareness#seedBuild/sha256-324c11b0d012244427b4ee06d873a21c2d78357e908162d70610fdadedf038d1> <https://globular.io/awareness#authoredIn> "generated:seed_marker" .
