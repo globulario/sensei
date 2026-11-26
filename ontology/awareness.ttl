@@ -653,6 +653,8 @@ aw:ownerService a owl:DatatypeProperty ; rdfs:label "owner service" ;
     rdfs:comment "AuthorityDomain → string. The service that owns this domain's state." ; rdfs:range xsd:string .
 aw:ownsState a owl:DatatypeProperty ; rdfs:label "owns state" ;
     rdfs:comment "AuthorityDomain → string. A state object this domain owns (e.g. 'artifact manifest')." ; rdfs:range xsd:string .
+aw:authorityImplementedIn a owl:DatatypeProperty ; rdfs:label "authority implemented in" ;
+    rdfs:comment "AuthorityDomain → string. Repo-relative path prefix of code that implements or enforces this domain's authority. Briefing relevance only: it never binds the domain to a task, and editing that code grants no authority over the governed truth (INV-AUTHORITY-SEMANTIC-SCOPE). Distinct from aw:coversPath." ; rdfs:range xsd:string .
 aw:mayWrite a owl:DatatypeProperty ; rdfs:label "may write" ;
     rdfs:comment "AuthorityDomain → string. A writer allowed to mutate this domain's state." ; rdfs:range xsd:string .
 aw:mayRead a owl:DatatypeProperty ; rdfs:label "may read" ;

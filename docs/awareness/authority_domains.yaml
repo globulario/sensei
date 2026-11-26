@@ -36,12 +36,15 @@ authority_domains:
     truth_layer: task
     owner_service: service.sensei.question_disposition
     evidence_freshness: disposition binds the exact task result and architect-questions bundle by digest
-    covers_paths:
-      - cmd/awg/
-      - docs/awareness/
-      - golang/architecture/
-      - golang/extractor/
-      - golang/rdf/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority governs the
+    # task truth named in owns_state, not the source files. implemented_in names
+    # the code that enforces it, for briefings only: editing that code grants no
+    # authority over the truth, and holding the truth grants no right to edit it.
+    owns_state:
+      - task_ledger.event.question_disposition_recorded
+    implemented_in:
+      - golang/architecture/questiondisposition/
+      - cmd/awg/cmd_disposition_question.go
     may_write:
       - repository repair agent
     may_write_role_ids:
@@ -67,8 +70,18 @@ authority_domains:
     truth_layer: repository
     owner_service: service.sensei.question_promotion
     evidence_freshness: promotion binds the exact disposition receipt, committed source manifest, and rebuilt repository graph by digest
-    covers_paths:
-      - docs/awareness/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority establishes
+    # whether reusable knowledge may be promoted. It does not govern edits to
+    # docs/awareness/, which stay under repository mutation. A promotion
+    # satisfies BOTH: this authority for the promotion, and repository mutation
+    # for the governed-source file it writes. A plain edit of the corpus is not
+    # a promotion: without a committed promotion receipt the record is not
+    # promoted truth.
+    owns_state:
+      - governed_knowledge.promoted_record
+    implemented_in:
+      - golang/architecture/questionpromotion/
+      - cmd/awg/cmd_promote_answer.go
     may_write:
       - repository repair agent
     may_write_role_ids:
@@ -101,12 +114,14 @@ authority_domains:
     truth_layer: task
     owner_service: service.sensei.question_resolution
     evidence_freshness: the certificate binds the task ledger head, each question's disposition receipt, each satisfying promotion receipt, and the governed source manifest by digest
-    covers_paths:
-      - cmd/awg/
-      - docs/awareness/
-      - golang/architecture/
-      - golang/extractor/
-      - golang/rdf/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority governs the
+    # task truth named in owns_state, not the source files. implemented_in names
+    # the code that enforces it, for briefings only: editing that code grants no
+    # authority over the truth, and holding the truth grants no right to edit it.
+    owns_state:
+      - task_artifact.question_resolution_certificate
+    implemented_in:
+      - golang/architecture/questionresolution/
     may_write:
       - repository repair agent
     may_write_role_ids:
@@ -136,12 +151,15 @@ authority_domains:
     truth_layer: task
     owner_service: service.sensei.completion
     evidence_freshness: completion binds the exact task, current result, pre-completion ledger head, readiness assessment, correctness receipt, question-resolution certificate, and governed manifest by digest under one lock
-    covers_paths:
-      - cmd/awg/
-      - docs/awareness/
-      - golang/architecture/
-      - golang/extractor/
-      - golang/rdf/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority governs the
+    # task truth named in owns_state, not the source files. implemented_in names
+    # the code that enforces it, for briefings only: editing that code grants no
+    # authority over the truth, and holding the truth grants no right to edit it.
+    owns_state:
+      - task_ledger.event.completed
+    implemented_in:
+      - golang/architecture/completion/
+      - cmd/awg/cmd_complete_task.go
     may_write:
       - repository repair agent
     may_write_role_ids:
@@ -165,12 +183,15 @@ authority_domains:
     truth_layer: task
     owner_service: service.sensei.completion
     evidence_freshness: abandonment binds the exact task, the pre-abandonment ledger head, the stated reason and the abandoning actor by digest under one lock; it binds no result, because there is none
-    covers_paths:
-      - cmd/awg/
-      - docs/awareness/
-      - golang/architecture/
-      - golang/extractor/
-      - golang/rdf/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority governs the
+    # task truth named in owns_state, not the source files. implemented_in names
+    # the code that enforces it, for briefings only: editing that code grants no
+    # authority over the truth, and holding the truth grants no right to edit it.
+    owns_state:
+      - task_ledger.event.abandoned
+    implemented_in:
+      - golang/architecture/completion/
+      - cmd/awg/cmd_abandon_task.go
     may_write:
       - repository repair agent
     may_write_role_ids:

@@ -11409,6 +11409,30 @@ test_symbols:
     symbol: TestClaimAuditReportsUnanchoredClaims
     package: claimaudit_test
     language: go
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestCorpusCorrectionBindsOnlyRepositoryMutation
+    file: golang/architecture/closure/authority_semantic_scope_test.go
+    symbol: TestCorpusCorrectionBindsOnlyRepositoryMutation
+    package: closure
+    language: go
+    doc: "#390 review, governed promotion: an ordinary documentation correction to the\nauthored corpus is governed by repository mutation alone. Promotion governs\nwhether knowledge is promoted, not edits to docs/awareness/, so the two do not\ncompete for the file."
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestDistinctTruthsInOneLedgerAndOneFileDoNotContradict
+    file: golang/architecture/closure/authority_semantic_scope_test.go
+    symbol: TestDistinctTruthsInOneLedgerAndOneFileDoNotContradict
+    package: closure
+    language: go
+    doc: "Same ledger, same implementing package, same truth layer, same task: none of\nthese alone is a contradiction. Code that writes both terminal truths binds\neach authority to its own truth, with no conflict between them."
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation
+    file: golang/architecture/closure/authority_semantic_scope_test.go
+    symbol: TestEditingAuthorityImplementationBindsOnlyRepositoryMutation
+    package: closure
+    language: go
+    doc: "Acceptance: the original self-admission shape (edits under the source tree,\nincluding the code implementing every task authority) no longer produces an\nartificial contradiction, and the edit is governed by the repository\nauthority alone."
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict
+    file: golang/architecture/closure/authority_semantic_scope_test.go
+    symbol: TestTwoAuthoritiesClaimingTheSameTruthStillContradict
+    package: closure
+    language: go
+    doc: "Acceptance: a genuine conflict still blocks. Two authorities with different\nowners and mutation paths claiming the SAME task truth contradict, even though\nneither covers a path."
   - id: golang/architecture/closure/behavioral_scope_test.go:TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
     file: golang/architecture/closure/behavioral_scope_test.go
     symbol: TestProjectApplicableBehavioral_NarrowExplainableBindingAndDeterministic
@@ -12277,6 +12301,12 @@ test_symbols:
     package: completion
     language: go
     doc: "R4-F2. A malformed lifecycle payload is an integrity failure, not absence.\n\nlatestTaskPhase skipped anything it could not parse and kept walking back, so\nan unreadable task_marked_stale head fell through to an earlier non-terminal\nphase and abandonment proceeded over a terminal stale fact. \"Unreadable\" and\n\"not there\" are different facts and only one of them permits the write.\n\nTESTED AT THE FUNCTION, because the end-to-end path is guarded earlier: a\nchain carrying a semantically invalid payload also fails\nadmission.LoadRecordedAuthorityCtx, so AbandonTask refuses with\nauthority_refusal before the phase is ever derived. That earlier guard is real\nand is not what this finding is about -- and a test routed through it would\npass with this defect fully intact, which is the trap round two's finding 5\nalready sprang once."
+  - id: golang/architecture/completion/abandon_test.go:TestQuestionDispositionGrantCannotAbandonATask
+    file: golang/architecture/completion/abandon_test.go
+    symbol: TestQuestionDispositionGrantCannotAbandonATask
+    package: completion
+    language: go
+    doc: "Cross-authority escalation (INV-AUTHORITY-SEMANTIC-SCOPE). Question\ndisposition and abandonment share the action verb \"dispose\" and the same\nholder role. With abandonment's own grant removed and the question-disposition\ngrant still present, the disposition grant must not authorize an abandonment:\ndisposing of a question grants no terminal decision."
   - id: golang/architecture/completion/abandon_test.go:TestRepeatedAbandonmentIsIdempotent
     file: golang/architecture/completion/abandon_test.go
     symbol: TestRepeatedAbandonmentIsIdempotent
@@ -20800,6 +20830,24 @@ test_symbols:
     package: questiongen
     language: go
     doc: "Narrow in four ways, because suppressing a real question is a worse failure\nthan asking an awkward one. Each of these must still be asked."
+  - id: golang/architecture/questionpromotion/authority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
+    file: golang/architecture/questionpromotion/authority_composition_test.go
+    symbol: TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
+    package: questionpromotion
+    language: go
+    doc: "Promotion without repository-mutation authority for its governed-source\nwrite is refused before anything is written: promotion never acquires a\nrepository write the repository authority would refuse."
+  - id: golang/architecture/questionpromotion/authority_composition_test.go:TestPromotionWritesOnlyItsGovernedSource
+    file: golang/architecture/questionpromotion/authority_composition_test.go
+    symbol: TestPromotionWritesOnlyItsGovernedSource
+    package: questionpromotion
+    language: go
+    doc: "Promotion is not unrestricted write access: a committed promotion changes\nexactly the one governed source its record routes to, never another\nrepository file."
+  - id: golang/architecture/questionpromotion/authority_composition_test.go:TestRepositoryMutationAuthorityDoesNotPromote
+    file: golang/architecture/questionpromotion/authority_composition_test.go
+    symbol: TestRepositoryMutationAuthorityDoesNotPromote
+    package: questionpromotion
+    language: go
+    doc: "The converse: repository-mutation authority does not promote knowledge."
   - id: golang/architecture/questionpromotion/final_test.go:TestAuthorityNonCollapse
     file: golang/architecture/questionpromotion/final_test.go
     symbol: TestAuthorityNonCollapse
@@ -21081,6 +21129,12 @@ test_symbols:
     package: questionresolution
     language: go
     doc: "Boundedness (correction): an unrelated broken promotion elsewhere in the\nrepository must NOT block a fully-resolved current task."
+  - id: golang/architecture/questionresolution/promotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion
+    file: golang/architecture/questionresolution/promotion_bypass_test.go
+    symbol: TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion
+    package: questionresolution
+    language: go
+    doc: "Architect ruling on #390: removing governed promotion's path coverage must\nnot let an ordinary repository edit establish promoted knowledge. Here the\nexact record a promotion would write is put into the governed source by a\nplain repository write (the same owner sensei propose uses), with no\npromotion transaction. The record is in the corpus, but it is not promoted\ntruth: certification still refuses the reusable answer."
   - id: golang/architecture/questionresolution/summarize_test.go:TestRefusedGateWritesNothing
     file: golang/architecture/questionresolution/summarize_test.go
     symbol: TestRefusedGateWritesNothing
@@ -26094,6 +26148,36 @@ test_symbols:
     symbol: TestAssess
     package: contractassess
     language: go
+  - id: golang/coverage/authority_semantic_scope_test.go:TestEachSeparatedAuthorityHasItsOwnGrant
+    file: golang/coverage/authority_semantic_scope_test.go
+    symbol: TestEachSeparatedAuthorityHasItsOwnGrant
+    package: coverage
+    language: go
+    doc: "The five authorities of the separation ruling stay independently\nenforceable: each is authorized by its own grant, and no grant authorizes two\nof them, so holding one never grants another."
+  - id: golang/coverage/authority_semantic_scope_test.go:TestEveryAuthorityDeclaresExactlyOneKindOfScope
+    file: golang/coverage/authority_semantic_scope_test.go
+    symbol: TestEveryAuthorityDeclaresExactlyOneKindOfScope
+    package: coverage
+    language: go
+    doc: "One record, one kind of scope. covers_paths is authority over the files' own\nrepository truth; owns_state names any other governed truth. A record that\ndeclares a named truth and also covers paths claims authority over code it\nonly implements -- the defect corrected for the task authorities (#389) and\nfor governed promotion over docs/awareness/ (#390 review)."
+  - id: golang/coverage/authority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently
+    file: golang/coverage/authority_semantic_scope_test.go
+    symbol: TestNoTwoAuthoritiesCoverTheSameFilesDifferently
+    package: coverage
+    language: go
+    doc: "The path half of the same rule: two authorities covering overlapping file\ntrees with different facts claim the same repository truth differently.\nGoverned promotion used to cover docs/awareness/ alongside repository\nmutation; a corpus edit there then had two competing owners."
+  - id: golang/coverage/authority_semantic_scope_test.go:TestNoTwoAuthoritiesGovernTheSameTruthDifferently
+    file: golang/coverage/authority_semantic_scope_test.go
+    symbol: TestNoTwoAuthoritiesGovernTheSameTruthDifferently
+    package: coverage
+    language: go
+    doc: "A shared storage location does not imply shared decision authority, but two\nauthorities that govern the SAME truth with different owners, writers or\nmutation paths are a genuine contradiction and must never be authored."
+  - id: golang/coverage/authority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths
+    file: golang/coverage/authority_semantic_scope_test.go
+    symbol: TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths
+    package: coverage
+    language: go
+    doc: "A task-truth authority declares the task truth it governs and claims no\nsource path: its scope is a decision recorded in a task, not the files that\nimplement the recording. Its implementing code must exist, so the briefing\nrelation cannot silently point at nothing."
   - id: golang/coverage/briefing_feedback_ownership_test.go:TestBriefingFeedbackOwnershipBoundary
     file: golang/coverage/briefing_feedback_ownership_test.go
     symbol: TestBriefingFeedbackOwnershipBoundary
@@ -30158,6 +30242,24 @@ test_symbols:
     package: main
     language: go
     doc: "The negative case: a file outside every covers_paths prefix must produce\nZERO authority lines — claiming ownership guidance where no domain matches\nwould teach agents to distrust the guidance everywhere."
+  - id: golang/server/authority_implemented_in_test.go:TestEditingPromotionImplementationWarnsWithoutGoverning
+    file: golang/server/authority_implemented_in_test.go
+    symbol: TestEditingPromotionImplementationWarnsWithoutGoverning
+    package: main
+    language: go
+    doc: "Editing the promotion implementation warns about the promotion authority\nwithout making that code governed by it."
+  - id: golang/server/authority_implemented_in_test.go:TestImplementationNoticesNeverDisplaceObligations
+    file: golang/server/authority_implemented_in_test.go
+    symbol: TestImplementationNoticesNeverDisplaceObligations
+    package: main
+    language: go
+    doc: "#390 review: information must not displace obligation. With the bounded list\nalready full of mandatory actions, no notice enters; with room, notices go\nafter every obligation, never before."
+  - id: golang/server/authority_implemented_in_test.go:TestImplementingCodeIsWarnedButNotGoverned
+    file: golang/server/authority_implemented_in_test.go
+    symbol: TestImplementingCodeIsWarnedButNotGoverned
+    package: main
+    language: go
+    doc: "INV-AUTHORITY-SEMANTIC-SCOPE, briefing half: an agent editing the code that\nimplements an authority learns which authority it enforces, and that the edit\ngrants none of it -- without that code being treated as governed by it."
   - id: golang/server/authority_referent_test.go:TestAllDomainScopedSurfacesProjectTheSameAuthority
     file: golang/server/authority_referent_test.go
     symbol: TestAllDomainScopedSurfacesProjectTheSameAuthority

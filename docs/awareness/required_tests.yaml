@@ -2306,3 +2306,38 @@ required_tests:
     protects:
       failure_modes:
         - failure.an_endpoint_refusal_advised_a_flag_the_command_does_not_acce
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestEditingAuthorityImplementationBindsOnlyRepositoryMutation
+    title: Editing authority-implementing code binds only repository mutation, with no contradiction
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/architecture/closure/authority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict
+    title: Two authorities claiming the same truth with different facts still contradict
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/architecture/completion/abandon_test.go:TestQuestionDispositionGrantCannotAbandonATask
+    title: The question-disposition grant cannot authorize a terminal abandonment
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/architecture/questionpromotion/authority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
+    title: Promotion without repository-mutation authority for its governed-source write is refused and writes nothing
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/architecture/questionresolution/promotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion
+    title: A record written into the corpus by a plain repository edit is not certified as promoted knowledge
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/coverage/authority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently
+    title: No two authorities cover the same files with different authority facts
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap
+  - id: golang/coverage/authority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths
+    title: Task-truth authorities declare their governed truth and implementing code, and cover no source path
+    protects:
+      invariants:
+        - authority.semantic_scope_not_path_overlap

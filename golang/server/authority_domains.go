@@ -44,6 +44,7 @@ type loadedAuthorityDomain struct {
 	EvidenceFreshness string
 	CoversPaths       []string
 	OwnsState         []string
+	ImplementedIn     []string // implementing code: briefing relevance, never authority
 	MayWrite          []string
 	MayRead           []string
 	MustMutateVia     []string
@@ -118,6 +119,8 @@ func classFactsToAuthorityDomains(facts []store.ImpactFact) []loadedAuthorityDom
 			d.CoversPaths = append(d.CoversPaths, f.Object)
 		case rdf.PropOwnsState:
 			d.OwnsState = append(d.OwnsState, f.Object)
+		case rdf.PropAuthorityImplementedIn:
+			d.ImplementedIn = append(d.ImplementedIn, f.Object)
 		case rdf.PropMayWrite:
 			d.MayWrite = append(d.MayWrite, f.Object)
 		case rdf.PropMayRead:
@@ -224,6 +227,63 @@ func authorityForbiddenBypasses(domains []loadedAuthorityDomain) []string {
 		for _, b := range d.ForbidsBypass {
 			out = append(out, "Authority bypass forbidden ["+name+"]: "+b)
 		}
+	}
+	return out
+}
+
+// matchImplementedAuthorities returns the domains whose implementing code
+// (aw:authorityImplementedIn) contains one of the requested files. This is a
+// different relation from matchAuthorityDomains: it does not say the domain
+// governs the file, so its result must never feed authority guidance, risk
+// weighting, repair plans or runtime evidence -- only the implementation
+// notices below (INV-AUTHORITY-SEMANTIC-SCOPE). Every matching domain is
+// returned: several authorities may legitimately be implemented by one file.
+func matchImplementedAuthorities(files []string, domains []loadedAuthorityDomain) []loadedAuthorityDomain {
+	matched := map[string]loadedAuthorityDomain{}
+	for _, file := range files {
+		f := strings.TrimPrefix(strings.TrimSpace(file), "./")
+		if f == "" {
+			continue
+		}
+		for _, d := range domains {
+			for _, prefix := range d.ImplementedIn {
+				p := strings.TrimPrefix(strings.TrimSpace(prefix), "./")
+				if p != "" && (f == p || strings.HasPrefix(f, strings.TrimSuffix(p, "/")+"/")) {
+					matched[d.ID] = d
+				}
+			}
+		}
+	}
+	out := make([]loadedAuthorityDomain, 0, len(matched))
+	for _, d := range matched {
+		out = append(out, d)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// authorityImplementationNotices tells an agent editing implementing code
+// which authority that code enforces, and that the edit confers none of it:
+// the governed truth still changes only through the owner's mutation path.
+func authorityImplementationNotices(domains []loadedAuthorityDomain) []string {
+	var out []string
+	for _, d := range domains {
+		name := d.Label
+		if name == "" {
+			name = d.ID
+		}
+		line := "Implements authority [" + name + "]"
+		if len(d.OwnsState) > 0 {
+			line += " over " + strings.Join(d.OwnsState, ", ")
+		}
+		line += ": editing this code grants no authority over that truth"
+		if d.OwnerService != "" {
+			line += "; its owner is " + d.OwnerService
+		}
+		if len(d.MustMutateVia) > 0 {
+			line += " and it changes only via " + strings.Join(d.MustMutateVia, "; ")
+		}
+		out = append(out, line)
 	}
 	return out
 }

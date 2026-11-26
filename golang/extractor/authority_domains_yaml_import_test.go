@@ -59,6 +59,8 @@ authority_domains:
       - golang/example/example_server/
     owns_state:
       - example manifest
+    implemented_in:
+      - golang/example/enforcer/
     may_write:
       - example service via workflow
     may_write_role_ids:
@@ -95,6 +97,7 @@ authority_domains:
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropOwnerService)+` "example service"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropCoversPath)+` "golang/example/example_server/"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropOwnsState)+` "example manifest"`)
+	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropAuthorityImplementedIn)+` "golang/example/enforcer/"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayWrite)+` "example service via workflow"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayWriteRoleID)+` "role.repository_repair_agent"`)
 	mustContain(t, out, subj+" "+rdf.IRI(rdf.PropMayRead)+` "controller"`)

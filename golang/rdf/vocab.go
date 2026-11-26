@@ -349,9 +349,15 @@ const (
 
 	// Authority-domain properties (Phase 3). v1 flattening: all literals on
 	// the AuthorityDomain node so Preflight surfaces them without traversal.
-	PropCoversPath                 = AwNS + "coversPath"                 // repo-relative path prefix matched against touched files
-	PropOwnerService               = AwNS + "ownerService"               // service that owns the domain's state
-	PropOwnsState                  = AwNS + "ownsState"                  // a state object the domain owns
+	PropCoversPath   = AwNS + "coversPath"   // repo-relative path prefix matched against touched files
+	PropOwnerService = AwNS + "ownerService" // service that owns the domain's state
+	PropOwnsState    = AwNS + "ownsState"    // a state object the domain owns
+	// PropAuthorityImplementedIn names code that IMPLEMENTS or ENFORCES the
+	// domain's authority. It is briefing relevance only: it never binds the
+	// authority to a task, and editing that code grants no authority over the
+	// governed truth (INV-AUTHORITY-SEMANTIC-SCOPE). Distinct from coversPath,
+	// which is authority over the files' own repository truth.
+	PropAuthorityImplementedIn     = AwNS + "authorityImplementedIn"     // repo-relative path prefix of implementing code
 	PropMayWrite                   = AwNS + "mayWrite"                   // writer allowed to mutate the state
 	PropMayRead                    = AwNS + "mayRead"                    // reader allowed to read the state
 	PropMustMutateVia              = AwNS + "mustMutateVia"              // legal mutation path (typed RPC / workflow)
