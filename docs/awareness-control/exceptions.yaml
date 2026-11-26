@@ -153,3 +153,43 @@ exceptions:
     provisional: true
     removal_condition: "Integrate all remediator actions into the workflow engine so none initiates state change outside workflow dispatch."
     evidence: ["services/docs/intent/meta/audit_history_schema.yaml (status: accepted_exception)"]
+  # Break-glass maintainer exception (meta.circular_dependency_must_have_break_glass).
+  # Authorized by the repository owner (davecourtois) on 2026-11-26; architect approval on
+  # #386/#387/#390. Remove immediately after the four merges below.
+  - id: exception.r_closure_01_integration_break_glass
+    kind: temporary_bypass
+    scope:
+      repo: sensei
+      paths: [".github/workflows/", "golang/architecture/", "golang/server/", "golang/extractor/", "golang/rdf/", "cmd/awg/", "ontology/", "docs/awareness/"]
+      command: >
+        Merge, in order, exactly: #391 (runner commit 02c2fb4a plus the commit adding this
+        entry), #386 @ 73056dba, #390 @ 3569ca56,
+        #387 @ cc1f04e2. Architect-reviewed revisions: #386 8fed7ef9, #390 3569ca56,
+        #387 d953bcce. Later commits are generated-artifact regeneration only
+        (make import-graph, build-awareness-graph-self.sh) and the rebase onto #386.
+    reason: >
+      Exactly two exceptional conditions, and nothing else. (1) Sensei's self-admission
+      of R-CLOSURE-01 (task task.bugfix.91d28cf3ba56, isolated clone at 1cf2824a) waits
+      on question.3db9115835032309, whose answer is recorded and architect-accepted
+      but cannot be adjudicated: there is no identity-verified pre-mutation
+      adjudication path (#392). The task is NOT admitted, and no adjudication receipt
+      exists or is created. (2) The required build-and-test check fails only on
+      cmd/principle-check TestExceptionLedger_AllEntriesValid, for six pre-existing
+      expired entries concerning services and Globular (#388). That failure is
+      preserved as-is: no test expectation is changed and no expired entry is
+      extended. Every other CI check on each merged revision must pass. The
+      repair of Sensei's own governance would otherwise have no path through the
+      gates it is repairing.
+    owner: davecourtois
+    created: "2026-11-26"
+    expires: "2026-12-26"
+    review_after: "2026-12-10"
+    provisional: true
+    removal_condition: >
+      Removed in the commit immediately following the fourth merge, whatever the
+      outcome. It never covers any other change. The six #388 entries remain
+      outstanding maintenance obligations and are not renewed by it.
+    evidence:
+      - "globulario/sensei#386, #387, #390 (architect COMMENT reviews), #391 (darwin-arm64 verified on macos-15)"
+      - "globulario/sensei#392 (missing adjudication path), #388 (expired ledger entries)"
+      - "sensei merge-check output per PR at merge time (recorded on each PR)"
