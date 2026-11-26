@@ -729,3 +729,116 @@ func containsBlockingLimitation(limitations []architecture.Limitation, sub strin
 	}
 	return false
 }
+
+func TestInferClaimsPythonProjectProducesBoundObservedClaims(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "state.py"), `class Store:
+    def apply(self, value):
+        if value is None:
+            raise ValueError("required")
+        self.value = value
+`)
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "Test User")
+	commitAll(t, root, "initial")
+	graphPath, digest := writeGraphFixture(t, root, "graph.nt", []string{})
+	reg, err := inference.DefaultRegistry()
+	if err != nil {
+		t.Fatal(err)
+	}
+	opts := inferClaimsOptions{
+		RepositoryDomain: "github.com/example/python", GraphNT: graphPath,
+		GraphDigest: digest, GraphDigestStatus: architecture.GraphDigestResolved,
+	}
+	result, err := buildInferClaimsResult(root, opts, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Document.Claims) != 2 || result.UnboundRevisionReason != "" {
+		t.Fatalf("Python inference did not produce the guard and writer claims: %+v", result)
+	}
+	for _, claim := range result.Document.Claims {
+		if claim.ArchitecturalPlane != architecture.PlaneObserved || claim.EpistemicStatus != architecture.StatusSupported || claim.PromotionStatus != architecture.PromotionCandidate {
+			t.Fatalf("Python syntax changed claim authority: %+v", claim)
+		}
+	}
+	for _, receipt := range result.Document.FactReceipts {
+		if receipt.Fact.Extractor != "python_ast_extractor" || !receipt.Provenance.SourceDigestPinsContent() {
+			t.Fatalf("missing Python source provenance: %+v", receipt)
+		}
+	}
+	// Useful Python observations must not turn missing graph provenance green.
+	opts.GraphNT, opts.GraphDigest, opts.GraphDigestStatus = "", "", architecture.GraphDigestNotRequested
+	unbound, err := buildInferClaimsResult(root, opts, reg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, claim := range unbound.Document.Claims {
+		if claim.EpistemicStatus != architecture.StatusUnknown {
+			t.Fatalf("missing graph binding was certified by Python support: %+v", claim)
+		}
+	}
+}
+
+func TestPythonProjectReconstructionProducesClaimsAndSymbols(t *testing.T) {
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "state.py"), `class Store:
+    def apply(self, value):
+        if value is None:
+            raise ValueError("required")
+        self.value = value
+`)
+	writeFile(t, filepath.Join(root, "docs", "awareness", "invariants.yaml"), `invariants:
+  - id: python.state_required
+    title: State updates reject missing values
+    severity: high
+    protects:
+      files: [src/state.py]
+    required_tests: [tests/test_state.py:StoreTests.test_apply_requires_value]
+`)
+	writeFile(t, filepath.Join(root, "tests", "test_state.py"), `import unittest
+from src.state import Store
+class StoreTests(unittest.TestCase):
+    def test_apply_requires_value(self):
+        with self.assertRaises(ValueError):
+            Store().apply(None)
+`)
+	runGit(t, root, "init")
+	runGit(t, root, "config", "user.email", "test@example.com")
+	runGit(t, root, "config", "user.name", "Test User")
+	writeFile(t, filepath.Join(root, ".gitignore"), "runs/\n")
+	commitAll(t, root, "initial")
+	writeFile(t, filepath.Join(root, "runs", "experiment_source", "copy.py"), "def ignored(value):\n    if value is None:\n        raise ValueError()\n")
+	code, stdout, stderr := captureStdoutStderr(t, func() int {
+		return runImport([]string{"--refresh", root, "--domain", "github.com/example/python", "--depth", "basic"})
+	})
+	if code != 0 {
+		t.Fatalf("Python import code=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+	claims, err := architecture.LoadClaimDocument(filepath.Join(root, ".sensei", "project", "claims.yaml"))
+	if err != nil || len(claims.Claims) == 0 {
+		t.Fatalf("Python reconstruction has no claims: %v", err)
+	}
+	readiness, err := os.ReadFile(filepath.Join(root, ".sensei", "project", "readiness.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readiness), "state: "+readinessReady) || strings.Contains(string(readiness), "code_symbol_count: 0") {
+		t.Fatalf("Python reconstruction is not ready for task assessment: %s", readiness)
+	}
+	code, stdout, stderr = captureStdoutStderr(t, func() int {
+		return runPrepareChange([]string{
+			"--repo", root, "--repo-domain", "github.com/example/python",
+			"--description", "Clarify the Store docstring without changing behavior",
+			"--mode", "modify", "--task-class", "documentation", "--risk-class", "low_risk",
+			"--direction", "not_applicable",
+			"--graph-nt", filepath.Join(root, ".sensei", "project", "graph.nt"),
+			"--file", "modify:src/state.py",
+		})
+	})
+	if code != 0 || !strings.Contains(stdout, "Modify: admitted") {
+		t.Fatalf("Python bounded task not admitted: code=%d stdout=%s stderr=%s", code, stdout, stderr)
+	}
+
+}
