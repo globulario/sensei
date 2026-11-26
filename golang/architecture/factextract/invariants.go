@@ -130,53 +130,46 @@ func buildInvariantExtractionReport(ctx context.Context, root string, opts invar
 	if astStop != nil {
 		limitations = append(limitations, *astStop)
 	}
-	// A repository the extractor cannot see at all must say so, BLOCKING.
-	//
-	// The observation surface is Go: both the semantic pass and the AST pass
-	// read .go files and nothing else. Run over a repository written in another
-	// language, extraction returned an empty report whose only note was a
-	// non-blocking "directory prefix . does not contain main module" — which
-	// reads as "I looked and there was nothing to say" rather than "I cannot
-	// see this language at all".
-	//
-	// Measured on sqlite/sqlite: 315 C files, 0 facts, 0 candidates, 0
-	// authority surfaces, and nothing blocking (globulario/sensei#131 world 3).
-	// An evaluation calibrating against a repository like that would have been
-	// measuring the surface while believing it measured the reasoning.
-	// surfaceFiles comes from the AST pass, which already walked the tree.
-	// Walking it again here would be a second unbounded pass over a large
-	// repository, and one that no deadline reaches.
-	if surfaceFiles == 0 {
+	pythonFacts, pythonFiles, pythonLimitations, err := extractPythonArchitecture(ctx, identity, opts)
+	if err != nil {
+		return invariantExtractionReport{}, err
+	}
+	facts = append(facts, pythonFacts...)
+	limitations = append(limitations, pythonLimitations...)
+	// No supported source files means the extractor is blind, rather than
+	// evidence that the repository has no architectural behavior.
+	if surfaceFiles == 0 && pythonFiles == 0 {
 		limitations = append(limitations, architecture.Limitation{
-			Source:   "go_ast_extractor",
-			Scope:    "repository",
-			Reason:   "this repository contains no files in the extractor's observation surface (Go); an empty result here describes the surface, not the repository",
+			Source: "fact_extraction", Scope: "repository",
+			Reason:   "this repository contains no files in the extractor's observation surface (Go, Python); an empty result here describes the surface, not the repository",
 			Blocking: true,
 		})
 	}
 	facts = append(facts, goFacts...)
 	authority = filterAuthorityByMinConfidence(authority, opts.MinimumConfidence)
-	semantic, semanticErr, semanticAbandoned := boundedSemanticExtract(ctx, root)
-	if semanticAbandoned != nil {
-		limitations = append(limitations, *semanticAbandoned)
-	}
-	if semanticErr != nil {
-		limitations = append(limitations, architecture.Limitation{
-			Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,
-		})
-	} else {
-		for _, observation := range semantic.Observations {
-			if !opts.IncludeTests && observation.Predicate == gosemantics.PredicateTestCallsSymbol {
-				continue
-			}
-			facts = append(facts, invariantFact(identity, observation.Kind, observation.Subject, observation.Predicate,
-				observation.Object, observation.File, observation.Symbol, observation.Line, observation.Line, "",
-				"go_semantic_extractor", observation.Confidence, observation.Meta))
+	if surfaceFiles > 0 {
+		semantic, semanticErr, semanticAbandoned := boundedSemanticExtract(ctx, root)
+		if semanticAbandoned != nil {
+			limitations = append(limitations, *semanticAbandoned)
 		}
-		for _, limitation := range semantic.Limitations {
+		if semanticErr != nil {
 			limitations = append(limitations, architecture.Limitation{
-				Source: "go_semantic_extractor", Scope: limitation.Scope, Reason: limitation.Reason, Blocking: false,
+				Source: "go_semantic_extractor", Scope: "repository", Reason: semanticErr.Error(), Blocking: false,
 			})
+		} else {
+			for _, observation := range semantic.Observations {
+				if !opts.IncludeTests && observation.Predicate == gosemantics.PredicateTestCallsSymbol {
+					continue
+				}
+				facts = append(facts, invariantFact(identity, observation.Kind, observation.Subject, observation.Predicate,
+					observation.Object, observation.File, observation.Symbol, observation.Line, observation.Line, "",
+					"go_semantic_extractor", observation.Confidence, observation.Meta))
+			}
+			for _, limitation := range semantic.Limitations {
+				limitations = append(limitations, architecture.Limitation{
+					Source: "go_semantic_extractor", Scope: limitation.Scope, Reason: limitation.Reason, Blocking: false,
+				})
+			}
 		}
 	}
 	if stop := extractionStopped(ctx, "before the documentation and CI stages"); stop != nil {

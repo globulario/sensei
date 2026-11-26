@@ -4,6 +4,8 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -14,7 +16,10 @@ import (
 	"strings"
 
 	"github.com/globulario/sensei/golang/architecture"
+	"github.com/globulario/sensei/golang/architecture/factextract"
 	"github.com/globulario/sensei/golang/extractor/importgraph"
+	ts "github.com/tree-sitter/go-tree-sitter"
+	tspython "github.com/tree-sitter/tree-sitter-python/bindings/go"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -697,4 +702,79 @@ func renderGenerated(header string, doc any) ([]byte, error) {
 	}
 	enc.Close()
 	return buf.Bytes(), nil
+}
+
+func extractStructuralCodeSymbols(root string, components []bootstrapComponent) ([]bootstrapCodeSymbol, error) {
+	goSymbols, err := extractGoCodeSymbols(root, components)
+	if err != nil {
+		return nil, err
+	}
+	pythonSymbols, err := extractPythonCodeSymbols(root, components)
+	if err != nil {
+		return nil, err
+	}
+	symbols := append(goSymbols, pythonSymbols...)
+	sort.Slice(symbols, func(i, j int) bool { return symbols[i].ID < symbols[j].ID })
+	return symbols, nil
+}
+func extractPythonCodeSymbols(root string, components []bootstrapComponent) ([]bootstrapCodeSymbol, error) {
+	componentByFile := map[string]string{}
+	for _, component := range components {
+		for _, file := range component.SourceFiles {
+			componentByFile[filepath.ToSlash(file)] = component.ID
+		}
+	}
+	files, err := factextract.PythonSourceFiles(context.Background(), root, false)
+	if err != nil {
+		return nil, err
+	}
+	parser := ts.NewParser()
+	defer parser.Close()
+	if err := parser.SetLanguage(ts.NewLanguage(tspython.Language())); err != nil {
+		return nil, err
+	}
+	var symbols []bootstrapCodeSymbol
+	for _, path := range files {
+		src, err := os.ReadFile(path)
+		if err != nil {
+			return nil, err
+		}
+		tree := parser.Parse(src, nil)
+		if tree == nil {
+			return nil, fmt.Errorf("Python parser returned no tree for %s", path)
+		}
+		if tree.RootNode().HasError() {
+			tree.Close()
+			return nil, fmt.Errorf("Python symbol scan could not parse %s", path)
+		}
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			tree.Close()
+			return nil, err
+		}
+		rel = filepath.ToSlash(rel)
+		module := strings.ReplaceAll(strings.TrimSuffix(rel, ".py"), "/", ".")
+		var visit func(*ts.Node, string, string)
+		visit = func(n *ts.Node, scope, parentKind string) {
+			if n.Kind() == "function_definition" || n.Kind() == "class_definition" {
+				name := n.ChildByFieldName("name")
+				scope += "." + string(src[name.StartByte():name.EndByte()])
+				kind := "function"
+				if n.Kind() == "class_definition" {
+					kind = "type"
+				} else if parentKind == "type" {
+					kind = "method"
+				}
+				symbols = append(symbols, bootstrapCodeSymbol{ID: rel + ":" + scope, Namespace: module, Language: "python", File: rel, Symbol: scope, Kind: kind, Component: componentByFile[rel]})
+				parentKind = kind
+			}
+			for i := uint(0); i < n.NamedChildCount(); i++ {
+				visit(n.NamedChild(i), scope, parentKind)
+			}
+		}
+		visit(tree.RootNode(), module, "")
+		tree.Close()
+	}
+	sort.Slice(symbols, func(i, j int) bool { return symbols[i].ID < symbols[j].ID })
+	return symbols, nil
 }
