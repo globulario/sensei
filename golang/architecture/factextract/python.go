@@ -96,6 +96,12 @@ func PythonSourceFiles(ctx context.Context, root string, includeTests bool) ([]s
 		if info.Mode()&os.ModeSymlink != 0 {
 			return nil, fmt.Errorf("symlink in Python source set refused: %s", rel)
 		}
+		// Explicit containment, not only the traversal behaviour of git and
+		// WalkDir: a symlinked PARENT directory must not carry a source out of
+		// the repository.
+		if err := containedSource(root, path); err != nil {
+			return nil, err
+		}
 		if !seen[path] {
 			files = append(files, path)
 			seen[path] = true
@@ -103,6 +109,25 @@ func PythonSourceFiles(ctx context.Context, root string, includeTests bool) ([]s
 	}
 	sort.Strings(files)
 	return files, nil
+}
+
+// containedSource refuses a path whose fully resolved location is not inside
+// the fully resolved repository root, whatever component (file or any parent
+// directory) is a symlink.
+func containedSource(root, path string) error {
+	realRoot, err := filepath.EvalSymlinks(root)
+	if err != nil {
+		return fmt.Errorf("resolve repository root: %w", err)
+	}
+	real, err := filepath.EvalSymlinks(path)
+	if err != nil {
+		return fmt.Errorf("resolve Python source %s: %w", path, err)
+	}
+	rel, err := filepath.Rel(realRoot, real)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || filepath.IsAbs(rel) {
+		return fmt.Errorf("Python source escapes root through a symlinked directory, refused: %s", path)
+	}
+	return nil
 }
 
 // extractPythonArchitecture observes syntax without importing or executing the

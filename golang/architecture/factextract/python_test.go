@@ -4,6 +4,7 @@ package factextract
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
@@ -164,5 +165,81 @@ func TestPythonExtractionHonorsGitIgnoreAndKeepsTrackedSources(t *testing.T) {
 		if strings.HasPrefix(f.Evidence.SourceFile, "runs/") {
 			t.Fatalf("ignored runtime snapshot became a source fact: %+v", f)
 		}
+	}
+}
+
+// #386 review: containment must hold for symlinked PARENT directories, not only
+// for a symlinked file. A directory inside the repository that links outside it
+// must never contribute Python sources — in a Git checkout or a plain directory.
+func TestPythonSourcesNeverEscapeThroughASymlinkedParentDirectory(t *testing.T) {
+	for _, mode := range []string{"git", "plain"} {
+		t.Run(mode, func(t *testing.T) {
+			outside := t.TempDir()
+			writeFile(t, filepath.Join(outside, "secret", "leak.py"), "class Leak:\n    def f(self):\n        self.x = 1\n")
+			root := t.TempDir()
+			writeFile(t, filepath.Join(root, "src", "ok.py"), "class Ok:\n    def f(self):\n        self.y = 1\n")
+			if err := os.Symlink(filepath.Join(outside, "secret"), filepath.Join(root, "src", "linked")); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.Symlink(outside, filepath.Join(root, "vendorish")); err != nil {
+				t.Fatal(err)
+			}
+			if mode == "git" {
+				for _, args := range [][]string{{"init"}, {"config", "user.email", "t@example.com"}, {"config", "user.name", "T"}, {"add", "."}, {"commit", "-m", "init"}} {
+					cmd := exec.Command("git", args...)
+					cmd.Dir = root
+					if out, err := cmd.CombinedOutput(); err != nil {
+						t.Fatalf("git %v: %v %s", args, err, out)
+					}
+				}
+			}
+			files, err := PythonSourceFiles(context.Background(), root, true)
+			if err != nil && !strings.Contains(err.Error(), "refused") && !strings.Contains(err.Error(), "escapes") {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			realOutside, _ := filepath.EvalSymlinks(outside)
+			for _, f := range files {
+				real, rerr := filepath.EvalSymlinks(f)
+				if rerr != nil {
+					t.Fatalf("selected an unresolvable path %s: %v", f, rerr)
+				}
+				if strings.HasPrefix(real, realOutside+string(filepath.Separator)) || strings.Contains(f, "leak.py") {
+					t.Fatalf("a source outside the repository was selected through a symlinked parent: %s -> %s", f, real)
+				}
+			}
+			if err == nil {
+				found := false
+				for _, f := range files {
+					found = found || strings.HasSuffix(f, filepath.Join("src", "ok.py"))
+				}
+				if !found {
+					t.Fatalf("the legitimate source was lost: %v", files)
+				}
+			}
+		})
+	}
+}
+
+// The explicit guard, tested directly: a path through a symlinked parent that
+// leaves the repository is refused; one that stays inside is accepted.
+func TestContainedSourceRefusesEscapeThroughSymlinkedParent(t *testing.T) {
+	outside := t.TempDir()
+	writeFile(t, filepath.Join(outside, "pkg", "leak.py"), "x = 1\n")
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, "src", "ok.py"), "y = 1\n")
+	if err := os.Symlink(filepath.Join(outside, "pkg"), filepath.Join(root, "linked")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(root, "src"), filepath.Join(root, "alias")); err != nil {
+		t.Fatal(err)
+	}
+	if err := containedSource(root, filepath.Join(root, "linked", "leak.py")); err == nil || !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("escape through a symlinked parent was not refused: %v", err)
+	}
+	if err := containedSource(root, filepath.Join(root, "src", "ok.py")); err != nil {
+		t.Fatalf("a contained source was refused: %v", err)
+	}
+	if err := containedSource(root, filepath.Join(root, "alias", "ok.py")); err != nil {
+		t.Fatalf("an in-repository alias was refused: %v", err)
 	}
 }
