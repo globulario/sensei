@@ -390,6 +390,17 @@ func dominanceRoots(blockers []closure.Blocker, edges []DominanceEdge) (map[stri
 	return out, nil
 }
 
+// firstBlockerWithConsequence returns the first non-dominated, non-duplicate
+// blocker whose required next action is the given one.
+func firstBlockerWithConsequence(blockers []ClassifiedBlocker, action string) string {
+	for _, b := range blockers {
+		if b.Consequence == action && b.Disposition != ClassDominated && b.Disposition != ClassDuplicate {
+			return b.ID
+		}
+	}
+	return ""
+}
+
 func blockerClassFromQuestions(ids []string, questions map[string]ClassifiedQuestion) string {
 	best := ClassActiveUnresolved
 	for _, id := range ids {
@@ -579,6 +590,16 @@ func selectNextAction(state TaskControlState, bindingHealthy bool, gov GovernedM
 	}
 	if state.Evidence.Eligible > 0 {
 		return NextAction{Kind: ActionRunStaticEvidence, TargetID: firstEligibleProbe(state.Probes), Summary: "execute the next bounded static evidence batch", CommandHint: "sensei advance-task --active"}
+	}
+	// R-CLOSURE-01 (INV-CLOSURE-LIVENESS): Sensei's own obstructions come
+	// first. A tooling defect is reported as Sensei's, and stale extraction is
+	// refreshed before any participant is asked something the refresh may
+	// change or retire. Neither is presented as a participant's missing input.
+	if id := firstBlockerWithConsequence(state.Blockers, closure.ActionReportToolingDefect); id != "" {
+		return NextAction{Kind: ActionReportToolingDefect, TargetID: id, Summary: "Sensei cannot offer a path out of this blocker; report the governance tooling defect to the Sensei maintainer"}
+	}
+	if id := firstBlockerWithConsequence(state.Blockers, closure.ActionRefreshExtraction); id != "" {
+		return NextAction{Kind: ActionRefreshExtraction, TargetID: id, Summary: "re-extract the claims whose source changed since extraction, then reassess (a refresh may confirm, contradict, replace or retire them)", CommandHint: "sensei import --refresh"}
 	}
 	for _, q := range state.Questions {
 		if q.ResolutionClass == ClassActiveUnresolved {

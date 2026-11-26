@@ -63,6 +63,7 @@ const (
 	ReasonWaitingEvidence                 = "admission.waiting.evidence"
 	ReasonWaitingGovernance               = "admission.waiting.governance"
 	ReasonWaitingMechanicalRepair         = "admission.waiting.mechanical_repair"
+	ReasonWaitingSenseiTooling            = "admission.waiting.sensei_tooling"
 	ReasonScopeOutsideClosedScope         = "admission.scope.outside_closed_scope"
 	ReasonScopeUnrepresented              = "admission.scope.unrepresented"
 	ReasonScopeMissingFile                = "admission.scope.missing_file"
@@ -1678,6 +1679,8 @@ func sessionReasons(b Bundle, mutation string) []Reason {
 				out = append(out, Reason{Code: ReasonWaitingGovernance})
 			case convergence.WaitMechanicalRepair:
 				out = append(out, Reason{Code: ReasonWaitingMechanicalRepair})
+			case convergence.WaitSenseiTooling:
+				out = append(out, Reason{Code: ReasonWaitingSenseiTooling})
 			}
 		}
 	}
@@ -2496,6 +2499,8 @@ func waitingClasses(reasons []Reason) []string {
 			out = append(out, "governance")
 		case ReasonWaitingMechanicalRepair:
 			out = append(out, "mechanical_repair")
+		case ReasonWaitingSenseiTooling:
+			out = append(out, "sensei_tooling")
 		}
 	}
 	return clean(out)

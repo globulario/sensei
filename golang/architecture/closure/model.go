@@ -178,6 +178,7 @@ type Report struct {
 	RelevantClaims    []ClaimReceipt                    `json:"relevant_claims,omitempty" yaml:"relevant_claims,omitempty"`
 	RelevantNodes     []NodeReceipt                     `json:"relevant_nodes,omitempty" yaml:"relevant_nodes,omitempty"`
 	Questions         []QuestionReceipt                 `json:"questions,omitempty" yaml:"questions,omitempty"`
+	EvidencedClaims   []EvidencedClaim                  `json:"evidenced_claims,omitempty" yaml:"evidenced_claims,omitempty"`
 	Limitations       []architecture.Limitation         `json:"limitations,omitempty" yaml:"limitations,omitempty"`
 }
 
@@ -238,6 +239,18 @@ type Blocker struct {
 	EvidenceIDs        []string `json:"evidence_ids,omitempty" yaml:"evidence_ids,omitempty"`
 	Files              []string `json:"files,omitempty" yaml:"files,omitempty"`
 	RequiredNextAction string   `json:"required_next_action" yaml:"required_next_action"`
+	// ClaimDisposition is the authoritative resolution reading of the claims
+	// this blocker names (R-CLOSURE-01). Consumers act on it; they never
+	// re-derive it from the claim.
+	ClaimDisposition string `json:"claim_disposition,omitempty" yaml:"claim_disposition,omitempty"`
+}
+
+// EvidencedClaim is a claim closed by current evidence rather than by a
+// question: the premise facts and the exact source digests that support it.
+type EvidencedClaim struct {
+	ClaimID       string   `json:"claim_id" yaml:"claim_id"`
+	PremiseFacts  []string `json:"premise_facts" yaml:"premise_facts"`
+	SourceDigests []string `json:"source_digests" yaml:"source_digests"`
 }
 
 type Condition struct {
@@ -1187,6 +1200,7 @@ func Evaluate(ctx Context) (Report, error) {
 	resolved := resolveScope(ctx)
 	builder := &assessmentBuilder{ctx: ctx, policy: policy, scope: resolved}
 	builder.verifyBindings()
+	builder.disposeClaims()
 	builder.evaluateQuestions()
 	builder.evaluateClaimConsistency()
 	for _, dim := range DimensionOrder {
@@ -1206,6 +1220,7 @@ func Evaluate(ctx Context) (Report, error) {
 		RelevantClaims:    claimReceipts(resolved.Claims, builder.planeByClaim),
 		RelevantNodes:     nodeReceipts(resolved.Nodes),
 		Questions:         builder.questionReceipts,
+		EvidencedClaims:   builder.evidenced,
 		Limitations:       builder.limitations(),
 	}
 	report.Verdict = calculateVerdict(report, policy)
@@ -1241,6 +1256,8 @@ type assessmentBuilder struct {
 	questionsByClaim map[string][]architecture.OpenQuestion
 	dimQuestionIDs   map[string][]string
 	uncertifiable    map[string]bool
+	dispByClaim      map[string]ClaimDisposition
+	evidenced        []EvidencedClaim
 }
 
 func (b *assessmentBuilder) authorityProjection() authorityProjection {
@@ -1644,7 +1661,7 @@ func (b *assessmentBuilder) evalBehavioral() {
 		case architecture.StatusUnknown:
 			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_unknown", "behavioral claim is unknown", "create_open_question", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusStale:
-			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_stale", "behavioral claim is stale", "create_open_question", []string{c.ID}, nil, nil, []string{binding.TargetFile})
+			b.addOpen(DimensionBehavioral, "high", "closure.behavior.claim_stale", "behavioral claim is stale", b.staleAction(c.ID, "create_open_question"), []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusContested:
 			b.addOpen(DimensionBehavioral, "critical", "closure.behavior.claim_contested", "behavioral claim is contested", "resolve_contradiction", []string{c.ID}, nil, nil, []string{binding.TargetFile})
 		case architecture.StatusRefuted:
@@ -1700,7 +1717,10 @@ func (b *assessmentBuilder) evalEvidence() {
 			b.addOpen(DimensionEvidence, "high", "closure.evidence.claim_unknown", "claim maintenance status is unknown", "create_open_question", []string{c.ID}, nil, nil, nil)
 		}
 		if ev.EvaluatedStatus == architecture.StatusStale {
-			b.addOpen(DimensionEvidence, "high", "closure.evidence.claim_stale", "claim maintenance status is stale", "add_evidence", []string{c.ID}, nil, nil, nil)
+			b.addOpen(DimensionEvidence, "high", "closure.evidence.claim_stale", "claim maintenance status is stale", b.staleAction(c.ID, "add_evidence"), []string{c.ID}, nil, nil, nil)
+		}
+		if b.dispByClaim[c.ID] == DispositionStaleSource {
+			continue // its support is re-read by the re-extraction claim_stale already demands
 		}
 		if ev.ProofLanes.SupportingEvidence.State == maintenance.LaneUnknown || ev.ProofLanes.SupportingEvidence.State == maintenance.LaneStale {
 			b.addOpen(DimensionEvidence, "high", "closure.evidence.support_missing", "supporting evidence lane is not current", "add_evidence", []string{c.ID}, nil, nil, nil)
@@ -1826,6 +1846,9 @@ func (b *assessmentBuilder) evalAgent() {
 	for _, c := range b.scope.Claims {
 		_, hasQ := b.questionsByClaim[c.ID]
 		a := b.planeByClaim[c.ID]
+		if d := b.dispByClaim[c.ID]; d == DispositionEvidencedCurrent || d == DispositionStaleSource {
+			continue // closed by recorded evidence, or routed to re-extraction by evalEvidence
+		}
 		if !hasQ && (oneOf(c.EpistemicStatus, architecture.StatusUnknown, architecture.StatusStale, architecture.StatusContested, architecture.StatusRefuted) ||
 			oneOf(a.PlaneState, plane.StateUnderSupported, plane.StateInvalid, plane.StateUnknown, plane.StateStale)) {
 			b.addOpen(DimensionAgent, "high", "closure.question.missing_artifact", "claim or plane unknown lacks OpenQuestion artifact", "create_open_question", []string{c.ID}, nil, nil, nil)
@@ -1836,6 +1859,7 @@ func (b *assessmentBuilder) evalAgent() {
 			b.addOpen(DimensionAgent, "medium", "closure.agent.required_test_unidentified", "write or high-risk scope has no identifiable required Test", "add_test", nil, nil, nil, nil)
 		}
 	}
+	b.checkLiveness()
 }
 
 func resolveScope(ctx Context) resolvedScope {
@@ -1975,7 +1999,68 @@ func (b *assessmentBuilder) addBlocker(bl Blocker) {
 	bl.EvidenceIDs = cleanList(bl.EvidenceIDs)
 	bl.Files = cleanPathList(bl.Files)
 	bl.ID = blockerID(bl)
+	if len(bl.ClaimIDs) > 0 && bl.ClaimDisposition == "" {
+		var ds []ClaimDisposition
+		for _, id := range bl.ClaimIDs {
+			if d, ok := b.dispByClaim[id]; ok {
+				ds = append(ds, d)
+			}
+		}
+		bl.ClaimDisposition = string(combineDispositions(ds))
+	}
 	b.blockers = append(b.blockers, bl)
+}
+
+// disposeClaims computes the one disposition of every claim in scope from this
+// assessment's maintenance evaluation, and records the evidence of each claim
+// that closes on current evidence (R-CLOSURE-01).
+func (b *assessmentBuilder) disposeClaims() {
+	b.dispByClaim = map[string]ClaimDisposition{}
+	receipts := factReceiptsByID(b.ctx.Claims)
+	for _, c := range b.scope.Claims {
+		var ev *maintenance.ClaimEvaluation
+		if e, ok := b.maintByClaim[c.ID]; ok {
+			ev = &e
+		}
+		d := DisposeClaim(c, receipts, ev)
+		b.dispByClaim[c.ID] = d
+		if d == DispositionEvidencedCurrent {
+			rec := EvidencedClaim{ClaimID: c.ID, PremiseFacts: append([]string{}, c.PremiseFacts...)}
+			for _, id := range c.PremiseFacts {
+				rec.SourceDigests = append(rec.SourceDigests, receipts[id].Provenance.SourceDigest)
+			}
+			b.evidenced = append(b.evidenced, rec)
+		}
+	}
+}
+
+// staleAction routes a stale claim: a stale source-derived claim is refreshed
+// by re-extraction, never by a question nobody can answer.
+func (b *assessmentBuilder) staleAction(claimID, otherwise string) string {
+	if b.dispByClaim[claimID] == DispositionStaleSource {
+		return ActionRefreshExtraction
+	}
+	return otherwise
+}
+
+// checkLiveness enforces INV-CLOSURE-LIVENESS: every blocker has a registered
+// discharge path, and none demands a question for a claim no question can
+// resolve. A violation is Sensei's own defect and is reported as such.
+func (b *assessmentBuilder) checkLiveness() {
+	var defects []Blocker
+	for _, bl := range b.blockers {
+		if bl.Code == "closure.tooling.no_discharge_path" {
+			continue
+		}
+		if why := livenessDefect(bl); why != "" {
+			defects = append(defects, Blocker{Dimension: DimensionAgent, Severity: "critical", Code: "closure.tooling.no_discharge_path",
+				Summary: "governance tooling defect: " + why + " (blocker " + bl.ID + ")", ClaimIDs: bl.ClaimIDs,
+				Files: bl.Files, RequiredNextAction: ActionReportToolingDefect, ClaimDisposition: string(DispositionToolingDefect)})
+		}
+	}
+	for _, d := range defects {
+		b.addBlocker(d)
+	}
 }
 
 func (b *assessmentBuilder) addCondition(dim, code, summary, questionID string) {

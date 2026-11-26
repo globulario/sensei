@@ -8,11 +8,18 @@ import (
 
 	"github.com/globulario/sensei/golang/architecture"
 	"github.com/globulario/sensei/golang/architecture/closure"
+	"github.com/globulario/sensei/golang/architecture/maintenance"
 )
 
 // evidenceCtx is a context whose single blocker asks for evidence about one
 // derived observed claim, with the premise receipt the claim cites.
 func evidenceCtx(t *testing.T, mutate func(*architecture.Claim, *architecture.ClaimFactReceipt)) Context {
+	t.Helper()
+	return evidenceCtxWithEval(t, mutate, nil)
+}
+
+// evidenceCtxWithEval also lets a case change what maintenance verified.
+func evidenceCtxWithEval(t *testing.T, mutate func(*architecture.Claim, *architecture.ClaimFactReceipt), mutateEval func(*maintenance.ClaimEvaluation)) Context {
 	t.Helper()
 	ctx := questionGenContext()
 	fact := architecture.Fact{
@@ -34,16 +41,28 @@ func evidenceCtx(t *testing.T, mutate func(*architecture.Claim, *architecture.Cl
 		AssertionOrigin: architecture.OriginDerived, PremiseFacts: []string{fact.ID},
 		Statement: architecture.ClaimStatement{Subject: "cluster/state", Predicate: "has_observed_writer_set", Object: "doctor.Configured"},
 	}
+	// R-CLOSURE-01: maintenance has verified, this assessment, that the
+	// premise digest still matches the file. Without that verification a
+	// pinned digest proves nothing about the current source.
+	eval := maintenance.ClaimEvaluation{ClaimID: claim.ID, EvaluatedStatus: architecture.StatusSupported,
+		ProofLanes: maintenance.ProofLanes{PremiseFacts: maintenance.LaneState{State: maintenance.LaneCurrent}}}
 	if mutate != nil {
 		mutate(&claim, &receipt)
 	}
+	if mutateEval != nil {
+		mutateEval(&eval)
+	}
 	ctx.Claims.Claims = []architecture.Claim{claim}
 	ctx.Claims.FactReceipts = []architecture.ClaimFactReceipt{receipt}
+	// The disposition is closure's, computed by the one authoritative function;
+	// question generation only consumes it.
+	disp := closure.DisposeClaim(claim, map[string]architecture.ClaimFactReceipt{fact.ID: receipt}, &eval)
 	ctx.Closure.Blockers = []closure.Blocker{{
 		ID: "blocker.evidence.abcdef012345", Dimension: closure.DimensionEvidence,
 		Severity: architecture.QuestionPriorityHigh, Code: "closure.evidence.claim_unknown",
 		Summary: "Claim has no evidence.", ClaimIDs: []string{claim.ID},
 		Files: []string{"internal/doctor/doctor.go"}, RequiredNextAction: "add_evidence",
+		ClaimDisposition: string(disp),
 	}}
 	return ctx
 }
@@ -97,6 +116,19 @@ func TestQuestionsThatAreStillAsked(t *testing.T) {
 		{"a claim with no premises at all", func(t *testing.T) Context {
 			return evidenceCtx(t, func(c *architecture.Claim, _ *architecture.ClaimFactReceipt) {
 				c.PremiseFacts = nil
+			})
+		}},
+		// R-CLOSURE-01: a pinned digest that no longer matches the file is not
+		// self-evidence; the source the extractor read is gone.
+		{"a premise whose source changed since extraction", func(t *testing.T) Context {
+			return evidenceCtxWithEval(t, nil, func(e *maintenance.ClaimEvaluation) {
+				e.EvaluatedStatus = architecture.StatusStale
+				e.ProofLanes.PremiseFacts.State = maintenance.LaneStale
+			})
+		}},
+		{"a premise whose freshness was never verified", func(t *testing.T) Context {
+			return evidenceCtxWithEval(t, nil, func(e *maintenance.ClaimEvaluation) {
+				e.ProofLanes.PremiseFacts.State = maintenance.LaneUnknown
 			})
 		}},
 	}

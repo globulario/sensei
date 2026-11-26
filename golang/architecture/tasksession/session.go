@@ -1599,6 +1599,14 @@ func buildSession(req TaskRequest, refs ArtifactRefs, conv convergence.StatusRep
 }
 
 func statusFromWait(waiting []string) string {
+	// A Sensei tooling defect outranks every participant wait: no participant
+	// can discharge it, so reporting "waiting on architect" would misattribute
+	// Sensei's own obstruction (INV-CLOSURE-LIVENESS).
+	for _, w := range waiting {
+		if w == convergence.WaitSenseiTooling {
+			return StatusUncertifiable
+		}
+	}
 	for _, w := range waiting {
 		switch w {
 		case convergence.WaitArchitect:
