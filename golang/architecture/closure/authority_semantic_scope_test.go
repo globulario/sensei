@@ -150,3 +150,37 @@ func TestDistinctTruthsInOneLedgerAndOneFileDoNotContradict(t *testing.T) {
 		t.Fatalf("each truth must bind its own authority: %v", byState)
 	}
 }
+
+// #390 review, governed promotion: an ordinary documentation correction to the
+// authored corpus is governed by repository mutation alone. Promotion governs
+// whether knowledge is promoted, not edits to docs/awareness/, so the two do not
+// compete for the file.
+func TestCorpusCorrectionBindsOnlyRepositoryMutation(t *testing.T) {
+	file := "docs/awareness/invariants.yaml"
+	root := authoredFileRoot(t, file)
+	graph := mergeGraphs(
+		sourceFileGraph(file),
+		authorityDomainGraph("authority.repo", authorityDomainOptions{
+			CoversPaths:   []string{"docs/awareness/"},
+			OwnerServices: []string{"service.repository_governance"},
+			MayWrite:      []string{"role.repository_repair_agent"},
+			MustMutateVia: []string{"mutation_path.repository_edit"},
+			TruthLayers:   []string{"repository"},
+		}),
+		taskAuthority("authority.promotion", "governed_knowledge.promoted_record",
+			"golang/architecture/questionpromotion/", "service.question_promotion", "mutation_path.governed_promotion"),
+	)
+	req := validRequest()
+	req.Scope.Files = []string{file}
+	req.Scope.AccessMode = AccessWrite
+	report, err := Evaluate(validContext(t, root, req, graph))
+	if err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	assertNoAuthorityBlocker(t, report, "closure.authority.applicable_records_contradict")
+	for _, b := range report.AuthorityBindings {
+		if b.TargetFile == file && b.AuthorityDomainID != "authority.repo" {
+			t.Fatalf("corpus edit bound to %s", b.AuthorityDomainID)
+		}
+	}
+}

@@ -80,3 +80,25 @@ func TestImplementationNoticesNeverDisplaceObligations(t *testing.T) {
 		t.Fatalf("obligation not first: %v", got)
 	}
 }
+
+// Editing the promotion implementation warns about the promotion authority
+// without making that code governed by it.
+func TestEditingPromotionImplementationWarnsWithoutGoverning(t *testing.T) {
+	domains := []loadedAuthorityDomain{
+		{ID: "authority.repo", CoversPaths: []string{"golang/architecture/", "docs/awareness/"}, OwnerService: "service.repo"},
+		{ID: "authority.promotion", Label: "Governed promotion", OwnsState: []string{"governed_knowledge.promoted_record"},
+			ImplementedIn: []string{"golang/architecture/questionpromotion/"}, OwnerService: "service.promotion",
+			MustMutateVia: []string{"governed promotion"}},
+	}
+	file := []string{"golang/architecture/questionpromotion/promote.go"}
+	if g := matchAuthorityDomains(file, domains); len(g) != 1 || g[0].ID != "authority.repo" {
+		t.Fatalf("governing = %v", ids(g))
+	}
+	impl := matchImplementedAuthorities(file, domains)
+	if len(impl) != 1 || !strings.Contains(authorityImplementationNotices(impl)[0], "governed_knowledge.promoted_record") {
+		t.Fatalf("no promotion notice: %v", ids(impl))
+	}
+	if g := matchImplementedAuthorities([]string{"docs/awareness/invariants.yaml"}, domains); len(g) != 0 {
+		t.Fatalf("a corpus edit was reported as promotion implementation: %v", ids(g))
+	}
+}

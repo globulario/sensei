@@ -2363,4 +2363,7 @@ invariants:
       - golang/architecture/closure/authority_semantic_scope_test.go:TestTwoAuthoritiesClaimingTheSameTruthStillContradict
       - golang/coverage/authority_semantic_scope_test.go:TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths
       - golang/architecture/completion/abandon_test.go:TestQuestionDispositionGrantCannotAbandonATask
+      - golang/architecture/questionpromotion/authority_composition_test.go:TestPromotionRequiresRepositoryMutationAuthorityForItsWrite
+      - golang/architecture/questionresolution/promotion_bypass_test.go:TestRepositoryEditOfTheRecordDoesNotSubstituteForPromotion
+      - golang/coverage/authority_semantic_scope_test.go:TestNoTwoAuthoritiesCoverTheSameFilesDifferently
     contract: closure binds a task to an authority only through the truth it governs (covers_paths for repository truth, owns_state for any other); implemented_in never binds; each separated authority keeps its own grant

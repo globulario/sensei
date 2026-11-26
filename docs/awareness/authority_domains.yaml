@@ -70,8 +70,18 @@ authority_domains:
     truth_layer: repository
     owner_service: service.sensei.question_promotion
     evidence_freshness: promotion binds the exact disposition receipt, committed source manifest, and rebuilt repository graph by digest
-    covers_paths:
-      - docs/awareness/
+    # Semantic scope (INV-AUTHORITY-SEMANTIC-SCOPE): this authority establishes
+    # whether reusable knowledge may be promoted. It does not govern edits to
+    # docs/awareness/, which stay under repository mutation. A promotion
+    # satisfies BOTH: this authority for the promotion, and repository mutation
+    # for the governed-source file it writes. A plain edit of the corpus is not
+    # a promotion: without a committed promotion receipt the record is not
+    # promoted truth.
+    owns_state:
+      - governed_knowledge.promoted_record
+    implemented_in:
+      - golang/architecture/questionpromotion/
+      - cmd/awg/cmd_promote_answer.go
     may_write:
       - repository repair agent
     may_write_role_ids:

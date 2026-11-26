@@ -78,6 +78,26 @@ func TestTaskTruthAuthoritiesAreScopedToTheirTruthNotToSourcePaths(t *testing.T)
 	}
 }
 
+// One record, one kind of scope. covers_paths is authority over the files' own
+// repository truth; owns_state names any other governed truth. A record that
+// declares a named truth and also covers paths claims authority over code it
+// only implements -- the defect corrected for the task authorities (#389) and
+// for governed promotion over docs/awareness/ (#390 review).
+func TestEveryAuthorityDeclaresExactlyOneKindOfScope(t *testing.T) {
+	_, auths := loadScopedAuthorities(t)
+	for _, a := range auths {
+		if a.Status != "active" {
+			continue
+		}
+		switch {
+		case len(a.OwnsState) > 0 && len(a.CoversPaths) > 0:
+			t.Errorf("%s owns %v and also covers paths %v", a.ID, a.OwnsState, a.CoversPaths)
+		case len(a.OwnsState) == 0 && len(a.CoversPaths) == 0:
+			t.Errorf("%s declares no scope at all", a.ID)
+		}
+	}
+}
+
 // A shared storage location does not imply shared decision authority, but two
 // authorities that govern the SAME truth with different owners, writers or
 // mutation paths are a genuine contradiction and must never be authored.
@@ -100,6 +120,46 @@ func TestNoTwoAuthoritiesGovernTheSameTruthDifferently(t *testing.T) {
 				t.Errorf("%s and %s both govern %q with different authority facts", prev.ID, a.ID, s)
 			}
 			byState[s] = a
+		}
+	}
+}
+
+// The path half of the same rule: two authorities covering overlapping file
+// trees with different facts claim the same repository truth differently.
+// Governed promotion used to cover docs/awareness/ alongside repository
+// mutation; a corpus edit there then had two competing owners.
+func TestNoTwoAuthoritiesCoverTheSameFilesDifferently(t *testing.T) {
+	_, auths := loadScopedAuthorities(t)
+	facts := func(a scopedAuthority) string {
+		w := append([]string(nil), a.MayWriteRoleIDs...)
+		m := append([]string(nil), a.MustMutateViaIDs...)
+		sort.Strings(w)
+		sort.Strings(m)
+		return a.OwnerService + "|" + strings.Join(w, ",") + "|" + strings.Join(m, ",")
+	}
+	overlaps := func(a, b string) bool {
+		a, b = strings.TrimSuffix(a, "/")+"/", strings.TrimSuffix(b, "/")+"/"
+		return strings.HasPrefix(a, b) || strings.HasPrefix(b, a)
+	}
+	var active []scopedAuthority
+	for _, a := range auths {
+		if a.Status == "active" {
+			active = append(active, a)
+		}
+	}
+	for i := range active {
+		for j := i + 1; j < len(active); j++ {
+			a, b := active[i], active[j]
+			if facts(a) == facts(b) {
+				continue
+			}
+			for _, pa := range a.CoversPaths {
+				for _, pb := range b.CoversPaths {
+					if overlaps(pa, pb) {
+						t.Errorf("%s (%s) and %s (%s) cover the same files with different authority facts", a.ID, pa, b.ID, pb)
+					}
+				}
+			}
 		}
 	}
 }

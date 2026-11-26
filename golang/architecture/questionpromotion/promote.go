@@ -27,7 +27,16 @@ const (
 	MechanismPathPromotion   = "mutation_path.governed_promotion"
 	TargetKindGovernedRecord = "governed_record"
 	promotionOperationID     = "op.promote.governed_record"
-	promotionRiskClass       = "architecture_sensitive"
+	// Promotion establishes reusable knowledge AND writes a governed source file.
+	// The two are distinct authorization obligations (architect ruling on #390):
+	// the write is also authorized by repository mutation, through the same
+	// resolver, so promotion never acquires a repository write the repository
+	// authority would refuse.
+	DomainRepositoryMutation    = "authority.sensei_repository_mutation"
+	MechanismPathRepositoryEdit = "mutation_path.repository_edit"
+	TargetKindGovernedSource    = "governed_source"
+	governedSourceOperationID   = "op.write.governed_source"
+	promotionRiskClass          = "architecture_sensitive"
 )
 
 // Outcome is the closed set of promotion transaction outcomes.
@@ -186,6 +195,9 @@ func prepare(req PromoteRequest) (QuestionPromotionReceipt, string, error) {
 	}
 	if plan.IsCandidate {
 		return QuestionPromotionReceipt{}, "", refusal(OutcomeIneligibleDisposition, "promotion target must be a governed kind, not a candidate")
+	}
+	if err := resolveGovernedSourceWriteAuthority(index, binding, verified, evaluatedAt, taskDir, plan.TargetRelPath); err != nil {
+		return QuestionPromotionReceipt{}, "", refusal(OutcomeAuthorityRefusal, "%v", err)
 	}
 	nodeIRI := GovernedNodeIRIFor(req.Proposal.Kind, plan.CanonicalID)
 	if nodeIRI == "" {
@@ -347,4 +359,55 @@ func resolvePromotionAuthority(index authority.PolicyIndex, binding closureproto
 		return "", "", fmt.Errorf("no verified role authorizes %s", GrantGovernedPromotion)
 	}
 	return GrantGovernedPromotion, role, nil
+}
+
+// resolveGovernedSourceWriteAuthority requires the repository-mutation
+// authority for the one governed source file the promotion will write. Holding
+// the promotion grant does not confer this: a promotion whose actor may not
+// edit the governed source is refused before anything is written.
+func resolveGovernedSourceWriteAuthority(index authority.PolicyIndex, binding closureprotocol.ActorBinding, verified authority.VerifiedActor, evaluatedAt time.Time, taskDir, target string) error {
+	if strings.TrimSpace(target) == "" {
+		return fmt.Errorf("promotion names no governed source to write")
+	}
+	ra, err := admission.LoadRecordedAuthority(taskDir)
+	if err != nil {
+		return fmt.Errorf("load recorded authority: %w", err)
+	}
+	plan := closureprotocol.ChangePlan{
+		PlanID: "plan.promote.write." + ra.Base.Task.ID,
+		Operations: []closureprotocol.ChangeOperation{{
+			OperationID:       governedSourceOperationID,
+			Kind:              closureprotocol.OperationModify,
+			TargetKind:        TargetKindGovernedSource,
+			Target:            target,
+			SelectedMechanism: closureprotocol.MechanismRepositoryEdit,
+			RiskClass:         promotionRiskClass,
+		}},
+	}
+	app := []authority.AuthorityApplicability{{
+		OperationID:                 governedSourceOperationID,
+		TargetFile:                  target,
+		AuthorityDomainIDs:          []string{DomainRepositoryMutation},
+		RequiredRuntimeMechanismIDs: []string{MechanismPathRepositoryEdit},
+	}}
+	resolution, err := admission.ResolveAuthority(index, admission.ResolveAuthorityInput{
+		Actor:                            binding,
+		VerifiedActor:                    verified,
+		Base:                             ra.Base,
+		ChangePlan:                       plan,
+		Applicability:                    app,
+		PolicyID:                         ra.Base.Policies.Admission,
+		ClosureAssessmentDigestSHA256:    ra.Resolution.ClosureAssessmentDigestSHA256,
+		AuthorityPolicyGraphDigestSHA256: closureprotocol.MustSemanticDigest(index),
+		EvaluatedAt:                      evaluatedAt.UTC().Format(time.RFC3339),
+	})
+	if err != nil {
+		return fmt.Errorf("resolve governed-source write authority: %w", err)
+	}
+	for _, op := range resolution.OperationResults {
+		if op.OperationID == governedSourceOperationID && op.Status == closureprotocol.ReceiptValid {
+			return nil
+		}
+	}
+	return fmt.Errorf("governed-source write to %s not authorized by %s", target, DomainRepositoryMutation)
 }
