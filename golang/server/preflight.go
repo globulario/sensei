@@ -232,9 +232,10 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	// Authority-domain matching (Phase 3) — deterministic path-prefix
 	// containment against aw:coversPath. A load error skips authority
 	// guidance entirely; we never invent ownership facts.
-	var authorityDomains []loadedAuthorityDomain
+	var authorityDomains, implementedAuthorities []loadedAuthorityDomain
 	if loaded, err := s.loadAuthorityDomains(ctx); err == nil {
 		authorityDomains = matchAuthorityDomains(files, loaded)
+		implementedAuthorities = matchImplementedAuthorities(files, loaded)
 	}
 
 	// Cap each list per mode (sorted by severity-then-id for determinism).
@@ -345,6 +346,13 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 			authorityRequiredActions(authorityDomains), resp.RequiredActions, caps.actionEntries)
 		resp.ForbiddenFixes = prependBounded(
 			authorityForbiddenBypasses(authorityDomains), resp.ForbiddenFixes, caps.actionEntries)
+	}
+	// Implementing code (aw:authorityImplementedIn): the agent learns which
+	// authority the code enforces without acquiring it. Kept apart from
+	// authorityDomains so it never counts as governing the file.
+	if len(implementedAuthorities) > 0 {
+		resp.RequiredActions = prependBounded(
+			authorityImplementationNotices(implementedAuthorities), resp.RequiredActions, caps.actionEntries)
 	}
 
 	// Repair-plan guidance (Phase 2B). When a touched file is in an authority
