@@ -347,13 +347,6 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 		resp.ForbiddenFixes = prependBounded(
 			authorityForbiddenBypasses(authorityDomains), resp.ForbiddenFixes, caps.actionEntries)
 	}
-	// Implementing code (aw:authorityImplementedIn): the agent learns which
-	// authority the code enforces without acquiring it. Kept apart from
-	// authorityDomains so it never counts as governing the file.
-	if len(implementedAuthorities) > 0 {
-		resp.RequiredActions = prependBounded(
-			authorityImplementationNotices(implementedAuthorities), resp.RequiredActions, caps.actionEntries)
-	}
 
 	// Repair-plan guidance (Phase 2B). When a touched file is in an authority
 	// domain a plan repairs — or the task names a finding class it addresses —
@@ -492,6 +485,15 @@ func (s *server) Preflight(ctx context.Context, req *awarenesspb.PreflightReques
 	if _, degraded := protectionAssessmentDegradedReason(protAssessment); degraded {
 		resp.Status = awarenesspb.PreflightStatus_PREFLIGHT_STATUS_DEGRADED
 	}
+
+	// Implementing code (aw:authorityImplementedIn): the agent learns which
+	// authority the code enforces without acquiring it. Kept apart from
+	// authorityDomains so it never counts as governing the file. These notices
+	// are information, not obligations: they are added LAST and only into
+	// capacity the obligations left free, so they can never displace a
+	// mandatory action from the bounded list (#390 review).
+	resp.RequiredActions = appendInformational(resp.RequiredActions,
+		authorityImplementationNotices(implementedAuthorities), caps.actionEntries)
 
 	// Status: EMPTY only when truly nothing returned AND coverage was deemed sufficient.
 	// (Insufficient coverage already steers risk to UNKNOWN_IMPACT — that's
@@ -959,6 +961,28 @@ func stripPatternRefRole(s string) string {
 // prependBounded places head entries before tail, deduplicates, and caps the
 // merged list. Used to surface authority guidance through the existing
 // bounded action lists without exceeding the per-mode entry budget.
+// appendInformational adds informational lines after the obligations, only
+// while the bounded list has room. An obligation is never dropped or reordered
+// to make space for information.
+func appendInformational(obligations, info []string, cap int) []string {
+	out := obligations
+	seen := map[string]bool{}
+	for _, s := range obligations {
+		seen[s] = true
+	}
+	for _, s := range info {
+		if len(out) >= cap {
+			break
+		}
+		if s == "" || seen[s] {
+			continue
+		}
+		seen[s] = true
+		out = append(out, s)
+	}
+	return out
+}
+
 func prependBounded(head, tail []string, cap int) []string {
 	out := make([]string, 0, cap)
 	seen := map[string]bool{}

@@ -62,3 +62,21 @@ func ids(ds []loadedAuthorityDomain) []string {
 	}
 	return out
 }
+
+// #390 review: information must not displace obligation. With the bounded list
+// already full of mandatory actions, no notice enters; with room, notices go
+// after every obligation, never before.
+func TestImplementationNoticesNeverDisplaceObligations(t *testing.T) {
+	notices := []string{"Implements authority [A]: ...", "Implements authority [B]: ..."}
+	full := []string{"o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8"}
+	if got := appendInformational(append([]string(nil), full...), notices, 8); strings.Join(got, "|") != strings.Join(full, "|") {
+		t.Fatalf("a full obligation list changed: %v", got)
+	}
+	got := appendInformational([]string{"o1", "o2", "o3", "o4", "o5", "o6", "o7"}, notices, 8)
+	if len(got) != 8 || got[6] != "o7" || got[7] != notices[0] {
+		t.Fatalf("notices must only fill spare capacity after the obligations: %v", got)
+	}
+	if got := appendInformational([]string{"o1"}, notices, 8); len(got) != 3 || got[0] != "o1" {
+		t.Fatalf("obligation not first: %v", got)
+	}
+}
